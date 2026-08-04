@@ -32,6 +32,7 @@ pnpm infra:up           # sobe keycloak, keycloak-db e api-db
 
 # desenvolvimento
 pnpm dev                # sobe api + web via turbo
+# web -> http://localhost:3000   |   api -> http://localhost:3001
 ```
 
 ## Scripts (raiz)
@@ -47,5 +48,8 @@ pnpm dev                # sobe api + web via turbo
 
 Filtrar por app: `pnpm --filter api <script>` ou `pnpm --filter web <script>`.
 
-> **Nota:** por padrão Nest e Next escutam na porta `3000`. Ao começar a codar, rode a API em outra
-> porta (ex.: `PORT=3001`) para evitar conflito com a `web`.
+> **Portas:** a `web` fica na `3000` e a `api` na `3001` (o `main.ts` da API lê `process.env.PORT` com
+> fallback `3001`), então não há conflito entre os dois.
+
+> **Nota:** para um app entrar no `pnpm dev`, ele precisa ter um script chamado **`dev`** no seu
+> `package.json` — o `turbo run dev` ignora silenciosamente quem não tiver, sem erro nenhum.

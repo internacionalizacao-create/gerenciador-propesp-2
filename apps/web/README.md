@@ -1,36 +1,74 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# web — gerenciador (frontend)
 
-## Getting Started
+Frontend do sistema **gerenciador**, construído com [Next.js 16](https://nextjs.org) (App Router),
+React 19 e [Tailwind CSS 4](https://tailwindcss.com). Faz parte do monorepo — veja o
+[README da raiz](../../README.md) para a visão geral.
 
-First, run the development server:
+> **Atenção:** esta versão do Next.js tem mudanças de API em relação a versões anteriores. Consulte a
+> documentação que acompanha o pacote em `node_modules/next/dist/docs/` antes de codar — veja
+> [AGENTS.md](AGENTS.md).
+
+## Pré-requisitos
+
+- Dependências instaladas a partir da **raiz** do monorepo: `pnpm install`
+
+## Como rodar
+
+A partir da **raiz** do monorepo (recomendado):
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm --filter web dev       # dev server -> http://localhost:3000
+pnpm --filter web build     # build de produção -> .next/
+pnpm --filter web start     # serve o build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Ou tudo de uma vez (api + web) via turbo: `pnpm dev`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+> **Porta:** o Next sobe em `http://localhost:3000` por padrão. Como o Nest usa a mesma porta, a
+> convenção do monorepo é manter a **web em 3000** e subir a **api em 3001**. Para trocar:
+> `pnpm --filter web dev --port 3002` ou `PORT=3002 pnpm --filter web dev`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Estrutura
 
-## Learn More
+```
+src/app/
+├─ layout.tsx      # root layout (fontes Geist + globals.css)
+├─ page.tsx        # rota "/"
+├─ globals.css     # Tailwind + design tokens
+└─ favicon.ico
+public/            # assets estáticos servidos na raiz da URL
+```
 
-To learn more about Next.js, take a look at the following resources:
+Roteamento é por **App Router**: cada diretório em `src/app/` vira um segmento de rota, e arquivos
+especiais (`page.tsx`, `layout.tsx`, `loading.tsx`, `error.tsx`) definem o comportamento do segmento.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Estilos
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Tailwind CSS 4 via plugin PostCSS ([postcss.config.mjs](postcss.config.mjs)) — não existe
+`tailwind.config.js`. A configuração fica no próprio CSS, em
+[src/app/globals.css](src/app/globals.css):
 
-## Deploy on Vercel
+- `@import "tailwindcss";` carrega o framework
+- `@theme inline { ... }` declara os design tokens (cores, fontes) como variáveis do tema
+- as cores respeitam `prefers-color-scheme` (tema claro/escuro) via `:root`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+As fontes **Geist** e **Geist Mono** são carregadas por `next/font/google` no root layout e expostas
+como `--font-geist-sans` / `--font-geist-mono`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Scripts úteis
+
+| Script | Ação |
+|---|---|
+| `dev` | Dev server com hot-reload |
+| `build` | Build de produção em `.next/` |
+| `start` | Serve o build de produção |
+| `lint` | ESLint (`eslint-config-next`) |
+
+## SSO (Keycloak)
+
+A web deve autenticar contra o Keycloak (client público, fluxo *authorization code* + PKCE) e enviar o
+access token para a API. A infra do Keycloak já está pronta em
+[infra/](../../infra/README.md); a integração em código fica para depois.
+
+> **Nota:** este é o scaffold inicial do `create-next-app` — a home de exemplo (`page.tsx`), os SVGs em
+> `public/` e o `metadata` ("Create Next App") em `layout.tsx` serão limpos antes de codar.

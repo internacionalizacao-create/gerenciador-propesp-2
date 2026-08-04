@@ -26,7 +26,7 @@ services:
   # Keycloak (SSO) — modo dev, com auto-import de realm a partir de ./keycloak/import
   # ---------------------------------------------------------------------------
   keycloak:
-    image: quay.io/keycloak/keycloak:26.3 # confirme a tag estável mais recente da série 26.x
+    image: quay.io/keycloak/keycloak:26.7.0
     container_name: gerenciador-keycloak
     restart: unless-stopped
     command: start-dev --import-realm
