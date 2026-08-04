@@ -1,0 +1,26 @@
+# dependencies
+node_modules
+
+# turborepo
+.turbo
+
+# builds
+dist
+.next
+out
+build
+coverage
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# env (mantém apenas os exemplos versionados)
+.env
+.env.*
+!.env.example
+
+# os / editor
+.DS_Store
+Thumbs.db

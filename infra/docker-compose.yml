@@ -1,0 +1,72 @@
+name: gerenciador
+
+services:
+  # ---------------------------------------------------------------------------
+  # Postgres dedicado ao Keycloak
+  # ---------------------------------------------------------------------------
+  keycloak-db:
+    image: postgres:17
+    container_name: gerenciador-keycloak-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak}
+    volumes:
+      - keycloak-db-data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # Keycloak (SSO) — modo dev, com auto-import de realm a partir de ./keycloak/import
+  # ---------------------------------------------------------------------------
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.3 # confirme a tag estável mais recente da série 26.x
+    container_name: gerenciador-keycloak
+    restart: unless-stopped
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak}
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./keycloak/import:/opt/keycloak/data/import
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # Postgres dedicado à API (NestJS)
+  # ---------------------------------------------------------------------------
+  api-db:
+    image: postgres:17
+    container_name: gerenciador-api-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${API_DB_NAME:-gerenciador}
+      POSTGRES_USER: ${API_DB_USER:-gerenciador}
+      POSTGRES_PASSWORD: ${API_DB_PASSWORD:-gerenciador}
+    volumes:
+      - api-db-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${API_DB_USER:-gerenciador} -d ${API_DB_NAME:-gerenciador}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  keycloak-db-data:
+  api-db-data:

@@ -1,0 +1,10 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# pnpm 11: decide quais dependências podem rodar scripts de build (postinstall).
+# sharp e unrs-resolver são otimizações nativas OPCIONAIS (Next/ESLint funcionam sem elas).
+# Deixamos como false para um install limpo; troque para true se quiser buildá-las.
+allowBuilds:
+  sharp: false
+  unrs-resolver: false

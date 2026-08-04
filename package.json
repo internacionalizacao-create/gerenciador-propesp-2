@@ -1,0 +1,22 @@
+{
+  "name": "gerenciador",
+  "private": true,
+  "packageManager": "pnpm@11.20.0",
+  "engines": {
+    "node": ">=24",
+    "pnpm": ">=11"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "infra:up": "docker compose -f infra/docker-compose.yml --env-file infra/.env up -d",
+    "infra:down": "docker compose -f infra/docker-compose.yml --env-file infra/.env down",
+    "infra:logs": "docker compose -f infra/docker-compose.yml logs -f"
+  },
+  "devDependencies": {
+    "turbo": "^2",
+    "typescript": "^5"
+  }
+}

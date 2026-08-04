@@ -1,0 +1,19 @@
+{
+  "name": "@gerenciador/eslint-config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "index.mjs",
+  "exports": {
+    ".": "./index.mjs"
+  },
+  "files": [
+    "index.mjs"
+  ],
+  "dependencies": {
+    "@eslint/js": "^9"
+  },
+  "peerDependencies": {
+    "eslint": "^9"
+  }
+}
