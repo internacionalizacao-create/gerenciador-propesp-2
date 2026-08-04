@@ -1,26 +1,138 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* Dark mode por atributo (data-theme) em vez de prefers-color-scheme,
+   para que o usuario possa forcar um tema. Ver src/app/theme-toggle.tsx. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* ---------------------------------------------------------------------------
+   Paleta institucional — verde floresta.
+   Todos os pares texto/fundo abaixo foram verificados contra a WCAG 2.1:
+   texto normal >= 4.5:1 (AA), texto principal >= 7:1 (AAA),
+   bordas de controles e anel de foco >= 3:1 (criterio 1.4.11).
+   "on-X" = cor de texto/icone que deve ser usada SOBRE o fundo X.
+--------------------------------------------------------------------------- */
+:root,
+[data-theme="light"] {
+  --background: #F7FAF8;
+  --surface: #FFFFFF;
+  --surface-muted: #EFF4F1;
+  --border: #DCE6E0;
+  --border-strong: #7A8C82;
+  --foreground: #10201A;
+  --muted: #485A51;
+  --subtle: #63756B;
+  --primary: #1B5E3F;
+  --primary-hover: #164A33;
+  --on-primary: #FFFFFF;
+  --primary-soft: #DBEDE3;
+  --on-primary-soft: #14472F;
+  --ring: #1B5E3F;
+  --success: #0F766E;
+  --on-success: #FFFFFF;
+  --success-soft: #D3F0EC;
+  --on-success-soft: #0B5C55;
+  --warning: #9A5B08;
+  --on-warning: #FFFFFF;
+  --warning-soft: #FBEBD2;
+  --on-warning-soft: #7A4706;
+  --danger: #B42318;
+  --on-danger: #FFFFFF;
+  --danger-soft: #FBE0DD;
+  --on-danger-soft: #8F1D14;
+  --info: #1D4ED8;
+  --on-info: #FFFFFF;
+  --info-soft: #DCE6FD;
+  --on-info-soft: #1A3FA8;
+}
+
+[data-theme="dark"] {
+  --background: #0B120E;
+  --surface: #121B16;
+  --surface-muted: #18241E;
+  --border: #26332C;
+  --border-strong: #6A7C72;
+  --foreground: #E7EFE9;
+  --muted: #A0B1A7;
+  --subtle: #7E9086;
+  --primary: #3E9B72;
+  --primary-hover: #4FAE85;
+  --on-primary: #04140D;
+  --primary-soft: #16301F;
+  --on-primary-soft: #7FD3A9;
+  --ring: #4FAE85;
+  --success: #1FB8A6;
+  --on-success: #04140D;
+  --success-soft: #0C2E2A;
+  --on-success-soft: #5FD8C9;
+  --warning: #D08B2C;
+  --on-warning: #04140D;
+  --warning-soft: #33230C;
+  --on-warning-soft: #E8B96B;
+  --danger: #E5584A;
+  --on-danger: #04140D;
+  --danger-soft: #3A1512;
+  --on-danger-soft: #F79389;
+  --info: #5B8DEF;
+  --on-info: #04140D;
+  --info-soft: #132039;
+  --on-info-soft: #94B6F7;
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-on-primary: var(--on-primary);
+  --color-primary-soft: var(--primary-soft);
+  --color-on-primary-soft: var(--on-primary-soft);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-on-success: var(--on-success);
+  --color-success-soft: var(--success-soft);
+  --color-on-success-soft: var(--on-success-soft);
+  --color-warning: var(--warning);
+  --color-on-warning: var(--on-warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-on-warning-soft: var(--on-warning-soft);
+  --color-danger: var(--danger);
+  --color-on-danger: var(--on-danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-on-danger-soft: var(--on-danger-soft);
+  --color-info: var(--info);
+  --color-on-info: var(--on-info);
+  --color-info-soft: var(--info-soft);
+  --color-on-info-soft: var(--on-info-soft);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   }
-}
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* Foco visivel e consistente em todos os controles. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  /* Respeita quem pediu menos animacao no SO. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 }

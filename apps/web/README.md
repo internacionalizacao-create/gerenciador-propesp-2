@@ -32,11 +32,12 @@ Ou tudo de uma vez (api + web) via turbo: `pnpm dev`.
 
 ```
 src/app/
-├─ layout.tsx      # root layout (fontes Geist + globals.css)
-├─ page.tsx        # rota "/"
-├─ globals.css     # Tailwind + design tokens
+├─ layout.tsx        # root layout (fontes Geist, globals.css, script de tema)
+├─ page.tsx          # rota "/" — demonstração da paleta
+├─ theme-toggle.tsx  # seletor claro/escuro/sistema (client component)
+├─ globals.css       # Tailwind + design tokens
 └─ favicon.ico
-public/            # assets estáticos servidos na raiz da URL
+public/              # assets estáticos servidos na raiz da URL
 ```
 
 Roteamento é por **App Router**: cada diretório em `src/app/` vira um segmento de rota, e arquivos
@@ -50,10 +51,45 @@ Tailwind CSS 4 via plugin PostCSS ([postcss.config.mjs](postcss.config.mjs)) —
 
 - `@import "tailwindcss";` carrega o framework
 - `@theme inline { ... }` declara os design tokens (cores, fontes) como variáveis do tema
-- as cores respeitam `prefers-color-scheme` (tema claro/escuro) via `:root`
 
 As fontes **Geist** e **Geist Mono** são carregadas por `next/font/google` no root layout e expostas
 como `--font-geist-sans` / `--font-geist-mono`.
+
+## Tema e cores
+
+A paleta institucional é **verde floresta**, com tema claro e escuro. Use sempre o **nome semântico**
+do token, nunca o hex — assim o dark mode funciona de graça:
+
+```jsx
+<div className="bg-surface text-foreground border border-border">
+  <button className="bg-primary text-on-primary hover:bg-primary-hover">Salvar</button>
+</div>
+```
+
+Convenção dos nomes: `on-X` é a cor de texto/ícone que deve ser usada **sobre** o fundo `X`
+(`text-on-primary` sobre `bg-primary`). Os tokens de status têm as duas variantes — sólida
+(`bg-danger` + `text-on-danger`) e suave (`bg-danger-soft` + `text-on-danger-soft`).
+
+> **Sucesso não é o verde da marca.** O verde floresta é reservado para marca e ação principal;
+> "sucesso" usa um teal (`--success`) para os dois não se confundirem em telas cheias de status.
+
+Os pares de cor foram verificados contra a **WCAG 2.1**: texto normal ≥ 4.5:1 (AA), texto principal
+≥ 7:1 (AAA), e bordas de input/anel de foco ≥ 3:1 (critério 1.4.11). Ao criar um token novo, verifique
+o contraste antes de usar.
+
+### Claro / escuro
+
+O tema é controlado pelo atributo `data-theme` no `<html>`, não por `prefers-color-scheme` direto:
+
+- [theme-toggle.tsx](src/app/theme-toggle.tsx) — seletor Claro / Escuro / **Sistema**, persistido em
+  `localStorage` e sincronizado entre abas. Em "Sistema", acompanha mudanças do SO em tempo real.
+- [layout.tsx](src/app/layout.tsx) — script inline no `<head>` que aplica o tema salvo **antes da
+  primeira pintura**, evitando flash branco no reload. Por isso o `<html>` tem `suppressHydrationWarning`.
+- [globals.css](src/app/globals.css) — `@custom-variant dark` faz o prefixo `dark:` do Tailwind
+  responder ao `data-theme`, para os casos pontuais em que um token semântico não resolve.
+
+A rota `/` é hoje uma página de demonstração da paleta — sirva-se dela para conferir os tokens e
+substitua quando começar a construir as telas de verdade.
 
 ## Scripts úteis
 
@@ -70,5 +106,5 @@ A web deve autenticar contra o Keycloak (client público, fluxo *authorization c
 access token para a API. A infra do Keycloak já está pronta em
 [infra/](../../infra/README.md); a integração em código fica para depois.
 
-> **Nota:** este é o scaffold inicial do `create-next-app` — a home de exemplo (`page.tsx`), os SVGs em
-> `public/` e o `metadata` ("Create Next App") em `layout.tsx` serão limpos antes de codar.
+> **Nota:** ainda restam sobras do `create-next-app` — os SVGs de exemplo em `public/`
+> (`next.svg`, `vercel.svg`, `file.svg`, `globe.svg`, `window.svg`) não são usados e podem ser apagados.
