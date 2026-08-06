@@ -11,9 +11,12 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",
+    "smoke:login": "./scripts/smoke-login.sh",
+    "smoke:telas": "./scripts/smoke-telas.sh",
     "infra:up": "docker compose -f infra/docker-compose.yml --env-file infra/.env up -d",
     "infra:down": "docker compose -f infra/docker-compose.yml --env-file infra/.env down",
-    "infra:logs": "docker compose -f infra/docker-compose.yml logs -f"
+    "infra:logs": "docker compose -f infra/docker-compose.yml logs -f",
+    "kc:import": "./infra/keycloak/import-realm.sh"
   },
   "devDependencies": {
     "turbo": "^2",

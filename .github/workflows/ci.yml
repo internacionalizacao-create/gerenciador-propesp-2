@@ -22,6 +22,17 @@ jobs:
 
       - run: pnpm lint
 
+      # O build do Next avalia `apps/web/src/lib/env.ts`, que se recusa a carregar
+      # com ambiente incompleto. Sao valores de fachada: nada aqui e usado para
+      # falar com um Keycloak de verdade, e nenhum deles vai para o bundle do
+      # browser (o modulo e `server-only`).
       - run: pnpm build
+        env:
+          APP_BASE_URL: http://localhost:3000
+          API_BASE_URL: http://localhost:3001
+          KEYCLOAK_ISSUER_URL: http://localhost:8080/realms/gerenciador
+          KEYCLOAK_CLIENT_ID: gerenciador-web
+          KEYCLOAK_CLIENT_SECRET: ci-placeholder
+          SESSION_SECRET: Q0ktcGxhY2Vob2xkZXItMzItYnl0ZXMtLS0tLS0tLS0
 
       - run: pnpm test

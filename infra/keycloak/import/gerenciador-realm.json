@@ -1,0 +1,134 @@
+{
+  "realm": "gerenciador",
+  "displayName": "Gerenciador PROPESP",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": true,
+  "rememberMe": true,
+  "verifyEmail": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "failureFactor": 5,
+  "waitIncrementSeconds": 60,
+
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "offlineSessionIdleTimeout": 2592000,
+
+  "roles": {
+    "realm": [
+      {
+        "name": "admin",
+        "description": "Administra o sistema inteiro: usuarios, programas e configuracao."
+      },
+      {
+        "name": "coordenador",
+        "description": "Coordena um programa de pos-graduacao: aprova defesas, gerencia discentes e docentes do programa."
+      },
+      {
+        "name": "secretaria",
+        "description": "Secretaria do programa: cadastra e edita discentes, emite relatorios."
+      },
+      {
+        "name": "docente",
+        "description": "Docente credenciado: consulta seus orientandos e registra atividades."
+      },
+      {
+        "name": "discente",
+        "description": "Discente matriculado: consulta os proprios dados."
+      }
+    ]
+  },
+
+  "clients": [
+    {
+      "clientId": "gerenciador-web",
+      "name": "Gerenciador Web (BFF)",
+      "description": "Client confidencial usado pelo Backend-for-Frontend do Next.js. Authorization Code + PKCE.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "dev-web-secret-nao-use-em-producao",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "frontchannelLogout": true,
+      "redirectUris": ["http://localhost:3000/api/auth/callback"],
+      "webOrigins": ["http://localhost:3000"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:3000/*",
+        "access.token.lifespan": "300",
+        "client.use.lightweight.access.token.enabled": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "audience-gerenciador-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "gerenciador-api",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "gerenciador-api",
+      "name": "Gerenciador API (resource server)",
+      "description": "Representa a API NestJS. Nao inicia login: existe para ser a audience dos access tokens.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [],
+      "webOrigins": []
+    }
+  ],
+
+  "users": [
+    {
+      "username": "admin.teste",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "admin.teste@propesp.local",
+      "firstName": "Ana",
+      "lastName": "Administradora",
+      "credentials": [{ "type": "password", "value": "admin123", "temporary": false }],
+      "realmRoles": ["admin"]
+    },
+    {
+      "username": "coord.teste",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "coord.teste@propesp.local",
+      "firstName": "Carlos",
+      "lastName": "Coordenador",
+      "credentials": [{ "type": "password", "value": "coord123", "temporary": false }],
+      "realmRoles": ["coordenador", "docente"]
+    },
+    {
+      "username": "docente.teste",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "docente.teste@propesp.local",
+      "firstName": "Marina",
+      "lastName": "Docente",
+      "credentials": [{ "type": "password", "value": "docente123", "temporary": false }],
+      "realmRoles": ["docente"]
+    }
+  ]
+}

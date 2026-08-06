@@ -7,7 +7,7 @@ dedicado para a API** NestJS.
 
 | Serviço | Imagem | Porta (host) | Descrição |
 |---|---|---|---|
-| `keycloak` | `quay.io/keycloak/keycloak:26.3` | `8080` | Servidor SSO (modo `start-dev`) |
+| `keycloak` | `quay.io/keycloak/keycloak:26.7.0` | `8080` | Servidor SSO (modo `start-dev`) |
 | `keycloak-db` | `postgres:17` | `5433` | Banco do Keycloak |
 | `api-db` | `postgres:17` | `5432` | Banco da API |
 
@@ -35,9 +35,11 @@ postgresql://keycloak:keycloak@localhost:5433/keycloak
 
 ## Realm / SSO
 
-O diretório [keycloak/import](keycloak/import) é montado em `/opt/keycloak/data/import` e é lido no boot
-(`--import-realm`). Coloque ali o export do seu realm (`realm-export.json`) para provisioná-lo
-automaticamente. Veja [keycloak/README.md](keycloak/README.md).
+O realm `gerenciador` já existe e é versionado em
+[keycloak/import/gerenciador-realm.json](keycloak/import/gerenciador-realm.json) — clients, papéis e
+usuários de teste inclusos. O diretório é montado em `/opt/keycloak/data/import` e lido no boot
+(`--import-realm`), então um ambiente novo sobe pronto para login. Detalhes em
+[keycloak/README.md](keycloak/README.md).
 
-> **Nota:** a tag `26.3` do Keycloak é um ponto de partida — confirme a versão estável mais recente da
-> série 26.x antes de subir em outros ambientes.
+> **Nota:** a tag `26.7.0` do Keycloak é um ponto de partida — confirme a versão estável mais recente
+> da série 26.x antes de subir em outros ambientes.

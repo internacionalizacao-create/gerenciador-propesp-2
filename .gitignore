@@ -24,3 +24,7 @@ pnpm-debug.log*
 # os / editor
 .DS_Store
 Thumbs.db
+
+# planilhas e anexos originais (a extracao versionada esta em
+# apps/api/src/database/seed/planilha/)
+dados

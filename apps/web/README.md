@@ -11,6 +11,9 @@ React 19 e [Tailwind CSS 4](https://tailwindcss.com). Faz parte do monorepo — 
 ## Pré-requisitos
 
 - Dependências instaladas a partir da **raiz** do monorepo: `pnpm install`
+- Infra no ar (Keycloak): `pnpm infra:up` (a partir da raiz)
+- Ambiente configurado: `cp .env.example .env.local` — o app **não sobe** com
+  ambiente incompleto ([src/lib/env.ts](src/lib/env.ts) valida com zod)
 
 ## Como rodar
 
@@ -31,17 +34,51 @@ Ou tudo de uma vez (api + web) via turbo: `pnpm dev`.
 ## Estrutura
 
 ```
-src/app/
-├─ layout.tsx        # root layout (fontes Geist, globals.css, script de tema)
-├─ page.tsx          # rota "/" — demonstração da paleta
-├─ theme-toggle.tsx  # seletor claro/escuro/sistema (client component)
-├─ globals.css       # Tailwind + design tokens
-└─ favicon.ico
-public/              # assets estáticos servidos na raiz da URL
+src/
+├─ proxy.ts             # checagem otimista de sessão (era middleware.ts no Next 15)
+├─ lib/
+│  ├─ env.ts            #   `server-only`: ambiente validado com zod
+│  ├─ session.ts        #   sessão selada em JWE, fatiada em cookies
+│  ├─ auth-transaction.ts #  state/nonce/PKCE do login em andamento
+│  ├─ oidc.ts           #   cliente openid-client (discovery)
+│  ├─ auth.ts           #   getSession / requireSession / renovação
+│  ├─ api.ts            #   apiFetch — chama a API com o Bearer
+│  ├─ acao.ts           #   `server-only`: envio e tradução de erro das ações
+│  ├─ acao-tipos.ts     #   contrato das ações — este SIM pode ir ao cliente
+│  ├─ dominio.ts        #   espelho dos tipos que a API devolve
+│  ├─ formato.ts        #   moeda, percentual, rótulos, somarMoeda (BigInt)
+│  └─ navegacao.ts      #   menu, incluindo os módulos que ainda não existem
+├─ acoes/               # Server Actions: ppgs, plano, pendencias
+├─ componentes/
+│  ├─ layout/           #   menu lateral, sub-nav do ciclo, troca de tema
+│  ├─ ui/               #   sidesheet, multistep, campos, tabela, cartão, selo
+│  └─ formularios/      #   os cadastros que vão dentro do sidesheet
+└─ app/
+   ├─ layout.tsx        # root layout (fontes Geist, globals.css, script de tema)
+   ├─ globals.css       # Tailwind + design tokens
+   ├─ login/page.tsx    # tela de entrada — única rota pública
+   ├─ api/auth/…        # login, callback e logout (fluxo OIDC)
+   ├─ api/bff/[...path] # proxy do browser para a API, injetando o token
+   └─ (app)/            # tudo que exige login; o shell mora no layout do grupo
+      ├─ page.tsx                 #   P01 painel executivo
+      ├─ programas/               #   P05 e as telas do ciclo (P06–P10, P16, P17)
+      ├─ ppgs/                    #   P14 lista e detalhe
+      ├─ pendencias/              #   P13
+      ├─ catalogos/               #   P15 e P23
+      └─ configuracoes/           #   conta, papéis e permissões
+public/                 # assets estáticos servidos na raiz da URL
 ```
+
+> **`lib/acao.ts` é `server-only`; `lib/acao-tipos.ts` não.** Client Component
+> que precise de `ESTADO_INICIAL` importa do segundo. Importar o primeiro do
+> cliente quebra o build de propósito — é o que impede `apiFetch`, e com ele o
+> caminho do token, de entrar no bundle do browser.
 
 Roteamento é por **App Router**: cada diretório em `src/app/` vira um segmento de rota, e arquivos
 especiais (`page.tsx`, `layout.tsx`, `loading.tsx`, `error.tsx`) definem o comportamento do segmento.
+
+> **`middleware.ts` não existe mais no Next 16** — o arquivo equivalente é
+> [src/proxy.ts](src/proxy.ts), e a função exportada se chama `proxy`.
 
 ## Estilos
 
@@ -100,11 +137,40 @@ substitua quando começar a construir as telas de verdade.
 | `start` | Serve o build de produção |
 | `lint` | ESLint (`eslint-config-next`) |
 
-## SSO (Keycloak)
+## Autenticação — este app é o BFF
 
-A web deve autenticar contra o Keycloak (client público, fluxo *authorization code* + PKCE) e enviar o
-access token para a API. A infra do Keycloak já está pronta em
-[infra/](../../infra/README.md); a integração em código fica para depois.
+O Next não é só a interface: ele é o **Backend-for-Frontend** da autenticação.
+Faz a troca do `code` por tokens no servidor (client *confidencial*, com secret) e
+guarda o resultado criptografado em cookie httpOnly. **O JavaScript do browser
+nunca recebe um token.**
+
+Como buscar dados da API, conforme o contexto:
+
+```ts
+// Server Component / Server Action — direto, sem salto HTTP extra
+import { apiFetch } from "@/lib/api";
+const me = await apiFetch<Me>("/me");
+
+// Página protegida — redireciona para /login se não houver sessão
+import { requireSession } from "@/lib/auth";
+const session = await requireSession();
+```
+
+```ts
+// Client Component — passa pelo proxy, que injeta o Bearer no servidor
+const res = await fetch("/api/bff/me");
+```
+
+Regras que não podem ser quebradas:
+
+- **Nada de `NEXT_PUBLIC_`** nas variáveis de auth. `src/lib/env.ts` usa
+  `server-only`; importá-lo de um Client Component quebra o build de propósito.
+- **Não exponha o access token para o cliente**, nem via prop de Server Component.
+  Se uma tela precisar de dados da API no browser, use `/api/bff/*`.
+- A UI pode esconder botões conforme `permissions`, mas quem **decide** é o guard
+  da API. Esconder não é autorizar.
+
+Arquitetura completa em [docs/autenticacao.md](../../docs/autenticacao.md).
 
 > **Nota:** ainda restam sobras do `create-next-app` — os SVGs de exemplo em `public/`
 > (`next.svg`, `vercel.svg`, `file.svg`, `globe.svg`, `window.svg`) não são usados e podem ser apagados.

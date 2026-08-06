@@ -1,0 +1,400 @@
+# Gerenciador PROPESP — contexto do projeto
+
+Documento de referência para quem (pessoa ou LLM) vai mexer neste repositório sem
+tê-lo escrito. Descreve o que existe hoje, por que está assim, e o que ainda não
+existe. **Mantenha-o atualizado quando mudar arquitetura ou convenção.**
+
+Última revisão: 2026-08-05.
+
+---
+
+## 1. O que é o sistema
+
+Sistema de gestão da PROPESP (Pró-Reitoria de Pesquisa e Pós-Graduação) para o
+PPGE e demais programas de pós-graduação, com foco no planejamento e na execução
+de recursos de internacionalização: bolsas, orçamento por rede e área temática,
+mobilidade IN/OUT. Uso institucional, dados pessoais de alunos e servidores — o
+que justifica o rigor na parte de autenticação/autorização.
+
+**Estado atual: o núcleo de planejamento está de pé.** Autenticação, modelo de
+dados com a seed real, serviços de cálculo (RN-01 a RN-14) e as telas de
+planejamento existem e são verificadas contra os números das planilhas. Falta
+tudo que depende de dado que ainda não existe — bolsista individual, execução
+financeira, remanejamento — e o escopo por PPG na autorização. Ver §9.
+
+A especificação funcional completa, com as 23 páginas previstas, está em
+[system-structl.md](system-structl.md).
+
+---
+
+## 2. Stack e versões
+
+| Peça | Versão | Observação |
+|---|---|---|
+| Node | 24.13.0 | fixado em [.nvmrc](.nvmrc) — rode `nvm use` |
+| pnpm | 11.x | workspaces; lockfile único na raiz |
+| Turborepo | 2.x | orquestra `dev`/`build`/`lint`/`test` |
+| Next.js | **16.2.12** | App Router, Turbopack, React 19.2.4 |
+| NestJS | 11.x | Express, TypeScript, CommonJS |
+| Keycloak | 26.7.0 | container Docker, modo `start-dev` |
+| PostgreSQL | 17 | dois bancos: um do Keycloak, um da API (ainda sem uso) |
+| Tailwind CSS | 4.x | tokens semânticos, ver §8 |
+
+### Armadilhas de versão (leia antes de escrever código)
+
+1. **`middleware.ts` não existe mais no Next 16 — virou `proxy.ts`.** O arquivo
+   está em [apps/web/src/proxy.ts](apps/web/src/proxy.ts) e exporta uma função
+   chamada `proxy`. O build lista isso como `ƒ Proxy (Middleware)`.
+2. **`apps/web/AGENTS.md` avisa que este Next diverge do que os modelos
+   aprenderam.** Antes de usar qualquer API do Next, confira em
+   `node_modules/next/dist/docs/` (a documentação vem dentro do pacote).
+3. **`jose` e `openid-client` são ESM-only.** O Node 24 dá `require()` em ESM sem
+   reclamar, mas o runtime de módulos do Jest não. Por isso a suíte da API roda
+   em modo ESM — ver [apps/api/jest.config.mjs](apps/api/jest.config.mjs). Em
+   testes, `jest` não é global: `import { jest } from '@jest/globals'`.
+4. **Zod 4**: use `z.url()` e `z.email()` no lugar de `z.string().url()`.
+
+---
+
+## 3. Mapa do repositório
+
+```
+apps/
+  api/                     NestJS — resource server OAuth2
+    src/
+      auth/                autenticação e autorização
+        auth-user.ts          claims do token -> AuthUser (schema zod)
+        auth.decorators.ts    @Public, @RequirePermission, @CurrentUser
+        auth.module.ts        registra os dois guards como globais
+        jwt-auth.guard.ts     exige Bearer válido (global)
+        permissions.ts        catálogo de permissões + mapa papel -> permissões
+        permissions.guard.ts  aplica @RequirePermission (global)
+        token-verifier.service.ts  valida o JWT contra o JWKS do realm
+        me.controller.ts      GET /me e a sonda GET /me/exemplo-restrito
+      comum/
+        consultar.ts       envelope tipado para SQL cru
+        zod-validation.pipe.ts  valida o corpo das requisições
+      dominio/             planejamento, orçamento e governança
+        contexto.service.ts   resolve programa + ciclo a partir da URL
+        orcamento.service.ts  RN-04 a RN-09 em SQL (custo, saldo, divergência)
+        painel.service.ts     P01 — indicadores, alertas, IN/OUT
+        catalogo.service.ts   RN-01 — resolução de preço, recusa sem match
+        plano.service.ts      P10 — as três rubricas com discriminador
+        ciclo.service.ts      P06/P07/P08/P16/P17
+        ppgs.service.ts       P14
+        pendencias.service.ts P13
+        *.controller.ts       rotas REST, uma permissão por endpoint
+      config/env.ts        validação de ambiente com zod (falha no boot)
+      database/            schema Drizzle, migrations e seed
+      health/              GET /health (público)
+  web/                     Next.js — BFF + interface
+    src/
+      lib/
+        env.ts             ambiente validado, `server-only`
+        session.ts         sessão selada em JWE, fatiada em cookies
+        auth-transaction.ts state/nonce/PKCE do login em andamento
+        oidc.ts            cliente openid-client (discovery)
+        auth.ts            DAL: getSession / requireSession / renovarSessao
+        api.ts             apiFetch — chama a API com o Bearer
+        acao.ts            `server-only`: enviar/traduzirErro das Server Actions
+        acao-tipos.ts      contrato das ações, importável do cliente
+        dominio.ts         espelho dos tipos da API
+        formato.ts         moeda, percentual, rótulos de enum, somarMoeda
+        navegacao.ts       menu, incluindo o que ainda não existe
+      acoes/               Server Actions (ppgs, plano, pendencias)
+      componentes/
+        layout/            menu lateral, sub-nav do ciclo, troca de tema
+        ui/sidesheet.tsx   painel lateral sobre <dialog> nativo
+        ui/multistep.tsx   formulário em etapas, tudo montado num <form> só
+        ui/campos.tsx      inputs, chips, marcadores
+        ui/basicos.tsx     Página, Seção, Cartão, Tabela, Moeda, Selo, Aviso
+        formularios/       cadastros que vão dentro do sidesheet
+      app/
+        (app)/             tudo que exige login — o shell mora no layout
+          page.tsx                    P01 painel executivo
+          programas/                  P05 e as telas do ciclo (P06..P10, P16, P17)
+          ppgs/                       P14 lista e detalhe
+          pendencias/                 P13
+          catalogos/                  P15 e P23
+          configuracoes/              conta, papéis e permissões
+        api/auth/login|callback|logout/route.ts   fluxo OIDC
+        api/bff/[...path]/route.ts                proxy browser -> API
+        login/page.tsx     tela de entrada (única rota pública)
+      proxy.ts             checagem otimista de sessão
+infra/
+  docker-compose.yml       keycloak + keycloak-db + api-db
+  keycloak/
+    import/gerenciador-realm.json   realm versionado (fonte da verdade)
+    import-realm.sh                 reimporta em um Keycloak já rodando
+packages/
+  tsconfig/                base de TSConfig compartilhada
+  eslint-config/           base de ESLint compartilhada
+scripts/
+  smoke-login.sh           percorre o login inteiro sem browser
+  smoke-telas.sh           abre cada tela logado e confere os números
+docs/
+  autenticacao.md          detalhamento da arquitetura de auth
+```
+
+---
+
+## 4. Como rodar
+
+```bash
+nvm use
+pnpm install
+
+# infra
+cp infra/.env.example infra/.env
+pnpm infra:up                  # keycloak (8080), keycloak-db (5433), api-db (5432)
+
+# ambiente dos apps
+cp apps/api/.env.example apps/api/.env
+cp apps/web/.env.example apps/web/.env.local
+# gere um SESSION_SECRET próprio:
+#   openssl rand -base64 32 | tr '+/' '-_' | tr -d '='
+
+pnpm dev                       # web:3000  api:3001
+```
+
+O realm `gerenciador` é importado sozinho no primeiro boot do Keycloak. Para
+reaplicar o arquivo em um Keycloak já rodando: `pnpm kc:import --force`
+(**apaga o realm e recria** — perde usuários e sessões criados pelo console).
+
+### Usuários de teste (só no realm de desenvolvimento)
+
+| usuário | senha | papéis |
+|---|---|---|
+| `admin.teste` | `admin123` | `admin` |
+| `coord.teste` | `coord123` | `coordenador`, `docente` |
+| `docente.teste` | `docente123` | `docente` |
+
+Console do Keycloak: <http://localhost:8080> (`admin`/`admin`, de `infra/.env`).
+
+### Banco de dados
+
+```bash
+cd apps/api
+pnpm db:generate        # gera migration a partir do schema
+pnpm db:migrate         # aplica no banco de DATABASE_URL
+pnpm db:seed --reset    # APAGA o dominio e recarrega os dados das planilhas
+pnpm db:studio          # inspetor visual do Drizzle
+```
+
+O banco de testes (`gerenciador_test`) precisa existir uma vez:
+
+```bash
+docker exec gerenciador-api-db psql -U gerenciador -d postgres \
+  -c "CREATE DATABASE gerenciador_test;"
+```
+
+### Verificação
+
+```bash
+pnpm lint && pnpm build && pnpm test        # raiz: lint, build, unitarios
+pnpm --filter api test:int                  # integracao (exige Postgres no ar)
+pnpm smoke:login                            # fluxo de login completo, apps no ar
+pnpm smoke:login docente.teste docente123   # confere o 403 do endpoint restrito
+pnpm smoke:telas                            # abre cada tela e confere os numeros
+```
+
+`test:int` inclui o **teste de aceite da migração**: com a seed carregada, o
+sistema tem que reproduzir os indicadores das planilhas
+([system-structl.md](system-structl.md) §8.3). Se algum falhar, ou a fórmula está
+errada ou o dado migrou sujo.
+
+`smoke:telas` fecha o círculo do outro lado: faz login de verdade, abre cada
+tela e procura os números na resposta HTML. É o que impede um serviço correto de
+ficar invisível por causa de um erro na página — e é a única cobertura da
+interface enquanto a `web` não tiver runner de teste.
+
+---
+
+## 5. Arquitetura de autenticação (resumo)
+
+Detalhes e justificativas em [docs/autenticacao.md](docs/autenticacao.md). O
+essencial:
+
+```
+                    cookie httpOnly (JWE, opaco)
+   Browser  ◄───────────────────────────────────►  Next.js (BFF)
+      │                                                  │
+      │ nunca vê token                                   │ Authorization: Bearer
+      │                                                  ▼
+      │                                            NestJS (API)
+      │                                                  │ valida assinatura
+      ▼                                                  ▼ contra o JWKS
+   login/senha ────────────────────────────────►   Keycloak (realm gerenciador)
+```
+
+Três decisões que definem tudo o mais:
+
+1. **BFF.** O Next faz a troca do code por tokens no servidor e guarda os tokens
+   criptografados em cookie httpOnly. O JavaScript do browser nunca tem acesso a
+   um token — um XSS não tem o que roubar. Chamadas do lado do cliente passam por
+   `/api/bff/*`, que injeta o `Bearer` no servidor.
+2. **Login hospedado no Keycloak** (Authorization Code + PKCE). Senha nenhuma
+   passa por este código. MFA, política de senha, reset e federação LDAP/AD viram
+   configuração de console, não código.
+3. **Controllers falam em permissão, não em papel.** `@RequirePermission('plano:write')`,
+   nunca `@Roles('coordenador')`. O papel é apenas a forma atual de conceder — ver §6.
+
+**A autorização que vale é a da API.** O `proxy.ts` e a UI só evitam telas
+inúteis; se ambos sumissem, nenhum dado vazaria, porque todo endpoint é fechado
+por padrão (o `JwtAuthGuard` é global e só `@Public()` abre).
+
+---
+
+## 6. Modelo de autorização e como estendê-lo
+
+Hoje: papel de realm no Keycloak → conjunto de permissões finas na API.
+
+```
+Keycloak emite:  realm_access.roles = ["coordenador", "docente"]
+API traduz:      permissionsForRoles(roles) -> ["plano:read", "plano:write", ...]
+Controller pede: @RequirePermission('plano:write')
+```
+
+O mapa vive em [apps/api/src/auth/permissions.ts](apps/api/src/auth/permissions.ts).
+
+**Para adicionar uma permissão nova:**
+
+1. Acrescente a string em `PERMISSIONS` (o tipo `Permission` é derivado dela, então
+   o TypeScript passa a aceitá-la em `@RequirePermission`).
+2. Conceda-a aos papéis certos em `ROLE_PERMISSIONS`.
+3. Use `@RequirePermission('sua:permissao')` no handler.
+4. Cubra no teste de `permissionsForRoles` se a regra for interessante.
+
+**Para adicionar um papel novo:** crie no realm
+([infra/keycloak/import/gerenciador-realm.json](infra/keycloak/import/gerenciador-realm.json))
+e mapeie em `ROLE_PERMISSIONS`. Papel sem entrada no mapa simplesmente não concede
+nada — não é erro (o Keycloak injeta `offline_access` e `uma_authorization` em
+todo token).
+
+**Quando a granularidade apertar** (permissão direta por usuário, escopo por
+programa de pós-graduação, delegação temporária), o ponto de mudança é
+`permissionsForRoles` — e só ele. Nenhum controller precisa mudar, porque nenhum
+menciona papel. Foi por isso que a indireção existe desde o começo.
+
+---
+
+## 7. Convenções de código
+
+- **Idioma.** Domínio, mensagens de erro ao usuário e comentários em português.
+  Comentários **sem acentuação** (padrão do repositório). Identificadores de
+  código e nomes de permissão em inglês minúsculo (`plano:write`).
+- **Comentários explicam o porquê, não o quê.** Densidade alta nos arquivos de
+  auth é proposital: são decisões de segurança que ninguém adivinha relendo.
+- **Validação com zod, em toda fronteira** — ambiente, claims de token, payload de
+  cookie. A API não usa `class-validator`: quando o primeiro DTO aparecer, use zod
+  também, para o projeto não carregar duas bibliotecas de validação.
+- **Nada de `NEXT_PUBLIC_`** nas variáveis de auth. `apps/web/src/lib/env.ts` usa
+  `server-only`: importá-lo de um Client Component quebra o build de propósito.
+- **A API não habilita CORS**, e isso é intencional — o browser nunca fala com ela
+  direto. Se você sentir vontade de ligar CORS, provavelmente está prestes a
+  furar o desenho BFF.
+
+---
+
+## 8. Tema e interface
+
+O tema institucional (verde floresta, claro/escuro) já existe em
+[apps/web/src/app/globals.css](apps/web/src/app/globals.css), com tokens
+semânticos: `bg-surface`, `text-muted`, `border-border-strong`, `bg-danger-soft` +
+`text-on-danger-soft` etc.
+
+- **Use sempre o token semântico, nunca o hex nem cor crua do Tailwind.**
+- O Tailwind 4 escaneia o texto do fonte: classes montadas dinamicamente
+  (`bg-${cor}`) não geram CSS. Escreva por extenso.
+- A troca de tema roda antes da primeira pintura via script inline em
+  [layout.tsx](apps/web/src/app/layout.tsx), para não piscar.
+
+### Peças de interface que valem conhecer antes de criar outras
+
+| Peça | Onde | Para quê |
+|---|---|---|
+| `Sidesheet` / `AbrirSidesheet` | [ui/sidesheet.tsx](apps/web/src/componentes/ui/sidesheet.tsx) | Todo cadastro entra por painel lateral. É `<dialog>` nativo — foco preso, `Esc`, fundo inerte e `::backdrop` vêm do navegador. |
+| `Multistep` | [ui/multistep.tsx](apps/web/src/componentes/ui/multistep.tsx) | Formulário longo em etapas. **Todos os passos ficam montados** e o inativo usa o atributo `hidden`: só assim o `FormData` do submit traz o formulário inteiro, e campos `required` de passo oculto não travam o envio. |
+| `Moeda` | [ui/basicos.tsx](apps/web/src/componentes/ui/basicos.tsx) | Nulo vira *A definir* em itálico, **nunca** R$ 0,00 (§9.2 da especificação). |
+| `somarMoeda` | [lib/formato.ts](apps/web/src/lib/formato.ts) | Soma em centavos com `BigInt`. Dinheiro nunca passa por `number` antes de uma conta. |
+
+Cadastro novo: crie o formulário em `componentes/formularios/`, a Server Action
+em `acoes/`, e chame por `AbrirSidesheet` na página. Formulário curto não precisa
+de multistep — fatiar quatro campos em etapas troca rolagem por cliques.
+
+---
+
+## 9. O que existe / o que não existe
+
+**Existe:**
+
+- **Autenticação/autorização**: login e logout OIDC completos, sessão renovada
+  automaticamente, guards globais, catálogo de permissões, realm versionado.
+- **Modelo de dados**: 26 tabelas em 7 módulos de schema Drizzle
+  ([apps/api/src/database/schema/](apps/api/src/database/schema/)), com migrations.
+  Segue [system-structl.md](system-structl.md) §4.
+- **Seed com os dados reais** das planilhas
+  ([apps/api/src/database/seed/](apps/api/src/database/seed/)): 24 PPGs, 60 itens
+  de catálogo, 33 linhas de plano, 48 orçamentos, 14 pendências.
+- **Serviços de cálculo**: RN-01 a RN-14 em
+  [apps/api/src/dominio/](apps/api/src/dominio/), todos em SQL e sem nenhum
+  derivado persistido. A API expõe programas, ciclo, redes, temáticas, orçamento,
+  plano, comitê gestor, premissas, PPGs, pendências e catálogo.
+- **Telas de planejamento**: P01, P05, P06, P07, P08, P09, P10, P13, P14, P15,
+  P16, P17 e as configurações da conta. Cadastro de PPG e de linha de plano em
+  sidesheet com formulário em etapas; pendência em sidesheet simples.
+- **Testes**: 20 unitários + 99 de integração contra Postgres real (29 de
+  integridade do schema, 26 de aceite da migração, 44 dos serviços de domínio).
+- Smoke de login (`pnpm smoke:login`) e de telas (`pnpm smoke:telas`) ponta a
+  ponta; CI de lint/build/test.
+
+**Não existe ainda:**
+
+- **Bolsista individual (P03), mapa (P04) e panorama de mobilidade (P02).**
+  As planilhas de origem não têm o dado: sabe-se que há "1 bolsa de Doutorado
+  Sanduíche de 6 meses para o PPGCLIAMB", não quem foi nem se voltou.
+- **Execução financeira (P11) e remanejamentos (P12).** As abas de origem estão
+  vazias — 100 e 50 linhas de gabarito. O modelo de dados e RN-12/RN-13 existem;
+  falta a tela e o serviço.
+- Relatórios (P20), importação com adaptador por programa (P21), documentos
+  oficiais (P22), convênios e produção (P18/P19, fase 2).
+- Edição de orçamento pela interface. Hoje o orçamento entra pela seed; a tela é
+  de leitura, com célula de entrada e célula calculada já distinguidas.
+- **Escopo por PPG na autorização.** `coordenador` é global, não "coordenador do
+  PPGDA". Continua sendo o próximo ponto de pressão: coordenadores lançam dados
+  desde o MVP ([system-structl.md](system-structl.md) §3.5), toda entidade já
+  carrega `ppgId`, e o ponto de mudança é `permissionsForRoles` mais um filtro
+  por escopo nas consultas de listagem.
+- Vínculo entre o `sub` do Keycloak e um registro local de `pessoa`. A identidade
+  vive só no token; o provisionamento (JIT no primeiro login é o usual) ainda
+  precisa ser decidido.
+- Testes na `web` (não há runner configurado no app web — o que cobre a interface
+  hoje é `pnpm smoke:telas`).
+- Rate limiting, logs de auditoria populados, observabilidade.
+- Qualquer configuração de produção: HTTPS, segredos fora do repositório,
+  Keycloak em modo `start` (não `start-dev`), origem de sessão externa.
+
+---
+
+## 10. Cuidados ao mexer
+
+- **Trocar `SESSION_SECRET` derruba todas as sessões ativas.** É o efeito
+  desejado em caso de vazamento, e um incômodo se for sem querer.
+- **`pnpm kc:import --force` apaga o realm inteiro**, incluindo usuários criados
+  à mão pelo console. O arquivo JSON é a fonte da verdade; mudanças feitas só
+  pela UI se perdem.
+- O segredo do client (`dev-web-secret-nao-use-em-producao`) está versionado de
+  propósito, para o ambiente de desenvolvimento subir sem passos manuais.
+  **Qualquer outro ambiente precisa de um segredo novo, gerado no console.**
+- O cookie de sessão passa de 4 KB e por isso é fatiado em `gr_session.0`,
+  `gr_session.1`. Se você mexer no conteúdo da sessão, confira o tamanho — o
+  limite defensivo é 8 fatias.
+- Comandos que sobem servidor (`pnpm dev`) são persistentes; não os encadeie em
+  scripts que precisam terminar.
+- **`apps/web/src/lib/acao.ts` é `server-only`.** Client Component que precisar do
+  contrato das Server Actions importa de `acao-tipos.ts`. Importar `acao.ts` do
+  cliente quebra o build de propósito — foi o que impediu `apiFetch` de vazar
+  para o bundle do browser na primeira versão dos formulários.
+- **`proxy.ts` enumera rotas públicas, não protegidas.** Com o sistema inteiro
+  atrás de login, listar o que é protegido significaria lembrar de cada tela
+  nova, e esquecer falharia em silêncio.

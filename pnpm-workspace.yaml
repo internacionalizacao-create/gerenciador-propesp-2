@@ -6,5 +6,8 @@ packages:
 # sharp e unrs-resolver são otimizações nativas OPCIONAIS (Next/ESLint funcionam sem elas).
 # Deixamos como false para um install limpo; troque para true se quiser buildá-las.
 allowBuilds:
+  # O drizzle-kit (geracao e aplicacao de migrations) roda sobre o esbuild; sem o
+  # binario nativo ele nao funciona.
+  esbuild: true
   sharp: false
   unrs-resolver: false
