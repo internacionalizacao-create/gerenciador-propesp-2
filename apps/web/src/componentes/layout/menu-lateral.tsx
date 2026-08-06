@@ -17,6 +17,19 @@ export function MenuLateral({ grupos }: { grupos: GrupoMenu[] }) {
   const [aberto, setAberto] = useState(false);
   const caminho = usePathname();
 
+  // So um item fica marcado como atual. Rotas do ciclo se aninham
+  // (/programas, /programas/x/y, /programas/x/y/plano...), entao mais de um
+  // href pode "bater" por prefixo ao mesmo tempo; fica o mais especifico
+  // (maior href) entre os que batem.
+  const hrefAtual = grupos
+    .flatMap((grupo) => grupo.itens)
+    .filter((item) => item.disponivel)
+    .map((item) => item.href)
+    .filter(
+      (href) => caminho === href || caminho.startsWith(`${href}/`),
+    )
+    .sort((a, b) => b.length - a.length)[0];
+
   return (
     <>
       <button
@@ -63,11 +76,7 @@ export function MenuLateral({ grupos }: { grupos: GrupoMenu[] }) {
             </p>
             <ul>
               {grupo.itens.map((item) => {
-                const atual =
-                  item.href === "/"
-                    ? caminho === "/"
-                    : caminho === item.href ||
-                      caminho.startsWith(`${item.href}/`);
+                const atual = item.href === hrefAtual;
 
                 if (!item.disponivel) {
                   return (

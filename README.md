@@ -81,6 +81,8 @@ Filtrar por app: `pnpm --filter api <script>` ou `pnpm --filter web <script>`.
 ### Users for development
 
 usuário	senha	papéis
-admin.teste	admin123	admin
+admin	admin123	admin (+ realm-admin do client realm-management)
 coord.teste	coord123	coordenador, docente
 docente.teste	docente123	docente
+secretaria.teste	secretaria123	secretaria
+discente.teste	discente123	discente

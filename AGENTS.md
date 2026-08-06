@@ -165,11 +165,42 @@ reaplicar o arquivo em um Keycloak já rodando: `pnpm kc:import --force`
 
 | usuário | senha | papéis |
 |---|---|---|
-| `admin.teste` | `admin123` | `admin` |
+| `admin` | `admin123` | `admin` (+ `realm-admin` do client `realm-management`) |
 | `coord.teste` | `coord123` | `coordenador`, `docente` |
 | `docente.teste` | `docente123` | `docente` |
+| `secretaria.teste` | `secretaria123` | `secretaria` |
+| `discente.teste` | `discente123` | `discente` |
 
-Console do Keycloak: <http://localhost:8080> (`admin`/`admin`, de `infra/.env`).
+Cobrem os cinco papéis que `permissionsForRoles`
+([permissions.ts](apps/api/src/auth/permissions.ts)) já reconhece.
+
+**Dois "admin" diferentes, não confundir:**
+
+| | usuário / senha | onde loga | o que administra |
+|---|---|---|---|
+| **Admin do Keycloak** (bootstrap, do container) | `admin` / `admin` (`infra/.env`) | <http://localhost:8080>, realm `master` | Todos os realms — troque para `gerenciador` no seletor do console. |
+| **Admin do realm `gerenciador`** (usuário acima) | `admin` / `admin123` | <http://localhost:3000> (app) **ou** <http://localhost:8080/admin/gerenciador/console> (console, só este realm) | Dentro do app: permissão total (`orcamento:write`, `catalogo:write` etc., via papel `admin` em [permissions.ts](apps/api/src/auth/permissions.ts)). No console: usuários, papéis, eventos e clients — só do realm `gerenciador`, por causa do papel `realm-admin` do client `realm-management`. |
+
+São usuários diferentes em realms diferentes — só coincide o username `admin` e
+a UI de login do Keycloak, por isso a confusão é fácil.
+
+### O que mais o realm configura
+
+- **Política de senha**: `length(8) and digits(1) and notUsername and notEmail`.
+  Vale só para senha nova (troca ou reset) — as senhas dos usuários de teste
+  acima já satisfazem e não são reavaliadas no import.
+- **Locale**: pt-BR é o padrão da tela de login hospedada (Keycloak já traduz;
+  não há tema customizado). Inglês continua disponível como alternativa.
+- **"Lembrar-me"**: quando marcado, a sessão SSO do Keycloak dura até 7 dias
+  ociosa / 30 dias no total, em vez do padrão (30 min / 10 h). Isso é a sessão
+  do *Keycloak*, não a da aplicação — o cookie `gr_session` continua limitado a
+  8h, ver [docs/autenticacao.md](docs/autenticacao.md) §4.
+- **Eventos de login/admin ficam gravados** no Postgres do Keycloak (não
+  aparecem em `docker logs` — o listener `jboss-logging` loga em nível `INFO`,
+  abaixo do `WARN` padrão do container). Para consultar: console → *Realm
+  settings → Events* → *User events*/*Admin events*, ou
+  `GET /admin/realms/gerenciador/events` com um token de admin. Isso é auditoria
+  nativa do Keycloak, não a auditoria da aplicação (ainda não existe, §9).
 
 ### Banco de dados
 

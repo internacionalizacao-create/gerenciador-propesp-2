@@ -49,6 +49,14 @@ export function Multistep({
   const ultimo = atual === passos.length - 1;
 
   function avancar(evento: React.MouseEvent<HTMLButtonElement>) {
+    // Ao avançar para a ÚLTIMA etapa, este é o mesmo <button> do DOM que vira
+    // type="submit" no re-render que este clique dispara — e o navegador
+    // decide a ação padrão do clique (submeter ou não) só depois que os
+    // handlers rodam, usando o type que o botão tem NAQUELE momento. Sem o
+    // preventDefault, um clique em type="button" acaba submetendo o
+    // formulário com os valores padrão da última etapa, sem o usuário ver.
+    evento.preventDefault();
+
     const formulario = evento.currentTarget.form;
     const problema = formulario
       ? (passos[atual].validar?.(formulario) ?? null)
@@ -78,7 +86,7 @@ export function Multistep({
                 disabled={indice > atual}
                 onClick={() => setAtual(indice)}
                 aria-current={estado === "atual" ? "step" : undefined}
-                className="w-full text-left disabled:cursor-not-allowed"
+                className="w-full text-left"
               >
                 <span
                   className={`block h-1 rounded-full ${

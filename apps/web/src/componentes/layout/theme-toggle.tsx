@@ -4,10 +4,10 @@ import { useEffect, useSyncExternalStore } from "react";
 
 export type Theme = "light" | "dark" | "system";
 
-const OPTIONS: { value: Theme; label: string }[] = [
-  { value: "light", label: "Claro" },
-  { value: "dark", label: "Escuro" },
-  { value: "system", label: "Sistema" },
+const OPTIONS: { value: Theme; label: string; icone: React.ReactNode }[] = [
+  { value: "light", label: "Claro", icone: <IconeSol /> },
+  { value: "dark", label: "Escuro", icone: <IconeLua /> },
+  { value: "system", label: "Sistema", icone: <IconeMonitor /> },
 ];
 
 const STORAGE_KEY = "theme";
@@ -75,7 +75,7 @@ export function ThemeToggle() {
     <div
       role="radiogroup"
       aria-label="Tema da interface"
-      className="inline-flex rounded-lg border border-border bg-surface-muted p-1"
+      className="inline-flex rounded-lg border border-border p-0.5"
     >
       {OPTIONS.map((option) => {
         const selected = theme === option.value;
@@ -85,17 +85,74 @@ export function ThemeToggle() {
             type="button"
             role="radio"
             aria-checked={selected}
+            title={option.label}
             onClick={() => setStoredTheme(option.value)}
             className={
               selected
-                ? "rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-on-primary"
-                : "rounded-md px-3 py-1.5 text-sm font-medium text-muted hover:text-foreground"
+                ? "rounded-md bg-surface-muted p-1.5 text-foreground"
+                : "rounded-md p-1.5 text-subtle hover:text-foreground"
             }
           >
-            {option.label}
+            <span className="sr-only">{option.label}</span>
+            {option.icone}
           </button>
         );
       })}
     </div>
+  );
+}
+
+function IconeSol() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      width="16"
+      height="16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <circle cx="8" cy="8" r="3" />
+      <path d="M8 1v1.5M8 13.5V15M15 8h-1.5M2.5 8H1M12.9 3.1l-1.06 1.06M4.16 11.84l-1.06 1.06M12.9 12.9l-1.06-1.06M4.16 4.16 3.1 3.1" />
+    </svg>
+  );
+}
+
+function IconeLua() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      width="16"
+      height="16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M13.5 9.7A6 6 0 0 1 6.3 2.5a6 6 0 1 0 7.2 7.2Z" />
+    </svg>
+  );
+}
+
+function IconeMonitor() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      width="16"
+      height="16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="1.5" y="2.5" width="13" height="9" rx="1.2" />
+      <path d="M5.5 14h5M8 11.5V14" />
+    </svg>
   );
 }

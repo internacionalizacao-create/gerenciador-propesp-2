@@ -17,7 +17,7 @@ export function Pagina({
   children: ReactNode;
 }) {
   return (
-    <div className="mx-auto w-full max-w-7xl px-6 py-8">
+    <div className="mx-auto w-full max-w-[120rem] px-6 py-8">
       <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div className="max-w-3xl">
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">

@@ -126,6 +126,17 @@
     outline-offset: 2px;
   }
 
+  /* O preflight do Tailwind deixa o cursor nativo do <button> (seta), nao
+     ponteiro, de proposito. Aqui a decisao e a oposta: todo botao clicavel
+     parece clicavel. */
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
   /* Respeita quem pediu menos animacao no SO. */
   @media (prefers-reduced-motion: reduce) {
     *,

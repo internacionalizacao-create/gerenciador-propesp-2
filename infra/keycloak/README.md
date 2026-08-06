@@ -25,12 +25,21 @@ O que cada um concede é decidido na API, não aqui — ver
 
 | usuário | senha | papéis |
 |---|---|---|
-| `admin.teste` | `admin123` | `admin` |
+| `admin` | `admin123` | `admin` (+ `realm-admin` do client `realm-management`, dá acesso ao console do Keycloak restrito a este realm) |
 | `coord.teste` | `coord123` | `coordenador`, `docente` |
 | `docente.teste` | `docente123` | `docente` |
+| `secretaria.teste` | `secretaria123` | `secretaria` |
+| `discente.teste` | `discente123` | `discente` |
 
-**Durações:** access token 5 min · sessão SSO ociosa 30 min · máxima 10 h.
-Proteção contra força bruta ligada (5 tentativas).
+Não confunda `admin`/`admin123` (usuário deste realm) com o admin de bootstrap
+do container (`admin`/`admin`, realm `master` — ver `infra/.env`). Detalhe em
+[AGENTS.md](../../AGENTS.md) §4.
+
+**Durações:** access token 5 min · sessão SSO ociosa 30 min · máxima 10 h (7
+dias / 30 dias com "lembrar-me"). Proteção contra força bruta ligada (5
+tentativas). Política de senha: `length(8) and digits(1) and notUsername and
+notEmail`. Locale padrão da tela de login: pt-BR. Eventos de login/admin
+gravados (console → Events, retenção de 180 dias).
 
 ## Import automático
 
