@@ -390,12 +390,14 @@ o ícone estiver visível.
   P16, P17 e as configurações da conta. Cadastro de PPG e de linha de plano em
   sidesheet com formulário em etapas; pendência em sidesheet simples.
 
-Na P10, a leitura segue `programa → rede → temática → PPG`. Cada participação
-PPG–temática aponta para um `coordenadorTematicaId`; uma pessoa pode coordenar
-vários PPGs e uma temática pode ter coordenadores diferentes conforme o PPG. O
-termo de interface é **Coordenador de Temática**, não “membro do comitê”. Edição
-de linha existente exige `plano:edit` (só `admin`), preserva código/rubrica e
-grava uma entrada de auditoria por campo alterado.
+Na P10, a leitura segue `programa → rede → temática → PPG`. A rota `.../plano`
+tem a aba **Visão geral** e uma aba por rede, persistida em `?rede=`; não crie
+rotas ou serviços duplicados para cada rede. Cada participação PPG–temática
+aponta para um `coordenadorTematicaId`; uma pessoa pode coordenar vários PPGs e
+uma temática pode ter coordenadores diferentes conforme o PPG. O termo de
+interface é **Coordenador de Temática**, não “membro do comitê”. Edição de linha
+existente exige `plano:edit` (só `admin`), preserva código/rubrica e grava uma
+entrada de auditoria por campo alterado.
 - **Testes**: 21 unitários + 101 de integração contra Postgres real (29 de
   integridade do schema, 26 de aceite da migração, 44 dos serviços de domínio).
 - Smoke de login (`pnpm smoke:login`) e de telas (`pnpm smoke:telas`) ponta a

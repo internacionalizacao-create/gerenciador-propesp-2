@@ -875,13 +875,15 @@ RN-09) · registrar reajuste · exportar.
 Onde a equipe planeja o que será gasto, nas **três rubricas**. A aba original só tem
 bolsas; manutenção e missões passam a ter o mesmo tratamento (resposta **Q3**).
 
-**Abas internas** — `Bolsas` · `Manutenção` · `Missões` · `Consolidado`
-Cada rubrica tem colunas próprias; o consolidado soma tudo contra o orçamento.
+**Abas principais** — `Visão geral` · `UNESP` · `UFMG` · `UNICAMP`. A seleção
+fica na query `?rede=` para que atualizar, compartilhar e voltar no navegador
+preservem o contexto sem criar páginas que duplicam regras.
 
-**Organização da tela** — resumo geral no topo; redes exibidas verticalmente
-(`UNESP`, `UFMG`, `UNICAMP`), cada uma repetindo os quatro cartões de resumo;
-dentro de cada rede, uma tabela própria por temática. As linhas identificam o
-Coordenador de Temática correspondente ao PPG.
+**Organização da tela** — a Visão geral consolida indicadores operacionais,
+dimensão institucional (redes, temáticas, PPGs e Coordenadores de Temática) e um
+comparativo clicável entre redes. Cada aba de rede mostra somente o seu plano,
+repete os quatro cartões de resumo e agrupa as rubricas dentro de uma tabela por
+temática. As linhas identificam o Coordenador de Temática correspondente ao PPG.
 
 #### Aba Bolsas
 **Tabela** código · rede · temática · PPG · destino · modalidade · vigência ·

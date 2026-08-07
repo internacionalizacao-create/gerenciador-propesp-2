@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import {
   Aviso,
   Cartao,
@@ -30,11 +32,13 @@ interface RespostaPlano {
   linhas: LinhaPlano[];
 }
 
+type RedeDoPlano = LinhaRede & {
+  areas: (LinhaTematica & { coordenadores: CoordenadorTematica[] })[];
+};
+
 interface RespostaRedes {
   ano: number;
-  redes: (LinhaRede & {
-    areas: (LinhaTematica & { coordenadores: CoordenadorTematica[] })[];
-  })[];
+  redes: RedeDoPlano[];
 }
 
 interface ContextoDaLinha {
@@ -59,24 +63,27 @@ const IDENTIDADES_REDE = [
     fundo: "bg-network-1-soft",
     marcador: "bg-network-1 text-on-network-1",
     texto: "text-on-network-1-soft",
-    atalho:
-      "border-network-1/30 bg-network-1-soft text-on-network-1-soft hover:border-network-1",
+    abaAtiva:
+      "border-network-1 bg-network-1-soft text-on-network-1-soft",
+    ponto: "bg-network-1",
   },
   {
     borda: "border-l-network-2",
     fundo: "bg-network-2-soft",
     marcador: "bg-network-2 text-on-network-2",
     texto: "text-on-network-2-soft",
-    atalho:
-      "border-network-2/30 bg-network-2-soft text-on-network-2-soft hover:border-network-2",
+    abaAtiva:
+      "border-network-2 bg-network-2-soft text-on-network-2-soft",
+    ponto: "bg-network-2",
   },
   {
     borda: "border-l-network-3",
     fundo: "bg-network-3-soft",
     marcador: "bg-network-3 text-on-network-3",
     texto: "text-on-network-3-soft",
-    atalho:
-      "border-network-3/30 bg-network-3-soft text-on-network-3-soft hover:border-network-3",
+    abaAtiva:
+      "border-network-3 bg-network-3-soft text-on-network-3-soft",
+    ponto: "bg-network-3",
   },
 ] as const;
 
@@ -92,18 +99,31 @@ function identidadeDaRede(nome: string, indice: number): IdentidadeRede {
   ];
 }
 
+function chaveDaRede(nome: string) {
+  return nome
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
 /**
  * P10 · Plano de aplicacao, organizado pela hierarquia operacional real:
- * programa -> rede -> tematica -> PPG. O resumo institucional permanece no
- * topo e cada rede repete os quatro indicadores para quem mantem seus dados.
+ * programa -> rede -> tematica -> PPG. A aba geral consolida o ciclo; cada aba
+ * de rede isola o plano operacional sem duplicar rota nem regra de dominio.
  */
 export default async function PlanoDeAplicacao({
   params,
+  searchParams,
 }: {
   params: Promise<{ programa: string; ciclo: string }>;
+  searchParams: Promise<{ rede?: string | string[] }>;
 }) {
   const { programa, ciclo: cicloNome } = await params;
+  const consulta = await searchParams;
   const base = `/programas/${programa}/${cicloNome}`;
+  const rotaPlano = `${base}/plano`;
 
   const [plano, ppgs, catalogo, redes, me] = await Promise.all([
     apiFetch<RespostaPlano>(`${base}/plano`),
@@ -123,6 +143,14 @@ export default async function PlanoDeAplicacao({
     })),
   );
   const linhasAtivas = plano.linhas.filter((linha) => linha.status !== "CANCELADO");
+  const chaveSolicitada = Array.isArray(consulta.rede)
+    ? consulta.rede[0]
+    : consulta.rede;
+  const indiceRedeSelecionada = redes.redes.findIndex(
+    (rede) => chaveDaRede(rede.rede) === chaveSolicitada,
+  );
+  const redeSelecionada =
+    indiceRedeSelecionada >= 0 ? redes.redes[indiceRedeSelecionada] : null;
   const contexto: ContextoDaLinha = {
     programa,
     ciclo: cicloNome,
@@ -139,7 +167,11 @@ export default async function PlanoDeAplicacao({
   return (
     <Pagina
       titulo="Plano de aplicação"
-      descricao="Planejamento por rede, temática e PPG. Destino Brasil representa quem vem do exterior para o Brasil (IN); destino Exterior representa quem sai do Brasil (OUT)."
+      descricao={
+        redeSelecionada
+          ? `Planejamento da Rede ${redeSelecionada.rede}, organizado por temática e PPG.`
+          : "Visão institucional consolidada das redes, temáticas, PPGs e recursos planejados."
+      }
       acoes={podeCriar ? (
         <NovaLinhaDePlano
           programa={programa}
@@ -151,84 +183,28 @@ export default async function PlanoDeAplicacao({
         />
       ) : undefined}
     >
-      <Resumo linhas={linhasAtivas} />
+      <AbasDoPlano
+        rotaPlano={rotaPlano}
+        redes={redes.redes}
+        redeSelecionada={redeSelecionada}
+      />
 
-      <nav
-        aria-label="Navegação entre redes"
-        className="mt-6 flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-3"
-      >
-        <span className="mr-1 text-xs font-semibold uppercase tracking-[0.1em] text-subtle">
-          Ir para a rede
-        </span>
-        {redes.redes.map((rede, indice) => {
-          const identidade = identidadeDaRede(rede.rede, indice);
-
-          return (
-            <a
-              key={rede.redeId}
-              href={`#rede-${rede.redeId}`}
-              className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-[border-color,transform] hover:-translate-y-0.5 ${identidade.atalho}`}
-            >
-              {String(indice + 1).padStart(2, "0")} · {rede.rede}
-            </a>
-          );
-        })}
-      </nav>
-
-      <div className="mt-8 space-y-10">
-        {redes.redes.map((rede, indice) => {
-          const linhasDaRede = linhasAtivas.filter(
-            (linha) => linha.redeId === rede.redeId,
-          );
-          const identidade = identidadeDaRede(rede.rede, indice);
-
-          return (
-            <section
-              key={rede.redeId}
-              id={`rede-${rede.redeId}`}
-              aria-labelledby={`titulo-rede-${rede.redeId}`}
-              className={`scroll-mt-24 overflow-hidden rounded-[1.75rem] border border-l-4 border-border bg-surface shadow-[0_20px_45px_-38px_var(--border-strong)] ${identidade.borda}`}
-            >
-              <header className={`border-b border-border px-5 py-5 sm:px-6 ${identidade.fundo}`}>
-                <div className="flex flex-wrap items-center gap-4">
-                  <span className={`grid size-11 place-items-center rounded-2xl text-sm font-bold tabular-nums shadow-sm ${identidade.marcador}`}>
-                    {String(indice + 1).padStart(2, "0")}
-                  </span>
-                  <div>
-                    <p className={`text-[0.68rem] font-semibold uppercase tracking-[0.14em] ${identidade.texto}`}>
-                      Rede coordenadora
-                    </p>
-                    <h2 id={`titulo-rede-${rede.redeId}`} className="mt-0.5 text-2xl font-semibold tracking-[-0.025em] text-foreground">
-                      Rede {rede.rede}
-                    </h2>
-                    <p className={`mt-1 text-sm ${identidade.texto}`}>
-                      {inteiro(rede.tematicas)} temáticas · {inteiro(rede.ppgs)} PPGs
-                    </p>
-                  </div>
-                </div>
-              </header>
-
-              <div className="p-5 sm:p-6">
-                <Resumo linhas={linhasDaRede} compacto />
-
-                <div className="mt-6 space-y-6">
-                  {rede.areas.map((area) => (
-                    <BlocoTematica
-                      key={area.areaTematicaId}
-                      area={area}
-                      linhas={linhasDaRede.filter(
-                        (linha) => linha.areaTematicaId === area.areaTematicaId,
-                      )}
-                      contexto={contexto}
-                      identidade={identidade}
-                    />
-                  ))}
-                </div>
-              </div>
-            </section>
-          );
-        })}
-      </div>
+      {redeSelecionada ? (
+        <PlanoDaRede
+          rede={redeSelecionada}
+          indice={indiceRedeSelecionada}
+          linhas={linhasAtivas.filter(
+            (linha) => linha.redeId === redeSelecionada.redeId,
+          )}
+          contexto={contexto}
+        />
+      ) : (
+        <VisaoGeral
+          rotaPlano={rotaPlano}
+          redes={redes.redes}
+          linhas={linhasAtivas}
+        />
+      )}
 
       <Aviso tom="info" titulo="Rastreabilidade do planejamento">
         Código e rubrica não podem ser alterados. Edições feitas por administradores
@@ -236,6 +212,308 @@ export default async function PlanoDeAplicacao({
         encerrado, nenhum registro pode ser editado.
       </Aviso>
     </Pagina>
+  );
+}
+
+function AbasDoPlano({
+  rotaPlano,
+  redes,
+  redeSelecionada,
+}: {
+  rotaPlano: string;
+  redes: RedeDoPlano[];
+  redeSelecionada: RedeDoPlano | null;
+}) {
+  return (
+    <nav
+      aria-label="Seções do Plano de Aplicação"
+      className="mb-8 overflow-x-auto border-b border-border"
+    >
+      <div className="flex min-w-max gap-1 pb-px">
+        <Link
+          href={rotaPlano}
+          aria-current={redeSelecionada ? undefined : "page"}
+          className={`flex items-center gap-2 rounded-t-xl border-b-2 px-4 py-3 text-sm font-semibold transition-colors ${
+            redeSelecionada
+              ? "border-transparent text-muted hover:border-border-strong hover:bg-surface-muted"
+              : "border-primary bg-primary-soft/55 text-on-primary-soft"
+          }`}
+        >
+          <IconeVisaoGeral />
+          Visão geral
+        </Link>
+
+        {redes.map((rede, indice) => {
+          const identidade = identidadeDaRede(rede.rede, indice);
+          const ativa = redeSelecionada?.redeId === rede.redeId;
+
+          return (
+            <Link
+              key={rede.redeId}
+              href={`${rotaPlano}?rede=${chaveDaRede(rede.rede)}`}
+              aria-current={ativa ? "page" : undefined}
+              className={`flex items-center gap-2 rounded-t-xl border-b-2 px-4 py-3 text-sm font-semibold transition-colors ${
+                ativa
+                  ? identidade.abaAtiva
+                  : "border-transparent text-muted hover:border-border-strong hover:bg-surface-muted"
+              }`}
+            >
+              <span className={`size-2 rounded-full ${identidade.ponto}`} />
+              {rede.rede}
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
+
+function IconeVisaoGeral() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" className="size-4 fill-none stroke-current" strokeWidth="1.7">
+      <rect x="2.5" y="2.5" width="6" height="6" rx="1.2" />
+      <rect x="11.5" y="2.5" width="6" height="6" rx="1.2" />
+      <rect x="2.5" y="11.5" width="6" height="6" rx="1.2" />
+      <rect x="11.5" y="11.5" width="6" height="6" rx="1.2" />
+    </svg>
+  );
+}
+
+function VisaoGeral({
+  rotaPlano,
+  redes,
+  linhas,
+}: {
+  rotaPlano: string;
+  redes: RedeDoPlano[];
+  linhas: LinhaPlano[];
+}) {
+  const ppgs = new Set(
+    redes.flatMap((rede) =>
+      rede.areas.flatMap((area) =>
+        area.coordenadores.map((coordenador) => coordenador.ppgId),
+      ),
+    ),
+  );
+  const coordenadores = new Set(
+    redes.flatMap((rede) =>
+      rede.areas.flatMap((area) =>
+        area.coordenadores.map(
+          (coordenador) => coordenador.email ?? coordenador.nome,
+        ),
+      ),
+    ),
+  );
+
+  return (
+    <div className="space-y-9">
+      <section aria-labelledby="resumo-operacional">
+        <CabecalhoDeSecao
+          id="resumo-operacional"
+          titulo="Resumo operacional"
+          descricao="Totais consolidados de todas as redes no ciclo."
+        />
+        <Resumo linhas={linhas} />
+      </section>
+
+      <section aria-labelledby="estrutura-programa">
+        <CabecalhoDeSecao
+          id="estrutura-programa"
+          titulo="Estrutura do programa"
+          descricao="Dimensão institucional atualmente cadastrada no planejamento."
+        />
+        <Cartoes>
+          <Cartao
+            titulo="Redes coordenadoras"
+            valor={inteiro(redes.length)}
+            nota="UNESP, UFMG e UNICAMP"
+          />
+          <Cartao
+            titulo="Áreas temáticas"
+            valor={inteiro(redes.reduce((total, rede) => total + rede.areas.length, 0))}
+            nota="Organizam o plano dentro das redes"
+          />
+          <Cartao
+            titulo="PPGs participantes"
+            valor={inteiro(ppgs.size)}
+            nota="Contagem única entre todas as redes"
+          />
+          <Cartao
+            titulo="Coordenadores de temática"
+            valor={inteiro(coordenadores.size)}
+            nota="Uma pessoa pode acompanhar vários PPGs"
+          />
+        </Cartoes>
+      </section>
+
+      <section aria-labelledby="comparativo-redes">
+        <CabecalhoDeSecao
+          id="comparativo-redes"
+          titulo="Panorama por rede"
+          descricao="Compare a dimensão e o planejamento; selecione uma rede para abrir seu plano completo."
+        />
+        <div className="grid gap-4 lg:grid-cols-3">
+          {redes.map((rede, indice) => (
+            <ResumoDaRede
+              key={rede.redeId}
+              rede={rede}
+              indice={indice}
+              linhas={linhas.filter((linha) => linha.redeId === rede.redeId)}
+              href={`${rotaPlano}?rede=${chaveDaRede(rede.rede)}`}
+            />
+          ))}
+        </div>
+      </section>
+
+      <Aviso tom="info" titulo="Como navegar">
+        A Visão geral consolida o ciclo inteiro. As abas de rede apresentam o
+        detalhamento por temática e PPG, além das ações de inclusão, edição e
+        histórico.
+      </Aviso>
+    </div>
+  );
+}
+
+function CabecalhoDeSecao({
+  id,
+  titulo,
+  descricao,
+}: {
+  id: string;
+  titulo: string;
+  descricao: string;
+}) {
+  return (
+    <div className="mb-4">
+      <h2 id={id} className="text-lg font-semibold tracking-[-0.015em] text-foreground">
+        {titulo}
+      </h2>
+      <p className="mt-1 text-sm text-muted">{descricao}</p>
+    </div>
+  );
+}
+
+function ResumoDaRede({
+  rede,
+  indice,
+  linhas,
+  href,
+}: {
+  rede: RedeDoPlano;
+  indice: number;
+  linhas: LinhaPlano[];
+  href: string;
+}) {
+  const identidade = identidadeDaRede(rede.rede, indice);
+  const bolsas = linhas.filter(
+    (linha) => linha.rubrica === "BOLSAS" && linha.status === "PROGRAMADO",
+  );
+  const pendentes = linhas.filter((linha) => linha.status === "PENDENTE");
+
+  return (
+    <Link
+      href={href}
+      className={`group overflow-hidden rounded-2xl border border-l-4 border-border bg-surface shadow-[0_14px_35px_-30px_var(--border-strong)] transition-[border-color,transform,box-shadow] hover:-translate-y-0.5 hover:border-border-strong hover:shadow-[0_20px_40px_-28px_var(--border-strong)] ${identidade.borda}`}
+    >
+      <div className={`flex items-center gap-3 border-b border-border px-4 py-4 ${identidade.fundo}`}>
+        <span className={`grid size-9 place-items-center rounded-xl text-xs font-bold tabular-nums ${identidade.marcador}`}>
+          {String(indice + 1).padStart(2, "0")}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className={`text-[0.65rem] font-semibold uppercase tracking-[0.12em] ${identidade.texto}`}>
+            Rede coordenadora
+          </p>
+          <h3 className="truncate font-semibold text-foreground">{rede.rede}</h3>
+        </div>
+        <span aria-hidden="true" className={`text-lg transition-transform group-hover:translate-x-0.5 ${identidade.texto}`}>
+          →
+        </span>
+      </div>
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-4 p-4 text-sm">
+        <MetricaDaRede rotulo="PPGs" valor={inteiro(rede.ppgs)} />
+        <MetricaDaRede rotulo="Temáticas" valor={inteiro(rede.tematicas)} />
+        <MetricaDaRede
+          rotulo="Bolsas/ano"
+          valor={inteiro(
+            bolsas.reduce((total, linha) => total + linha.quantidadeAnual, 0),
+          )}
+        />
+        <MetricaDaRede rotulo="Pendências" valor={inteiro(pendentes.length)} />
+        <div className="col-span-2 border-t border-border pt-3">
+          <MetricaDaRede
+            rotulo="Custo anual das bolsas"
+            valor={<Moeda valor={somarMoeda(bolsas.map((linha) => linha.custoAnual))} />}
+          />
+        </div>
+      </dl>
+    </Link>
+  );
+}
+
+function MetricaDaRede({ rotulo, valor }: { rotulo: string; valor: React.ReactNode }) {
+  return (
+    <div>
+      <dt className="text-xs text-subtle">{rotulo}</dt>
+      <dd className="mt-1 font-semibold tabular-nums text-foreground">{valor}</dd>
+    </div>
+  );
+}
+
+function PlanoDaRede({
+  rede,
+  indice,
+  linhas,
+  contexto,
+}: {
+  rede: RedeDoPlano;
+  indice: number;
+  linhas: LinhaPlano[];
+  contexto: ContextoDaLinha;
+}) {
+  const identidade = identidadeDaRede(rede.rede, indice);
+
+  return (
+    <section
+      aria-labelledby={`titulo-rede-${rede.redeId}`}
+      className={`overflow-hidden rounded-[1.75rem] border border-l-4 border-border bg-surface shadow-[0_20px_45px_-38px_var(--border-strong)] ${identidade.borda}`}
+    >
+      <header className={`border-b border-border px-5 py-5 sm:px-6 ${identidade.fundo}`}>
+        <div className="flex flex-wrap items-center gap-4">
+          <span className={`grid size-11 place-items-center rounded-2xl text-sm font-bold tabular-nums shadow-sm ${identidade.marcador}`}>
+            {String(indice + 1).padStart(2, "0")}
+          </span>
+          <div>
+            <p className={`text-[0.68rem] font-semibold uppercase tracking-[0.14em] ${identidade.texto}`}>
+              Plano da rede
+            </p>
+            <h2 id={`titulo-rede-${rede.redeId}`} className="mt-0.5 text-2xl font-semibold tracking-[-0.025em] text-foreground">
+              Rede {rede.rede}
+            </h2>
+            <p className={`mt-1 text-sm ${identidade.texto}`}>
+              {inteiro(rede.tematicas)} temáticas · {inteiro(rede.ppgs)} PPGs
+            </p>
+          </div>
+        </div>
+      </header>
+
+      <div className="p-5 sm:p-6">
+        <Resumo linhas={linhas} compacto />
+
+        <div className="mt-7 space-y-6">
+          {rede.areas.map((area) => (
+            <BlocoTematica
+              key={area.areaTematicaId}
+              area={area}
+              linhas={linhas.filter(
+                (linha) => linha.areaTematicaId === area.areaTematicaId,
+              )}
+              contexto={contexto}
+              identidade={identidade}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 
