@@ -19,6 +19,8 @@ export const PERMISSIONS = [
   'orcamento:write',
   'plano:read',
   'plano:write',
+  /** Editar registro existente e ato administrativo com trilha de auditoria. */
+  'plano:edit',
   'catalogo:read',
   /** Publicar versao do catalogo e exclusivo da PROPESP (RN-01, resposta Q10). */
   'catalogo:write',

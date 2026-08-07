@@ -60,17 +60,6 @@ function applyTheme(theme: Theme) {
 export function ThemeToggle() {
   const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
-  useEffect(() => {
-    applyTheme(theme);
-
-    // Em "system", acompanha mudancas do SO com a pagina aberta.
-    if (theme !== "system") return;
-    const query = window.matchMedia("(prefers-color-scheme: dark)");
-    const onChange = () => applyTheme("system");
-    query.addEventListener("change", onChange);
-    return () => query.removeEventListener("change", onChange);
-  }, [theme]);
-
   return (
     <div
       role="radiogroup"
@@ -100,6 +89,30 @@ export function ThemeToggle() {
       })}
     </div>
   );
+}
+
+/**
+ * Mantem o tema resolvido sincronizado durante toda a vida da aplicacao.
+ *
+ * Fica separado do seletor porque o comportamento de "Sistema" nao pode
+ * depender de uma tela que por acaso renderize o controle. O script no layout
+ * resolve a primeira pintura; este componente acompanha as mudancas seguintes.
+ */
+export function ThemeSynchronizer() {
+  const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+
+  useEffect(() => {
+    applyTheme(theme);
+
+    if (theme !== "system") return;
+
+    const query = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = () => applyTheme("system");
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, [theme]);
+
+  return null;
 }
 
 function IconeSol() {

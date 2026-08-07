@@ -408,8 +408,16 @@ describe('Schema — integridade', () => {
         .returning();
 
       await ctx.db.insert(s.participacaoPpg).values([
-        { areaTematicaId: base.areaTematicaId, ppgId: base.ppgId },
-        { areaTematicaId: outraArea.id, ppgId: base.ppgId },
+        {
+          areaTematicaId: base.areaTematicaId,
+          ppgId: base.ppgId,
+          coordenadorTematicaId: base.coordenadorTematicaId,
+        },
+        {
+          areaTematicaId: outraArea.id,
+          ppgId: base.ppgId,
+          coordenadorTematicaId: base.coordenadorTematicaId,
+        },
       ]);
 
       const encontradas = await ctx.db
@@ -424,6 +432,7 @@ describe('Schema — integridade', () => {
       const valores = {
         areaTematicaId: base.areaTematicaId,
         ppgId: base.ppgId,
+        coordenadorTematicaId: base.coordenadorTematicaId,
       };
       await ctx.db.insert(s.participacaoPpg).values(valores);
 

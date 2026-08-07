@@ -15,6 +15,38 @@ export async function criarLinhaDePlano(
   _anterior: EstadoDaAcao,
   formulario: FormData,
 ): Promise<EstadoDaAcao> {
+  const rota = `/programas/${contexto.programa}/${contexto.ciclo}/plano`;
+
+  return enviar(
+    rota,
+    "POST",
+    corpoDaLinha(formulario),
+    [rota, "/", `/programas/${contexto.programa}/${contexto.ciclo}`],
+    "Linha de planejamento criada.",
+  );
+}
+
+export async function atualizarLinhaDePlano(
+  contexto: { programa: string; ciclo: string; id: string },
+  _anterior: EstadoDaAcao,
+  formulario: FormData,
+): Promise<EstadoDaAcao> {
+  const rota = `/programas/${contexto.programa}/${contexto.ciclo}/plano`;
+
+  return enviar(
+    `${rota}/${contexto.id}`,
+    "PATCH",
+    {
+      ...corpoDaLinha(formulario),
+      status: texto(formulario, "status"),
+      justificativaEdicao: texto(formulario, "justificativaEdicao"),
+    },
+    [rota, "/", `/programas/${contexto.programa}/${contexto.ciclo}`],
+    "Linha de planejamento atualizada.",
+  );
+}
+
+function corpoDaLinha(formulario: FormData) {
   const rubrica = texto(formulario, "rubrica");
 
   const comum = {
@@ -63,15 +95,7 @@ export async function criarLinhaDePlano(
             ),
           };
 
-  const rota = `/programas/${contexto.programa}/${contexto.ciclo}/plano`;
-
-  return enviar(
-    rota,
-    "POST",
-    { ...comum, ...especifico },
-    [rota, "/", `/programas/${contexto.programa}/${contexto.ciclo}`],
-    "Linha de planejamento criada.",
-  );
+  return { ...comum, ...especifico };
 }
 
 export async function cancelarLinhaDePlano(

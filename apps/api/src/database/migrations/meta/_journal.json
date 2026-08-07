@@ -15,6 +15,20 @@
       "when": 1785897902928,
       "tag": "0001_quick_lilith",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786068888777,
+      "tag": "0002_clear_mojo",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1786069816311,
+      "tag": "0003_tidy_mystique",
+      "breakpoints": true
     }
   ]
 }

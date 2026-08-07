@@ -7,6 +7,7 @@ import {
 import { and, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
+import type { AuthUser } from '../auth/auth-user';
 import { consultar, consultarUma } from '../comum/consultar';
 import { DRIZZLE, type Database } from '../database/database.module';
 import * as s from '../database/schema';
@@ -43,6 +44,7 @@ export interface LinhaPlano {
   ppgId: string;
   ppg: string;
   ppgSigla: string;
+  coordenadorTematica: string | null;
   descricao: string | null;
   destino: 'BRASIL' | 'EXTERIOR' | null;
   modalidadeId: string | null;
@@ -57,6 +59,11 @@ export interface LinhaPlano {
   /** `CATALOGO` = valor oficial; `ESTIMADO` = digitado com justificativa. */
   origemValor: 'CATALOGO' | 'ESTIMADO' | 'INDEFINIDO';
   justificativaEstimativa: string | null;
+  tipoDespesa: string | null;
+  tipoMissao: string | null;
+  numeroParticipantes: number | null;
+  numeroDiarias: number | null;
+  incluiPassagem: boolean | null;
   custoAnual: string | null;
   custoCiclo: string | null;
   quantidadeCiclo: number;
@@ -145,6 +152,25 @@ export const criarItemSchema = z.discriminatedUnion('rubrica', [
 
 export type CriarItem = z.infer<typeof criarItemSchema>;
 
+export const atualizarItemSchema = criarItemSchema.and(
+  z.object({
+    justificativaEdicao: z.string().trim().max(2000).nullish(),
+    status: z.enum(['PROGRAMADO', 'PENDENTE']),
+  }),
+);
+
+export type AtualizarItem = z.infer<typeof atualizarItemSchema>;
+
+export interface RegistroAuditoriaPlano {
+  id: string;
+  campo: string | null;
+  valorAnterior: string | null;
+  valorNovo: string | null;
+  usuarioNome: string | null;
+  justificativa: string | null;
+  ocorridoEm: Date;
+}
+
 @Injectable()
 export class PlanoService {
   constructor(
@@ -185,6 +211,7 @@ export class PlanoService {
              ip.ppg_id                          as "ppgId",
              p.nome                             as "ppg",
              p.sigla                            as "ppgSigla",
+             coord.nome                         as "coordenadorTematica",
              ip.descricao                       as "descricao",
              ip.destino                         as "destino",
              ip.modalidade_id                   as "modalidadeId",
@@ -201,6 +228,11 @@ export class PlanoService {
                   else 'INDEFINIDO'
              end                                as "origemValor",
              ip.justificativa_estimativa        as "justificativaEstimativa",
+             ip.tipo_despesa                    as "tipoDespesa",
+             ip.tipo_missao                     as "tipoMissao",
+             ip.numero_participantes            as "numeroParticipantes",
+             ip.numero_diarias                  as "numeroDiarias",
+             ip.inclui_passagem                 as "incluiPassagem",
              case when coalesce(ic.valor_brl, ip.valor_unitario_informado) is null
                   then null
                   else ip.quantidade_anual
@@ -221,6 +253,9 @@ export class PlanoService {
         left join rede_coordenadora   rc on rc.id = at.rede_id
         left join modalidade          m  on m.id  = ip.modalidade_id
         left join item_catalogo_bolsa ic on ic.id = ip.item_catalogo_id
+        left join participacao_ppg    pp on pp.area_tematica_id = ip.area_tematica_id
+                                        and pp.ppg_id = ip.ppg_id
+        left join pessoa           coord on coord.id = pp.coordenador_tematica_id
         left join anos                a  on a.item_id = ip.id
        where ip.ciclo_id = ${cicloId}
          ${filtro.rubrica ? sql`and ip.rubrica = ${filtro.rubrica}` : sql``}
@@ -244,6 +279,7 @@ export class PlanoService {
    */
   async criar(ciclo: CicloResolvido, dto: CriarItem): Promise<LinhaPlano> {
     await this.exigirPpg(dto.ppgId);
+    await this.exigirParticipacao(dto.ppgId, dto.areaTematicaId ?? null);
 
     const codigo = await this.proximoCodigo(ciclo.cicloId, dto.rubrica);
 
@@ -328,6 +364,169 @@ export class PlanoService {
   }
 
   /**
+   * Edita sem permitir troca de codigo ou rubrica e grava uma linha de
+   * auditoria para cada campo alterado. Em ciclo vigente, a justificativa e
+   * parte obrigatoria do fato auditavel; ciclo encerrado e imutavel.
+   */
+  async atualizar(
+    ciclo: CicloResolvido,
+    id: string,
+    dto: AtualizarItem,
+    usuario: AuthUser,
+  ): Promise<LinhaPlano> {
+    if (ciclo.status === 'ENCERRADO') {
+      throw new BadRequestException('Ciclo encerrado nao pode ser editado.');
+    }
+    if (
+      ciclo.status === 'VIGENTE' &&
+      (dto.justificativaEdicao?.trim().length ?? 0) < 10
+    ) {
+      throw new BadRequestException(
+        'Em ciclo vigente, informe uma justificativa com pelo menos 10 caracteres.',
+      );
+    }
+
+    const [anterior] = await this.db
+      .select()
+      .from(s.itemPlanejado)
+      .where(
+        and(
+          eq(s.itemPlanejado.id, id),
+          eq(s.itemPlanejado.cicloId, ciclo.cicloId),
+        ),
+      )
+      .limit(1);
+
+    if (!anterior) {
+      throw new NotFoundException('Linha de planejamento nao encontrada.');
+    }
+    if (anterior.rubrica !== dto.rubrica) {
+      throw new BadRequestException(
+        'A rubrica de uma linha nao pode ser alterada.',
+      );
+    }
+
+    await this.exigirPpg(dto.ppgId);
+    await this.exigirParticipacao(dto.ppgId, dto.areaTematicaId ?? null);
+
+    const base = {
+      areaTematicaId: dto.areaTematicaId ?? null,
+      ppgId: dto.ppgId,
+      descricao: dto.descricao ?? null,
+      quantidadeAnual: dto.quantidadeAnual,
+      mesImplementacao: dto.mesImplementacao ?? null,
+      observacoes: dto.observacoes ?? null,
+      textoFonte: dto.textoFonte ?? null,
+      status: dto.status,
+      atualizadoEm: new Date(),
+    };
+
+    let novos: Partial<typeof s.itemPlanejado.$inferInsert>;
+    if (dto.rubrica === 'BOLSAS') {
+      const tabela = await this.catalogo.tabelaVigente(ciclo.programaSlug);
+      const item = await this.catalogo.resolverItem(
+        tabela.id,
+        dto.destino,
+        dto.modalidadeId,
+        String(dto.vigenciaMeses),
+      );
+      novos = {
+        ...base,
+        destino: dto.destino,
+        modalidadeId: dto.modalidadeId,
+        vigenciaMeses: item.vigenciaMeses,
+        itemCatalogoId: item.id,
+        fluxo: dto.fluxo ?? (dto.destino === 'BRASIL' ? 'IN' : 'OUT'),
+      };
+    } else if (dto.rubrica === 'MANUTENCAO') {
+      novos = {
+        ...base,
+        tipoDespesa: dto.tipoDespesa,
+        valorUnitarioInformado: dto.valorUnitarioInformado.toFixed(2),
+        justificativaEstimativa: dto.justificativaEstimativa,
+      };
+    } else {
+      novos = {
+        ...base,
+        tipoMissao: dto.tipoMissao,
+        numeroParticipantes: dto.numeroParticipantes ?? null,
+        numeroDiarias: dto.numeroDiarias ?? null,
+        incluiPassagem: dto.incluiPassagem ?? null,
+        valorUnitarioInformado: dto.valorUnitarioInformado.toFixed(2),
+        justificativaEstimativa: dto.justificativaEstimativa,
+      };
+    }
+
+    const alteracoes = camposAlterados(anterior, novos);
+    if (alteracoes.length === 0)
+      return (await this.listar(ciclo.cicloId)).find((l) => l.id === id)!;
+
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(s.itemPlanejado)
+        .set(novos)
+        .where(eq(s.itemPlanejado.id, id));
+
+      if (anterior.quantidadeAnual !== dto.quantidadeAnual) {
+        await tx
+          .update(s.planejamentoAnual)
+          .set({ quantidade: dto.quantidadeAnual, atualizadoEm: new Date() })
+          .where(eq(s.planejamentoAnual.itemPlanejadoId, id));
+      }
+
+      await tx.insert(s.registroAuditoria).values(
+        alteracoes.map((alteracao) => ({
+          entidadeTipo: 'ITEM_PLANEJADO',
+          entidadeId: id,
+          acao: 'EDICAO' as const,
+          campo: alteracao.campo,
+          valorAnterior: alteracao.anterior,
+          valorNovo: alteracao.novo,
+          usuarioId: usuario.id,
+          usuarioNome: usuario.name ?? usuario.username ?? usuario.email,
+          justificativa: dto.justificativaEdicao ?? null,
+        })),
+      );
+    });
+
+    return (await this.listar(ciclo.cicloId)).find((l) => l.id === id)!;
+  }
+
+  async historico(
+    cicloId: string,
+    id: string,
+  ): Promise<RegistroAuditoriaPlano[]> {
+    const [item] = await this.db
+      .select({ id: s.itemPlanejado.id })
+      .from(s.itemPlanejado)
+      .where(
+        and(eq(s.itemPlanejado.id, id), eq(s.itemPlanejado.cicloId, cicloId)),
+      )
+      .limit(1);
+    if (!item)
+      throw new NotFoundException('Linha de planejamento nao encontrada.');
+
+    return this.db
+      .select({
+        id: s.registroAuditoria.id,
+        campo: s.registroAuditoria.campo,
+        valorAnterior: s.registroAuditoria.valorAnterior,
+        valorNovo: s.registroAuditoria.valorNovo,
+        usuarioNome: s.registroAuditoria.usuarioNome,
+        justificativa: s.registroAuditoria.justificativa,
+        ocorridoEm: s.registroAuditoria.ocorridoEm,
+      })
+      .from(s.registroAuditoria)
+      .where(
+        and(
+          eq(s.registroAuditoria.entidadeTipo, 'ITEM_PLANEJADO'),
+          eq(s.registroAuditoria.entidadeId, id),
+        ),
+      )
+      .orderBy(sql`${s.registroAuditoria.ocorridoEm} desc`);
+  }
+
+  /**
    * Cancela uma linha. Em ciclo nao encerrado nunca se exclui: o historico do
    * que foi planejado e parte do que o sistema existe para preservar.
    */
@@ -377,6 +576,28 @@ export class PlanoService {
     if (!existe) throw new NotFoundException('PPG nao encontrado.');
   }
 
+  private async exigirParticipacao(
+    ppgId: string,
+    areaTematicaId: string | null,
+  ): Promise<void> {
+    if (!areaTematicaId) return;
+    const [participacao] = await this.db
+      .select({ id: s.participacaoPpg.id })
+      .from(s.participacaoPpg)
+      .where(
+        and(
+          eq(s.participacaoPpg.ppgId, ppgId),
+          eq(s.participacaoPpg.areaTematicaId, areaTematicaId),
+        ),
+      )
+      .limit(1);
+    if (!participacao) {
+      throw new BadRequestException(
+        'O PPG selecionado nao participa desta area tematica.',
+      );
+    }
+  }
+
   /** `BOL-024`, `MAN-001`, `MIS-001` — sequencia por rubrica, sem lacuna. */
   private async proximoCodigo(
     cicloId: string,
@@ -398,4 +619,38 @@ export class PlanoService {
 
     return `${prefixo}-${String(proximo).padStart(3, '0')}`;
   }
+}
+
+function camposAlterados(
+  anterior: typeof s.itemPlanejado.$inferSelect,
+  novos: Partial<typeof s.itemPlanejado.$inferInsert>,
+) {
+  const ignorados = new Set(['atualizadoEm']);
+  return Object.entries(novos)
+    .filter(([campo, valor]) => {
+      if (ignorados.has(campo)) return false;
+      return (
+        serializar(anterior[campo as keyof typeof anterior]) !==
+        serializar(valor)
+      );
+    })
+    .map(([campo, valor]) => ({
+      campo,
+      anterior: serializar(anterior[campo as keyof typeof anterior]),
+      novo: serializar(valor),
+    }));
+}
+
+function serializar(valor: unknown): string | null {
+  if (valor === null || valor === undefined) return null;
+  if (valor instanceof Date) return valor.toISOString();
+  if (
+    typeof valor === 'string' ||
+    typeof valor === 'number' ||
+    typeof valor === 'boolean' ||
+    typeof valor === 'bigint'
+  ) {
+    return String(valor);
+  }
+  return JSON.stringify(valor);
 }

@@ -139,6 +139,10 @@ export const participacaoPpg = pgTable(
     ppgId: uuid('ppg_id')
       .notNull()
       .references(() => ppg.id),
+    /** Responsavel por este PPG dentro da tematica; pode coordenar varios PPGs. */
+    coordenadorTematicaId: uuid('coordenador_tematica_id')
+      .notNull()
+      .references(() => pessoa.id),
     situacao: situacaoParticipacaoEnum('situacao')
       .notNull()
       .default('CADASTRO_PRELIMINAR'),
@@ -153,6 +157,7 @@ export const participacaoPpg = pgTable(
     // impedir um dado que existe de verdade.
     uniqueIndex('participacao_ppg_uk').on(t.areaTematicaId, t.ppgId),
     index('participacao_ppg_ppg_idx').on(t.ppgId),
+    index('participacao_ppg_coordenador_idx').on(t.coordenadorTematicaId),
   ],
 );
 
@@ -218,5 +223,9 @@ export const participacaoPpgRelations = relations(
       references: [areaTematica.id],
     }),
     ppg: one(ppg, { fields: [participacaoPpg.ppgId], references: [ppg.id] }),
+    coordenadorTematica: one(pessoa, {
+      fields: [participacaoPpg.coordenadorTematicaId],
+      references: [pessoa.id],
+    }),
   }),
 );

@@ -43,6 +43,18 @@
   --on-info: #FFFFFF;
   --info-soft: #DCE6FD;
   --on-info-soft: #1A3FA8;
+  --network-1: #1B6847;
+  --on-network-1: #FFFFFF;
+  --network-1-soft: #E0F0E7;
+  --on-network-1-soft: #174D37;
+  --network-2: #245F8F;
+  --on-network-2: #FFFFFF;
+  --network-2-soft: #E2EEF7;
+  --on-network-2-soft: #19496E;
+  --network-3: #72508F;
+  --on-network-3: #FFFFFF;
+  --network-3-soft: #EFE7F5;
+  --on-network-3-soft: #583A70;
 }
 
 [data-theme="dark"] {
@@ -76,6 +88,18 @@
   --on-info: #04140D;
   --info-soft: #132039;
   --on-info-soft: #94B6F7;
+  --network-1: #4AA47A;
+  --on-network-1: #07150E;
+  --network-1-soft: #173426;
+  --on-network-1-soft: #8BD5AE;
+  --network-2: #67A5D4;
+  --on-network-2: #07131B;
+  --network-2-soft: #162B3A;
+  --on-network-2-soft: #9CC8E8;
+  --network-3: #B08BD0;
+  --on-network-3: #160D1D;
+  --network-3-soft: #2C2135;
+  --on-network-3-soft: #CEADE8;
 }
 
 @theme inline {
@@ -109,6 +133,18 @@
   --color-on-info: var(--on-info);
   --color-info-soft: var(--info-soft);
   --color-on-info-soft: var(--on-info-soft);
+  --color-network-1: var(--network-1);
+  --color-on-network-1: var(--on-network-1);
+  --color-network-1-soft: var(--network-1-soft);
+  --color-on-network-1-soft: var(--on-network-1-soft);
+  --color-network-2: var(--network-2);
+  --color-on-network-2: var(--on-network-2);
+  --color-network-2-soft: var(--network-2-soft);
+  --color-on-network-2-soft: var(--on-network-2-soft);
+  --color-network-3: var(--network-3);
+  --color-on-network-3: var(--on-network-3);
+  --color-network-3-soft: var(--network-3-soft);
+  --color-on-network-3-soft: var(--on-network-3-soft);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -146,4 +182,55 @@
       transition-duration: 0.01ms !important;
     }
   }
+}
+
+/* O dialogo precisa continuar na top layer durante a animacao de saida. O
+   atributo `data-fechando` e removido pelo componente depois de 200 ms. */
+dialog[data-sidesheet][open] {
+  animation: sidesheet-entrar 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+dialog[data-sidesheet][open]::backdrop {
+  animation: sidesheet-fundo-entrar 220ms ease-out;
+}
+
+dialog[data-sidesheet][data-fechando="true"] {
+  animation: sidesheet-sair 200ms cubic-bezier(0.4, 0, 1, 1) forwards;
+  pointer-events: none;
+}
+
+dialog[data-sidesheet][data-fechando="true"]::backdrop {
+  animation: sidesheet-fundo-sair 200ms ease-in forwards;
+}
+
+@keyframes sidesheet-entrar {
+  from {
+    opacity: 0;
+    transform: translateX(2.5rem) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes sidesheet-sair {
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(2rem) scale(0.99);
+  }
+}
+
+@keyframes sidesheet-fundo-entrar {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes sidesheet-fundo-sair {
+  from { opacity: 1; }
+  to { opacity: 0; }
 }

@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { MenuLateral } from "@/componentes/layout/menu-lateral";
 import { ThemeToggle } from "@/componentes/layout/theme-toggle";
+import { ToastProvider } from "@/componentes/ui/toast";
 import { apiFetch } from "@/lib/api";
 import { requireSession } from "@/lib/auth";
 import type { Me } from "@/lib/dominio";
@@ -30,37 +31,45 @@ export default async function LayoutDoApp({
   // "capes-global/2027-2030" no código faria o sistema deixar de ser
   // multiprograma no primeiro link.
   const ciclo = await cicloPadrao();
+  const nome = me.name ?? sessao.user.username ?? "Usuário";
+  const iniciais = nome
+    .split(" ")
+    .slice(0, 2)
+    .map((parte) => parte[0])
+    .join("")
+    .toUpperCase();
 
   return (
+    <ToastProvider>
     <div className="flex min-h-dvh">
       <MenuLateral grupos={menu(ciclo.programa, ciclo.nome)} />
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 border-b border-border bg-surface/90 px-6 py-3 backdrop-blur">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-foreground">
-              {me.name ?? sessao.user.username}
+      <div className="flex min-w-0 flex-1 flex-col bg-[radial-gradient(circle_at_90%_5%,var(--primary-soft),transparent_22rem)]">
+        <header className="sticky top-0 z-20 flex min-h-[4.5rem] flex-wrap items-center justify-between gap-3 border-b border-border bg-surface/85 px-5 py-3 backdrop-blur-xl sm:px-7">
+          <div className="min-w-0 pl-12 lg:pl-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-on-primary-soft">
+              Gestão integrada
             </p>
-            <p className="truncate text-xs text-subtle">
-              {me.roles.filter((p) => !p.includes("_")).join(" · ") ||
-                "sem papel"}
+            <p className="mt-0.5 truncate text-sm text-muted">
+              Planejamento e internacionalização
             </p>
           </div>
 
           <div className="flex items-center gap-3">
             <ThemeToggle />
-            <Link
-              href="/configuracoes"
-              className="rounded-lg border border-border px-3 py-1.5 text-sm text-muted hover:bg-surface-muted hover:text-foreground"
-            >
-              Conta
+            <Link href="/configuracoes" className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 hover:bg-surface-muted">
+              <span className="grid size-8 place-items-center rounded-lg bg-primary-soft text-xs font-semibold text-on-primary-soft">{iniciais}</span>
+              <span className="hidden min-w-0 text-left sm:block">
+                <span className="block max-w-36 truncate text-sm font-medium text-foreground">{nome}</span>
+                <span className="block max-w-36 truncate text-[0.68rem] text-subtle">{me.roles.filter((p) => !p.includes("_")).join(" · ") || "sem papel"}</span>
+              </span>
             </Link>
             {/* POST e não link: sair muda estado, e um <img> em página externa
                 não pode disparar isso. */}
             <form action="/api/auth/logout" method="post">
               <button
                 type="submit"
-                className="rounded-lg border border-border-strong bg-surface px-3 py-1.5 text-sm font-medium text-foreground hover:bg-surface-muted"
+                className="rounded-xl border border-border bg-surface px-3 py-2 text-sm font-medium text-muted hover:border-border-strong hover:bg-surface-muted hover:text-foreground"
               >
                 Sair
               </button>
@@ -71,6 +80,7 @@ export default async function LayoutDoApp({
         <main className="flex-1">{children}</main>
       </div>
     </div>
+    </ToastProvider>
   );
 }
 

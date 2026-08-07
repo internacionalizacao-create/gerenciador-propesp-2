@@ -329,6 +329,19 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
       expect(linha.quantidadeCiclo).toBe(linha.quantidadeAnual * 4);
     });
 
+    it('associa cada linha ao coordenador do seu PPG na tematica', async () => {
+      const linhas = (await plano.listar(ciclo.cicloId)).filter(
+        (linha) => linha.tematica === 'UNICAMP-T1',
+      );
+      const profsaude = linhas.find((linha) => linha.ppgSigla === 'PROFSAÚDE');
+      const outros = linhas.filter((linha) => linha.ppgSigla !== 'PROFSAÚDE');
+
+      expect(profsaude?.coordenadorTematica).toContain('Sônia Maria Lemos');
+      for (const linha of outros) {
+        expect(linha.coordenadorTematica).toContain('Gisely Cardoso de Melo');
+      }
+    });
+
     it('cria bolsa resolvendo o preco no catalogo, sem aceitar valor digitado', async () => {
       const tabela = await catalogo.tabelaVigente('capes-global');
       const item = tabela.itens.find((i) => i.codigo === 'CAT-053')!;
@@ -394,6 +407,63 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
       await limparItem(criada.id);
     });
 
+    it('edita como admin e registra cada campo alterado na auditoria', async () => {
+      const [linha] = (await plano.listar(ciclo.cicloId)).filter(
+        (item) => item.status === 'PROGRAMADO' && item.rubrica === 'BOLSAS',
+      );
+      const quantidadeOriginal = linha.quantidadeAnual;
+
+      const atualizada = await plano.atualizar(
+        ciclo,
+        linha.id,
+        {
+          rubrica: 'BOLSAS',
+          ppgId: linha.ppgId,
+          areaTematicaId: linha.areaTematicaId,
+          destino: linha.destino!,
+          modalidadeId: linha.modalidadeId!,
+          vigenciaMeses: Number(linha.vigenciaMeses),
+          quantidadeAnual: quantidadeOriginal + 1,
+          status: 'PROGRAMADO',
+          mesImplementacao: linha.mesImplementacao as 'MARCO' | 'SETEMBRO',
+          textoFonte: linha.textoFonte,
+          justificativaEdicao: 'Correcao de digitacao confirmada pela PROPESP.',
+        },
+        {
+          id: 'sub-admin-teste',
+          name: 'Admin Teste',
+          roles: ['admin'],
+          permissions: ['plano:edit'],
+        },
+      );
+
+      expect(atualizada.quantidadeAnual).toBe(quantidadeOriginal + 1);
+      expect(atualizada.quantidadeCiclo).toBe((quantidadeOriginal + 1) * 4);
+      const historico = await plano.historico(ciclo.cicloId, linha.id);
+      expect(historico).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            campo: 'quantidadeAnual',
+            usuarioNome: 'Admin Teste',
+            valorAnterior: String(quantidadeOriginal),
+            valorNovo: String(quantidadeOriginal + 1),
+          }),
+        ]),
+      );
+
+      await ctx.db
+        .update(s.itemPlanejado)
+        .set({ quantidadeAnual: quantidadeOriginal })
+        .where(eq(s.itemPlanejado.id, linha.id));
+      await ctx.db
+        .update(s.planejamentoAnual)
+        .set({ quantidade: quantidadeOriginal })
+        .where(eq(s.planejamentoAnual.itemPlanejadoId, linha.id));
+      await ctx.db
+        .delete(s.registroAuditoria)
+        .where(eq(s.registroAuditoria.entidadeId, linha.id));
+    });
+
     it('cancela em vez de excluir, e exige justificativa', async () => {
       const [linha] = (await plano.listar(ciclo.cicloId)).filter(
         (l) => l.status === 'PROGRAMADO',
@@ -430,7 +500,7 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
       expect(resumo.redes).toBe(3);
       expect(resumo.tematicas).toBe(12);
       expect(resumo.ppgs).toBe(24);
-      expect(resumo.membros).toBe(13);
+      expect(resumo.coordenadores).toBe(13);
       expect(resumo.linhasPlano).toBe(33);
       expect(resumo.pendenciasAbertas).toBe(14);
       expect(resumo.aporteAnual).toBe('1250355.59');
@@ -438,7 +508,7 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
       expect(resumo.tematicasSemOrcamento).toBe(4);
     });
 
-    it('agrupa as 12 tematicas sob as 3 redes, com membros de comite (P07)', async () => {
+    it('agrupa as tematicas com coordenador por PPG participante (P07)', async () => {
       const { redes } = await ciclos.redes(ciclo, 2027);
 
       expect(redes.map((r) => r.rede)).toEqual(['UFMG', 'UNESP', 'UNICAMP']);
@@ -447,7 +517,8 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
       const unicampT1 = redes
         .flatMap((r) => r.areas)
         .find((a) => a.codigo === 'UNICAMP-T1');
-      expect(unicampT1?.membros).toHaveLength(2);
+      expect(unicampT1?.coordenadores).toHaveLength(5);
+      expect(new Set(unicampT1?.coordenadores.map((c) => c.nome)).size).toBe(2);
     });
 
     it('detalha a tematica com PPGs, plano e participacao no custo (P08)', async () => {
@@ -581,6 +652,7 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
         .values({
           areaTematicaId: outraDaMesmaRede.id,
           ppgId: participacao.ppgId,
+          coordenadorTematicaId: participacao.coordenadorTematicaId,
           situacao: 'CADASTRO_PRELIMINAR',
         })
         .returning();

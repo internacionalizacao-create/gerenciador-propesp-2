@@ -14,6 +14,7 @@ export interface BaseFixture {
   redeId: string;
   areaTematicaId: string;
   ppgId: string;
+  coordenadorTematicaId: string;
   modalidadeId: string;
   tabelaValoresId: string;
   itemCatalogoId: string;
@@ -75,6 +76,14 @@ export async function criarBase(db: TestDatabase): Promise<BaseFixture> {
     .values({ nome: 'PPG de Teste', sigla: 'PPGT', notaCapes: 5 })
     .returning();
 
+  const [coordenadorTematica] = await db
+    .insert(s.pessoa)
+    .values({
+      nome: 'Coordenadora de Temática de Teste',
+      tipo: 'DOCENTE',
+    })
+    .returning();
+
   const [modalidade] = await db
     .insert(s.modalidade)
     .values({ nome: 'Doutorado Sanduíche', permiteExterior: true })
@@ -111,6 +120,7 @@ export async function criarBase(db: TestDatabase): Promise<BaseFixture> {
     redeId: rede.id,
     areaTematicaId: area.id,
     ppgId: ppg.id,
+    coordenadorTematicaId: coordenadorTematica.id,
     modalidadeId: modalidade.id,
     tabelaValoresId: tabela.id,
     itemCatalogoId: item.id,

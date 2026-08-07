@@ -56,7 +56,7 @@ export class CicloService {
       this.orcamento.porTematica(ciclo.cicloId, ano),
     ]);
 
-    const membros = await this.membrosPorTematica(ciclo.cicloId);
+    const coordenadores = await this.coordenadoresPorTematica(ciclo.cicloId);
 
     return {
       ano,
@@ -64,7 +64,10 @@ export class CicloService {
         ...rede,
         areas: tematicas
           .filter((t) => t.redeId === rede.redeId)
-          .map((t) => ({ ...t, membros: membros.get(t.areaTematicaId) ?? [] })),
+          .map((t) => ({
+            ...t,
+            coordenadores: coordenadores.get(t.areaTematicaId) ?? [],
+          })),
       })),
     };
   }
@@ -79,7 +82,7 @@ export class CicloService {
     }
 
     const base = doCodigo.find((t) => t.ano === ciclo.anoInicio) ?? doCodigo[0];
-    const membros = await this.membrosPorTematica(ciclo.cicloId);
+    const coordenadores = await this.coordenadoresPorTematica(ciclo.cicloId);
 
     const [participacoes, plano] = await Promise.all([
       this.db
@@ -91,9 +94,15 @@ export class CicloService {
           emRede: s.ppg.emRede,
           situacao: s.participacaoPpg.situacao,
           modalidadesPrevistas: s.participacaoPpg.modalidadesPrevistas,
+          coordenadorTematica: s.pessoa.nome,
+          coordenadorTematicaEmail: s.pessoa.email,
         })
         .from(s.participacaoPpg)
         .innerJoin(s.ppg, eq(s.ppg.id, s.participacaoPpg.ppgId))
+        .leftJoin(
+          s.pessoa,
+          eq(s.pessoa.id, s.participacaoPpg.coordenadorTematicaId),
+        )
         .where(eq(s.participacaoPpg.areaTematicaId, base.areaTematicaId))
         .orderBy(asc(s.ppg.sigla)),
 
@@ -106,7 +115,7 @@ export class CicloService {
 
     return {
       ...base,
-      membros: membros.get(base.areaTematicaId) ?? [],
+      coordenadores: coordenadores.get(base.areaTematicaId) ?? [],
       porAno: doCodigo,
       participacoes: participacoes.map((p) => ({
         ...p,
@@ -193,26 +202,31 @@ export class CicloService {
 
   // ------------------------------------------------------------------ //
 
-  private async membrosPorTematica(cicloId: string) {
+  private async coordenadoresPorTematica(cicloId: string) {
     const linhas = await this.db
       .select({
-        areaTematicaId: s.membroComite.areaTematicaId,
+        areaTematicaId: s.participacaoPpg.areaTematicaId,
+        ppgId: s.participacaoPpg.ppgId,
+        ppgSigla: s.ppg.sigla,
         nome: s.pessoa.nome,
         email: s.pessoa.email,
-        papel: s.membroComite.papel,
       })
-      .from(s.membroComite)
-      .innerJoin(s.pessoa, eq(s.pessoa.id, s.membroComite.pessoaId))
+      .from(s.participacaoPpg)
+      .innerJoin(
+        s.pessoa,
+        eq(s.pessoa.id, s.participacaoPpg.coordenadorTematicaId),
+      )
+      .innerJoin(s.ppg, eq(s.ppg.id, s.participacaoPpg.ppgId))
       .innerJoin(
         s.areaTematica,
-        eq(s.areaTematica.id, s.membroComite.areaTematicaId),
+        eq(s.areaTematica.id, s.participacaoPpg.areaTematicaId),
       )
       .innerJoin(
         s.redeCoordenadora,
         eq(s.redeCoordenadora.id, s.areaTematica.redeId),
       )
       .where(eq(s.redeCoordenadora.cicloId, cicloId))
-      .orderBy(asc(s.pessoa.nome));
+      .orderBy(asc(s.pessoa.nome), asc(s.ppg.sigla));
 
     const mapa = new Map<string, typeof linhas>();
     for (const linha of linhas) {
@@ -231,7 +245,7 @@ export class CicloService {
       linhasPlano: number;
       pendenciasAbertas: number;
       premissas: number;
-      membros: number;
+      coordenadores: number;
     }>(
       this.db,
       sql`
@@ -249,15 +263,22 @@ export class CicloService {
         (select count(*)::int from pendencia
           where ciclo_id = ${cicloId} and status <> 'RESOLVIDA') as "pendenciasAbertas",
         (select count(*)::int from premissa where ciclo_id = ${cicloId}) as "premissas",
-        (select count(*)::int from membro_comite mc
-           join area_tematica at on at.id = mc.area_tematica_id
+        (select count(distinct pp.coordenador_tematica_id)::int
+           from participacao_ppg pp
+           join area_tematica at on at.id = pp.area_tematica_id
            join rede_coordenadora rc on rc.id = at.rede_id
-          where rc.ciclo_id = ${cicloId}) as "membros"
+          where rc.ciclo_id = ${cicloId}
+            and pp.coordenador_tematica_id is not null) as "coordenadores"
     `,
     );
   }
 }
 
-export type LinhaTematicaComMembros = LinhaTematica & {
-  membros: { nome: string; email: string | null; papel: string }[];
+export type LinhaTematicaComCoordenadores = LinhaTematica & {
+  coordenadores: {
+    ppgId: string;
+    ppgSigla: string;
+    nome: string;
+    email: string | null;
+  }[];
 };

@@ -51,6 +51,10 @@ testar "/programas/capes-global/2027-2030/tematicas/UNESP-T4" "2.808,64"
 testar "/programas/capes-global/2027-2030/orcamento"         "5.001.422,36"
 testar "/programas/capes-global/2027-2030/plano"             "BOL-001"
 testar "/programas/capes-global/2027-2030/plano"             "CAT-0"
+if [[ "$USUARIO" == "admin" ]]; then
+  testar "/programas/capes-global/2027-2030/plano"           "Editar"
+  testar "/programas/capes-global/2027-2030/plano"           "Histórico"
+fi
 testar "/programas/capes-global/2027-2030/comite-gestor"     "381.333,00"
 testar "/programas/capes-global/2027-2030/premissas"         "6.59"
 testar "/ppgs"                                               "PPG CLIAMB"

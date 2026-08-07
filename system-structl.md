@@ -4,7 +4,7 @@ Especificação funcional e de dados do sistema que substitui as planilhas hoje 
 pela PROPESP/UEA para gerir bolsas, orçamento e mobilidade internacional da
 pós-graduação.
 
-**Última revisão:** 2026-08-05
+**Última revisão:** 2026-08-06
 **Fontes:** `dados/levamtamento de bolsas/`, `dados/Planejamento_CAPES_Global_Consolidado_UFMG_Comite_Gestor/`, `dados/insights/`, `dados/sugestaov1-prototipo/`
 **Estado da implementação:** autenticação/autorização, modelo de dados (26 tabelas),
 seed com os dados reais, **serviços de cálculo (RN-01 a RN-14) e as telas de
@@ -88,7 +88,7 @@ Substitui essas planilhas por um sistema web que:
 O sistema é da **UEA (Universidade do Estado do Amazonas)**, operado pela **PROPESP**.
 UNESP, UFMG e UNICAMP aparecem como **redes coordenadoras externas** do programa
 CAPES Global — não como instituições usuárias. Todos os PPGs cadastrados são da UEA,
-e todos os membros de comitê têm e-mail `@uea.edu.br`.
+e todos os Coordenadores de Temática têm e-mail `@uea.edu.br`.
 
 ---
 
@@ -103,7 +103,7 @@ conversas com a equipe. **Não invente sinônimos.**
 | **Ciclo** | Período de vigência de um programa. CAPES Global: 2027–2030. Comitê Gestor: 2026–2029. |
 | **Rede coordenadora** | Instituição que coordena um consórcio nacional dentro do programa. No CAPES Global: UNESP, UFMG, UNICAMP. |
 | **Área temática** | Eixo temático dentro de uma rede, com orçamento próprio. Identificado por código (`UNESP-T4`). **Cada rede tem as suas** — os nomes não coincidem entre redes. |
-| **Membro do comitê** | Docente da UEA responsável por uma área temática. Uma área pode ter mais de um. |
+| **Coordenador de Temática** | Docente responsável por um ou mais PPGs dentro de uma área temática. Cada participação PPG–temática tem um coordenador; a mesma pessoa pode coordenar vários PPGs. |
 | **PPG** | Programa de Pós-Graduação da UEA. Tem sigla, nota CAPES, nível e área. |
 | **Modalidade** | Tipo de bolsa: Professor Visitante, Professor Visitante Sênior, Professor Visitante Junior, Jovem Talento, Pós-doutorado, Doutorado Sanduíche, Capacitação. |
 | **Destino** | `Brasil` ou `Exterior`. Determina qual tabela de valores se aplica. |
@@ -149,6 +149,7 @@ Instituição (UEA)
                      ├── Orçamento por ano e rubrica
                      │
                      └── Participação do PPG (PPG CLIAMB, "Contemplado")
+                          │   Coordenador de Temática responsável pelo PPG
                           │
                           └── Bolsa planejada (BOL-001)
                                │   modalidade, vigência, qtd/ano, mês
@@ -311,19 +312,18 @@ id PK · redeId FK · codigo ("UNESP-T4") · nome · temaNumero?
 statusOrcamento (DEFINIDO | A_DEFINIR) · observacoes?
 ```
 
-**`MembroComite`** — N:N entre pessoa e área temática.
-```
-id PK · areaTematicaId FK · pessoaId FK · papel (TITULAR | SUPLENTE) · desde? · ate?
-```
-
 **`ParticipacaoPpg`** — qual PPG participa de qual área temática.
 ```
 id PK · areaTematicaId FK · ppgId FK
+coordenadorTematicaId FK → Pessoa
 situacao (CONTEMPLADO | CADASTRO_PRELIMINAR | NAO_CONTEMPLADO)
 modalidadesPrevistas[]? · observacoes?
 ```
 > Precisa de **unique(areaTematicaId, ppgId)** e de um alerta quando o mesmo PPG
 > aparece em duas temáticas da mesma rede — é a pendência `PEND-006` (PROFSAÚDE).
+> Cada participação tem exatamente um Coordenador de Temática. Uma temática pode
+> ter vários coordenadores quando eles cuidam de PPGs diferentes, e uma pessoa
+> pode coordenar vários PPGs — é o caso de `UNICAMP-T1`.
 
 ### 4.3 Catálogo de valores
 
@@ -820,7 +820,8 @@ Inclui a **legenda de uso** herdada da planilha, traduzida para o sistema:
 **Blocos**
 1. Cartões por rede: orçamento anual, temáticas, PPGs, status, IN/OUT.
 2. Tabela de áreas temáticas agrupada por rede. Colunas: código, área, membro(s) do
-   comitê, PPGs, status, orçamento (bolsas/manutenção/missões/total), custo calculado,
+   Coordenadores de Temática por PPG, PPGs, status, orçamento
+   (bolsas/manutenção/missões/total), custo calculado,
    custo informado, saldo, **divergência**, utilização.
 
 **Regras**
@@ -828,7 +829,7 @@ Inclui a **legenda de uso** herdada da planilha, traduzida para o sistema:
 - Rede `A_DEFINIR` (UNICAMP) mostra as temáticas e PPGs, com orçamento em branco e
   o rótulo "A definir" — **jamais zero**.
 
-**Ações** nova rede · nova área temática · gerenciar membros do comitê · vincular PPGs.
+**Ações** nova rede · nova área temática · gerenciar Coordenadores de Temática · vincular PPGs.
 
 ---
 
@@ -838,7 +839,7 @@ Inclui a **legenda de uso** herdada da planilha, traduzida para o sistema:
 Tudo sobre uma temática em uma página.
 
 **Abas internas**
-- **Resumo** — orçamento por rubrica, custo, saldo, utilização, membros do comitê.
+- **Resumo** — orçamento por rubrica, custo, saldo, utilização e Coordenadores de Temática por PPG.
 - **PPGs** — participantes, nota, situação, modalidades previstas, participação no
   custo (%), com alerta de PPG duplicado em outra temática.
 - **Plano de aplicação** — as linhas daquela temática nas três rubricas, com custo e projeção.
@@ -876,6 +877,11 @@ bolsas; manutenção e missões passam a ter o mesmo tratamento (resposta **Q3**
 
 **Abas internas** — `Bolsas` · `Manutenção` · `Missões` · `Consolidado`
 Cada rubrica tem colunas próprias; o consolidado soma tudo contra o orçamento.
+
+**Organização da tela** — resumo geral no topo; redes exibidas verticalmente
+(`UNESP`, `UFMG`, `UNICAMP`), cada uma repetindo os quatro cartões de resumo;
+dentro de cada rede, uma tabela própria por temática. As linhas identificam o
+Coordenador de Temática correspondente ao PPG.
 
 #### Aba Bolsas
 **Tabela** código · rede · temática · PPG · destino · modalidade · vigência ·
@@ -921,6 +927,10 @@ Quantidade     [número]   Mês [select]
 - Linha com `status = PENDENTE` (caso UNICAMP) é aceita sem modalidade nem quantidade.
 - Uma linha nunca é excluída em ciclo vigente — é cancelada, preservando o histórico.
 - Coordenador de PPG só enxerga e edita linhas do seu PPG (§3.5).
+- Administrador pode corrigir uma linha existente, exceto código e rubrica. A
+  edição guarda usuário, data/hora, justificativa e valores anterior/novo por
+  campo. Em `VIGENTE`, justificativa é obrigatória; em `PLANEJAMENTO`, opcional;
+  em `ENCERRADO`, edição é bloqueada.
 
 **Estados especiais**
 - As 10 linhas UNICAMP (`BOL-024`..`BOL-033`) existem com quantidade 0 e status
@@ -1205,8 +1215,8 @@ comportamento real e a migração seja verificável.
 | `Ciclo` | 2 | CAPES Global 2027–2030; Comitê Gestor 2026–2029 |
 | `RedeCoordenadora` | 3 | `Redes_Tematicas` |
 | `AreaTematica` | 12 | 4 por rede |
-| `Pessoa` (membros de comitê) | 13 | abas `Comitê *` |
-| `MembroComite` | 13 | UNICAMP-T1 tem 2 membros; ninguém se repete entre temáticas |
+| `Pessoa` (Coordenadores de Temática) | 13 | abas `Comitê *` |
+| `ParticipacaoPpg` | 24 | Cada vínculo PPG–temática aponta para seu coordenador; uma pessoa pode aparecer em vários vínculos. |
 | `Ppg` | 24 | `PPGs` |
 | `ParticipacaoPpg` | 24 | `PPGs` |
 | `Modalidade` | 7 | catálogo |

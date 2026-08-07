@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
 
-import { criarLinhaDePlano } from "@/acoes/plano";
+import { atualizarLinhaDePlano, criarLinhaDePlano } from "@/acoes/plano";
 import {
   AreaTexto,
   Campo,
@@ -12,8 +12,9 @@ import {
   Texto,
 } from "@/componentes/ui/campos";
 import { Multistep, type Passo } from "@/componentes/ui/multistep";
+import { useToastDaAcao } from "@/componentes/ui/toast";
 import { ESTADO_INICIAL } from "@/lib/acao-tipos";
-import type { ItemCatalogo, LinhaPpg, Rubrica } from "@/lib/dominio";
+import type { ItemCatalogo, LinhaPlano, LinhaPpg, Rubrica } from "@/lib/dominio";
 import { meses as formatarMeses, moeda, rotulo } from "@/lib/formato";
 
 const MESES = [
@@ -50,28 +51,46 @@ export function FormLinhaPlano({
   ppgs,
   areas,
   catalogo,
+  linha,
+  cicloStatus = "PLANEJAMENTO",
   aoConcluir,
 }: {
   programa: string;
   ciclo: string;
   ppgs: LinhaPpg[];
-  areas: { id: string; codigo: string; nome: string; rede: string }[];
+  areas: {
+    id: string;
+    codigo: string;
+    nome: string;
+    rede: string;
+    ppgIds: string[];
+  }[];
   catalogo: ItemCatalogo[];
+  linha?: LinhaPlano;
+  cicloStatus?: "PLANEJAMENTO" | "VIGENTE" | "ENCERRADO";
   aoConcluir: () => void;
 }) {
+  const acao = linha
+    ? atualizarLinhaDePlano.bind(null, {
+        programa,
+        ciclo,
+        id: linha.id,
+      })
+    : criarLinhaDePlano.bind(null, { programa, ciclo });
   const [estado, executar, enviando] = useActionState(
-    criarLinhaDePlano.bind(null, { programa, ciclo }),
+    acao,
     ESTADO_INICIAL,
   );
 
-  const [rubrica, setRubrica] = useState<Rubrica>("BOLSAS");
-  const [destino, setDestino] = useState<"BRASIL" | "EXTERIOR">("EXTERIOR");
-  const [modalidadeId, setModalidadeId] = useState("");
-  const [vigencia, setVigencia] = useState("");
+  const [rubrica, setRubrica] = useState<Rubrica>(linha?.rubrica ?? "BOLSAS");
+  const [destino, setDestino] = useState<"BRASIL" | "EXTERIOR">(
+    linha?.destino ?? "EXTERIOR",
+  );
+  const [modalidadeId, setModalidadeId] = useState(linha?.modalidadeId ?? "");
+  const [vigencia, setVigencia] = useState(linha?.vigenciaMeses ?? "");
+  const [ppgId, setPpgId] = useState(linha?.ppgId ?? "");
 
-  useEffect(() => {
-    if (estado.ok) aoConcluir();
-  }, [estado.ok, aoConcluir]);
+  useToastDaAcao(estado, aoConcluir);
 
   // Só as modalidades que existem no catálogo para o destino escolhido. Oferecer
   // uma combinação que a tabela oficial não tem produziria um 422 evitável.
@@ -102,6 +121,9 @@ export function FormLinhaPlano({
       i.modalidadeId === modalidadeId &&
       Number(i.vigenciaMeses) === Number(vigencia),
   );
+  const areasDoPpg = ppgId
+    ? areas.filter((area) => area.ppgIds.includes(ppgId))
+    : [];
 
   const passos: Passo[] = [
     {
@@ -113,23 +135,44 @@ export function FormLinhaPlano({
         campo(formulario, "ppgId") ? null : "Selecione o PPG.",
       conteudo: (
         <>
-          <Selecao
-            rotulo="Rubrica"
-            nome="rubrica"
-            padrao="BOLSAS"
-            aoMudar={(valor) => setRubrica(valor as Rubrica)}
-            dica="Bolsas usa o catálogo oficial. Manutenção e missões usam valor estimado."
-            opcoes={[
-              { valor: "BOLSAS", texto: "Bolsas" },
-              { valor: "MANUTENCAO", texto: "Manutenção" },
-              { valor: "MISSOES", texto: "Missões" },
-            ]}
-          />
+          {linha ? (
+            <Campo
+              rotulo="Rubrica"
+              dica="A rubrica define a natureza do registro e não pode ser alterada."
+            >
+              {(id) => (
+                <>
+                  <input type="hidden" name="rubrica" value={rubrica} />
+                  <div
+                    id={id}
+                    className="rounded-xl border border-border bg-surface-muted px-3 py-2.5 text-sm font-medium text-foreground"
+                  >
+                    {rotulo(rubrica)}
+                  </div>
+                </>
+              )}
+            </Campo>
+          ) : (
+            <Selecao
+              rotulo="Rubrica"
+              nome="rubrica"
+              padrao="BOLSAS"
+              aoMudar={(valor) => setRubrica(valor as Rubrica)}
+              dica="Bolsas usa o catálogo oficial. Manutenção e missões usam valor estimado."
+              opcoes={[
+                { valor: "BOLSAS", texto: "Bolsas" },
+                { valor: "MANUTENCAO", texto: "Manutenção" },
+                { valor: "MISSOES", texto: "Missões" },
+              ]}
+            />
+          )}
           <Selecao
             rotulo="PPG"
             nome="ppgId"
             obrigatorio
             vazio="Selecione…"
+            padrao={linha?.ppgId}
+            aoMudar={setPpgId}
             dica="A rede e a área temática são derivadas do PPG."
             opcoes={ppgs.map((p) => ({
               valor: p.id,
@@ -140,10 +183,11 @@ export function FormLinhaPlano({
             rotulo="Área temática"
             nome="areaTematicaId"
             vazio="Sem área temática"
+            padrao={linha?.areaTematicaId ?? ""}
             dica="Programas sem redes (GCUB, Erasmus+) deixam este campo vazio."
-            opcoes={areas.map((a) => ({
+            opcoes={areasDoPpg.map((a) => ({
               valor: a.id,
-              texto: `${a.codigo} — ${a.nome}`,
+              texto: `${a.rede} · ${a.codigo} — ${a.nome}`,
             }))}
           />
         </>
@@ -180,7 +224,7 @@ export function FormLinhaPlano({
             <Selecao
               rotulo="Destino"
               nome="destino"
-              padrao="EXTERIOR"
+              padrao={linha?.destino ?? "EXTERIOR"}
               aoMudar={(valor) => {
                 setDestino(valor as "BRASIL" | "EXTERIOR");
                 setModalidadeId("");
@@ -196,6 +240,7 @@ export function FormLinhaPlano({
               rotulo="Modalidade"
               nome="modalidadeId"
               vazio="Selecione…"
+              padrao={linha?.modalidadeId ?? ""}
               aoMudar={(valor) => {
                 setModalidadeId(valor);
                 setVigencia("");
@@ -209,6 +254,7 @@ export function FormLinhaPlano({
               vazio={
                 modalidadeId ? "Selecione…" : "Escolha a modalidade primeiro"
               }
+              padrao={linha?.vigenciaMeses ?? ""}
               aoMudar={setVigencia}
               opcoes={vigencias}
               dica="Só as vigências existentes no catálogo. Bolsa de até 15 dias vale 0,5 mês (RN-02)."
@@ -247,6 +293,7 @@ export function FormLinhaPlano({
               rotulo="Fluxo"
               nome="fluxo"
               vazio={`Sugerido: ${destino === "BRASIL" ? "IN" : "OUT"}`}
+              padrao={linha?.fluxo ?? ""}
               dica="Deixe em branco para aplicar a convenção (RN-10). Sobrescreva só nos casos de borda — por exemplo, um bolsista estrangeiro que já reside no Brasil."
               opcoes={[
                 { valor: "IN", texto: rotulo("IN") },
@@ -261,11 +308,12 @@ export function FormLinhaPlano({
               nome="descricao"
               linhas={2}
               placeholder="Material de consumo para o laboratório de…"
+              padrao={linha?.descricao ?? undefined}
             />
             <Selecao
               rotulo="Tipo de despesa"
               nome="tipoDespesa"
-              padrao="MATERIAL_CONSUMO"
+              padrao={linha?.tipoDespesa ?? "MATERIAL_CONSUMO"}
               opcoes={[
                 { valor: "MATERIAL_CONSUMO", texto: "Material de consumo" },
                 { valor: "SERVICO", texto: "Serviço" },
@@ -274,7 +322,7 @@ export function FormLinhaPlano({
                 { valor: "OUTRO", texto: "Outro" },
               ]}
             />
-            <ValorEstimado />
+            <ValorEstimado linha={linha} />
           </>
         ) : (
           <>
@@ -283,11 +331,12 @@ export function FormLinhaPlano({
               nome="descricao"
               linhas={2}
               placeholder="Missão de articulação institucional junto à universidade…"
+              padrao={linha?.descricao ?? undefined}
             />
             <Selecao
               rotulo="Tipo de missão"
               nome="tipoMissao"
-              padrao="VISITA_TECNICA"
+              padrao={linha?.tipoMissao ?? "VISITA_TECNICA"}
               opcoes={[
                 { valor: "VISITA_TECNICA", texto: "Visita técnica" },
                 { valor: "EVENTO", texto: "Evento" },
@@ -302,16 +351,22 @@ export function FormLinhaPlano({
                 nome="numeroParticipantes"
                 tipo="number"
                 minimo="1"
+                padrao={linha?.numeroParticipantes?.toString()}
               />
               <Texto
                 rotulo="Diárias"
                 nome="numeroDiarias"
                 tipo="number"
                 minimo="1"
+                padrao={linha?.numeroDiarias?.toString()}
               />
             </Grade>
-            <Marcador rotulo="Inclui passagem" nome="incluiPassagem" />
-            <ValorEstimado />
+            <Marcador
+              rotulo="Inclui passagem"
+              nome="incluiPassagem"
+              padrao={linha?.incluiPassagem ?? undefined}
+            />
+            <ValorEstimado linha={linha} />
           </>
         ),
     },
@@ -333,14 +388,14 @@ export function FormLinhaPlano({
               tipo="number"
               minimo="1"
               obrigatorio
-              padrao="1"
+              padrao={linha?.quantidadeAnual.toString() ?? "1"}
               dica="Unidades, não linhas."
             />
             <Selecao
               rotulo="Mês de implementação"
               nome="mesImplementacao"
               vazio="Não definido"
-              padrao="MARCO"
+              padrao={linha?.mesImplementacao ?? "MARCO"}
               dica="Hoje os editais concentram em Março e Setembro."
               opcoes={MESES.map((m) => ({ valor: m, texto: rotulo(m) }))}
             />
@@ -352,7 +407,36 @@ export function FormLinhaPlano({
             linhas={3}
             placeholder="A frase original do anexo que originou esta linha."
             dica="Guardar a frase de origem é o que permite conferir uma divergência futura contra a fonte, em vez de refazer a interpretação."
+            padrao={linha?.textoFonte ?? undefined}
           />
+
+          {linha ? (
+            <Selecao
+              rotulo="Situação da linha"
+              nome="status"
+              padrao={linha.status === "CANCELADO" ? "PENDENTE" : linha.status}
+              dica="Use Pendente enquanto a definição da rede ainda estiver incompleta."
+              opcoes={[
+                { valor: "PROGRAMADO", texto: "Programada" },
+                { valor: "PENDENTE", texto: "Pendente" },
+              ]}
+            />
+          ) : null}
+
+          {linha ? (
+            <AreaTexto
+              rotulo="Justificativa da edição"
+              nome="justificativaEdicao"
+              linhas={3}
+              obrigatorio={cicloStatus === "VIGENTE"}
+              placeholder="Explique por que o registro precisou ser alterado."
+              dica={
+                cicloStatus === "VIGENTE"
+                  ? "Obrigatória em ciclo vigente. Ficará registrada no histórico."
+                  : "Opcional durante o planejamento. Quando informada, ficará registrada no histórico."
+              }
+            />
+          ) : null}
         </>
       ),
     },
@@ -364,7 +448,7 @@ export function FormLinhaPlano({
         passos={passos}
         enviando={enviando}
         erro={estado.ok ? null : (estado.mensagem ?? null)}
-        rotuloConcluir="Criar linha"
+        rotuloConcluir={linha ? "Salvar alterações" : "Criar linha"}
         aoCancelar={aoConcluir}
       />
     </form>
@@ -372,7 +456,7 @@ export function FormLinhaPlano({
 }
 
 /** O par valor + justificativa que toda estimativa exige. */
-function ValorEstimado() {
+function ValorEstimado({ linha }: { linha?: LinhaPlano }) {
   return (
     <>
       <Texto
@@ -382,6 +466,7 @@ function ValorEstimado() {
         passo="0.01"
         minimo="0"
         obrigatorio
+        padrao={linha?.valorUnitario ?? undefined}
         dica="Não há tabela oficial para esta rubrica — este número é uma estimativa e será exibido como tal."
       />
       <AreaTexto
@@ -389,6 +474,7 @@ function ValorEstimado() {
         nome="justificativaEstimativa"
         obrigatorio
         linhas={3}
+        padrao={linha?.justificativaEstimativa ?? undefined}
         placeholder="Média de três cotações de passagem e diária para o destino."
         dica="Obrigatória. Sem ela, o valor entraria em relatórios sem que ninguém soubesse de onde veio."
       />

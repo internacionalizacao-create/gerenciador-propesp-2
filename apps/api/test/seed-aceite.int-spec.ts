@@ -77,21 +77,28 @@ describe('Seed — aceite da migração CAPES Global 2027–2030', () => {
       expect(areas.total).toBe(12);
     });
 
-    it('carrega 13 membros de comitê, com 2 na UNICAMP-T1', async () => {
-      const [{ total }] = await ctx.db
-        .select({ total: sql<number>`count(*)::int` })
-        .from(s.membroComite);
-      expect(total).toBe(13);
-
-      const doisMembros = await ctx.db
-        .select({ total: sql<number>`count(*)::int` })
-        .from(s.membroComite)
+    it('vincula um coordenador a cada PPG dentro da tematica', async () => {
+      const coordenacoes = await ctx.db
+        .select({
+          area: s.areaTematica.codigo,
+          ppg: s.ppg.sigla,
+          coordenador: s.pessoa.nome,
+        })
+        .from(s.participacaoPpg)
         .innerJoin(
           s.areaTematica,
-          eq(s.areaTematica.id, s.membroComite.areaTematicaId),
+          eq(s.areaTematica.id, s.participacaoPpg.areaTematicaId),
         )
-        .where(eq(s.areaTematica.codigo, 'UNICAMP-T1'));
-      expect(doisMembros[0].total).toBe(2);
+        .innerJoin(s.ppg, eq(s.ppg.id, s.participacaoPpg.ppgId))
+        .innerJoin(
+          s.pessoa,
+          eq(s.pessoa.id, s.participacaoPpg.coordenadorTematicaId),
+        );
+
+      expect(coordenacoes).toHaveLength(24);
+      const unicampT1 = coordenacoes.filter((c) => c.area === 'UNICAMP-T1');
+      expect(unicampT1).toHaveLength(5);
+      expect(new Set(unicampT1.map((c) => c.coordenador)).size).toBe(2);
     });
 
     it('cadastra os demais programas de mobilidade, ainda sem dados', async () => {

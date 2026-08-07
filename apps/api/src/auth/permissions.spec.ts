@@ -36,6 +36,13 @@ describe('permissionsForRoles', () => {
     expect(permissionsForRoles(['docente'])).not.toContain('plano:write');
   });
 
+  it('reserva a edicao auditavel do plano ao admin', () => {
+    expect(permissionsForRoles(['admin'])).toContain('plano:edit');
+    for (const papel of ['coordenador', 'secretaria', 'docente', 'discente']) {
+      expect(permissionsForRoles([papel])).not.toContain('plano:edit');
+    }
+  });
+
   it('reserva orcamento e catalogo a PROPESP', () => {
     // §3.5: acoes que atravessam PPGs — definir orcamento, publicar catalogo —
     // nao pertencem a quem coordena um PPG so. Este teste e o que impede a

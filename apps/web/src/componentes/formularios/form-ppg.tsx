@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState } from "react";
 
 import { atualizarPpg, criarPpg } from "@/acoes/ppgs";
 import {
@@ -12,6 +12,7 @@ import {
   Texto,
 } from "@/componentes/ui/campos";
 import { Multistep, type Passo } from "@/componentes/ui/multistep";
+import { useToastDaAcao } from "@/componentes/ui/toast";
 import { ESTADO_INICIAL } from "@/lib/acao-tipos";
 import type { PpgDetalhe } from "@/lib/dominio";
 
@@ -36,10 +37,8 @@ export function FormPpg({
   const acao = ppg ? atualizarPpg.bind(null, ppg.id) : criarPpg;
   const [estado, executar, enviando] = useActionState(acao, ESTADO_INICIAL);
 
-  // Fechar só depois de gravar; fechar no clique esconderia o erro do servidor.
-  useEffect(() => {
-    if (estado.ok) aoConcluir();
-  }, [estado.ok, aoConcluir]);
+  // Fechar so depois de gravar; fechar no clique esconderia o erro do servidor.
+  useToastDaAcao(estado, aoConcluir);
 
   const erroDe = (campo: string) =>
     estado.erros?.find((e) => e.campo === campo)?.mensagem;

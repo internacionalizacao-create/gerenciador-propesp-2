@@ -68,7 +68,7 @@ export function Multistep({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <ol className="flex shrink-0 gap-1 border-b border-border px-6 py-4">
+      <ol className="flex shrink-0 gap-2 border-b border-border bg-surface-muted/50 px-6 py-4">
         {passos.map((passo, indice) => {
           const estado =
             indice === atual
@@ -118,7 +118,7 @@ export function Multistep({
         ))}
       </div>
 
-      <div className="shrink-0 border-t border-border bg-surface-muted px-6 py-4">
+      <div className="shrink-0 border-t border-border bg-surface-muted/70 px-6 py-4">
         {impedimento ? (
           <p
             role="alert"
@@ -146,7 +146,7 @@ export function Multistep({
               <button
                 type="button"
                 onClick={aoCancelar}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-muted hover:text-foreground"
+                className="rounded-xl px-3 py-2 text-sm font-medium text-muted hover:bg-surface hover:text-foreground"
               >
                 Cancelar
               </button>
@@ -159,7 +159,7 @@ export function Multistep({
                   setImpedimento(null);
                   setAtual((i) => i - 1);
                 }}
-                className="rounded-lg border border-border-strong bg-surface px-4 py-2 text-sm font-medium text-foreground hover:bg-surface-muted"
+                className="rounded-xl border border-border-strong bg-surface px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-surface-muted"
               >
                 Voltar
               </button>
@@ -169,7 +169,7 @@ export function Multistep({
               <button
                 type="submit"
                 disabled={enviando}
-                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary hover:bg-primary-hover disabled:opacity-60"
+                className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-on-primary shadow-sm hover:bg-primary-hover disabled:opacity-60"
               >
                 {enviando ? "Salvando…" : rotuloConcluir}
               </button>
@@ -177,7 +177,7 @@ export function Multistep({
               <button
                 type="button"
                 onClick={avancar}
-                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary hover:bg-primary-hover"
+                className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-on-primary shadow-sm hover:bg-primary-hover"
               >
                 Avançar
               </button>

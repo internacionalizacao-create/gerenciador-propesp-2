@@ -53,7 +53,7 @@ export default async function DetalheDaTematica({
     >
       {area.statusOrcamento === "A_DEFINIR" ? (
         <Aviso tom="aviso" titulo="Orçamento a definir">
-          Esta área temática tem PPGs e membros de comitê cadastrados, mas a rede
+          Esta área temática tem PPGs e Coordenadores de Temática cadastrados, mas a rede
           ainda não informou o orçamento. Os valores ficam em branco de propósito
           — preenchê-los com zero distorceria os indicadores do painel.
         </Aviso>
@@ -94,29 +94,29 @@ export default async function DetalheDaTematica({
       </Secao>
 
       <Secao
-        titulo="Membros do comitê"
-        descricao="Docentes da UEA responsáveis por acompanhar a temática."
+        titulo="Coordenadores de Temática"
+        descricao="Docentes responsáveis pelos PPGs participantes desta temática."
       >
-        {area.membros.length > 0 ? (
+        {area.coordenadores.length > 0 ? (
           <ul className="flex flex-wrap gap-2">
-            {area.membros.map((membro) => (
+            {area.coordenadores.map((coordenador) => (
               <li
-                key={membro.nome}
+                key={coordenador.ppgId}
                 className="rounded-lg border border-border bg-surface px-3 py-2 text-sm"
               >
                 <span className="font-medium text-foreground">
-                  {membro.nome}
+                  {coordenador.nome}
                 </span>
                 <span className="ml-2 text-xs text-subtle">
-                  {rotulo(membro.papel)}
+                  {coordenador.ppgSigla}
                 </span>
               </li>
             ))}
           </ul>
         ) : (
           <EstadoVazio
-            titulo="Nenhum membro designado"
-            descricao="A temática existe no planejamento, mas ninguém foi formalmente designado para acompanhá-la."
+            titulo="Nenhum coordenador designado"
+            descricao="A temática existe no planejamento, mas seus PPGs ainda não têm Coordenador de Temática."
           />
         )}
       </Secao>

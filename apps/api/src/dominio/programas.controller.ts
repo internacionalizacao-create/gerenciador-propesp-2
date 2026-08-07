@@ -12,7 +12,8 @@ import {
 } from '@nestjs/common';
 import { asc, eq, sql } from 'drizzle-orm';
 
-import { RequirePermission } from '../auth/auth.decorators';
+import { CurrentUser, RequirePermission } from '../auth/auth.decorators';
+import type { AuthUser } from '../auth/auth-user';
 import { ZodValidationPipe } from '../comum/zod-validation.pipe';
 import { consultar } from '../comum/consultar';
 import { DRIZZLE, type Database } from '../database/database.module';
@@ -30,7 +31,9 @@ import {
 } from './pendencias.service';
 import {
   criarItemSchema,
+  atualizarItemSchema,
   PlanoService,
+  type AtualizarItem,
   type CriarItem,
   type Rubrica,
 } from './plano.service';
@@ -244,6 +247,30 @@ export class ProgramasController {
   ) {
     const ciclo = await this.contexto.resolver(slug, nome);
     return this.plano.criar(ciclo, dto);
+  }
+
+  @Patch(':programa/:ciclo/plano/:id')
+  @RequirePermission('plano:edit')
+  async atualizarLinhaDePlano(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('id') id: string,
+    @CurrentUser() usuario: AuthUser,
+    @Body(new ZodValidationPipe(atualizarItemSchema)) dto: AtualizarItem,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.plano.atualizar(ciclo, id, dto, usuario);
+  }
+
+  @Get(':programa/:ciclo/plano/:id/historico')
+  @RequirePermission('plano:read')
+  async historicoDaLinha(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('id') id: string,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.plano.historico(ciclo.cicloId, id);
   }
 
   @Post(':programa/:ciclo/plano/:id/cancelar')

@@ -44,7 +44,7 @@ export interface ResultadoSeed {
   pessoas: number;
   redes: number;
   areasTematicas: number;
-  membrosComite: number;
+  coordenadoresTematica: number;
   participacoes: number;
   orcamentos: number;
   itensPlanejados: number;
@@ -199,7 +199,7 @@ export async function executarSeed(
     .returning();
   const ppgPorNome = new Map(ppgs.map((p) => [chave(p.nome), p.id]));
 
-  // --- Pessoas (membros de comitê) ----------------------------------------
+  // --- Pessoas (Coordenadores de Tematica) --------------------------------
   const nomesMembros = [...new Set(d.tematicas.flatMap((t) => t.membros))];
   const pessoas = await db
     .insert(s.pessoa)
@@ -250,22 +250,6 @@ export async function executarSeed(
     .returning();
   const areaPorCodigo = new Map(areas.map((a) => [a.codigo, a.id]));
 
-  const membros = await db
-    .insert(s.membroComite)
-    .values(
-      d.tematicas.flatMap((t) =>
-        t.membros.map((nome) => ({
-          areaTematicaId: exigir(
-            areaPorCodigo.get(t.codigo),
-            `temática ${t.codigo}`,
-          ),
-          pessoaId: exigir(pessoaPorNome.get(chave(nome)), `membro ${nome}`),
-          papel: 'TITULAR' as const,
-        })),
-      ),
-    )
-    .returning();
-
   const participacoes = await db
     .insert(s.participacaoPpg)
     .values(
@@ -275,6 +259,12 @@ export async function executarSeed(
           `temática ${p.temaId}`,
         ),
         ppgId: exigir(ppgPorNome.get(chave(p.nome)), `PPG ${p.nome}`),
+        coordenadorTematicaId: exigir(
+          pessoaPorNome.get(
+            chave(exigir(p.membroComite, `coordenador de ${p.nome}`)),
+          ),
+          `coordenador de temática ${p.membroComite}`,
+        ),
         situacao: p.situacao,
         modalidadesPrevistas: p.modalidadesPrevistas,
       })),
@@ -442,7 +432,11 @@ export async function executarSeed(
     pessoas: pessoas.length,
     redes: redes.length,
     areasTematicas: areas.length,
-    membrosComite: membros.length,
+    coordenadoresTematica: new Set(
+      participacoes
+        .map((p) => p.coordenadorTematicaId)
+        .filter((id): id is string => id !== null),
+    ).size,
     participacoes: participacoes.length,
     orcamentos: orcamentos.length,
     itensPlanejados: itensPlanejados.length,

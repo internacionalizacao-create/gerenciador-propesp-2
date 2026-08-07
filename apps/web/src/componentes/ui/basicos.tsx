@@ -17,14 +17,15 @@ export function Pagina({
   children: ReactNode;
 }) {
   return (
-    <div className="mx-auto w-full max-w-[120rem] px-6 py-8">
-      <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
+    <div className="mx-auto w-full max-w-[112rem] px-5 py-7 sm:px-7 lg:px-8">
+      <header className="mb-7 flex flex-wrap items-start justify-between gap-4">
         <div className="max-w-3xl">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          <div className="mb-3 h-1 w-9 rounded-full bg-primary" />
+          <h1 className="text-2xl font-semibold tracking-[-0.025em] text-foreground sm:text-[1.75rem]">
             {titulo}
           </h1>
           {descricao ? (
-            <div className="mt-1.5 text-sm text-muted">{descricao}</div>
+            <div className="mt-2 text-sm leading-6 text-muted">{descricao}</div>
           ) : null}
         </div>
         {acoes ? <div className="flex gap-2">{acoes}</div> : null}
@@ -46,10 +47,10 @@ export function Secao({
   children: ReactNode;
 }) {
   return (
-    <section className="mb-10">
+    <section className="mb-9">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-foreground">{titulo}</h2>
+          <h2 className="text-base font-semibold tracking-[-0.01em] text-foreground">{titulo}</h2>
           {descricao ? (
             <p className="mt-1 max-w-3xl text-sm text-muted">{descricao}</p>
           ) : null}
@@ -76,23 +77,23 @@ export function Cartao({
 }) {
   const conteudo = (
     <>
-      <p className="text-xs font-medium uppercase tracking-wide text-subtle">
+      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-subtle">
         {titulo}
       </p>
       <p
-        className={`mt-2 text-2xl font-semibold tabular-nums ${
+        className={`mt-2 text-2xl font-semibold tracking-[-0.025em] tabular-nums ${
           destaque ? "text-primary" : "text-foreground"
         }`}
       >
         {valor}
       </p>
-      {nota ? <p className="mt-2 text-xs text-subtle">{nota}</p> : null}
+      {nota ? <p className="mt-2 text-xs leading-5 text-subtle">{nota}</p> : null}
     </>
   );
 
   const classe =
-    "block rounded-xl border border-border bg-surface p-4 " +
-    (href ? "transition-colors hover:border-border-strong" : "");
+    "block rounded-2xl border border-border bg-surface p-4 shadow-[0_12px_30px_-26px_var(--border-strong)] " +
+    (href ? "transition-[border-color,transform,box-shadow] hover:-translate-y-0.5 hover:border-border-strong hover:shadow-[0_18px_35px_-24px_var(--border-strong)]" : "");
 
   return href ? (
     <Link href={href} className={classe}>
@@ -204,7 +205,7 @@ export function Tabela({
   return (
     // Tabela larga rola dentro do próprio contêiner; a página nunca rola na
     // horizontal.
-    <div className="overflow-x-auto rounded-xl border border-border">
+    <div className="overflow-x-auto rounded-2xl border border-border bg-surface shadow-[0_12px_30px_-28px_var(--border-strong)]">
       <table className="w-full min-w-[48rem] border-collapse text-sm">
         <thead className="bg-surface-muted">
           <tr>
@@ -212,7 +213,7 @@ export function Tabela({
               <th
                 key={coluna.chave}
                 scope="col"
-                className={`whitespace-nowrap px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-subtle ${
+                className={`whitespace-nowrap px-3 py-2 text-[0.68rem] font-semibold uppercase tracking-[0.1em] text-subtle ${
                   coluna.alinhamento === "direita" ? "text-right" : "text-left"
                 }`}
               >
@@ -221,7 +222,9 @@ export function Tabela({
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-border bg-surface">{children}</tbody>
+        <tbody className="divide-y divide-border bg-surface [&_tr]:transition-colors [&_tr:hover]:bg-surface-muted/45">
+          {children}
+        </tbody>
         {rodape ? (
           <tfoot className="border-t-2 border-border-strong bg-surface-muted font-medium">
             {rodape}
@@ -243,7 +246,7 @@ export function Celula({
 }) {
   return (
     <td
-      className={`px-3 py-2.5 align-top ${direita ? "text-right" : ""} ${className}`}
+      className={`px-3 py-2 align-top ${direita ? "text-right" : ""} ${className}`}
     >
       {children}
     </td>
@@ -260,7 +263,7 @@ export function EstadoVazio({
   acao?: ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-dashed border-border-strong bg-surface p-10 text-center">
+    <div className="rounded-2xl border border-dashed border-border-strong bg-surface p-10 text-center shadow-[0_12px_30px_-28px_var(--border-strong)]">
       <p className="text-base font-medium text-foreground">{titulo}</p>
       <div className="mx-auto mt-2 max-w-lg text-sm text-muted">
         {descricao}
@@ -293,7 +296,7 @@ export function Aviso({
   } as const;
 
   return (
-    <div className={`mb-6 rounded-xl border-l-4 px-4 py-3 text-sm ${tons[tom]}`}>
+    <div className={`mb-6 rounded-2xl border-l-4 px-4 py-3.5 text-sm shadow-[0_10px_25px_-26px_var(--border-strong)] ${tons[tom]}`}>
       {titulo ? <p className="font-semibold">{titulo}</p> : null}
       <div className={titulo ? "mt-1" : ""}>{children}</div>
     </div>

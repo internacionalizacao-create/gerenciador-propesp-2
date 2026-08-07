@@ -53,10 +53,11 @@ export interface Programa {
   cicloAtual: string | null;
 }
 
-export interface Membro {
+export interface CoordenadorTematica {
+  ppgId: string;
+  ppgSigla: string;
   nome: string;
   email: string | null;
-  papel: string;
 }
 
 export interface LinhaTematica {
@@ -152,7 +153,7 @@ export interface ResumoCiclo {
   linhasPlano: number;
   pendenciasAbertas: number;
   premissas: number;
-  membros: number;
+  coordenadores: number;
   divergencias: number;
   tematicasSemOrcamento: number;
 }
@@ -170,6 +171,7 @@ export interface LinhaPlano {
   ppgId: string;
   ppg: string;
   ppgSigla: string;
+  coordenadorTematica: string | null;
   descricao: string | null;
   destino: Destino | null;
   modalidadeId: string | null;
@@ -178,6 +180,11 @@ export interface LinhaPlano {
   quantidadeAnual: number;
   mesImplementacao: string | null;
   fluxo: Fluxo | null;
+  tipoDespesa: string | null;
+  tipoMissao: string | null;
+  numeroParticipantes: number | null;
+  numeroDiarias: number | null;
+  incluiPassagem: boolean | null;
   itemCatalogoCodigo: string | null;
   valorUnitario: string | null;
   origemValor: OrigemValor;
@@ -213,6 +220,16 @@ export interface TabelaVigente {
   vigenteAte: string | null;
   observacoes: string | null;
   itens: ItemCatalogo[];
+}
+
+export interface RegistroAuditoriaPlano {
+  id: string;
+  campo: string | null;
+  valorAnterior: string | null;
+  valorNovo: string | null;
+  usuarioNome: string | null;
+  justificativa: string | null;
+  ocorridoEm: string;
 }
 
 export interface Modalidade {
@@ -338,7 +355,7 @@ export interface ComiteGestor {
 }
 
 export interface DetalheTematica extends LinhaTematica {
-  membros: Membro[];
+  coordenadores: CoordenadorTematica[];
   porAno: LinhaTematica[];
   participacoes: {
     ppgId: string;

@@ -1,0 +1,1 @@
+ALTER TABLE "participacao_ppg" ALTER COLUMN "coordenador_tematica_id" SET NOT NULL;

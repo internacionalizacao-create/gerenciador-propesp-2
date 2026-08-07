@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState } from "react";
 
 import { atualizarPendencia, criarPendencia } from "@/acoes/pendencias";
 import { AbrirSidesheet } from "@/componentes/ui/sidesheet";
+import { useToastDaAcao } from "@/componentes/ui/toast";
 import {
   AreaTexto,
   Grade,
@@ -65,9 +66,7 @@ function FormNovaPendencia({
     ESTADO_INICIAL,
   );
 
-  useEffect(() => {
-    if (estado.ok) aoConcluir();
-  }, [estado.ok, aoConcluir]);
+  useToastDaAcao(estado, aoConcluir);
 
   return (
     <form action={executar} className="flex min-h-0 flex-1 flex-col">
@@ -169,9 +168,7 @@ function FormResolver({
   );
   const [status, setStatus] = useState(pendencia.status);
 
-  useEffect(() => {
-    if (estado.ok) aoConcluir();
-  }, [estado.ok, aoConcluir]);
+  useToastDaAcao(estado, aoConcluir);
 
   return (
     <form action={executar} className="flex min-h-0 flex-1 flex-col">

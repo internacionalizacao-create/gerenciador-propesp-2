@@ -11,13 +11,44 @@ export const metadata: Metadata = {
 /** Mensagens dos codigos que o callback devolve em `?erro=`. */
 const MENSAGENS_DE_ERRO: Record<string, string> = {
   sessao_de_login_expirada:
-    "O login demorou demais para ser concluido. Tente novamente.",
+    "O login demorou demais para ser concluído. Tente novamente.",
   sem_refresh_token:
-    "O Keycloak nao emitiu um token de renovacao. Avise a equipe de TI.",
+    "O Keycloak não emitiu um token de renovação. Avise a equipe de TI.",
   id_token_sem_claims:
-    "A resposta do Keycloak veio sem os dados do usuario. Avise a equipe de TI.",
-  falha_na_autenticacao: "Nao foi possivel concluir a autenticacao.",
+    "A resposta do Keycloak veio sem os dados do usuário. Avise a equipe de TI.",
+  falha_na_autenticacao: "Não foi possível concluir a autenticação.",
 };
+
+function MarcaPropesp() {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="grid size-11 place-items-center rounded-xl bg-primary text-on-primary shadow-sm">
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          className="size-6"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M4 18c4.8 0 8-3.2 8-8" />
+          <path d="M8 21c0-7.2 3.6-12 11-14" />
+          <path d="M13 7c1-2.7 3.7-4 7-4 0 3.6-1.5 6.4-5 7.5" />
+        </svg>
+      </span>
+      <span>
+        <span className="block text-sm font-semibold tracking-wide text-foreground">
+          PROPESP
+        </span>
+        <span className="block text-xs text-muted">
+          Planejamento e gestão
+        </span>
+      </span>
+    </div>
+  );
+}
 
 export default async function LoginPage({
   searchParams,
@@ -36,36 +67,142 @@ export default async function LoginPage({
   )}`;
 
   return (
-    <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center px-6 py-16">
-      <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-        Gerenciador PROPESP
-      </h1>
-      <p className="mt-2 text-sm text-muted">
-        Acesse com sua conta institucional para continuar.
-      </p>
+    <main className="relative isolate flex min-h-svh flex-1 overflow-hidden bg-background">
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_12%_18%,var(--primary-soft),transparent_31%),radial-gradient(circle_at_88%_82%,var(--surface-muted),transparent_28%)] opacity-70"
+      />
 
-      {erro ? (
-        <p
-          role="alert"
-          className="mt-6 rounded-lg bg-danger-soft px-4 py-3 text-sm text-on-danger-soft"
-        >
-          {MENSAGENS_DE_ERRO[erro] ?? "Ocorreu um erro inesperado no login."}
-        </p>
-      ) : null}
+      <div className="mx-auto grid w-full max-w-7xl lg:grid-cols-[1.08fr_0.92fr]">
+        <section className="relative hidden min-h-svh flex-col justify-between border-r border-border px-12 py-10 lg:flex xl:px-20 xl:py-14">
+          <MarcaPropesp />
 
-      {/* Link e nao formulario: iniciar o login e uma navegacao GET, sem efeito
-          colateral no servidor alem do cookie da transacao. */}
-      <a
-        href={destinoLogin}
-        className="mt-8 block rounded-lg bg-primary px-4 py-2.5 text-center text-sm font-medium text-on-primary hover:bg-primary-hover"
-      >
-        Entrar com a conta institucional
-      </a>
+          <div className="max-w-xl pb-12">
+            <div className="mb-7 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.22em] text-on-primary-soft">
+              <span className="h-px w-8 bg-primary" />
+              Gestão integrada
+            </div>
+            <h1 className="text-5xl font-semibold leading-[1.08] tracking-[-0.045em] text-foreground xl:text-6xl">
+              Recursos que ampliam horizontes.
+            </h1>
+            <p className="mt-7 max-w-lg text-lg leading-8 text-muted">
+              Planeje bolsas, mobilidade e investimentos de internacionalização
+              em um só lugar, com clareza e segurança.
+            </p>
 
-      <p className="mt-4 text-xs text-subtle">
-        Voce sera levado ao servidor de autenticacao. Sua senha e digitada la, e
-        nunca passa por este sistema.
-      </p>
+            <div className="mt-12 grid max-w-lg grid-cols-3 gap-3">
+              {[
+                ["Planejamento", "por programa"],
+                ["Orçamento", "em tempo real"],
+                ["Governança", "com segurança"],
+              ].map(([titulo, detalhe]) => (
+                <div
+                  key={titulo}
+                  className="rounded-2xl border border-border bg-surface/70 px-4 py-4 backdrop-blur-sm"
+                >
+                  <span className="block text-sm font-semibold text-foreground">
+                    {titulo}
+                  </span>
+                  <span className="mt-1 block text-xs text-muted">{detalhe}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <p className="text-xs text-subtle">
+            Pró-Reitoria de Pesquisa e Pós-Graduação
+          </p>
+        </section>
+
+        <section className="flex min-h-svh items-center justify-center px-5 py-8 sm:px-10 lg:px-14">
+          <div className="w-full max-w-md">
+            <div className="mb-10 lg:hidden">
+              <MarcaPropesp />
+            </div>
+
+            <div className="rounded-3xl border border-border bg-surface p-7 shadow-[0_24px_70px_-32px_var(--border-strong)] sm:p-10">
+              <span className="inline-flex rounded-full bg-primary-soft px-3 py-1 text-xs font-semibold text-on-primary-soft">
+                Ambiente institucional
+              </span>
+              <h2 className="mt-5 text-3xl font-semibold tracking-[-0.035em] text-foreground">
+                Boas-vindas
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-muted">
+                Entre com sua conta institucional para acessar o Gerenciador
+                PROPESP.
+              </p>
+
+              {erro ? (
+                <div
+                  role="alert"
+                  className="mt-6 flex gap-3 rounded-xl bg-danger-soft px-4 py-3 text-sm leading-5 text-on-danger-soft"
+                >
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    className="mt-0.5 size-5 shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M12 7v6m0 4h.01" />
+                  </svg>
+                  <span>
+                    {MENSAGENS_DE_ERRO[erro] ??
+                      "Ocorreu um erro inesperado no login."}
+                  </span>
+                </div>
+              ) : null}
+
+              {/* Link e nao formulario: iniciar o login e uma navegacao GET, sem
+                  efeito colateral no servidor alem do cookie da transacao. */}
+              <a
+                href={destinoLogin}
+                className="mt-8 flex w-full items-center justify-center gap-3 rounded-xl bg-primary px-5 py-3.5 text-sm font-semibold text-on-primary shadow-sm transition-[background-color,transform,box-shadow] hover:-translate-y-0.5 hover:bg-primary-hover hover:shadow-md active:translate-y-0"
+              >
+                Entrar com conta institucional
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 24 24"
+                  className="size-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M5 12h14m-5-5 5 5-5 5" />
+                </svg>
+              </a>
+
+              <div className="mt-6 flex items-start gap-3 border-t border-border pt-6">
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 24 24"
+                  className="mt-0.5 size-4 shrink-0 text-subtle"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect x="5" y="10" width="14" height="10" rx="2" />
+                  <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+                </svg>
+                <p className="text-xs leading-5 text-subtle">
+                  Sua senha é informada diretamente ao servidor de autenticação
+                  e nunca passa por este sistema.
+                </p>
+              </div>
+            </div>
+
+            <p className="mt-7 text-center text-xs text-subtle">
+              Acesso restrito a usuários autorizados
+            </p>
+          </div>
+        </section>
+      </div>
     </main>
   );
 }

@@ -8,14 +8,22 @@ import { FormLinhaPlano } from "./form-linha-plano";
 export function NovaLinhaDePlano({
   programa,
   ciclo,
+  cicloStatus,
   ppgs,
   areas,
   catalogo,
 }: {
   programa: string;
   ciclo: string;
+  cicloStatus: "PLANEJAMENTO" | "VIGENTE" | "ENCERRADO";
   ppgs: LinhaPpg[];
-  areas: { id: string; codigo: string; nome: string; rede: string }[];
+  areas: {
+    id: string;
+    codigo: string;
+    nome: string;
+    rede: string;
+    ppgIds: string[];
+  }[];
   catalogo: ItemCatalogo[];
 }) {
   return (
@@ -29,6 +37,7 @@ export function NovaLinhaDePlano({
         <FormLinhaPlano
           programa={programa}
           ciclo={ciclo}
+          cicloStatus={cicloStatus}
           ppgs={ppgs}
           areas={areas}
           catalogo={catalogo}

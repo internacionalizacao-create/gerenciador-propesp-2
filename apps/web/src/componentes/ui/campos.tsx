@@ -11,8 +11,9 @@ import { useId, useState, type ReactNode } from "react";
  */
 
 const ENTRADA =
-  "w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm " +
-  "text-foreground placeholder:text-subtle disabled:bg-surface-muted disabled:text-muted";
+  "w-full rounded-xl border border-border-strong bg-surface px-3 py-2.5 text-sm " +
+  "text-foreground shadow-sm placeholder:text-subtle hover:border-primary focus:border-primary " +
+  "disabled:bg-surface-muted disabled:text-muted";
 
 export function Campo({
   rotulo,

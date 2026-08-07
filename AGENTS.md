@@ -4,7 +4,7 @@ Documento de referência para quem (pessoa ou LLM) vai mexer neste repositório 
 tê-lo escrito. Descreve o que existe hoje, por que está assim, e o que ainda não
 existe. **Mantenha-o atualizado quando mudar arquitetura ou convenção.**
 
-Última revisão: 2026-08-05.
+Última revisão: 2026-08-06.
 
 ---
 
@@ -79,7 +79,7 @@ apps/
         orcamento.service.ts  RN-04 a RN-09 em SQL (custo, saldo, divergência)
         painel.service.ts     P01 — indicadores, alertas, IN/OUT
         catalogo.service.ts   RN-01 — resolução de preço, recusa sem match
-        plano.service.ts      P10 — as três rubricas com discriminador
+        plano.service.ts      P10 — três rubricas, edição e auditoria por campo
         ciclo.service.ts      P06/P07/P08/P16/P17
         ppgs.service.ts       P14
         pendencias.service.ts P13
@@ -108,6 +108,7 @@ apps/
         ui/multistep.tsx   formulário em etapas, tudo montado num <form> só
         ui/campos.tsx      inputs, chips, marcadores
         ui/basicos.tsx     Página, Seção, Cartão, Tabela, Moeda, Selo, Aviso
+        ui/toast.tsx       feedback global de ações, com provider e hook
         formularios/       cadastros que vão dentro do sidesheet
       app/
         (app)/             tudo que exige login — o shell mora no layout
@@ -335,23 +336,37 @@ semânticos: `bg-surface`, `text-muted`, `border-border-strong`, `bg-danger-soft
 `text-on-danger-soft` etc.
 
 - **Use sempre o token semântico, nunca o hex nem cor crua do Tailwind.**
+- Na P10, as redes usam `network-1`, `network-2` e `network-3` como identidade
+  de navegação. Esses tons não representam estado; alerta continua usando os
+  tokens `warning`/`danger`/`info` apropriados.
 - O Tailwind 4 escaneia o texto do fonte: classes montadas dinamicamente
   (`bg-${cor}`) não geram CSS. Escreva por extenso.
 - A troca de tema roda antes da primeira pintura via script inline em
   [layout.tsx](apps/web/src/app/layout.tsx), para não piscar.
+- `ThemeSynchronizer`, montado no layout raiz, acompanha mudanças do tema do
+  sistema operacional quando a preferência salva é `system`; esse listener não
+  deve ficar condicionado à presença visual do seletor.
 
 ### Peças de interface que valem conhecer antes de criar outras
 
 | Peça | Onde | Para quê |
 |---|---|---|
-| `Sidesheet` / `AbrirSidesheet` | [ui/sidesheet.tsx](apps/web/src/componentes/ui/sidesheet.tsx) | Todo cadastro entra por painel lateral. É `<dialog>` nativo — foco preso, `Esc`, fundo inerte e `::backdrop` vêm do navegador. |
+| `Sidesheet` / `AbrirSidesheet` | [ui/sidesheet.tsx](apps/web/src/componentes/ui/sidesheet.tsx) | Todo cadastro entra por painel lateral. É `<dialog>` nativo — foco preso, `Esc`, fundo inerte e `::backdrop` vêm do navegador. O conteúdo permanece montado durante a animação de saída. |
 | `Multistep` | [ui/multistep.tsx](apps/web/src/componentes/ui/multistep.tsx) | Formulário longo em etapas. **Todos os passos ficam montados** e o inativo usa o atributo `hidden`: só assim o `FormData` do submit traz o formulário inteiro, e campos `required` de passo oculto não travam o envio. |
 | `Moeda` | [ui/basicos.tsx](apps/web/src/componentes/ui/basicos.tsx) | Nulo vira *A definir* em itálico, **nunca** R$ 0,00 (§9.2 da especificação). |
 | `somarMoeda` | [lib/formato.ts](apps/web/src/lib/formato.ts) | Soma em centavos com `BigInt`. Dinheiro nunca passa por `number` antes de uma conta. |
+| `ToastProvider` / `useToastDaAcao` | [ui/toast.tsx](apps/web/src/componentes/ui/toast.tsx) | Confirma ações depois que o sidesheet fecha. Erros de validação continuam junto ao formulário. |
 
 Cadastro novo: crie o formulário em `componentes/formularios/`, a Server Action
 em `acoes/`, e chame por `AbrirSidesheet` na página. Formulário curto não precisa
-de multistep — fatiar quatro campos em etapas troca rolagem por cliques.
+de multistep — fatiar quatro campos em etapas troca rolagem por cliques. Use
+`useToastDaAcao` para o sucesso da Server Action; não leve erros de campo para o
+toast, porque eles precisam permanecer próximos do controle que deve ser corrigido.
+
+O menu lateral nasce recolhido no desktop e pode ser expandido pelo controle no
+rodapé. No celular ele continua como gaveta completa. Preserve esse comportamento
+ao incluir novos itens: todo item precisa de rótulo acessível mesmo quando apenas
+o ícone estiver visível.
 
 ---
 
@@ -374,7 +389,14 @@ de multistep — fatiar quatro campos em etapas troca rolagem por cliques.
 - **Telas de planejamento**: P01, P05, P06, P07, P08, P09, P10, P13, P14, P15,
   P16, P17 e as configurações da conta. Cadastro de PPG e de linha de plano em
   sidesheet com formulário em etapas; pendência em sidesheet simples.
-- **Testes**: 20 unitários + 99 de integração contra Postgres real (29 de
+
+Na P10, a leitura segue `programa → rede → temática → PPG`. Cada participação
+PPG–temática aponta para um `coordenadorTematicaId`; uma pessoa pode coordenar
+vários PPGs e uma temática pode ter coordenadores diferentes conforme o PPG. O
+termo de interface é **Coordenador de Temática**, não “membro do comitê”. Edição
+de linha existente exige `plano:edit` (só `admin`), preserva código/rubrica e
+grava uma entrada de auditoria por campo alterado.
+- **Testes**: 21 unitários + 101 de integração contra Postgres real (29 de
   integridade do schema, 26 de aceite da migração, 44 dos serviços de domínio).
 - Smoke de login (`pnpm smoke:login`) e de telas (`pnpm smoke:telas`) ponta a
   ponta; CI de lint/build/test.

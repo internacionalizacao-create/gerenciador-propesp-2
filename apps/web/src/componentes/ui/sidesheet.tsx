@@ -20,6 +20,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 export function Sidesheet({
   aberto,
   aoFechar,
+  aoTerminarFechamento,
   titulo,
   descricao,
   largura = "media",
@@ -28,6 +29,7 @@ export function Sidesheet({
 }: {
   aberto: boolean;
   aoFechar: () => void;
+  aoTerminarFechamento?: () => void;
   titulo: string;
   descricao?: string;
   largura?: "media" | "larga";
@@ -41,17 +43,43 @@ export function Sidesheet({
     const elemento = dialogo.current;
     if (!elemento) return;
 
-    if (aberto && !elemento.open) elemento.showModal();
-    if (!aberto && elemento.open) elemento.close();
+    if (aberto) {
+      delete elemento.dataset.fechando;
+      if (!elemento.open) elemento.showModal();
+      return;
+    }
+
+    if (!elemento.open) return;
+
+    // `dialog.close()` remove o elemento da top layer imediatamente. A marca
+    // mantem o dialogo aberto pelo tempo da animacao; so depois ele fecha de
+    // verdade e devolve o foco ao controle que o abriu.
+    elemento.dataset.fechando = "true";
+    const temporizador = window.setTimeout(() => {
+      if (elemento.open) elemento.close();
+      delete elemento.dataset.fechando;
+    }, 200);
+
+    return () => window.clearTimeout(temporizador);
   }, [aberto]);
 
   return (
     <dialog
       ref={dialogo}
+      data-sidesheet="true"
       aria-labelledby={tituloId}
       // `close` cobre tanto o Esc quanto o `close()` programático, então o
       // estado do pai nunca fica dessincronizado do que está na tela.
-      onClose={aoFechar}
+      onClose={() => {
+        aoFechar();
+        aoTerminarFechamento?.();
+      }}
+      // O comportamento nativo do Esc fecharia antes da animacao. Cancelamos
+      // apenas o fechamento imediato e encaminhamos para o mesmo fluxo visual.
+      onCancel={(evento) => {
+        evento.preventDefault();
+        aoFechar();
+      }}
       // Clique no backdrop fecha: o alvo do clique é o próprio <dialog> quando
       // ele acontece fora da área de conteúdo.
       onClick={(evento) => {
@@ -60,18 +88,19 @@ export function Sidesheet({
       className={`
         ml-auto mr-0 my-0 h-dvh max-h-dvh w-full rounded-none border-l
         border-border bg-surface p-0 text-foreground shadow-2xl
-        backdrop:bg-black/50
+        backdrop:bg-foreground/30 backdrop:backdrop-blur-sm
         ${largura === "larga" ? "max-w-3xl" : "max-w-xl"}
       `}
     >
       {/* Uma coluna flex só, sem altura de cabeçalho fixada em pixel: o título
           pode quebrar em duas linhas sem descolar o rodapé. */}
       <div className="flex h-dvh flex-col">
-        <header className="flex items-start justify-between gap-4 border-b border-border px-6 py-5">
+        <header className="relative flex items-start justify-between gap-4 border-b border-border px-6 py-5">
+          <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-primary" />
           <div>
             <h2
               id={tituloId}
-              className="text-lg font-semibold tracking-tight text-foreground"
+              className="text-lg font-semibold tracking-[-0.02em] text-foreground"
             >
               {titulo}
             </h2>
@@ -85,7 +114,7 @@ export function Sidesheet({
             type="button"
             onClick={aoFechar}
             aria-label="Fechar"
-            className="rounded-lg border border-border px-2.5 py-1 text-sm text-muted hover:bg-surface-muted hover:text-foreground"
+            className="grid size-9 place-items-center rounded-xl text-sm text-muted hover:bg-surface-muted hover:text-foreground"
           >
             ✕
           </button>
@@ -126,16 +155,22 @@ export function AbrirSidesheet({
   children: (fechar: () => void) => ReactNode;
 }) {
   const [aberto, setAberto] = useState(false);
+  const [conteudoMontado, setConteudoMontado] = useState(false);
+
+  function abrir() {
+    setConteudoMontado(true);
+    setAberto(true);
+  }
 
   return (
     <>
       <button
         type="button"
-        onClick={() => setAberto(true)}
+        onClick={abrir}
         className={
           variante === "primaria"
-            ? "rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary hover:bg-primary-hover"
-            : "rounded-lg border border-border-strong bg-surface px-4 py-2 text-sm font-medium text-foreground hover:bg-surface-muted"
+            ? "rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-on-primary shadow-sm hover:bg-primary-hover"
+            : "rounded-xl border border-border-strong bg-surface px-4 py-2.5 text-sm font-medium text-foreground shadow-sm hover:bg-surface-muted"
         }
       >
         {rotulo}
@@ -144,6 +179,7 @@ export function AbrirSidesheet({
       <Sidesheet
         aberto={aberto}
         aoFechar={() => setAberto(false)}
+        aoTerminarFechamento={() => setConteudoMontado(false)}
         titulo={titulo}
         descricao={descricao}
         largura={largura}
@@ -151,7 +187,7 @@ export function AbrirSidesheet({
         {/* Remontar a cada abertura zera o formulário: reabrir um cadastro e
             encontrar o que foi digitado antes é como se grava um dado errado
             sem perceber. */}
-        {aberto ? children(() => setAberto(false)) : null}
+        {conteudoMontado ? children(() => setAberto(false)) : null}
       </Sidesheet>
     </>
   );

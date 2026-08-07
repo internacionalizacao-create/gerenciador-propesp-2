@@ -11,12 +11,18 @@ import {
   Utilizacao,
 } from "@/componentes/ui/basicos";
 import { apiFetch } from "@/lib/api";
-import type { LinhaRede, LinhaTematica, Membro } from "@/lib/dominio";
+import type {
+  CoordenadorTematica,
+  LinhaRede,
+  LinhaTematica,
+} from "@/lib/dominio";
 import { inteiro } from "@/lib/formato";
 
 interface Resposta {
   ano: number;
-  redes: (LinhaRede & { areas: (LinhaTematica & { membros: Membro[] })[] })[];
+  redes: (LinhaRede & {
+    areas: (LinhaTematica & { coordenadores: CoordenadorTematica[] })[];
+  })[];
 }
 
 /**
@@ -48,7 +54,7 @@ export default async function RedesETematicas({
   return (
     <Pagina
       titulo="Redes e áreas temáticas"
-      descricao={`Exercício ${dados.ano}. Cada área temática tem orçamento próprio e um ou mais membros de comitê da UEA.`}
+      descricao={`Exercício ${dados.ano}. Cada PPG participante tem seu Coordenador de Temática.`}
     >
       {divergentes.length > 0 ? (
         <Aviso tom="perigo" titulo="Divergência entre saldo calculado e informado">
@@ -85,7 +91,7 @@ export default async function RedesETematicas({
             colunas={[
               { chave: "codigo", texto: "Código" },
               { chave: "area", texto: "Área temática" },
-              { chave: "comite", texto: "Comitê" },
+              { chave: "coordenacao", texto: "Coordenação temática" },
               { chave: "ppgs", texto: "PPGs", alinhamento: "direita" },
               { chave: "bolsas", texto: "Orçamento bolsas", alinhamento: "direita" },
               { chave: "apoio", texto: "Manut. + missões", alinhamento: "direita" },
@@ -122,9 +128,11 @@ export default async function RedesETematicas({
                     ) : null}
                   </Celula>
                   <Celula className="max-w-[14rem]">
-                    {area.membros.length > 0 ? (
+                    {area.coordenadores.length > 0 ? (
                       <span className="text-muted">
-                        {area.membros.map((m) => m.nome).join(" · ")}
+                        {area.coordenadores
+                          .map((c) => `${c.ppgSigla}: ${c.nome}`)
+                          .join(" · ")}
                       </span>
                     ) : (
                       <span className="italic text-subtle">Sem designação</span>

@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+
+import { ThemeSynchronizer } from "@/componentes/layout/theme-toggle";
+
 import "./globals.css";
 
 const geistSans = Geist({
@@ -38,6 +41,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
+        <ThemeSynchronizer />
         {children}
       </body>
     </html>

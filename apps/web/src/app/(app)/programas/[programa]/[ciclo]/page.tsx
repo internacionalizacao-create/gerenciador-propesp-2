@@ -111,8 +111,8 @@ export default async function VisaoDoCiclo({
           />
           <Atalho
             href={`${base}/redes`}
-            titulo="Comitê temático"
-            numero={`${inteiro(resumo.membros)} membros designados`}
+            titulo="Coordenação temática"
+            numero={`${inteiro(resumo.coordenadores)} coordenadores designados`}
           />
         </div>
       </Secao>
