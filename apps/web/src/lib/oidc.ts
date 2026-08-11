@@ -16,8 +16,15 @@ import { env, usaHttps } from "./env";
 let configuracao: Promise<client.Configuration> | undefined;
 
 export function getOidcConfig(): Promise<client.Configuration> {
-  // O discovery e feito uma unica vez por processo e reaproveitado.
-  configuracao ??= descobrir();
+  // O discovery e feito uma unica vez por processo e reaproveitado. Se a
+  // promise cacheada rejeitar (Keycloak fora do ar, ECONNRESET etc.), ela
+  // continua "resolvida" (rejeitada) para sempre — sem isto, toda chamada
+  // futura repetiria o mesmo erro ate o processo reiniciar, mesmo com o
+  // Keycloak de volta.
+  configuracao ??= descobrir().catch((erro: unknown) => {
+    configuracao = undefined;
+    throw erro;
+  });
   return configuracao;
 }
 
