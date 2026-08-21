@@ -1,0 +1,25 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**"],
+      // O turbo 2 roda em envMode "strict": variavel nao declarada aqui e
+      // apagada do ambiente da task, mesmo estando definida no shell. Sem esta
+      // lista o `next build` so enxerga o que vier de apps/web/.env.local — que
+      // existe na maquina de quem desenvolve e nao existe no CI. Era por isso
+      // que a falha nao reproduzia localmente.
+      // Declarar aqui tambem coloca os valores no hash de cache, entao trocar
+      // qualquer um deles invalida o build cacheado, como deve ser.
+      "env": [
+        "APP_BASE_URL",
+        "API_BASE_URL",
+        "KEYCLOAK_ISSUER_URL",
+        "KEYCLOAK_CLIENT_ID",
+        "KEYCLOAK_CLIENT_SECRET",
+        "SESSION_SECRET"
+      ]
+    }
+  }
+}

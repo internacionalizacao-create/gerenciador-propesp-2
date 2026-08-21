@@ -57,6 +57,13 @@ funcional completa, com as 23 páginas previstas, está em
    em modo ESM — ver [apps/api/jest.config.mjs](apps/api/jest.config.mjs). Em
    testes, `jest` não é global: `import { jest } from '@jest/globals'`.
 4. **Zod 4**: use `z.url()` e `z.email()` no lugar de `z.string().url()`.
+5. **Turborepo 2 roda em `envMode: "strict"`.** Variável de ambiente que não
+   estiver declarada em `env`/`globalEnv`/`passThroughEnv` é apagada antes da
+   task rodar, mesmo definida no shell. As variáveis do BFF estão em
+   [apps/web/turbo.json](apps/web/turbo.json); ao acrescentar uma em
+   `lib/env.ts`, acrescente lá também. O sintoma é build que só quebra no CI:
+   na máquina de quem desenvolve o Next lê `apps/web/.env.local` do disco e
+   nunca depende do que o turbo repassou.
 
 ---
 
