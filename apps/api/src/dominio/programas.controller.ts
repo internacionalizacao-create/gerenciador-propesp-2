@@ -10,7 +10,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, sql } from 'drizzle-orm';
 
 import { CurrentUser, RequirePermission } from '../auth/auth.decorators';
 import type { AuthUser } from '../auth/auth-user';
@@ -60,7 +60,7 @@ export class ProgramasController {
     private readonly pendencias: PendenciasService,
   ) {}
 
-  /** P05 · lista de programas de mobilidade, com e sem dados. */
+  /** P05 · lista somente os programas ativos para operacao. */
   @Get()
   @RequirePermission('programa:read')
   async listar() {
@@ -114,6 +114,7 @@ export class ProgramasController {
                                 join ciclo c2 on c2.id = rc2.ciclo_id
                                where c2.programa_id = p.id)) as "aporteAnual"
         from programa p
+       where p.ativo = true
        order by p.nome
     `,
     );
@@ -138,7 +139,7 @@ export class ProgramasController {
     const [programa] = await this.db
       .select()
       .from(s.programa)
-      .where(eq(s.programa.slug, slug))
+      .where(and(eq(s.programa.slug, slug), eq(s.programa.ativo, true)))
       .limit(1);
 
     if (!programa) throw new NotFoundException('Programa nao encontrado.');

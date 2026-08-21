@@ -51,7 +51,11 @@ export class ContextoService {
       .from(s.ciclo)
       .innerJoin(s.programa, eq(s.programa.id, s.ciclo.programaId))
       .where(
-        and(eq(s.programa.slug, programaSlug), eq(s.ciclo.nome, cicloNome)),
+        and(
+          eq(s.programa.slug, programaSlug),
+          eq(s.programa.ativo, true),
+          eq(s.ciclo.nome, cicloNome),
+        ),
       )
       .limit(1);
 
@@ -81,6 +85,7 @@ export class ContextoService {
       .from(s.itemPlanejado)
       .innerJoin(s.ciclo, eq(s.ciclo.id, s.itemPlanejado.cicloId))
       .innerJoin(s.programa, eq(s.programa.id, s.ciclo.programaId))
+      .where(eq(s.programa.ativo, true))
       .orderBy(asc(s.programa.slug), desc(s.ciclo.anoInicio))
       .limit(1);
 

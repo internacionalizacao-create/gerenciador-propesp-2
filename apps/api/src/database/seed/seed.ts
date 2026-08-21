@@ -96,12 +96,14 @@ export async function executarSeed(
     })
     .returning();
 
-  // Entram sem dados: existem no mundo real e o modelo precisa mostrá-los.
+  // Permanecem como referencias futuras, mas nao aparecem nem aceitam acesso
+  // enquanto o escopo operacional estiver restrito ao CAPES Global.
   await db.insert(s.programa).values(
     outrosProgramas.map((p) => ({
       ...p,
       usaRedes: false,
       usaAreasTematicas: false,
+      ativo: false,
     })),
   );
 

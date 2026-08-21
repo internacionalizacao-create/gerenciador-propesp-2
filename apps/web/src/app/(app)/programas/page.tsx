@@ -7,40 +7,28 @@ import type { Programa } from "@/lib/dominio";
 import { inteiro, moeda } from "@/lib/formato";
 
 export const metadata: Metadata = {
-  title: "Programas de mobilidade — Gerenciador PROPESP",
+  title: "Programa — Gerenciador PROPESP",
 };
 
 /**
- * P05 · Programas de mobilidade.
+ * P05 · Programa ativo.
  *
- * Os programas sem dado aparecem aqui de propósito. O sistema nasce
- * multiprograma, e um cartão vazio de GCUB ou Erasmus+ é o lembrete visível de
- * que a estrutura já os comporta — o oposto de "cada programa é uma planilha
- * nova", que é o problema que este sistema resolve.
+ * A arquitetura continua aceitando mais programas, mas a operacao atual esta
+ * restrita ao CAPES Global. A API nao devolve cadastros inativos.
  */
 export default async function Programas() {
   const programas = await apiFetch<Programa[]>("/programas");
-  const comDados = programas.filter((p) => p.linhasPlano > 0);
-  const semDados = programas.filter((p) => p.linhasPlano === 0);
 
   return (
     <Pagina
-      titulo="Programas de mobilidade"
-      descricao="Fontes de recurso e regras para internacionalização da pós-graduação."
+      titulo="Programa"
+      descricao="Programa de internacionalização atualmente gerenciado pela PROPESP."
     >
-      <div className="mb-10 grid gap-3 lg:grid-cols-2">
-        {comDados.map((programa) => (
+      <div className="grid max-w-3xl gap-3">
+        {programas.map((programa) => (
           <CartaoPrograma key={programa.id} programa={programa} />
         ))}
       </div>
-
-      {semDados.length > 0 ? (
-        <div className="grid gap-3 lg:grid-cols-2">
-          {semDados.map((programa) => (
-            <CartaoPrograma key={programa.id} programa={programa} />
-          ))}
-        </div>
-      ) : null}
     </Pagina>
   );
 }

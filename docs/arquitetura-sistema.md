@@ -18,8 +18,8 @@ O Gerenciador PROPESP organiza o **planejamento e acompanhamento dos recursos de
 internacionalização da pós-graduação da UEA**, ligando orçamento, bolsas, PPGs,
 beneficiários, destinos e produtos entregues.
 
-O primeiro programa atendido é o **CAPES Global 2027–2030**, mas o modelo aceita
-outros programas, como GCUB, Erasmus+, PDSE, Move La América e PROAFRI.
+O programa ativo é o **CAPES Global 2027–2030**. O modelo aceita outros programas,
+mas eles permanecem inativos e fora da interface até uma futura ampliação de escopo.
 
 ### O que está dentro e fora
 
@@ -557,4 +557,3 @@ pnpm smoke:telas
 8. O CAPES Global não tem execução financeira dentro da UEA.
 9. Movimentação CAPES é fato externo, não ação executada pelo Gerenciador.
 10. Toda mudança relevante preserva fonte, autoria e histórico.
-

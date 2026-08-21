@@ -23,6 +23,7 @@ import { PainelService } from '../src/dominio/painel.service';
 import { PendenciasService } from '../src/dominio/pendencias.service';
 import { PlanoService } from '../src/dominio/plano.service';
 import { PpgsService } from '../src/dominio/ppgs.service';
+import { ProgramasController } from '../src/dominio/programas.controller';
 import { criarContextoTeste, type ContextoTeste } from './db-teste';
 
 /**
@@ -50,6 +51,7 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
   let ciclos: CicloService;
   let ppgs: PpgsService;
   let pendencias: PendenciasService;
+  let programas: ProgramasController;
 
   beforeAll(async () => {
     ctx = await criarContextoTeste();
@@ -68,6 +70,15 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
     ciclos = new CicloService(ctx.db, orcamento, plano);
     ppgs = new PpgsService(ctx.db);
     pendencias = new PendenciasService(ctx.db);
+    programas = new ProgramasController(
+      ctx.db,
+      contexto,
+      ciclos,
+      painel,
+      orcamento,
+      plano,
+      pendencias,
+    );
 
     ciclo = await contexto.resolver('capes-global', '2027-2030');
   });
@@ -93,10 +104,16 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
     });
 
     it('escolhe como padrao o programa que tem plano cadastrado', async () => {
-      // GCUB e Erasmus existem no cadastro e estao vazios; abrir o painel neles
-      // pareceria perda de dados.
+      // Os cadastros futuros existem, mas ficam inativos ate a ampliacao do
+      // escopo. O painel inicial nao pode seleciona-los.
       const padrao = await contexto.padrao();
       expect(padrao?.programaSlug).toBe('capes-global');
+    });
+
+    it('lista somente o CAPES Global como programa ativo', async () => {
+      expect((await programas.listar()).map((p) => p.slug)).toEqual([
+        'capes-global',
+      ]);
     });
   });
 

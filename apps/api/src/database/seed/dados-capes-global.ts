@@ -383,9 +383,8 @@ export const fontesDocumentais = [
 ];
 
 /**
- * Programas de mobilidade que ainda não têm dados, mas existem no mundo real
- * (anotação do slide 6 do protótipo). Entram vazios para que a estrutura
- * multiprograma seja visível desde o primeiro dia.
+ * Programas de mobilidade preservados como referencias futuras. Permanecem
+ * inativos ate que a equipe decida ampliar o escopo alem do CAPES Global.
  */
 export const outrosProgramas = [
   { nome: 'GCUB Mobilidade', slug: 'gcub', orgaoFinanciador: 'GCUB' },

@@ -101,9 +101,9 @@ describe('Seed — aceite da migração CAPES Global 2027–2030', () => {
       expect(new Set(unicampT1.map((c) => c.coordenador)).size).toBe(2);
     });
 
-    it('cadastra os demais programas de mobilidade, ainda sem dados', async () => {
+    it('mantém somente o CAPES Global ativo para operação', async () => {
       const programas = await ctx.db
-        .select({ slug: s.programa.slug })
+        .select({ slug: s.programa.slug, ativo: s.programa.ativo })
         .from(s.programa);
       const slugs = programas.map((p) => p.slug).sort();
 
@@ -114,6 +114,9 @@ describe('Seed — aceite da migração CAPES Global 2027–2030', () => {
         'move-la-america',
         'pdse',
         'proafri',
+      ]);
+      expect(programas.filter((p) => p.ativo).map((p) => p.slug)).toEqual([
+        'capes-global',
       ]);
     });
   });

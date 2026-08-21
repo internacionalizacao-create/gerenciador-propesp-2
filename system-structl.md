@@ -869,14 +869,14 @@ mobilidade para instituição **sem** convênio formal — informação de gover
 ### P05 · Programas
 **Rota** `/programas` · **Novo (estrutural)** · **MVP**
 
-Lista dos programas de mobilidade. Cartão por programa: nome, órgão financiador,
-ciclos, orçamento total, bolsas, status.
+Lista somente os programas ativos. Por enquanto exibe apenas o CAPES Global.
+Cada cartão apresenta nome, órgão financiador, ciclos, orçamento, linhas e PPGs.
 
 **Ações** criar programa · abrir · arquivar.
 
-**Seed** CAPES Global (com dados) + GCUB, Erasmus+, PDSE, Move La América, PROAFRI
-cadastrados **sem dados**, para que a estrutura multiprograma seja visível desde o
-primeiro dia.
+**Seed** CAPES Global ativo. GCUB, Erasmus+, PDSE, Move La América e PROAFRI são
+preservados como cadastros inativos para possível uso futuro e não aparecem na
+interface nem aceitam acesso por rota.
 
 ---
 
@@ -1293,7 +1293,7 @@ comportamento real e a migração seja verificável.
 | Entidade | Registros | Origem |
 |---|---|---|
 | `Instituicao` | 4 | UEA + UNESP, UFMG, UNICAMP |
-| `Programa` | 6 | CAPES Global (com dados) + GCUB, Erasmus+, PDSE, Move La América, PROAFRI (vazios) |
+| `Programa` | 6 | CAPES Global ativo + GCUB, Erasmus+, PDSE, Move La América e PROAFRI inativos e ocultos. |
 | `Ciclo` | 2 | CAPES Global 2027–2030; Comitê Gestor 2026–2029 |
 | `RedeCoordenadora` | 3 | `Redes_Tematicas` |
 | `AreaTematica` | 12 | 4 por rede |
