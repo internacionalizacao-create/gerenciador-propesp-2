@@ -196,7 +196,7 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
       expect(valor('ppgs')).toBe(24);
       expect(valor('bolsas-ciclo')).toBe(22);
       expect(valor('saldo-ano')).toBe('147091.05');
-      expect(valor('pendencias')).toBe(7);
+      expect(valor('pendencias')).toBe(6);
     });
 
     it('mantem o Comite Gestor fora do aporte de bolsas (RN-14)', async () => {
@@ -252,7 +252,7 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
       expect(alerta('composicoes-a-definir')?.quantidade).toBe(4);
       expect(alerta('divergencia-saldo')).toBeUndefined();
       expect(alerta('ppgs-sem-bolsa')?.quantidade).toBe(10);
-      expect(alerta('pendencias')?.quantidade).toBe(7);
+      expect(alerta('pendencias')?.quantidade).toBe(6);
       // R$ 69.751,14/ano de manutencao e missoes sem nenhum item planejado.
       expect(alerta('apoio-nao-programado')?.detalhe).toContain('69751.14');
       // Alerta que nao leva ao registro e decoracao.
@@ -638,7 +638,7 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
       expect(resumo.ppgs).toBe(24);
       expect(resumo.coordenadores).toBe(13);
       expect(resumo.linhasPlano).toBe(22);
-      expect(resumo.pendenciasAbertas).toBe(7);
+      expect(resumo.pendenciasAbertas).toBe(6);
       expect(resumo.aporteAnual).toBe('2315444.58');
       expect(resumo.divergencias).toBe(0);
       expect(resumo.tematicasSemOrcamento).toBe(0);

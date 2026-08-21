@@ -643,10 +643,11 @@ orcamentoCiclo = orcamentoAnual × númeroDeAnos
 
 ### RN-10 · Classificação IN/OUT
 ```
-destino = BRASIL   → fluxo = IN   (alguém entra na UEA)
-destino = EXTERIOR → fluxo = OUT  (alguém da UEA sai)
+destino = BRASIL   → fluxo = IN   (mobilidade com entrada no Brasil)
+destino = EXTERIOR → fluxo = OUT  (mobilidade com destino no exterior)
 ```
-> **Convenção validada institucionalmente** (resposta **Q5**; resolve `PEN-012`).
+> **Convenção validada institucionalmente** (resposta **Q5** e confirmação da
+> `PEN-012`).
 > O campo `fluxo` continua sobrescrevível com justificativa, para os casos de borda
 > — por exemplo, um bolsista estrangeiro que já reside no Brasil.
 
@@ -886,7 +887,7 @@ interface nem aceitam acesso por rota.
 Página-índice do ciclo criada a partir da função de navegação que a aba `Premissas`
 exercia na planilha. Exibe cartões de atalho para redes, orçamento, plano de bolsas,
 movimentações externas, pendências e comitê gestor — cada um com um número vivo
-(ex.: "Pendências · 7 abertas").
+(ex.: "Pendências · 6 abertas").
 
 Inclui a **legenda de uso** herdada da planilha, traduzida para o sistema:
 | Planilha | Sistema |
@@ -1308,7 +1309,7 @@ comportamento real e a migração seja verificável.
 | `OrcamentoComiteGestor` | 12 | 3 redes × 4 anos |
 | `Premissa` | 5 | `Premissas` — a aba lista 6 itens, mas "Atualização monetária" vem **sem valor**; ele é na verdade `PEND-007`, não uma premissa |
 | `FonteDocumental` | 4 | anexos Brasil/exterior + guia de remanejamento + planejamento atualizado |
-| `Pendencia` | 14 | histórico preservado; 7 resolvidas e 7 abertas |
+| `Pendencia` | 14 | histórico preservado; 8 resolvidas e 6 abertas |
 | `LancamentoExecucao` | 0 | estrutura genérica; não aplicável ao CAPES Global |
 | `Remanejamento` | 0 | estrutura genérica; registro externo ainda não implementado |
 | `BolsaConcedida` | 0 | a fonte não informa beneficiários; cadastro começa vazio |
@@ -1424,12 +1425,17 @@ que ele é elegível somente em `UNICAMP-T1` — Saúde, Natureza e Sociedade.
 ### 9.7 Áreas temáticas não são as mesmas entre redes
 "Saúde" aparece como `Saúde única` (UNESP-T3), `Saúde e Bem-estar` (UFMG-T3) e
 `Saúde, Natureza e Sociedade` (UNICAMP-T1).
+
+Os nomes oficiais das demais áreas da UNICAMP, confirmados pela equipe, são:
+`Educação, Saberes e Culturas` (UNICAMP-T2), `Biodiversidade e Transformação
+Territorial Sustentável` (UNICAMP-T3) e `Direitos Humanos, Justiça Social e
+Equidade` (UNICAMP-T4).
 → **Decisão:** `AreaTematica` pertence à rede. Um agrupamento temático transversal, se
 for necessário, é uma etiqueta à parte — **não** o mesmo campo.
 
 ### 9.8 O contador da planilha estava defasado
 A aba `Pendencias` tem **14 itens**; o painel antigo anunciava **10**. Após incorporar
-as respostas, o sistema preserva os 14 registros e calcula **7 abertos** pelo status.
+as respostas, o sistema preserva os 14 registros e calcula **6 abertos** pelo status.
 
 É o mesmo defeito de §9.1, em outra célula: **um número escrito à mão que não sabe que
 a fonte mudou.** É exatamente isso que o sistema elimina — contadores derivados de

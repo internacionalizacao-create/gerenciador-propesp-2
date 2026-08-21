@@ -394,7 +394,7 @@ o ícone estiver visível.
 - **Seed com os dados reais** das planilhas e respostas formais
   ([apps/api/src/database/seed/](apps/api/src/database/seed/)): 24 PPGs, 60 itens
   de catálogo, 23 linhas de plano (18 aprovadas, 4 UFMG pendentes e 1 cancelada),
-  48 orçamentos anuais e 14 pendências históricas (7 abertas).
+  48 orçamentos anuais e 14 pendências históricas (6 abertas).
 - **Serviços de cálculo**: RN-01 a RN-20 em
   [apps/api/src/dominio/](apps/api/src/dominio/), todos em SQL e sem nenhum
   derivado persistido. A API expõe programas, ciclo, redes, temáticas, orçamento,
@@ -420,7 +420,7 @@ interface é **Coordenador de Temática**, não “membro do comitê”. Ediçã
 existente exige `plano:edit` (só `admin`), preserva código/rubrica e grava uma
 entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: somente
 2027 vem composto; 2028–2030 começam vazios e nunca copiam a quantidade automaticamente.
-- **Testes**: 26 unitários + 104 de integração contra Postgres real.
+- **Testes**: 26 unitários + 106 de integração contra Postgres real.
 - Smoke de login (`pnpm smoke:login`) e de telas (`pnpm smoke:telas`) ponta a
   ponta; CI de lint/build/test.
 

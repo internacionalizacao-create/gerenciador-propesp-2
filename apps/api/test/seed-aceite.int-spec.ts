@@ -77,6 +77,22 @@ describe('Seed — aceite da migração CAPES Global 2027–2030', () => {
       expect(areas.total).toBe(12);
     });
 
+    it('preserva os nomes oficiais das temáticas da UNICAMP', async () => {
+      const areas = await ctx.db
+        .select({ codigo: s.areaTematica.codigo, nome: s.areaTematica.nome })
+        .from(s.areaTematica)
+        .where(sql`${s.areaTematica.codigo} in ('UNICAMP-T2', 'UNICAMP-T3')`)
+        .orderBy(s.areaTematica.codigo);
+
+      expect(areas).toEqual([
+        { codigo: 'UNICAMP-T2', nome: 'Educação, Saberes e Culturas' },
+        {
+          codigo: 'UNICAMP-T3',
+          nome: 'Biodiversidade e Transformação Territorial Sustentável',
+        },
+      ]);
+    });
+
     it('vincula um coordenador a cada PPG dentro da tematica', async () => {
       const coordenacoes = await ctx.db
         .select({
@@ -464,7 +480,7 @@ describe('Seed — aceite da migração CAPES Global 2027–2030', () => {
 
   // ------------------------------------------------------------------ //
   describe('governança', () => {
-    it('preserva 14 pendências históricas, com 7 ainda abertas', async () => {
+    it('preserva 14 pendências históricas, com 6 ainda abertas', async () => {
       const [{ total }] = await ctx.db
         .select({ total: sql<number>`count(*)::int` })
         .from(s.pendencia);
@@ -474,7 +490,46 @@ describe('Seed — aceite da migração CAPES Global 2027–2030', () => {
         .where(sql`${s.pendencia.status} <> 'RESOLVIDA'`);
 
       expect(total).toBe(14);
-      expect(abertas).toBe(7);
+      expect(abertas).toBe(6);
+    });
+
+    it('registra as decisões de fluxo e mantém a composição da UNICAMP aberta', async () => {
+      const respostas = await ctx.db
+        .select({
+          codigo: s.pendencia.codigo,
+          status: s.pendencia.status,
+          resolucao: s.pendencia.resolucao,
+          descricao: s.pendencia.descricao,
+        })
+        .from(s.pendencia)
+        .where(sql`${s.pendencia.codigo} in ('PEN-011', 'PEN-012', 'PEN-013')`)
+        .orderBy(s.pendencia.codigo);
+
+      expect(respostas).toEqual([
+        {
+          codigo: 'PEN-011',
+          status: 'RESOLVIDA',
+          resolucao:
+            'Todos os recursos são pagos diretamente pela CAPES; não há entrada em caixa nem execução financeira na UEA.',
+          descricao:
+            'Confirmar se os recursos do CAPES Global entram no caixa da UEA ou são pagos diretamente pela CAPES.',
+        },
+        {
+          codigo: 'PEN-012',
+          status: 'RESOLVIDA',
+          resolucao:
+            'IN significa entrada no Brasil e OUT significa destino no exterior.',
+          descricao:
+            'Validar institucionalmente IN como entrada no Brasil e OUT como destino no exterior.',
+        },
+        {
+          codigo: 'PEN-013',
+          status: 'PENDENTE',
+          resolucao: null,
+          descricao:
+            'Os orçamentos anuais por temática estão definidos, mas modalidades, quantidades, vigências, implementação e distribuição das bolsas ainda não foram definidas.',
+        },
+      ]);
     });
 
     it('Comitê Gestor = R$ 381.333,00/ano e R$ 1.525.332,00 no ciclo (RN-14)', async () => {

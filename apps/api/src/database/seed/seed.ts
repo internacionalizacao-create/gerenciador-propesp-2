@@ -379,11 +379,12 @@ export async function executarSeed(
         assunto: p.assunto ?? '(sem assunto)',
         descricao: p.descricao ?? '(sem descrição)',
         impacto: p.impacto,
-        nivelImpacto: nivelDe(p.impacto),
+        nivelImpacto: p.nivelImpacto ?? nivelDe(p.impacto),
         responsavelSugerido: p.responsavel,
         prazoMomento: p.prazo,
         status: statusPendenciaDe(p.status),
         origem: 'MANUAL' as const,
+        resolucao: p.resolucao ?? null,
       })),
     )
     .returning();

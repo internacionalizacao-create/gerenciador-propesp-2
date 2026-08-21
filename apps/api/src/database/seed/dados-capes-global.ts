@@ -74,6 +74,8 @@ export interface PendenciaBruta {
   responsavel: string | null;
   prazo: string | null;
   status: string | null;
+  nivelImpacto?: 'ALTA' | 'MEDIA' | 'BAIXA';
+  resolucao?: string | null;
 }
 
 export interface PremissaBruta {
@@ -173,7 +175,7 @@ const tematicasAtualizadas: Record<string, Partial<TematicaBruta>> = {
     valorBolsas: '270894.75',
     valorManutencao: null,
     valorMissoes: null,
-    nome: 'Culturas, Saberes e Educação',
+    nome: 'Educação, Saberes e Culturas',
     observacoes:
       'Orçamento de bolsas aprovado. PPGs são apenas elegíveis; modalidades, distribuição, beneficiários e manutenção ainda estão a definir.',
   },
@@ -182,7 +184,7 @@ const tematicasAtualizadas: Record<string, Partial<TematicaBruta>> = {
     valorBolsas: '96835.65',
     valorManutencao: null,
     valorMissoes: null,
-    nome: 'Biodiversidade, Energia e Transformação Territorial Sustentável',
+    nome: 'Biodiversidade e Transformação Territorial Sustentável',
     observacoes:
       'Orçamento de bolsas aprovado. PPGs são apenas elegíveis; modalidades, distribuição, beneficiários e manutenção ainda estão a definir.',
   },
@@ -232,21 +234,62 @@ const planoAtualizado: Record<string, Partial<ItemPlanoBruto>> = {
   },
 };
 
+const pendenciasAtualizadas: Record<string, Partial<PendenciaBruta>> = {
+  'PEN-011': {
+    escopoRede: 'GERAL',
+    escopoTema: 'Todas',
+    assunto: 'Fluxo financeiro institucional',
+    descricao:
+      'Confirmar se os recursos do CAPES Global entram no caixa da UEA ou são pagos diretamente pela CAPES.',
+    impacto:
+      'Define se o Gerenciador precisa acompanhar execução financeira interna.',
+    nivelImpacto: 'ALTA',
+    responsavel: 'PROPESP / Rede coordenadora',
+    prazo: null,
+  },
+  'PEN-012': {
+    escopoRede: 'GERAL',
+    escopoTema: 'Todas',
+    assunto: 'Critério IN/OUT',
+    descricao:
+      'Validar institucionalmente IN como entrada no Brasil e OUT como destino no exterior.',
+    impacto: 'Define a classificação dos indicadores de mobilidade.',
+    nivelImpacto: 'MEDIA',
+    responsavel: 'Comissão de Internacionalização',
+    prazo: null,
+  },
+  'PEN-013': {
+    escopoRede: 'UNICAMP',
+    escopoTema: 'Todas',
+    assunto: 'Composição de bolsas da UNICAMP',
+    descricao:
+      'Os orçamentos anuais por temática estão definidos, mas modalidades, quantidades, vigências, implementação e distribuição das bolsas ainda não foram definidas.',
+    impacto:
+      'Impede calcular bolsas, beneficiários e custo da composição da UNICAMP.',
+    nivelImpacto: 'ALTA',
+    responsavel: 'Comitê UNICAMP',
+    prazo: 'Após a definição das bolsas',
+    status: 'Pendente',
+  },
+};
+
 const pendenciasResolvidas: Record<string, string> = {
   'PEND-001':
-    'Resolvida: a equipe validou o cálculo de R$ 1.457,39 para a UNESP-T3 e orientou desconsiderar o valor divergente do anexo.',
+    'A equipe validou o cálculo de R$ 1.457,39 para a UNESP-T3 e orientou desconsiderar o valor divergente do anexo.',
   'PEND-002':
-    'Resolvida: a composição atualizada confirma vigência de 5 meses para a BOL-008.',
+    'A composição atualizada confirma vigência de 5 meses para a BOL-008.',
   'PEND-003':
-    'Resolvida: a composição atualizada totaliza R$ 261.095,80 e deixa saldo de R$ 268,75 na UNESP-T1, sem divergência.',
+    'A composição atualizada totaliza R$ 261.095,80 e deixa saldo de R$ 268,75 na UNESP-T1, sem divergência.',
   'PEND-004':
-    'Resolvida parcialmente pela nova planilha: orçamento de bolsas da UNICAMP definido; manutenção segue sem valor.',
+    'A nova planilha definiu o orçamento de bolsas da UNICAMP por temática; a manutenção sem valor permanece tratada separadamente.',
   'PEND-006':
-    'Resolvida: PROFSAÚDE pertence apenas à UNICAMP-T1 — Saúde, Natureza e Sociedade.',
+    'A equipe confirmou que o PROFSAÚDE pertence apenas à UNICAMP-T1 — Saúde, Natureza e Sociedade.',
   'PEND-008':
-    'Resolvida para o Gerenciador: remanejamento somente dentro da mesma temática e apenas registrado após ocorrer na CAPES.',
+    'O remanejamento ocorre somente dentro da mesma temática e o Gerenciador apenas o registra após ocorrer na CAPES.',
   'PEN-011':
-    'Resolvida: todos os recursos são pagos diretamente pela CAPES; não há entrada em caixa na UEA.',
+    'Todos os recursos são pagos diretamente pela CAPES; não há entrada em caixa nem execução financeira na UEA.',
+  'PEN-012':
+    'IN significa entrada no Brasil e OUT significa destino no exterior.',
 };
 
 export const dadosCapesGlobal: DadosCapesGlobal = {
@@ -292,13 +335,17 @@ export const dadosCapesGlobal: DadosCapesGlobal = {
           }
         : atualizado;
     }),
-  pendencias: dadosOriginais.pendencias.map((pendencia) => {
+  pendencias: dadosOriginais.pendencias.map((pendenciaOriginal) => {
+    const pendencia = {
+      ...pendenciaOriginal,
+      ...pendenciasAtualizadas[pendenciaOriginal.codigo],
+    };
     const resolucao = pendenciasResolvidas[pendencia.codigo];
     if (!resolucao) return pendencia;
     return {
       ...pendencia,
-      descricao: `${pendencia.descricao ?? ''}\n${resolucao}`.trim(),
       status: 'Resolvida',
+      resolucao,
     };
   }),
   premissas: dadosOriginais.premissas.map((premissa) => {
