@@ -6,7 +6,7 @@ das planilhas. Ordenado da tela **mais complexa para a mais simples de validar**
 — complexidade aqui significa quanto cálculo/regra de negócio tem por trás, não o
 tamanho da tela.
 
-Cobre as 13 telas hoje implementadas (ver [AGENTS.md](../AGENTS.md) §9). Fora do
+Cobre as telas hoje implementadas (ver [AGENTS.md](../AGENTS.md) §9). Fora do
 escopo: tudo que depende de dado que ainda não existe (bolsista individual,
 execução financeira, remanejamento) — não dá pra validar o que não foi
 construído.
@@ -27,8 +27,7 @@ construído.
 | 8 | Comitê Gestor | `.../comite-gestor` | Baixa-média | [ ] |
 | 9 | Pendências | `/pendencias` | Baixa-média | [ ] |
 | 10 | Catálogo de bolsas | `/catalogos/bolsas` | Baixa | [ ] |
-| 11 | Premissas e fontes | `.../premissas` | Baixa | [ ] |
-| 12 | Modalidades e Configurações | `/catalogos/modalidades`, `/configuracoes` | Baixa | [ ] |
+| 11 | Modalidades e Configurações | `/catalogos/modalidades`, `/configuracoes` | Baixa | [ ] |
 
 ---
 
@@ -233,25 +232,7 @@ A mais complexa. É a "tela mais importante do sistema" segundo a própria spec.
 
 ---
 
-## 11. Premissas e fontes
-
-**Rota** `.../premissas` · [page.tsx](../apps/web/src/app/(app)/programas/[programa]/[ciclo]/premissas/page.tsx)
-
-**Status da validação:** [ ] Validado
-
-- **Objetivo:** documentar de onde vêm os parâmetros do modelo (cotação 6,59,
-  repetição anual sem reajuste, tratamento da UNICAMP, etc.) e as fontes
-  documentais.
-- **Base:** substitui a aba `Premissas`.
-- **Resolve:** "o cálculo mora na fórmula" — aqui é o oposto, é o número
-  **exposto** com fonte e responsável, não escondido numa célula.
-- Tela essencialmente informativa, pouco cálculo próprio.
-
-**Observações:**
-
----
-
-## 12. Modalidades e Configurações
+## 11. Modalidades e Configurações
 
 **Rotas** `/catalogos/modalidades` · [page.tsx](../apps/web/src/app/(app)/catalogos/modalidades/page.tsx) — e `/configuracoes` · [page.tsx](../apps/web/src/app/(app)/configuracoes/page.tsx)
 

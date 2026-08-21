@@ -61,7 +61,7 @@ src/
    ├─ api/bff/[...path] # proxy do browser para a API, injetando o token
    └─ (app)/            # tudo que exige login; o shell mora no layout do grupo
       ├─ page.tsx                 #   P01 painel executivo
-      ├─ programas/               #   P05 e as telas do ciclo (P06–P10, P16, P17)
+      ├─ programas/               #   P05 e as telas do ciclo (P06–P10, P17)
       ├─ ppgs/                    #   P14 lista e detalhe
       ├─ pendencias/              #   P13
       ├─ catalogos/               #   P15 e P23

@@ -105,11 +105,6 @@ export default async function VisaoDoCiclo({
             numero="Orçamento paralelo, não somável"
           />
           <Atalho
-            href={`${base}/premissas`}
-            titulo="Premissas e fontes"
-            numero={`${inteiro(resumo.premissas)} premissas registradas`}
-          />
-          <Atalho
             href={`${base}/redes`}
             titulo="Coordenação temática"
             numero={`${inteiro(resumo.coordenadores)} coordenadores designados`}

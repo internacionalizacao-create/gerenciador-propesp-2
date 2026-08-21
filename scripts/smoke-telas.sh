@@ -59,7 +59,6 @@ if [[ "$USUARIO" == "admin" ]]; then
   testar "/programas/capes-global/2027-2030/plano?rede=unesp" "Histórico"
 fi
 testar "/programas/capes-global/2027-2030/comite-gestor"     "381.333,00"
-testar "/programas/capes-global/2027-2030/premissas"         "6.59"
 testar "/mobilidade/bolsistas"                              "Bolsistas e bolsas concedidas"
 testar "/ppgs"                                               "PPG CLIAMB"
 testar "/pendencias"                                         "PEND-001"

@@ -4,7 +4,7 @@ Especificação funcional e de dados do sistema que substitui as planilhas hoje 
 pela PROPESP/UEA para gerir bolsas, orçamento e mobilidade internacional da
 pós-graduação.
 
-**Última revisão:** 2026-08-18
+**Última revisão:** 2026-08-20
 **Fontes:** `dados/levamtamento de bolsas/`, incluindo a planilha atualizada
 `Planejamento_CAPES_Global_2027_2030_Atualizado_UNICAMP_UFMG.xlsx`;
 `dados/remanejamento/Guia_Orientacoes_Remanejamento_Transformacao_CAPES_Global final (1).pdf`;
@@ -16,7 +16,8 @@ planejamento anual e cadastro individual de bolsas/produtos** estão implementad
 
 | Página | Situação |
 |---|---|
-| P01, P05, P06, P07, P08, P09, P10, P13, P14, P15, P16, P17, P23 | **implementadas** |
+| P01, P05, P06, P07, P08, P09, P10, P13, P14, P15, P17, P23 | **implementadas** |
+| P16 | **retirada da interface**: premissas, fontes e decisões permanecem na documentação interna e no backend para rastreabilidade |
 | P03 | **recorte inicial implementado**: concessão planejada, CPF, destino, datas, alertas e produtos individuais; anexos ainda pendentes |
 | P02, P04 | dependem das bolsas concedidas que a equipe ainda cadastrará; o dado não existe nas planilhas |
 | P11 | **fora do escopo do CAPES Global**: pagamentos são feitos diretamente pela CAPES; não há execução financeira no caixa da UEA |
@@ -736,8 +737,7 @@ Programas                 /programas
           ├─ Orçamento           .../orcamento
           ├─ Plano de aplicação  .../plano
           ├─ Movimentações       .../remanejamentos
-          ├─ Comitê Gestor       .../comite-gestor
-          └─ Premissas e fontes  .../premissas
+          └─ Comitê Gestor       .../comite-gestor
 PPGs                      /ppgs
   ├─ Detalhe                 /ppgs/[id]
   └─ Cadastro                /ppgs/novo
@@ -881,11 +881,12 @@ interface nem aceitam acesso por rota.
 ---
 
 ### P06 · Visão do programa / ciclo
-**Rota** `/programas/[programa]/[ciclo]` · **Substitui** aba `Premissas` (navegação) · **MVP**
+**Rota** `/programas/[programa]/[ciclo]` · **Central do ciclo** · **MVP**
 
-Página-índice do ciclo, equivalente à "central de navegação" que a aba `Premissas` tenta
-ser. Cartões de atalho para redes, orçamento, plano de bolsas, movimentações externas,
-pendências, comitê gestor e premissas — cada um com um número vivo (ex.: "Pendências · 7 abertas").
+Página-índice do ciclo criada a partir da função de navegação que a aba `Premissas`
+exercia na planilha. Exibe cartões de atalho para redes, orçamento, plano de bolsas,
+movimentações externas, pendências e comitê gestor — cada um com um número vivo
+(ex.: "Pendências · 7 abertas").
 
 Inclui a **legenda de uso** herdada da planilha, traduzida para o sistema:
 | Planilha | Sistema |
@@ -1137,20 +1138,17 @@ as listas “Bolsa destino Brasil” e “Bolsa p/ exterior” podem ser usadas.
 
 ---
 
-### P16 · Premissas e fontes
-**Rota** `.../premissas` · **Substitui** `Premissas` · **MVP**
+### P16 · Premissas e fontes — retirada da interface
 
-Documenta as convenções do modelo. Sem isso, ninguém entende de onde vêm os números.
+A página operacional foi removida porque premissas e fontes são contexto interno de
+produto, não uma atividade que o usuário precise executar no sistema. As decisões de
+negócio confirmadas permanecem nesta especificação, e as fontes continuam preservadas
+nas entidades `Premissa` e `FonteDocumental`, na seed e no endpoint da API para
+rastreabilidade e futuro aproveitamento em P22 (Documentos e evidências).
 
-**Blocos**
-1. **Premissas-chave** — item, valor, unidade, natureza, fonte, data-base, responsável,
-   observações. (período do modelo, repetição anual sem reajuste, cotação 6,59,
-   tratamento da UNICAMP, tratamento das sobras, atualização monetária)
-2. **Fontes documentais** — nome, conteúdo, escopo, status, arquivo, data de recebimento,
-   referência normativa, com anexo.
-
-**Regras** — alterar uma premissa que entra em cálculo (ex.: cotação) exibe o impacto
-antes de confirmar e fica registrada na auditoria.
+Valores necessários ao trabalho diário devem aparecer nas telas em que produzem efeito,
+com rótulo e origem suficientes para interpretação. A existência das estruturas internas
+não autoriza recriar uma rota ou item de menu para premissas sem nova decisão de produto.
 
 ---
 

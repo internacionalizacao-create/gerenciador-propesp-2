@@ -438,7 +438,8 @@ gerenciador/
 - Plano de aplicação por exercício, rede, temática e PPG.
 - Cadastro individual de bolsista com CPF, destino e datas completas.
 - Alertas temporais e produtos individuais por bolsa.
-- Pendências, premissas, fontes e Comitê Gestor.
+- Pendências e Comitê Gestor na interface; premissas e fontes preservadas
+  internamente para rastreabilidade e futuro uso em Documentos e evidências.
 - Seed real, migrations, testes unitários, integração e smoke tests.
 
 ### Próximos blocos

@@ -4,7 +4,7 @@ Documento de referência para quem (pessoa ou LLM) vai mexer neste repositório 
 tê-lo escrito. Descreve o que existe hoje, por que está assim, e o que ainda não
 existe. **Mantenha-o atualizado quando mudar arquitetura ou convenção.**
 
-Última revisão: 2026-08-19.
+Última revisão: 2026-08-20.
 
 ---
 
@@ -92,7 +92,7 @@ apps/
         catalogo.service.ts   RN-01 — resolução de preço, recusa sem match
         plano.service.ts      P10 — três rubricas, edição e auditoria por campo
         bolsistas.service.ts  P03 — concessões, datas, alertas e produtos individuais
-        ciclo.service.ts      P06/P07/P08/P16/P17
+        ciclo.service.ts      P06/P07/P08/P17 e dados internos de premissas/fontes
         ppgs.service.ts       P14
         pendencias.service.ts P13
         *.controller.ts       rotas REST, uma permissão por endpoint
@@ -125,7 +125,7 @@ apps/
       app/
         (app)/             tudo que exige login — o shell mora no layout
           page.tsx                    P01 painel executivo
-          programas/                  P05 e as telas do ciclo (P06..P10, P16, P17)
+          programas/                  P05 e as telas do ciclo (P06..P10, P17)
           ppgs/                       P14 lista e detalhe
           pendencias/                 P13
           catalogos/                  P15 e P23
@@ -401,8 +401,11 @@ o ícone estiver visível.
   plano, bolsas concedidas e produtos individuais, comitê gestor, premissas,
   PPGs, pendências e catálogo.
 - **Telas de planejamento**: P01, P05, P06, P07, P08, P09, P10, P13, P14, P15,
-  P16, P17 e as configurações da conta. Cadastro de PPG e de linha de plano em
+  P17 e as configurações da conta. Cadastro de PPG e de linha de plano em
   sidesheet com formulário em etapas; pendência em sidesheet simples.
+- **Premissas e fontes internas (antiga P16)**: a página foi retirada da interface.
+  Tabelas, seed e endpoint permanecem para rastreabilidade e futuro uso em P22;
+  decisões confirmadas ficam em [system-structl.md](system-structl.md).
 - **Recorte inicial de Bolsistas (P03)**: concessão individual a partir de uma linha planejada, com
   vaga por exercício, CPF, destino, datas completas, alertas temporais, regra de uma
   modalidade por CPF/ciclo e cadastro/acompanhamento de produtos por pessoa. Não há

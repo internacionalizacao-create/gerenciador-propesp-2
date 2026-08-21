@@ -197,7 +197,7 @@ function IconeDaRota({ href }: { href: string }) {
   if (href.includes("ppgs")) return <IconePessoas />;
   if (href.includes("catalogos")) return <IconeCatalogo />;
   if (href.includes("orcamento") || href.includes("execucao")) return <IconeMoeda />;
-  if (href.includes("plano") || href.includes("premissas")) return <IconeDocumento />;
+  if (href.includes("plano")) return <IconeDocumento />;
   if (href.includes("redes") || href.includes("tematicas")) return <IconeRede />;
   if (href.includes("mobilidade") || href.includes("convenios")) return <IconeGlobo />;
   if (href.includes("programas")) return <IconePrograma />;

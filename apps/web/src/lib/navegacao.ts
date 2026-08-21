@@ -63,7 +63,6 @@ export function menu(programaSlug: string, cicloNome: string): GrupoMenu[] {
           href: `${ciclo}/comite-gestor`,
           disponivel: true,
         },
-        { rotulo: "Premissas", href: `${ciclo}/premissas`, disponivel: true },
       ],
     },
     {
