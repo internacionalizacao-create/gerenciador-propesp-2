@@ -96,6 +96,8 @@ export const pessoa = pgTable(
     nome: varchar('nome', { length: 240 }).notNull(),
     email: varchar('email', { length: 240 }),
     documento: varchar('documento', { length: 40 }),
+    /** CPF normalizado, usado para aplicar regras por beneficiario no ciclo. */
+    cpf: char('cpf', { length: 11 }),
     tipo: tipoPessoaEnum('tipo').notNull(),
     /**
      * Vínculo com PPG. `pessoa` e `ppg` se referenciam mutuamente (o PPG aponta
@@ -114,6 +116,7 @@ export const pessoa = pgTable(
     // E-mail é opcional, mas quando existe não se repete. `uniqueIndex` do
     // Postgres já ignora NULL, então pessoas sem e-mail não colidem entre si.
     uniqueIndex('pessoa_email_uk').on(t.email),
+    uniqueIndex('pessoa_cpf_uk').on(t.cpf),
   ],
 );
 

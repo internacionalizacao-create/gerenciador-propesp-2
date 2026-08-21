@@ -43,6 +43,19 @@ describe('permissionsForRoles', () => {
     }
   });
 
+  it('permite a coordenacao e a secretaria registrarem bolsas e produtos', () => {
+    for (const papel of ['coordenador', 'secretaria']) {
+      const permissoes = permissionsForRoles([papel]);
+      expect(permissoes).toContain('bolsa:write');
+      expect(permissoes).toContain('produto:write');
+    }
+    for (const papel of ['docente', 'discente']) {
+      const permissoes = permissionsForRoles([papel]);
+      expect(permissoes).not.toContain('bolsa:write');
+      expect(permissoes).not.toContain('produto:write');
+    }
+  });
+
   it('reserva orcamento e catalogo a PROPESP', () => {
     // §3.5: acoes que atravessam PPGs — definir orcamento, publicar catalogo —
     // nao pertencem a quem coordena um PPG so. Este teste e o que impede a

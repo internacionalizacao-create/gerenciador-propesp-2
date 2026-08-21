@@ -2,10 +2,11 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 import * as s from '../src/database/schema';
 import { executarSeed } from '../src/database/seed/seed';
+import { BolsistasService } from '../src/dominio/bolsistas.service';
 import { CatalogoService } from '../src/dominio/catalogo.service';
 import { CicloService } from '../src/dominio/ciclo.service';
 import {
@@ -41,6 +42,7 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
   let ciclo: CicloResolvido;
 
   let contexto: ContextoService;
+  let bolsistas: BolsistasService;
   let catalogo: CatalogoService;
   let orcamento: OrcamentoService;
   let painel: PainelService;
@@ -58,6 +60,7 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
     // so dependem do banco, e subir o container do Nest para injetar um unico
     // provider adicionaria uma camada que nao esta sob teste.
     contexto = new ContextoService(ctx.db);
+    bolsistas = new BolsistasService(ctx.db);
     catalogo = new CatalogoService(ctx.db);
     orcamento = new OrcamentoService(ctx.db);
     painel = new PainelService(ctx.db, orcamento);
@@ -110,49 +113,45 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
       expect(t4.saldoPotencial).toBe('2808.64');
     });
 
-    it('calcula a utilizacao da UFMG-T1 em 92,26% (RN-07)', async () => {
+    it('calcula a utilizacao da composicao original aprovada da UFMG-T1', async () => {
       const [t1] = (await orcamento.porTematica(ciclo.cicloId, 2027)).filter(
         (t) => t.codigo === 'UFMG-T1',
       );
 
-      expect(t1.custoBolsas).toBe('82572.70');
+      expect(t1.custoBolsas).toBe('54697.00');
       expect(t1.valorBolsas).toBe('89500.00');
-      expect(t1.utilizacao).toBeCloseTo(0.9226, 4);
+      expect(t1.utilizacao).toBeCloseTo(0.6111, 4);
     });
 
-    it('devolve nulo — nao zero — para tematica sem orcamento definido', async () => {
-      // A regra que impede a UNICAMP de derrubar medias e percentuais do painel.
-      const semOrcamento = (
+    it('separa orcamento definido de composicao a definir na UNICAMP', async () => {
+      const semComposicao = (
         await orcamento.porTematica(ciclo.cicloId, 2027)
-      ).filter((t) => t.statusOrcamento === 'A_DEFINIR');
+      ).filter((t) => t.statusComposicao === 'A_DEFINIR');
 
-      expect(semOrcamento).toHaveLength(4);
-      for (const t of semOrcamento) {
-        expect(t.valorBolsas).toBeNull();
-        expect(t.totalPrevisto).toBeNull();
+      expect(semComposicao).toHaveLength(4);
+      for (const t of semComposicao) {
+        expect(t.valorBolsas).not.toBeNull();
         expect(t.saldoPotencial).toBeNull();
         expect(t.utilizacao).toBeNull();
         expect(t.codigo.startsWith('UNICAMP-')).toBe(true);
       }
     });
 
-    it('acha sozinho as duas divergencias de saldo (RN-08)', async () => {
+    it('nao aponta divergencia depois da conciliacao da UNESP-T1 (RN-08)', async () => {
       const divergentes = await orcamento.divergencias(ciclo.cicloId, 2027);
 
-      expect(
-        Object.fromEntries(divergentes.map((d) => [d.codigo, d.divergencia])),
-      ).toEqual({ 'UNESP-T3': '206.10', 'UNESP-T1': '11005.49' });
+      expect(divergentes).toEqual([]);
     });
 
-    it('consolida por rede: UNESP 624.867,50 e UFMG 519.489,70', async () => {
+    it('consolida o custo aprovado e preserva o orçamento da UNICAMP', async () => {
       const redes = await orcamento.porRede(ciclo.cicloId, 2027);
       const mapa = Object.fromEntries(redes.map((r) => [r.rede, r]));
 
-      expect(mapa.UNESP.custoBolsas).toBe('624867.50');
-      expect(mapa.UFMG.custoBolsas).toBe('519489.70');
-      // UNICAMP tem tematicas e PPGs, e nao tem orcamento. As duas coisas ao
-      // mesmo tempo sao o estado real, e a tela precisa poder mostrar as duas.
-      expect(mapa.UNICAMP.valorBolsas).toBeNull();
+      expect(mapa.UNESP.custoBolsas).toBe('636531.80');
+      expect(mapa.UFMG.custoBolsas).toBe('396981.60');
+      expect(mapa.UNICAMP.valorBolsas).toBe('1065088.99');
+      expect(mapa.UNICAMP.statusComposicao).toBe('A_DEFINIR');
+      expect(mapa.UNICAMP.saldoPotencial).toBeNull();
       expect(mapa.UNICAMP.ppgs).toBe(10);
     });
 
@@ -162,7 +161,7 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
       const redes = await orcamento.porRede(ciclo.cicloId, 2027);
       const total = somarMoeda(redes.map((r) => r.totalPrevisto));
 
-      expect(total).toBe('1250355.59');
+      expect(total).toBe('2315444.58');
     });
   });
 
@@ -173,14 +172,14 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
       const valor = (chave: string) =>
         p.indicadores.find((i) => i.chave === chave)?.valor;
 
-      expect(valor('aporte-anual')).toBe('1250355.59');
-      expect(valor('projecao-ciclo')).toBe('5001422.36');
-      expect(valor('bolsas-ano')).toBe(25);
-      expect(valor('custo-bolsas-ano')).toBe('1144357.20');
+      expect(valor('aporte-anual')).toBe('2315444.58');
+      expect(valor('projecao-ciclo')).toBe('9261778.32');
+      expect(valor('bolsas-ano')).toBe(22);
+      expect(valor('custo-bolsas-ano')).toBe('1033513.40');
       expect(valor('ppgs')).toBe(24);
-      expect(valor('bolsas-ciclo')).toBe(100);
-      expect(valor('saldo-ano')).toBe('36247.25');
-      expect(valor('pendencias')).toBe(14);
+      expect(valor('bolsas-ciclo')).toBe(22);
+      expect(valor('saldo-ano')).toBe('147091.05');
+      expect(valor('pendencias')).toBe(7);
     });
 
     it('mantem o Comite Gestor fora do aporte de bolsas (RN-14)', async () => {
@@ -190,15 +189,15 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
       )?.valor;
 
       expect(p.comiteGestorAnual).toBe('381333.00');
-      expect(aporte).toBe('1250355.59');
+      expect(aporte).toBe('2315444.58');
       // A soma indevida daria isto, e inflaria em 30% o recurso de bolsas.
-      expect(aporte).not.toBe('1631688.59');
+      expect(aporte).not.toBe('2696777.58');
     });
 
-    it('classifica 2 IN e 23 OUT (RN-10, RN-11)', async () => {
+    it('classifica 2 IN e 20 OUT na composicao aprovada (RN-10, RN-11)', async () => {
       const p = await painel.montar(ciclo);
 
-      expect(p.fluxo).toEqual({ in: 2, out: 23 });
+      expect(p.fluxo).toEqual({ in: 2, out: 20 });
     });
 
     it('repete o aporte nominal nos quatro exercicios (RN-09)', async () => {
@@ -206,9 +205,14 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
 
       expect(p.porAno.map((a) => a.ano)).toEqual([2027, 2028, 2029, 2030]);
       for (const ano of p.porAno) {
-        expect(ano.aporte).toBe('1250355.59');
-        expect(ano.custoBolsas).toBe('1144357.20');
-        expect(ano.bolsas).toBe(25);
+        expect(ano.aporte).toBe('2315444.58');
+      }
+      expect(p.porAno[0].custoBolsas).toBe('1033513.40');
+      expect(p.porAno[0].bolsas).toBe(22);
+      for (const ano of p.porAno.slice(1)) {
+        expect(ano.custoBolsas).toBe('0.00');
+        expect(ano.bolsas).toBe(0);
+        expect(ano.saldoPotencial).toBeNull();
       }
     });
 
@@ -216,11 +220,11 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
       const p = await painel.montar(ciclo);
 
       expect(somarMoeda(p.porModalidade.map((m) => m.custoAno))).toBe(
-        '1144357.20',
+        '1033513.40',
       );
       expect(
         p.porModalidade.reduce((total, m) => total + m.quantidadeAno, 0),
-      ).toBe(25);
+      ).toBe(22);
     });
 
     it('levanta os alertas gerenciais que a planilha nao dava', async () => {
@@ -228,10 +232,10 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
       const alerta = (chave: string) =>
         p.alertas.find((a) => a.chave === chave);
 
-      expect(alerta('tematicas-sem-orcamento')?.quantidade).toBe(4);
-      expect(alerta('divergencia-saldo')?.quantidade).toBe(2);
+      expect(alerta('composicoes-a-definir')?.quantidade).toBe(4);
+      expect(alerta('divergencia-saldo')).toBeUndefined();
       expect(alerta('ppgs-sem-bolsa')?.quantidade).toBe(10);
-      expect(alerta('pendencias')?.quantidade).toBe(14);
+      expect(alerta('pendencias')?.quantidade).toBe(7);
       // R$ 69.751,14/ano de manutencao e missoes sem nenhum item planejado.
       expect(alerta('apoio-nao-programado')?.detalhe).toContain('69751.14');
       // Alerta que nao leva ao registro e decoracao.
@@ -291,14 +295,14 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
 
   // ------------------------------------------------------------------ //
   describe('PlanoService (P10)', () => {
-    it('lista as 33 linhas com valor de catalogo e custo calculado', async () => {
+    it('lista 18 linhas aprovadas, 4 propostas pendentes e 1 cancelada', async () => {
       const linhas = await plano.listar(ciclo.cicloId);
       const programadas = linhas.filter((l) => l.status === 'PROGRAMADO');
 
-      expect(linhas).toHaveLength(33);
-      expect(programadas).toHaveLength(23);
+      expect(linhas).toHaveLength(23);
+      expect(programadas).toHaveLength(18);
       expect(somarMoeda(programadas.map((l) => l.custoAnual))).toBe(
-        '1144357.20',
+        '1033513.40',
       );
       // Toda bolsa programada tem preco oficial; nenhuma tem valor digitado.
       for (const l of programadas) {
@@ -307,39 +311,37 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
       }
     });
 
-    it('marca as 10 linhas da UNICAMP como pendentes e sem valor', async () => {
+    it('marca as 4 Capacitações da UFMG como pendentes e tabeladas', async () => {
       const pendentes = (await plano.listar(ciclo.cicloId)).filter(
         (l) => l.status === 'PENDENTE',
       );
 
-      expect(pendentes).toHaveLength(10);
+      expect(pendentes).toHaveLength(4);
       for (const l of pendentes) {
-        expect(l.origemValor).toBe('INDEFINIDO');
-        expect(l.custoAnual).toBeNull();
-        expect(l.quantidadeAnual).toBe(0);
+        expect(l.origemValor).toBe('CATALOGO');
+        expect(l.custoAnual).not.toBeNull();
+        expect(l.quantidadeAnual).toBe(1);
+        expect(l.rede).toBe('UFMG');
       }
     });
 
-    it('projeta o ciclo repetindo a quantidade nos quatro anos (RN-09)', async () => {
+    it('mantem 2028-2030 a definir, sem replicar 2027 (RN-09)', async () => {
       const [linha] = (await plano.listar(ciclo.cicloId)).filter(
         (l) => l.status === 'PROGRAMADO',
       );
 
       expect(linha.porAno).toHaveLength(4);
-      expect(linha.quantidadeCiclo).toBe(linha.quantidadeAnual * 4);
+      expect(linha.quantidadeCiclo).toBe(linha.quantidadeAnual);
+      expect(linha.porAno.filter((ano) => ano.quantidade > 0)).toEqual([
+        expect.objectContaining({ ano: 2027 }),
+      ]);
     });
 
-    it('associa cada linha ao coordenador do seu PPG na tematica', async () => {
+    it('nao cria linhas artificiais para os PPGs apenas elegiveis da UNICAMP', async () => {
       const linhas = (await plano.listar(ciclo.cicloId)).filter(
-        (linha) => linha.tematica === 'UNICAMP-T1',
+        (linha) => linha.rede === 'UNICAMP',
       );
-      const profsaude = linhas.find((linha) => linha.ppgSigla === 'PROFSAÚDE');
-      const outros = linhas.filter((linha) => linha.ppgSigla !== 'PROFSAÚDE');
-
-      expect(profsaude?.coordenadorTematica).toContain('Sônia Maria Lemos');
-      for (const linha of outros) {
-        expect(linha.coordenadorTematica).toContain('Gisely Cardoso de Melo');
-      }
+      expect(linhas).toHaveLength(0);
     });
 
     it('cria bolsa resolvendo o preco no catalogo, sem aceitar valor digitado', async () => {
@@ -353,10 +355,11 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
         destino: 'EXTERIOR',
         modalidadeId: item.modalidadeId,
         vigenciaMeses: 6,
+        ano: 2027,
         quantidadeAnual: 2,
       });
 
-      expect(criada.codigo).toBe('BOL-034');
+      expect(criada.codigo).toBe('BOL-024');
       expect(criada.origemValor).toBe('CATALOGO');
       expect(criada.valorUnitario).toBe('82902.20');
       expect(criada.custoAnual).toBe('165804.40');
@@ -378,13 +381,14 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
           destino: 'EXTERIOR',
           modalidadeId: tabela.itens[0].modalidadeId,
           vigenciaMeses: 99,
+          ano: 2027,
           quantidadeAnual: 1,
         }),
       ).rejects.toThrow(UnprocessableEntityException);
 
       // E nao pode ter deixado linha orfa no banco.
       const linhas = await plano.listar(ciclo.cicloId);
-      expect(linhas).toHaveLength(33);
+      expect(linhas).toHaveLength(23);
     });
 
     it('aceita valor estimado em missoes, e ele nao vira valor de catalogo', async () => {
@@ -394,6 +398,7 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
         rubrica: 'MISSOES',
         ppgId: ppg.id,
         tipoMissao: 'VISITA_TECNICA',
+        ano: 2027,
         quantidadeAnual: 3,
         valorUnitarioInformado: 12000,
         justificativaEstimativa: 'Media de tres cotacoes de passagem e diaria.',
@@ -423,6 +428,7 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
           destino: linha.destino!,
           modalidadeId: linha.modalidadeId!,
           vigenciaMeses: Number(linha.vigenciaMeses),
+          ano: 2027,
           quantidadeAnual: quantidadeOriginal + 1,
           status: 'PROGRAMADO',
           mesImplementacao: linha.mesImplementacao as 'MARCO' | 'SETEMBRO',
@@ -438,7 +444,7 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
       );
 
       expect(atualizada.quantidadeAnual).toBe(quantidadeOriginal + 1);
-      expect(atualizada.quantidadeCiclo).toBe((quantidadeOriginal + 1) * 4);
+      expect(atualizada.quantidadeCiclo).toBe(quantidadeOriginal + 1);
       const historico = await plano.historico(ciclo.cicloId, linha.id);
       expect(historico).toEqual(
         expect.arrayContaining([
@@ -457,8 +463,17 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
         .where(eq(s.itemPlanejado.id, linha.id));
       await ctx.db
         .update(s.planejamentoAnual)
-        .set({ quantidade: quantidadeOriginal })
+        .set({ quantidade: 0 })
         .where(eq(s.planejamentoAnual.itemPlanejadoId, linha.id));
+      await ctx.db
+        .update(s.planejamentoAnual)
+        .set({ quantidade: quantidadeOriginal })
+        .where(
+          and(
+            eq(s.planejamentoAnual.itemPlanejadoId, linha.id),
+            eq(s.planejamentoAnual.ano, 2027),
+          ),
+        );
       await ctx.db
         .delete(s.registroAuditoria)
         .where(eq(s.registroAuditoria.entidadeId, linha.id));
@@ -493,6 +508,110 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
   });
 
   // ------------------------------------------------------------------ //
+  describe('BolsistasService (P03)', () => {
+    it('concede uma vaga anual e acompanha produtos individuais', async () => {
+      const opcao = (await bolsistas.opcoesPlanejamento()).find(
+        (item) => item.codigo === 'BOL-014',
+      );
+      expect(opcao).toBeDefined();
+      expect(opcao?.porAno).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            ano: 2027,
+            planejadas: 1,
+            concedidas: 0,
+            vagasDisponiveis: 1,
+          }),
+        ]),
+      );
+
+      const criada = await bolsistas.criar({
+        itemPlanejadoId: opcao!.id,
+        nome: 'Bolsista de Integração',
+        email: 'bolsista.integracao@uea.edu.br',
+        cpf: '52998224725',
+        nivelBeneficiario: 'DOCENTE',
+        paisDestino: 'Portugal',
+        instituicaoDestino: 'Universidade de Coimbra',
+        dataInicio: '2027-09-01',
+        dataFim: '2027-10-31',
+        status: 'SELECIONADO',
+        processo: 'SEI-TESTE-001',
+      });
+
+      expect(criada.codigoPlanejamento).toBe('BOL-014');
+      expect(criada.valorConcedido).toBe('54697.00');
+      expect(criada.dataFim).toBe('2027-10-31');
+      expect(criada.paisDestino).toBe('Portugal');
+      expect(criada.instituicaoDestino).toBe('Universidade de Coimbra');
+      expect(criada.situacaoTemporal).toBeDefined();
+
+      const outraModalidade = (await bolsistas.opcoesPlanejamento()).find(
+        (item) => item.codigo === 'BOL-015',
+      );
+      await expect(
+        bolsistas.criar({
+          itemPlanejadoId: outraModalidade!.id,
+          nome: 'Bolsista de Integração',
+          email: 'bolsista.integracao@uea.edu.br',
+          cpf: '52998224725',
+          nivelBeneficiario: 'DOCENTE',
+          paisDestino: 'Espanha',
+          instituicaoDestino: 'Universidade de Barcelona',
+          dataInicio: '2027-09-01',
+          dataFim: '2027-10-31',
+          status: 'SELECIONADO',
+        }),
+      ).rejects.toThrow('já utilizou outra modalidade de bolsa neste ciclo');
+
+      const produto = await bolsistas.criarProduto(criada.id, {
+        tipo: 'ARTIGO',
+        titulo: 'Artigo resultante da mobilidade',
+        prazoEntrega: '2027-12-15',
+        status: 'PREVISTO',
+      });
+      expect(produto.situacao).toBe('PREVISTO');
+
+      const entregue = await bolsistas.atualizarProduto(criada.id, produto.id, {
+        tipo: 'ARTIGO',
+        titulo: 'Artigo resultante da mobilidade',
+        prazoEntrega: '2027-12-15',
+        status: 'ENTREGUE',
+        dataEntrega: '2027-12-10',
+        doi: '10.0000/teste',
+      });
+      expect(entregue.situacao).toBe('ENTREGUE');
+
+      const detalhe = await bolsistas.detalhar(criada.id);
+      expect(detalhe.produtos).toEqual([
+        expect.objectContaining({
+          titulo: 'Artigo resultante da mobilidade',
+          dataEntrega: '2027-12-10',
+        }),
+      ]);
+
+      await expect(
+        bolsistas.criar({
+          itemPlanejadoId: opcao!.id,
+          nome: 'Outra pessoa para a mesma vaga',
+          cpf: '11144477735',
+          nivelBeneficiario: 'DOCENTE',
+          paisDestino: 'Portugal',
+          instituicaoDestino: 'Universidade do Porto',
+          dataInicio: '2027-09-05',
+          dataFim: '2027-11-04',
+          status: 'SELECIONADO',
+        }),
+      ).rejects.toThrow('Todas as 1 vagas planejadas para 2027');
+
+      await ctx.db
+        .delete(s.bolsaConcedida)
+        .where(eq(s.bolsaConcedida.id, criada.id));
+      await ctx.db.delete(s.pessoa).where(eq(s.pessoa.id, criada.pessoaId));
+    });
+  });
+
+  // ------------------------------------------------------------------ //
   describe('CicloService', () => {
     it('monta o indice do ciclo com os numeros vivos de cada atalho (P06)', async () => {
       const resumo = await ciclos.resumo(ciclo);
@@ -501,11 +620,11 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
       expect(resumo.tematicas).toBe(12);
       expect(resumo.ppgs).toBe(24);
       expect(resumo.coordenadores).toBe(13);
-      expect(resumo.linhasPlano).toBe(33);
-      expect(resumo.pendenciasAbertas).toBe(14);
-      expect(resumo.aporteAnual).toBe('1250355.59');
-      expect(resumo.divergencias).toBe(2);
-      expect(resumo.tematicasSemOrcamento).toBe(4);
+      expect(resumo.linhasPlano).toBe(22);
+      expect(resumo.pendenciasAbertas).toBe(7);
+      expect(resumo.aporteAnual).toBe('2315444.58');
+      expect(resumo.divergencias).toBe(0);
+      expect(resumo.tematicasSemOrcamento).toBe(0);
     });
 
     it('agrupa as tematicas com coordenador por PPG participante (P07)', async () => {
@@ -552,11 +671,17 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
       expect(cg.aviso).toContain('nao integra');
     });
 
-    it('lista as premissas e as duas fontes documentais (P16)', async () => {
+    it('lista as premissas e as quatro fontes documentais (P16)', async () => {
       const { premissas, fontes } = await ciclos.premissas(ciclo);
 
       expect(premissas).toHaveLength(5);
-      expect(fontes).toHaveLength(2);
+      expect(fontes).toHaveLength(4);
+      expect(fontes.map((fonte) => fonte.nome)).toEqual(
+        expect.arrayContaining([
+          'Guia de Orientações para Remanejamento e Transformação',
+          'Planejamento CAPES Global 2027–2030 atualizado',
+        ]),
+      );
       expect(
         premissas.find((p) => p.item.toLowerCase().includes('cotação'))?.valor,
       ).toBe('6.59');
@@ -569,8 +694,8 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
       const lista = await ppgs.listar();
 
       expect(lista).toHaveLength(24);
-      expect(somarMoeda(lista.map((p) => p.custoAno))).toBe('1144357.20');
-      expect(lista.reduce((total, p) => total + p.bolsasAno, 0)).toBe(25);
+      expect(somarMoeda(lista.map((p) => p.custoAno))).toBe('1033513.40');
+      expect(lista.reduce((total, p) => total + p.bolsasAno, 0)).toBe(22);
     });
 
     it('mostra PPG sem bolsa como zero, e nao o esconde da lista', async () => {

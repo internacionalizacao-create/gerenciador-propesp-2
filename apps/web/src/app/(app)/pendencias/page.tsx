@@ -5,7 +5,6 @@ import {
   ResolverPendencia,
 } from "@/componentes/formularios/form-pendencia";
 import {
-  Aviso,
   Cartao,
   Cartoes,
   Celula,
@@ -81,12 +80,6 @@ export default async function Pendencias() {
       </Cartoes>
 
       <div className="mt-6" />
-
-      <Aviso tom="info" titulo="Por que a contagem importa">
-        A planilha de origem trazia 14 itens e o painel dela anunciava 10 — o
-        número era digitado à mão e envelheceu. Aqui o contador é a contagem, e
-        não há como divergir.
-      </Aviso>
 
       <Secao titulo="Em aberto">
         {abertas.length > 0 ? (

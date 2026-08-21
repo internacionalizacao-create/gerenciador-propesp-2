@@ -21,8 +21,12 @@ export const PERMISSIONS = [
   'plano:write',
   /** Editar registro existente e ato administrativo com trilha de auditoria. */
   'plano:edit',
+  'bolsa:read',
+  'bolsa:write',
+  'produto:read',
+  'produto:write',
   'catalogo:read',
-  /** Publicar versao do catalogo e exclusivo da PROPESP (RN-01, resposta Q10). */
+  /** Mantida para programas futuros; no CAPES Global o catalogo e fechado. */
   'catalogo:write',
   'pendencia:read',
   'pendencia:write',
@@ -39,6 +43,8 @@ const SOMENTE_LEITURA = [
   'ppg:read',
   'orcamento:read',
   'plano:read',
+  'bolsa:read',
+  'produto:read',
   'catalogo:read',
   'pendencia:read',
   'premissa:read',
@@ -58,7 +64,7 @@ const SOMENTE_LEITURA = [
  */
 export const ROLE_PERMISSIONS: Readonly<Record<string, readonly Permission[]>> =
   {
-    /** Gestao PROPESP: define orcamento, publica catalogo, autoriza remanejamento. */
+    /** Gestao PROPESP: administra o cadastro; atos da CAPES sao apenas registrados. */
     admin: PERMISSIONS,
 
     /**
@@ -69,11 +75,18 @@ export const ROLE_PERMISSIONS: Readonly<Record<string, readonly Permission[]>> =
       ...SOMENTE_LEITURA,
       'ppg:write',
       'plano:write',
+      'bolsa:write',
+      'produto:write',
       'pendencia:write',
     ],
 
     /** Apoio administrativo da PROPESP: registra, nao decide. */
-    secretaria: [...SOMENTE_LEITURA, 'pendencia:write'],
+    secretaria: [
+      ...SOMENTE_LEITURA,
+      'bolsa:write',
+      'produto:write',
+      'pendencia:write',
+    ],
 
     /** Membro de comite tematico: acompanha e aponta pendencia na sua tematica. */
     docente: [...SOMENTE_LEITURA, 'pendencia:write'],

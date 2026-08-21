@@ -1,5 +1,4 @@
 import {
-  Aviso,
   Celula,
   EstadoVazio,
   Pagina,
@@ -39,13 +38,6 @@ export default async function Premissas({
       titulo="Premissas e fontes"
       descricao="As convenções do modelo e os documentos de onde os valores vieram."
     >
-      <Aviso tom="info" titulo="Premissa não é constante de código">
-        A cotação do dólar, o período do modelo e a regra de repetição anual
-        moram aqui como dado, e não dentro de uma fórmula. Alterar uma premissa
-        que entra em cálculo muda os indicadores de todo o ciclo — por isso ela é
-        explícita e revisável, e não escondida numa expressão.
-      </Aviso>
-
       <Secao titulo="Premissas do modelo">
         {premissas.length > 0 ? (
           <Tabela

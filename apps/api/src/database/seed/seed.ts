@@ -272,7 +272,8 @@ export async function executarSeed(
     .returning();
 
   // --- Orçamento por temática e ano ---------------------------------------
-  // Premissa RN-09: o mesmo valor nominal se repete nos quatro exercícios.
+  // O teto nominal se repete; a composicao de bolsas nao. A situacao anual e
+  // manual, pois registra o que foi aprovado fora do Gerenciador.
   const orcamentos = await db
     .insert(s.orcamentoTematica)
     .values(
@@ -287,9 +288,13 @@ export async function executarSeed(
           valorManutencao: t.valorManutencao,
           valorMissoes: t.valorMissoes,
           // Alegação da fonte, guardada para a conferência de RN-08.
-          custoBolsasInformado: t.custoBolsasInformado,
-          saldoInformado: t.saldoInformado,
+          custoBolsasInformado: ano === 2027 ? t.custoBolsasInformado : null,
+          saldoInformado: ano === 2027 ? t.saldoInformado : null,
           status: t.statusOrcamento,
+          statusComposicao:
+            ano === 2027 && (t.rede === 'UNESP' || t.rede === 'UFMG')
+              ? ('APROVADA' as const)
+              : ('A_DEFINIR' as const),
           fonte: `Anexo da rede ${t.rede}`,
           observacoes: t.observacoes,
         })),
@@ -310,10 +315,7 @@ export async function executarSeed(
         // plano não achar preço oficial, a seed quebra em vez de gravar um custo
         // sem origem.
         const itemCatalogoId =
-          i.status === 'PROGRAMADO' &&
-          i.destino &&
-          modalidadeId &&
-          i.vigenciaMeses
+          i.destino && modalidadeId && i.vigenciaMeses
             ? exigir(
                 catalogoPorChave.get(
                   `${i.destino}|${modalidadeId}|${Number(i.vigenciaMeses)}`,
@@ -353,7 +355,10 @@ export async function executarSeed(
         CICLO_ANOS.map((ano) => ({
           itemPlanejadoId: item.id,
           ano,
-          quantidade: item.quantidadeAnual,
+          // As fontes recebidas confirmam apenas a composicao de 2027. O teto
+          // orcamentario se repete, mas modalidades e quantidades futuras
+          // permanecem a definir e nao podem ser inventadas pela seed.
+          quantidade: ano === 2027 ? item.quantidadeAnual : 0,
         })),
       ),
     )

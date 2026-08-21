@@ -53,6 +53,7 @@ function corpoDaLinha(formulario: FormData) {
     rubrica,
     ppgId: texto(formulario, "ppgId"),
     areaTematicaId: texto(formulario, "areaTematicaId"),
+    ano: numero(formulario, "ano"),
     quantidadeAnual: numero(formulario, "quantidadeAnual") ?? 0,
     mesImplementacao: texto(formulario, "mesImplementacao"),
     descricao: texto(formulario, "descricao"),

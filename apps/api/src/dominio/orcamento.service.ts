@@ -9,9 +9,9 @@ import { DRIZZLE, type Database } from '../database/database.module';
  *
  * Tudo aqui e calculado em SQL, por tres motivos:
  *
- * 1. `numeric` soma exato dentro do Postgres. Trazer 132 linhas para o Node e
- *    somar em JavaScript reintroduziria o erro de centavo que o tipo evita — e a
- *    suite de aceite cobra R$ 1.144.357,20 na virgula.
+ * 1. `numeric` soma exato dentro do Postgres. Trazer todas as parcelas para o
+ *    Node e somar em JavaScript reintroduziria o erro de centavo que o tipo
+ *    evita — e a suite de aceite cobra R$ 1.033.513,40 na virgula.
  * 2. O painel precisa de agregacao por rede, por tematica, por modalidade e por
  *    ano. Fazer isso em memoria seria varrer a mesma tabela quatro vezes.
  * 3. Nenhum derivado e persistido (system-structl.md §8.3). Se estas consultas
@@ -19,13 +19,13 @@ import { DRIZZLE, type Database } from '../database/database.module';
  *    comecaria a divergir na primeira edicao — que e como a planilha entrou em
  *    contradicao consigo mesma (§9.1).
  *
- * **Nulo nao e zero.** Tematica com orcamento `A_DEFINIR` (as quatro da UNICAMP)
- * devolve `null` em orcamento, saldo e utilizacao. Tratar como zero e o que
- * derrubaria as medias do painel e faria o sistema anunciar um saldo que ninguem
- * prometeu.
+ * **Nulo nao e zero.** Rubrica sem valor informado devolve `null`, e composicao
+ * anual nao aprovada nao vira saldo livre. Tratar qualquer um desses casos como
+ * zero faria o sistema anunciar uma disponibilidade que ninguem confirmou.
  */
 
 export type StatusOrcamento = 'DEFINIDO' | 'A_DEFINIR';
+export type StatusComposicaoAnual = 'A_DEFINIR' | 'EM_ELABORACAO' | 'APROVADA';
 
 export interface LinhaTematica {
   areaTematicaId: string;
@@ -35,6 +35,7 @@ export interface LinhaTematica {
   rede: string;
   ano: number;
   statusOrcamento: StatusOrcamento;
+  statusComposicao: StatusComposicaoAnual;
   valorBolsas: string | null;
   valorManutencao: string | null;
   valorMissoes: string | null;
@@ -63,6 +64,7 @@ export interface LinhaRede {
   redeId: string;
   rede: string;
   statusOrcamento: StatusOrcamento;
+  statusComposicao: StatusComposicaoAnual;
   ano: number;
   valorBolsas: string | null;
   apoio: string | null;
@@ -82,9 +84,9 @@ export class OrcamentoService {
    * Uma linha por tematica e ano, com orcamento e calculo lado a lado.
    *
    * O custo sai de `planejamento_anual`, nao de `item_planejado.quantidade_anual`:
-   * a premissa vigente repete a quantidade nos quatro exercicios (RN-09), mas o
-   * modelo nao deve assumir isso — no dia em que um ano tiver quantidade
-   * diferente, esta consulta ja esta certa.
+   * o teto nominal pode repetir nos quatro exercicios, mas a composicao nao. A
+   * consulta sempre usa o ano explicito para que 2028-2030 permanecam vazios ate
+   * uma aprovacao propria (RN-09).
    */
   async porTematica(cicloId: string, ano?: number): Promise<LinhaTematica[]> {
     return consultar<LinhaTematica>(
@@ -128,6 +130,7 @@ export class OrcamentoService {
              rc.nome                        as "rede",
              o.ano                          as "ano",
              o.status                       as "statusOrcamento",
+             o.status_composicao            as "statusComposicao",
              o.valor_bolsas                 as "valorBolsas",
              o.valor_manutencao             as "valorManutencao",
              o.valor_missoes                as "valorMissoes",
@@ -145,14 +148,16 @@ export class OrcamentoService {
              coalesce(ca.custo, 0)          as "custoApoio",
              coalesce(cb.custo, 0) + coalesce(ca.custo, 0) as "totalProgramado",
              coalesce(cb.bolsas, 0)         as "bolsas",
-             case when o.valor_bolsas is null then null
+             case when o.valor_bolsas is null
+                         or o.status_composicao <> 'APROVADA' then null
                   else o.valor_bolsas - coalesce(cb.custo, 0)
              end                            as "saldoPotencial",
              o.saldo_informado              as "saldoInformado",
              case when o.valor_bolsas is null or o.saldo_informado is null then null
                   else (o.valor_bolsas - coalesce(cb.custo, 0)) - o.saldo_informado
              end                            as "divergencia",
-             case when o.valor_bolsas is null or o.valor_bolsas = 0 then null
+             case when o.valor_bolsas is null or o.valor_bolsas = 0
+                         or o.status_composicao <> 'APROVADA' then null
                   else (coalesce(cb.custo, 0) / o.valor_bolsas)::float8
              end                            as "utilizacao",
              coalesce(p.total, 0)           as "ppgs"
@@ -195,16 +200,25 @@ export class OrcamentoService {
       select rc.id                       as "redeId",
              rc.nome                     as "rede",
              rc.status_orcamento         as "statusOrcamento",
+             case
+               when bool_and(o.status_composicao = 'APROVADA') then 'APROVADA'
+               when bool_and(o.status_composicao = 'A_DEFINIR') then 'A_DEFINIR'
+               else 'EM_ELABORACAO'
+             end                          as "statusComposicao",
              o.ano                       as "ano",
              sum(o.valor_bolsas)         as "valorBolsas",
-             sum(coalesce(o.valor_manutencao, 0)
-               + coalesce(o.valor_missoes, 0))                as "apoio",
+             case when count(o.valor_manutencao) = 0
+                         and count(o.valor_missoes) = 0 then null
+                  else sum(coalesce(o.valor_manutencao, 0)
+                         + coalesce(o.valor_missoes, 0))
+             end                                            as "apoio",
              sum(o.valor_bolsas
                + coalesce(o.valor_manutencao, 0)
                + coalesce(o.valor_missoes, 0))                as "totalPrevisto",
              coalesce(cb.custo, 0)       as "custoBolsas",
              coalesce(cb.bolsas, 0)      as "bolsas",
-             case when sum(o.valor_bolsas) is null then null
+             case when sum(o.valor_bolsas) is null
+                         or not bool_and(o.status_composicao = 'APROVADA') then null
                   else sum(o.valor_bolsas) - coalesce(cb.custo, 0)
              end                         as "saldoPotencial",
              count(distinct at.id)::int  as "tematicas",
@@ -225,9 +239,9 @@ export class OrcamentoService {
   /**
    * As divergencias de RN-08, prontas para virar pendencia.
    *
-   * Sao as duas que o sistema tem que achar sozinho — R$ 206,10 na UNESP-T3 e
-   * R$ 11.005,49 na UNESP-T1 — e que na planilha so foram notadas porque alguem
-   * conferiu a mao.
+   * A comparacao permanece ativa mesmo depois da conciliacao de PEND-001 e
+   * PEND-003. Se uma nova composicao nao fechar com o saldo informado, o
+   * sistema volta a apontar a diferenca automaticamente.
    */
   async divergencias(cicloId: string, ano: number) {
     const linhas = await this.porTematica(cicloId, ano);

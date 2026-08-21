@@ -50,6 +50,7 @@ export interface LinhaPlano {
   modalidadeId: string | null;
   modalidade: string | null;
   vigenciaMeses: string | null;
+  anoPlanejamento: number | null;
   quantidadeAnual: number;
   mesImplementacao: string | null;
   fluxo: 'IN' | 'OUT' | null;
@@ -90,6 +91,7 @@ const mesEnum = z.enum([
 const comum = {
   ppgId: z.uuid('Selecione o PPG.'),
   areaTematicaId: z.uuid().nullish(),
+  ano: z.coerce.number().int().min(2000).max(2200),
   descricao: z.string().trim().max(2000).nullish(),
   quantidadeAnual: z.coerce.number().int().min(0).max(999),
   mesImplementacao: mesEnum.nullish(),
@@ -186,7 +188,12 @@ export class PlanoService {
    */
   async listar(
     cicloId: string,
-    filtro: { rubrica?: Rubrica; ppgId?: string; areaTematicaId?: string } = {},
+    filtro: {
+      rubrica?: Rubrica;
+      ppgId?: string;
+      areaTematicaId?: string;
+      ano?: number;
+    } = {},
   ): Promise<LinhaPlano[]> {
     return consultar<LinhaPlano>(
       this.db,
@@ -194,6 +201,7 @@ export class PlanoService {
       with anos as (
         select item_planejado_id as item_id,
                sum(quantidade)::int as quantidade_ciclo,
+               min(ano) filter (where quantidade > 0) as ano_planejamento,
                jsonb_agg(jsonb_build_object('ano', ano, 'quantidade', quantidade)
                          order by ano) as por_ano
           from planejamento_anual
@@ -217,6 +225,7 @@ export class PlanoService {
              ip.modalidade_id                   as "modalidadeId",
              m.nome                             as "modalidade",
              ip.vigencia_meses                  as "vigenciaMeses",
+             a.ano_planejamento                 as "anoPlanejamento",
              ip.quantidade_anual                as "quantidadeAnual",
              ip.mes_implementacao               as "mesImplementacao",
              ip.fluxo                           as "fluxo",
@@ -261,6 +270,16 @@ export class PlanoService {
          ${filtro.rubrica ? sql`and ip.rubrica = ${filtro.rubrica}` : sql``}
          ${filtro.ppgId ? sql`and ip.ppg_id = ${filtro.ppgId}` : sql``}
          ${
+           filtro.ano === undefined
+             ? sql``
+             : sql`and exists (
+                 select 1 from planejamento_anual pa_filtro
+                  where pa_filtro.item_planejado_id = ip.id
+                    and pa_filtro.ano = ${filtro.ano}
+                    and pa_filtro.quantidade > 0
+               )`
+         }
+         ${
            filtro.areaTematicaId
              ? sql`and ip.area_tematica_id = ${filtro.areaTematicaId}`
              : sql``
@@ -278,6 +297,8 @@ export class PlanoService {
    * que a seed aplica ao migrar (RN-01).
    */
   async criar(ciclo: CicloResolvido, dto: CriarItem): Promise<LinhaPlano> {
+    const anoPlanejamento = dto.ano ?? ciclo.anoInicio;
+    this.exigirAnoDoCiclo(ciclo, anoPlanejamento);
     await this.exigirPpg(dto.ppgId);
     await this.exigirParticipacao(dto.ppgId, dto.areaTematicaId ?? null);
 
@@ -341,14 +362,13 @@ export class PlanoService {
       .values(valores)
       .returning({ id: s.itemPlanejado.id });
 
-    // RN-09 · a premissa vigente repete a quantidade em todos os exercicios. Os
-    // anos ficam em linhas separadas justamente para poder divergir depois sem
-    // que nada mais precise mudar.
+    // A modalidade pertence a um exercicio. O teto anual pode se repetir, mas
+    // copiar automaticamente a composicao inventaria decisoes para anos futuros.
     await this.db.insert(s.planejamentoAnual).values(
       ciclo.anos.map((ano) => ({
         itemPlanejadoId: criado.id,
         ano,
-        quantidade: dto.quantidadeAnual,
+        quantidade: ano === anoPlanejamento ? dto.quantidadeAnual : 0,
       })),
     );
 
@@ -374,6 +394,8 @@ export class PlanoService {
     dto: AtualizarItem,
     usuario: AuthUser,
   ): Promise<LinhaPlano> {
+    const anoPlanejamento = dto.ano ?? ciclo.anoInicio;
+    this.exigirAnoDoCiclo(ciclo, anoPlanejamento);
     if (ciclo.status === 'ENCERRADO') {
       throw new BadRequestException('Ciclo encerrado nao pode ser editado.');
     }
@@ -458,6 +480,22 @@ export class PlanoService {
     }
 
     const alteracoes = camposAlterados(anterior, novos);
+    const planejamentoAnterior = await this.db
+      .select({
+        ano: s.planejamentoAnual.ano,
+        quantidade: s.planejamentoAnual.quantidade,
+      })
+      .from(s.planejamentoAnual)
+      .where(eq(s.planejamentoAnual.itemPlanejadoId, id));
+    const anoAnterior =
+      planejamentoAnterior.find((item) => item.quantidade > 0)?.ano ?? null;
+    if (anoAnterior !== anoPlanejamento) {
+      alteracoes.push({
+        campo: 'anoPlanejamento',
+        anterior: serializar(anoAnterior),
+        novo: serializar(anoPlanejamento),
+      });
+    }
     if (alteracoes.length === 0)
       return (await this.listar(ciclo.cicloId)).find((l) => l.id === id)!;
 
@@ -467,12 +505,19 @@ export class PlanoService {
         .set(novos)
         .where(eq(s.itemPlanejado.id, id));
 
-      if (anterior.quantidadeAnual !== dto.quantidadeAnual) {
-        await tx
-          .update(s.planejamentoAnual)
-          .set({ quantidade: dto.quantidadeAnual, atualizadoEm: new Date() })
-          .where(eq(s.planejamentoAnual.itemPlanejadoId, id));
-      }
+      await tx
+        .update(s.planejamentoAnual)
+        .set({ quantidade: 0, atualizadoEm: new Date() })
+        .where(eq(s.planejamentoAnual.itemPlanejadoId, id));
+      await tx
+        .update(s.planejamentoAnual)
+        .set({ quantidade: dto.quantidadeAnual, atualizadoEm: new Date() })
+        .where(
+          and(
+            eq(s.planejamentoAnual.itemPlanejadoId, id),
+            eq(s.planejamentoAnual.ano, anoPlanejamento),
+          ),
+        );
 
       await tx.insert(s.registroAuditoria).values(
         alteracoes.map((alteracao) => ({
@@ -574,6 +619,14 @@ export class PlanoService {
       .limit(1);
 
     if (!existe) throw new NotFoundException('PPG nao encontrado.');
+  }
+
+  private exigirAnoDoCiclo(ciclo: CicloResolvido, ano: number): void {
+    if (!ciclo.anos.includes(ano)) {
+      throw new BadRequestException(
+        `O exercício ${ano} não pertence ao ciclo ${ciclo.cicloNome}.`,
+      );
+    }
   }
 
   private async exigirParticipacao(

@@ -26,11 +26,11 @@ interface Resposta {
 }
 
 /**
- * P07 · Redes e áreas temáticas.
+ * P07 · Redes e areas tematicas.
  *
- * Substitui `Redes_Tematicas` e as três abas `Comitê *`. A coluna de divergência
- * é o motivo de a tela existir: ela mostra, sem ninguém precisar conferir à mão,
- * onde o saldo que o anexo alegava não bate com o que o sistema calcula (RN-08).
+ * Substitui `Redes_Tematicas` e as tres abas `Comite *`. A divergencia continua
+ * calculada, mas so ocupa espaco quando existir: vira alerta e destaca a linha,
+ * enquanto os valores da conferencia ficam no detalhe da tematica (RN-08).
  */
 export default async function RedesETematicas({
   params,
@@ -58,9 +58,10 @@ export default async function RedesETematicas({
     >
       {divergentes.length > 0 ? (
         <Aviso tom="perigo" titulo="Divergência entre saldo calculado e informado">
-          {divergentes.map((a) => a.codigo).join(", ")} — o saldo que o sistema
-          calcula a partir do plano não bate com o que o anexo da rede alegava.
-          As linhas estão marcadas abaixo.{" "}
+          {divergentes.map((a) => a.codigo).join(", ")} — o saldo calculado a
+          partir do plano não bate com o valor de referência registrado. As
+          linhas estão marcadas abaixo; abra a temática pelo código para conferir
+          os valores.{" "}
           <Link href="/pendencias" className="font-medium underline">
             Registrar pendência
           </Link>
@@ -98,7 +99,6 @@ export default async function RedesETematicas({
               { chave: "total", texto: "Total previsto", alinhamento: "direita" },
               { chave: "custo", texto: "Custo calculado", alinhamento: "direita" },
               { chave: "saldo", texto: "Saldo", alinhamento: "direita" },
-              { chave: "diverg", texto: "Divergência", alinhamento: "direita" },
               { chave: "util", texto: "Utilização", alinhamento: "direita" },
             ]}
           >
@@ -153,18 +153,6 @@ export default async function RedesETematicas({
                   </Celula>
                   <Celula direita>
                     <Moeda valor={area.saldoPotencial} />
-                  </Celula>
-                  <Celula direita>
-                    {divergente ? (
-                      <Selo
-                        tom="perigo"
-                        titulo="Saldo calculado menos saldo informado pelo anexo"
-                      >
-                        <Moeda valor={area.divergencia} />
-                      </Selo>
-                    ) : (
-                      <span className="text-subtle">—</span>
-                    )}
                   </Celula>
                   <Celula direita>
                     <Utilizacao fracao={area.utilizacao} />

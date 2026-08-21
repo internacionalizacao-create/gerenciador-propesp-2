@@ -12,6 +12,10 @@ export type Destino = "BRASIL" | "EXTERIOR";
 export type Fluxo = "IN" | "OUT";
 export type Rubrica = "BOLSAS" | "MANUTENCAO" | "MISSOES";
 export type StatusOrcamento = "DEFINIDO" | "A_DEFINIR";
+export type StatusComposicaoAnual =
+  | "A_DEFINIR"
+  | "EM_ELABORACAO"
+  | "APROVADA";
 export type OrigemValor = "CATALOGO" | "ESTIMADO" | "INDEFINIDO";
 
 export interface Me {
@@ -68,6 +72,7 @@ export interface LinhaTematica {
   rede: string;
   ano: number;
   statusOrcamento: StatusOrcamento;
+  statusComposicao: StatusComposicaoAnual;
   valorBolsas: string | null;
   valorManutencao: string | null;
   valorMissoes: string | null;
@@ -88,6 +93,7 @@ export interface LinhaRede {
   redeId: string;
   rede: string;
   statusOrcamento: StatusOrcamento;
+  statusComposicao: StatusComposicaoAnual;
   ano: number;
   valorBolsas: string | null;
   apoio: string | null;
@@ -177,6 +183,7 @@ export interface LinhaPlano {
   modalidadeId: string | null;
   modalidade: string | null;
   vigenciaMeses: string | null;
+  anoPlanejamento: number | null;
   quantidadeAnual: number;
   mesImplementacao: string | null;
   fluxo: Fluxo | null;
@@ -195,6 +202,110 @@ export interface LinhaPlano {
   textoFonte: string | null;
   validacaoPendencia: string | null;
   porAno: { ano: number; quantidade: number }[];
+}
+
+export type StatusBolsaConcedida =
+  "SELECIONADO" | "EM_ANDAMENTO" | "CONCLUIDA" | "CANCELADA" | "INTERROMPIDA";
+
+export type SituacaoTemporalBolsa =
+  | "PROGRAMADA"
+  | "PROXIMA"
+  | "EM_VIGENCIA"
+  | "PRESTES_A_EXPIRAR"
+  | "EXPIRADA"
+  | "CONCLUIDA"
+  | "CANCELADA"
+  | "INTERROMPIDA";
+
+export interface OpcaoBolsaPlanejada {
+  id: string;
+  codigo: string;
+  programa: string;
+  programaSlug: string;
+  ciclo: string;
+  ppg: string;
+  ppgSigla: string;
+  modalidade: string;
+  destino: Destino;
+  vigenciaMeses: string;
+  valorUnitario: string;
+  mesImplementacao: string | null;
+  porAno: {
+    ano: number;
+    planejadas: number;
+    concedidas: number;
+    vagasDisponiveis: number;
+  }[];
+}
+
+export interface BolsaConcedidaResumo {
+  id: string;
+  itemPlanejadoId: string | null;
+  codigoPlanejamento: string | null;
+  programa: string;
+  programaSlug: string;
+  ciclo: string;
+  ppgId: string;
+  ppg: string;
+  ppgSigla: string;
+  pessoaId: string;
+  bolsista: string;
+  email: string | null;
+  cpf: string | null;
+  modalidade: string;
+  destino: Destino;
+  paisDestino: string | null;
+  instituicaoDestino: string | null;
+  nivelBeneficiario:
+    "MESTRADO" | "DOUTORADO" | "POS_DOC" | "DOCENTE" | "MOBILIDADE_BREVE";
+  dataInicio: string;
+  dataFim: string;
+  vigenciaMeses: string;
+  valorConcedido: string;
+  fluxo: Fluxo;
+  status: StatusBolsaConcedida;
+  situacaoTemporal: SituacaoTemporalBolsa;
+  processo: string | null;
+  observacoes: string | null;
+  produtos: number;
+  produtosPendentes: number;
+}
+
+export type TipoProdutoBolsa =
+  | "ARTIGO"
+  | "TRABALHO"
+  | "PROJETO"
+  | "RELATORIO"
+  | "PUBLICACAO"
+  | "LIVRO"
+  | "CAPITULO_LIVRO"
+  | "PATENTE"
+  | "EVENTO"
+  | "OUTRO";
+
+export type StatusProdutoBolsa =
+  "PREVISTO" | "EM_DESENVOLVIMENTO" | "ENTREGUE" | "VALIDADO" | "CANCELADO";
+
+export interface ProdutoBolsa {
+  id: string;
+  bolsaConcedidaId: string;
+  tipo: TipoProdutoBolsa;
+  titulo: string;
+  descricao: string | null;
+  prazoEntrega: string;
+  status: StatusProdutoBolsa;
+  situacao: StatusProdutoBolsa | "ATRASADO";
+  dataEntrega: string | null;
+  doi: string | null;
+  link: string | null;
+  observacoes: string | null;
+}
+
+export interface BolsaConcedidaDetalhe extends Omit<
+  BolsaConcedidaResumo,
+  "produtos"
+> {
+  produtos: ProdutoBolsa[];
 }
 
 export interface ItemCatalogo {

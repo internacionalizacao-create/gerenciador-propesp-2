@@ -84,6 +84,17 @@ const ROTULOS: Record<string, string> = {
   PROGRAMADO: "Programado",
   PENDENTE: "Pendente",
   CANCELADO: "Cancelado",
+  // bolsa concedida e situacao temporal derivada
+  SELECIONADO: "Selecionado",
+  EM_ANDAMENTO: "Em andamento",
+  CONCLUIDA: "Concluída",
+  CANCELADA: "Cancelada",
+  INTERROMPIDA: "Interrompida",
+  PROGRAMADA: "Programada",
+  PROXIMA: "Próxima",
+  EM_VIGENCIA: "Em vigência",
+  PRESTES_A_EXPIRAR: "Prestes a expirar",
+  EXPIRADA: "Expirada",
   // status de orcamento
   DEFINIDO: "Definido",
   A_DEFINIR: "A definir",
@@ -145,6 +156,22 @@ const ROTULOS: Record<string, string> = {
   SERVICO: "Serviço",
   EQUIPAMENTO: "Equipamento",
   PUBLICACAO: "Publicação",
+  // nivel do beneficiario e produtos da bolsa
+  POS_DOC: "Pós-doutorado",
+  DOCENTE: "Docente",
+  MOBILIDADE_BREVE: "Mobilidade breve",
+  ARTIGO: "Artigo",
+  TRABALHO: "Trabalho",
+  PROJETO: "Projeto",
+  RELATORIO: "Relatório",
+  LIVRO: "Livro",
+  CAPITULO_LIVRO: "Capítulo de livro",
+  PATENTE: "Patente",
+  PREVISTO: "Previsto",
+  EM_DESENVOLVIMENTO: "Em desenvolvimento",
+  ENTREGUE: "Entregue",
+  VALIDADO: "Validado",
+  ATRASADO: "Atrasado",
 };
 
 export function rotulo(valor: string | null | undefined): string {
@@ -170,8 +197,12 @@ export function data(iso: string | null | undefined): string {
  * sem orçamento definido não tem total, e escrever "R$ 0,00" ali afirmaria algo
  * que ninguém prometeu.
  */
-export function somarMoeda(valores: (string | null | undefined)[]): string | null {
-  const presentes = valores.filter((v): v is string => v !== null && v !== undefined);
+export function somarMoeda(
+  valores: readonly (string | null | undefined)[],
+): string | null {
+  const presentes = valores.filter(
+    (v): v is string => v !== null && v !== undefined,
+  );
   if (presentes.length === 0) return null;
 
   const centavos = presentes.reduce((total, valor) => {

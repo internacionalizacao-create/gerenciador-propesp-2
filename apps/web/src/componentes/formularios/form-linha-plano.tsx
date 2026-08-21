@@ -14,7 +14,12 @@ import {
 import { Multistep, type Passo } from "@/componentes/ui/multistep";
 import { useToastDaAcao } from "@/componentes/ui/toast";
 import { ESTADO_INICIAL } from "@/lib/acao-tipos";
-import type { ItemCatalogo, LinhaPlano, LinhaPpg, Rubrica } from "@/lib/dominio";
+import type {
+  ItemCatalogo,
+  LinhaPlano,
+  LinhaPpg,
+  Rubrica,
+} from "@/lib/dominio";
 import { meses as formatarMeses, moeda, rotulo } from "@/lib/formato";
 
 const MESES = [
@@ -52,6 +57,8 @@ export function FormLinhaPlano({
   areas,
   catalogo,
   linha,
+  anos,
+  anoInicial,
   cicloStatus = "PLANEJAMENTO",
   aoConcluir,
 }: {
@@ -67,6 +74,8 @@ export function FormLinhaPlano({
   }[];
   catalogo: ItemCatalogo[];
   linha?: LinhaPlano;
+  anos: number[];
+  anoInicial: number;
   cicloStatus?: "PLANEJAMENTO" | "VIGENTE" | "ENCERRADO";
   aoConcluir: () => void;
 }) {
@@ -77,10 +86,7 @@ export function FormLinhaPlano({
         id: linha.id,
       })
     : criarLinhaDePlano.bind(null, { programa, ciclo });
-  const [estado, executar, enviando] = useActionState(
-    acao,
-    ESTADO_INICIAL,
-  );
+  const [estado, executar, enviando] = useActionState(acao, ESTADO_INICIAL);
 
   const [rubrica, setRubrica] = useState<Rubrica>(linha?.rubrica ?? "BOLSAS");
   const [destino, setDestino] = useState<"BRASIL" | "EXTERIOR">(
@@ -202,10 +208,11 @@ export function FormLinhaPlano({
           : "Não existe tabela oficial para esta rubrica: o valor é uma estimativa e precisa de justificativa.",
       validar: (formulario) => {
         if (rubrica === "BOLSAS") {
-          if (!campo(formulario, "modalidadeId")) return "Escolha a modalidade.";
+          if (!campo(formulario, "modalidadeId"))
+            return "Escolha a modalidade.";
           if (!campo(formulario, "vigenciaMeses")) return "Escolha a vigência.";
           if (!item) {
-            return "Esta combinação não existe no catálogo vigente. Registre uma pendência para que a PROPESP publique o item.";
+            return "Esta combinação não existe no catálogo fechado do CAPES Global e não pode ser usada.";
           }
           return null;
         }
@@ -374,7 +381,7 @@ export function FormLinhaPlano({
       id: "quando",
       titulo: "Quando e quanto",
       descricao:
-        "A quantidade é replicada em todos os exercícios do ciclo, conforme a premissa vigente (RN-09). Depois dá para mudar um ano sem afetar os demais.",
+        "A modalidade e a quantidade pertencem a um exercício. Os anos futuros não são preenchidos automaticamente.",
       validar: (formulario) =>
         Number(campo(formulario, "quantidadeAnual")) > 0
           ? null
@@ -382,8 +389,18 @@ export function FormLinhaPlano({
       conteudo: (
         <>
           <Grade>
+            <Selecao
+              rotulo="Exercício"
+              nome="ano"
+              padrao={String(linha?.anoPlanejamento ?? anoInicial)}
+              dica="O teto anual pode se repetir, mas a composição precisa ser definida e aprovada em cada exercício."
+              opcoes={anos.map((ano) => ({
+                valor: String(ano),
+                texto: String(ano),
+              }))}
+            />
             <Texto
-              rotulo="Quantidade por ano"
+              rotulo="Quantidade no exercício"
               nome="quantidadeAnual"
               tipo="number"
               minimo="1"

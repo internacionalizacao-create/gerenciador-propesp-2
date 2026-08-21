@@ -19,6 +19,8 @@ export function AcoesLinhaPlano({
   ppgs,
   areas,
   catalogo,
+  anos,
+  anoInicial,
   podeEditar,
 }: {
   programa: string;
@@ -34,6 +36,8 @@ export function AcoesLinhaPlano({
     ppgIds: string[];
   }[];
   catalogo: ItemCatalogo[];
+  anos: number[];
+  anoInicial: number;
   podeEditar: boolean;
 }) {
   return (
@@ -55,6 +59,8 @@ export function AcoesLinhaPlano({
               ppgs={ppgs}
               areas={areas}
               catalogo={catalogo}
+              anos={anos}
+              anoInicial={anoInicial}
               aoConcluir={fechar}
             />
           )}
@@ -166,6 +172,7 @@ const ROTULOS_CAMPOS: Record<string, string> = {
   ppgId: "PPG",
   descricao: "Descrição",
   quantidadeAnual: "Quantidade anual",
+  anoPlanejamento: "Exercício",
   mesImplementacao: "Mês de implementação",
   textoFonte: "Texto-fonte",
   destino: "Destino",

@@ -63,13 +63,6 @@ export default async function PainelExecutivo() {
         </>
       }
     >
-      <Aviso tom="info" titulo="Como ler estes números">
-        Valores pendentes nunca entram como zero. As quatro áreas temáticas da
-        UNICAMP aparecem como <em>A definir</em> e ficam fora de médias e
-        percentuais — tratá-las como zero é o que distorcia os indicadores na
-        planilha.
-      </Aviso>
-
       <Secao
         titulo="Indicadores do ciclo"
         descricao="Todos calculados a partir do orçamento e do plano de aplicação."
@@ -157,13 +150,14 @@ export default async function PainelExecutivo() {
                 <span className="font-medium text-foreground">{rede.rede}</span>
               </Celula>
               <Celula>
-                {rede.statusOrcamento === "DEFINIDO" ? (
-                  <Selo tom="sucesso">Definido</Selo>
-                ) : (
-                  <Selo tom="aviso" titulo="A rede ainda não informou o orçamento">
-                    Pendente
+                <div className="flex flex-col items-start gap-1.5">
+                  <Selo tom={rede.statusOrcamento === "DEFINIDO" ? "sucesso" : "aviso"}>
+                    Orçamento {rede.statusOrcamento === "DEFINIDO" ? "definido" : "pendente"}
                   </Selo>
-                )}
+                  <Selo tom={rede.statusComposicao === "APROVADA" ? "sucesso" : "aviso"}>
+                    Composição {rede.statusComposicao === "APROVADA" ? "aprovada" : "a definir"}
+                  </Selo>
+                </div>
               </Celula>
               <Celula direita>
                 <Moeda valor={rede.totalPrevisto} />
@@ -248,7 +242,7 @@ export default async function PainelExecutivo() {
 
       <Secao
         titulo="Impacto por exercício"
-        descricao="A premissa vigente repete o valor nominal, sem reajuste, em todos os anos do ciclo (RN-09). É revisável — está registrada em Premissas."
+        descricao="O teto nominal se repete sem reajuste. Modalidades e quantidades são próprias de cada ano; 2028–2030 permanecem a definir."
       >
         <Tabela
           colunas={[

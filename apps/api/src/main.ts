@@ -12,10 +12,9 @@ async function bootstrap() {
 
   app.use(helmet());
 
-  // Ainda nao ha ValidationPipe global: nenhum endpoint recebe corpo hoje. Quando
-  // o primeiro DTO aparecer, a validacao entra com zod (ja usado em config/env.ts
-  // e auth/auth-user.ts) — e nao com class-validator, para o projeto nao carregar
-  // duas bibliotecas de validacao com regras diferentes.
+  // A validacao dos corpos usa ZodValidationPipe em cada endpoint. Nao ha um
+  // ValidationPipe global de class-validator: manter uma unica biblioteca evita
+  // que fronteiras diferentes aceitem regras diferentes para o mesmo dado.
 
   // Sem CORS de proposito. O browser nunca fala com esta API: quem fala e o BFF
   // do Next (server-side), que injeta o Bearer. Habilitar CORS aqui reabriria a

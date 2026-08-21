@@ -41,14 +41,14 @@ export default async function VisaoDoCiclo({
             nota="Soma das temáticas com orçamento definido"
           />
           <Cartao
-            titulo="Custo anual das bolsas"
+            titulo={`Custo das bolsas em ${ciclo.anoInicio}`}
             valor={moeda(resumo.custoBolsasAnual)}
             nota="Quantidade × valor do catálogo"
           />
           <Cartao
-            titulo="Saldo potencial anual"
+            titulo={`Saldo potencial em ${ciclo.anoInicio}`}
             valor={moeda(resumo.saldoPotencialAnual)}
-            nota="Orçamento de bolsas − custo programado"
+            nota="Somente composições aprovadas; UNICAMP ainda não entra como saldo livre"
           />
           <Cartao
             titulo="Linhas de planejamento"

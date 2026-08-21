@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 import {
-  Aviso,
   Cartao,
   Cartoes,
   Celula,
@@ -10,6 +9,7 @@ import {
   Pagina,
   Selo,
   Tabela,
+  Utilizacao,
 } from "@/componentes/ui/basicos";
 import { AcoesLinhaPlano } from "@/componentes/formularios/acoes-linha-plano";
 import { NovaLinhaDePlano } from "@/componentes/formularios/nova-linha-plano";
@@ -25,7 +25,7 @@ import type {
   Me,
   TabelaVigente,
 } from "@/lib/dominio";
-import { inteiro, meses, somarMoeda } from "@/lib/formato";
+import { inteiro, meses, rotulo, somarMoeda } from "@/lib/formato";
 
 interface RespostaPlano {
   ciclo: Ciclo;
@@ -54,6 +54,8 @@ interface ContextoDaLinha {
     ppgIds: string[];
   }[];
   catalogo: ItemCatalogo[];
+  anos: number[];
+  anoInicial: number;
   podeEditar: boolean;
 }
 
@@ -63,8 +65,7 @@ const IDENTIDADES_REDE = [
     fundo: "bg-network-1-soft",
     marcador: "bg-network-1 text-on-network-1",
     texto: "text-on-network-1-soft",
-    abaAtiva:
-      "border-network-1 bg-network-1-soft text-on-network-1-soft",
+    abaAtiva: "border-network-1 bg-network-1-soft text-on-network-1-soft",
     ponto: "bg-network-1",
   },
   {
@@ -72,8 +73,7 @@ const IDENTIDADES_REDE = [
     fundo: "bg-network-2-soft",
     marcador: "bg-network-2 text-on-network-2",
     texto: "text-on-network-2-soft",
-    abaAtiva:
-      "border-network-2 bg-network-2-soft text-on-network-2-soft",
+    abaAtiva: "border-network-2 bg-network-2-soft text-on-network-2-soft",
     ponto: "bg-network-2",
   },
   {
@@ -81,8 +81,7 @@ const IDENTIDADES_REDE = [
     fundo: "bg-network-3-soft",
     marcador: "bg-network-3 text-on-network-3",
     texto: "text-on-network-3-soft",
-    abaAtiva:
-      "border-network-3 bg-network-3-soft text-on-network-3-soft",
+    abaAtiva: "border-network-3 bg-network-3-soft text-on-network-3-soft",
     ponto: "bg-network-3",
   },
 ] as const;
@@ -95,7 +94,8 @@ function identidadeDaRede(nome: string, indice: number): IdentidadeRede {
   );
 
   return IDENTIDADES_REDE[
-    (posicaoConhecida >= 0 ? posicaoConhecida : indice) % IDENTIDADES_REDE.length
+    (posicaoConhecida >= 0 ? posicaoConhecida : indice) %
+      IDENTIDADES_REDE.length
   ];
 }
 
@@ -118,18 +118,24 @@ export default async function PlanoDeAplicacao({
   searchParams,
 }: {
   params: Promise<{ programa: string; ciclo: string }>;
-  searchParams: Promise<{ rede?: string | string[] }>;
+  searchParams: Promise<{
+    rede?: string | string[];
+    ano?: string | string[];
+  }>;
 }) {
   const { programa, ciclo: cicloNome } = await params;
   const consulta = await searchParams;
   const base = `/programas/${programa}/${cicloNome}`;
   const rotaPlano = `${base}/plano`;
 
+  const anoPedido = Array.isArray(consulta.ano) ? consulta.ano[0] : consulta.ano;
+  const sufixoAno = anoPedido ? `?ano=${encodeURIComponent(anoPedido)}` : "";
+
   const [plano, ppgs, catalogo, redes, me] = await Promise.all([
-    apiFetch<RespostaPlano>(`${base}/plano`),
+    apiFetch<RespostaPlano>(`${base}/plano${sufixoAno}`),
     apiFetch<LinhaPpg[]>("/ppgs"),
     apiFetch<TabelaVigente>(`/catalogo/bolsas?programa=${programa}`),
-    apiFetch<RespostaRedes>(`${base}/redes`),
+    apiFetch<RespostaRedes>(`${base}/redes${sufixoAno}`),
     apiFetch<Me>("/me"),
   ]);
 
@@ -142,7 +148,9 @@ export default async function PlanoDeAplicacao({
       ppgIds: area.coordenadores.map((coordenador) => coordenador.ppgId),
     })),
   );
-  const linhasAtivas = plano.linhas.filter((linha) => linha.status !== "CANCELADO");
+  const linhasAtivas = plano.linhas.filter(
+    (linha) => linha.status !== "CANCELADO",
+  );
   const chaveSolicitada = Array.isArray(consulta.rede)
     ? consulta.rede[0]
     : consulta.rede;
@@ -158,6 +166,8 @@ export default async function PlanoDeAplicacao({
     ppgs,
     areas,
     catalogo: catalogo.itens,
+    anos: plano.ciclo.anos,
+    anoInicial: redes.ano,
     podeEditar: me.permissions.includes("plano:edit"),
   };
   const podeCriar =
@@ -172,21 +182,33 @@ export default async function PlanoDeAplicacao({
           ? `Planejamento da Rede ${redeSelecionada.rede}, organizado por temática e PPG.`
           : "Visão institucional consolidada das redes, temáticas, PPGs e recursos planejados."
       }
-      acoes={podeCriar ? (
-        <NovaLinhaDePlano
-          programa={programa}
-          ciclo={cicloNome}
-          cicloStatus={plano.ciclo.status}
-          ppgs={ppgs}
-          areas={areas}
-          catalogo={catalogo.itens}
-        />
-      ) : undefined}
+      acoes={
+        podeCriar ? (
+          <NovaLinhaDePlano
+            programa={programa}
+            ciclo={cicloNome}
+            cicloStatus={plano.ciclo.status}
+            ppgs={ppgs}
+            areas={areas}
+            catalogo={catalogo.itens}
+            anos={plano.ciclo.anos}
+            anoInicial={redes.ano}
+          />
+        ) : undefined
+      }
     >
+      <ExerciciosDoPlano
+        rotaPlano={rotaPlano}
+        anos={plano.ciclo.anos}
+        anoSelecionado={redes.ano}
+        redeSelecionada={redeSelecionada?.rede ?? null}
+      />
+
       <AbasDoPlano
         rotaPlano={rotaPlano}
         redes={redes.redes}
         redeSelecionada={redeSelecionada}
+        ano={redes.ano}
       />
 
       {redeSelecionada ? (
@@ -203,15 +225,49 @@ export default async function PlanoDeAplicacao({
           rotaPlano={rotaPlano}
           redes={redes.redes}
           linhas={linhasAtivas}
+          ano={redes.ano}
         />
       )}
 
-      <Aviso tom="info" titulo="Rastreabilidade do planejamento">
-        Código e rubrica não podem ser alterados. Edições feitas por administradores
-        guardam autoria, horário, justificativa e os valores anterior e novo. Em ciclo
-        encerrado, nenhum registro pode ser editado.
-      </Aviso>
     </Pagina>
+  );
+}
+
+function ExerciciosDoPlano({
+  rotaPlano,
+  anos,
+  anoSelecionado,
+  redeSelecionada,
+}: {
+  rotaPlano: string;
+  anos: number[];
+  anoSelecionado: number;
+  redeSelecionada: string | null;
+}) {
+  return (
+    <nav aria-label="Exercício do plano" className="mb-5 flex flex-wrap gap-2">
+      {anos.map((ano) => {
+        const parametros = new URLSearchParams({ ano: String(ano) });
+        if (redeSelecionada) {
+          parametros.set("rede", chaveDaRede(redeSelecionada));
+        }
+        const ativo = ano === anoSelecionado;
+        return (
+          <Link
+            key={ano}
+            href={`${rotaPlano}?${parametros.toString()}`}
+            aria-current={ativo ? "page" : undefined}
+            className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
+              ativo
+                ? "border-primary bg-primary text-on-primary"
+                : "border-border bg-surface text-muted hover:border-border-strong hover:text-foreground"
+            }`}
+          >
+            {ano}
+          </Link>
+        );
+      })}
+    </nav>
   );
 }
 
@@ -219,10 +275,12 @@ function AbasDoPlano({
   rotaPlano,
   redes,
   redeSelecionada,
+  ano,
 }: {
   rotaPlano: string;
   redes: RedeDoPlano[];
   redeSelecionada: RedeDoPlano | null;
+  ano: number;
 }) {
   return (
     <nav
@@ -231,7 +289,7 @@ function AbasDoPlano({
     >
       <div className="flex min-w-max gap-1 pb-px">
         <Link
-          href={rotaPlano}
+          href={`${rotaPlano}?ano=${ano}`}
           aria-current={redeSelecionada ? undefined : "page"}
           className={`flex items-center gap-2 rounded-t-xl border-b-2 px-4 py-3 text-sm font-semibold transition-colors ${
             redeSelecionada
@@ -250,7 +308,7 @@ function AbasDoPlano({
           return (
             <Link
               key={rede.redeId}
-              href={`${rotaPlano}?rede=${chaveDaRede(rede.rede)}`}
+              href={`${rotaPlano}?ano=${ano}&rede=${chaveDaRede(rede.rede)}`}
               aria-current={ativa ? "page" : undefined}
               className={`flex items-center gap-2 rounded-t-xl border-b-2 px-4 py-3 text-sm font-semibold transition-colors ${
                 ativa
@@ -270,7 +328,12 @@ function AbasDoPlano({
 
 function IconeVisaoGeral() {
   return (
-    <svg aria-hidden="true" viewBox="0 0 20 20" className="size-4 fill-none stroke-current" strokeWidth="1.7">
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      className="size-4 fill-none stroke-current"
+      strokeWidth="1.7"
+    >
       <rect x="2.5" y="2.5" width="6" height="6" rx="1.2" />
       <rect x="11.5" y="2.5" width="6" height="6" rx="1.2" />
       <rect x="2.5" y="11.5" width="6" height="6" rx="1.2" />
@@ -283,10 +346,12 @@ function VisaoGeral({
   rotaPlano,
   redes,
   linhas,
+  ano,
 }: {
   rotaPlano: string;
   redes: RedeDoPlano[];
   linhas: LinhaPlano[];
+  ano: number;
 }) {
   const ppgs = new Set(
     redes.flatMap((rede) =>
@@ -311,9 +376,13 @@ function VisaoGeral({
         <CabecalhoDeSecao
           id="resumo-operacional"
           titulo="Resumo operacional"
-          descricao="Totais consolidados de todas as redes no ciclo."
+          descricao={`Totais consolidados de todas as redes no exercício ${ano}.`}
         />
-        <Resumo linhas={linhas} />
+        <Resumo
+          linhas={linhas}
+          valorBolsas={somarMoeda(redes.map((rede) => rede.valorBolsas))}
+          saldoPotencial={somarMoeda(redes.map((rede) => rede.saldoPotencial))}
+        />
       </section>
 
       <section aria-labelledby="estrutura-programa">
@@ -330,7 +399,9 @@ function VisaoGeral({
           />
           <Cartao
             titulo="Áreas temáticas"
-            valor={inteiro(redes.reduce((total, rede) => total + rede.areas.length, 0))}
+            valor={inteiro(
+              redes.reduce((total, rede) => total + rede.areas.length, 0),
+            )}
             nota="Organizam o plano dentro das redes"
           />
           <Cartao
@@ -359,17 +430,12 @@ function VisaoGeral({
               rede={rede}
               indice={indice}
               linhas={linhas.filter((linha) => linha.redeId === rede.redeId)}
-              href={`${rotaPlano}?rede=${chaveDaRede(rede.rede)}`}
+              href={`${rotaPlano}?ano=${ano}&rede=${chaveDaRede(rede.rede)}`}
             />
           ))}
         </div>
       </section>
 
-      <Aviso tom="info" titulo="Como navegar">
-        A Visão geral consolida o ciclo inteiro. As abas de rede apresentam o
-        detalhamento por temática e PPG, além das ações de inclusão, edição e
-        histórico.
-      </Aviso>
     </div>
   );
 }
@@ -385,7 +451,10 @@ function CabecalhoDeSecao({
 }) {
   return (
     <div className="mb-4">
-      <h2 id={id} className="text-lg font-semibold tracking-[-0.015em] text-foreground">
+      <h2
+        id={id}
+        className="text-lg font-semibold tracking-[-0.015em] text-foreground"
+      >
         {titulo}
       </h2>
       <p className="mt-1 text-sm text-muted">{descricao}</p>
@@ -415,17 +484,28 @@ function ResumoDaRede({
       href={href}
       className={`group overflow-hidden rounded-2xl border border-l-4 border-border bg-surface shadow-[0_14px_35px_-30px_var(--border-strong)] transition-[border-color,transform,box-shadow] hover:-translate-y-0.5 hover:border-border-strong hover:shadow-[0_20px_40px_-28px_var(--border-strong)] ${identidade.borda}`}
     >
-      <div className={`flex items-center gap-3 border-b border-border px-4 py-4 ${identidade.fundo}`}>
-        <span className={`grid size-9 place-items-center rounded-xl text-xs font-bold tabular-nums ${identidade.marcador}`}>
+      <div
+        className={`flex items-center gap-3 border-b border-border px-4 py-4 ${identidade.fundo}`}
+      >
+        <span
+          className={`grid size-9 place-items-center rounded-xl text-xs font-bold tabular-nums ${identidade.marcador}`}
+        >
           {String(indice + 1).padStart(2, "0")}
         </span>
         <div className="min-w-0 flex-1">
-          <p className={`text-[0.65rem] font-semibold uppercase tracking-[0.12em] ${identidade.texto}`}>
+          <p
+            className={`text-[0.65rem] font-semibold uppercase tracking-[0.12em] ${identidade.texto}`}
+          >
             Rede coordenadora
           </p>
-          <h3 className="truncate font-semibold text-foreground">{rede.rede}</h3>
+          <h3 className="truncate font-semibold text-foreground">
+            {rede.rede}
+          </h3>
         </div>
-        <span aria-hidden="true" className={`text-lg transition-transform group-hover:translate-x-0.5 ${identidade.texto}`}>
+        <span
+          aria-hidden="true"
+          className={`text-lg transition-transform group-hover:translate-x-0.5 ${identidade.texto}`}
+        >
           →
         </span>
       </div>
@@ -439,10 +519,18 @@ function ResumoDaRede({
           )}
         />
         <MetricaDaRede rotulo="Pendências" valor={inteiro(pendentes.length)} />
-        <div className="col-span-2 border-t border-border pt-3">
+        <div className="col-span-2 grid grid-cols-2 gap-4 border-t border-border pt-3">
           <MetricaDaRede
             rotulo="Custo anual das bolsas"
-            valor={<Moeda valor={somarMoeda(bolsas.map((linha) => linha.custoAnual))} />}
+            valor={
+              <Moeda
+                valor={somarMoeda(bolsas.map((linha) => linha.custoAnual))}
+              />
+            }
+          />
+          <MetricaDaRede
+            rotulo="Saldo potencial"
+            valor={<Moeda valor={rede.saldoPotencial} />}
           />
         </div>
       </dl>
@@ -450,11 +538,19 @@ function ResumoDaRede({
   );
 }
 
-function MetricaDaRede({ rotulo, valor }: { rotulo: string; valor: React.ReactNode }) {
+function MetricaDaRede({
+  rotulo,
+  valor,
+}: {
+  rotulo: string;
+  valor: React.ReactNode;
+}) {
   return (
     <div>
       <dt className="text-xs text-subtle">{rotulo}</dt>
-      <dd className="mt-1 font-semibold tabular-nums text-foreground">{valor}</dd>
+      <dd className="mt-1 font-semibold tabular-nums text-foreground">
+        {valor}
+      </dd>
     </div>
   );
 }
@@ -477,16 +573,25 @@ function PlanoDaRede({
       aria-labelledby={`titulo-rede-${rede.redeId}`}
       className={`overflow-hidden rounded-[1.75rem] border border-l-4 border-border bg-surface shadow-[0_20px_45px_-38px_var(--border-strong)] ${identidade.borda}`}
     >
-      <header className={`border-b border-border px-5 py-5 sm:px-6 ${identidade.fundo}`}>
+      <header
+        className={`border-b border-border px-5 py-5 sm:px-6 ${identidade.fundo}`}
+      >
         <div className="flex flex-wrap items-center gap-4">
-          <span className={`grid size-11 place-items-center rounded-2xl text-sm font-bold tabular-nums shadow-sm ${identidade.marcador}`}>
+          <span
+            className={`grid size-11 place-items-center rounded-2xl text-sm font-bold tabular-nums shadow-sm ${identidade.marcador}`}
+          >
             {String(indice + 1).padStart(2, "0")}
           </span>
           <div>
-            <p className={`text-[0.68rem] font-semibold uppercase tracking-[0.14em] ${identidade.texto}`}>
+            <p
+              className={`text-[0.68rem] font-semibold uppercase tracking-[0.14em] ${identidade.texto}`}
+            >
               Plano da rede
             </p>
-            <h2 id={`titulo-rede-${rede.redeId}`} className="mt-0.5 text-2xl font-semibold tracking-[-0.025em] text-foreground">
+            <h2
+              id={`titulo-rede-${rede.redeId}`}
+              className="mt-0.5 text-2xl font-semibold tracking-[-0.025em] text-foreground"
+            >
               Rede {rede.rede}
             </h2>
             <p className={`mt-1 text-sm ${identidade.texto}`}>
@@ -497,7 +602,17 @@ function PlanoDaRede({
       </header>
 
       <div className="p-5 sm:p-6">
-        <Resumo linhas={linhas} compacto />
+        <Resumo
+          linhas={linhas}
+          valorBolsas={rede.valorBolsas}
+          saldoPotencial={rede.saldoPotencial}
+          utilizacao={
+            rede.valorBolsas === null || Number(rede.valorBolsas) === 0
+              ? null
+              : Number(rede.custoBolsas) / Number(rede.valorBolsas)
+          }
+          compacto
+        />
 
         <div className="mt-7 space-y-6">
           {rede.areas.map((area) => (
@@ -517,37 +632,59 @@ function PlanoDaRede({
   );
 }
 
-function Resumo({ linhas, compacto = false }: { linhas: LinhaPlano[]; compacto?: boolean }) {
+function Resumo({
+  linhas,
+  valorBolsas,
+  saldoPotencial,
+  utilizacao,
+  compacto = false,
+}: {
+  linhas: LinhaPlano[];
+  valorBolsas: string | null;
+  saldoPotencial: string | null;
+  utilizacao?: number | null;
+  compacto?: boolean;
+}) {
   const bolsas = linhas.filter(
     (linha) => linha.rubrica === "BOLSAS" && linha.status === "PROGRAMADO",
   );
-  const pendentes = linhas.filter((linha) => linha.status === "PENDENTE");
-  const apoio = linhas.filter(
-    (linha) => linha.rubrica === "MANUTENCAO" || linha.rubrica === "MISSOES",
-  );
+  const custoBolsas = somarMoeda(bolsas.map((linha) => linha.custoAnual));
+  const utilizacaoCalculada =
+    utilizacao !== undefined
+      ? utilizacao
+      : valorBolsas === null || Number(valorBolsas) === 0
+        ? null
+        : Number(custoBolsas) / Number(valorBolsas);
 
   return (
     <Cartoes>
       <Cartao
         titulo="Bolsas programadas"
-        valor={inteiro(bolsas.reduce((total, linha) => total + linha.quantidadeAnual, 0))}
+        valor={inteiro(
+          bolsas.reduce((total, linha) => total + linha.quantidadeAnual, 0),
+        )}
         nota={`em ${inteiro(bolsas.length)} linhas de planejamento`}
       />
       <Cartao
-        titulo="Custo anual das bolsas"
-        valor={<Moeda valor={somarMoeda(bolsas.map((linha) => linha.custoAnual))} />}
+        titulo="Orçamento de bolsas"
+        valor={<Moeda valor={valorBolsas} />}
+        nota="Valor do exercício selecionado"
+      />
+      <Cartao
+        titulo="Custo programado"
+        valor={<Moeda valor={custoBolsas} />}
         nota="Quantidade × valor do catálogo"
+      />
+      <Cartao
+        titulo="Saldo potencial"
+        valor={<Moeda valor={saldoPotencial} />}
+        nota={
+          <>
+            Ainda depende de autorização para realocação ·{" "}
+            <Utilizacao fracao={utilizacaoCalculada} />
+          </>
+        }
         destaque={!compacto}
-      />
-      <Cartao
-        titulo="Linhas pendentes"
-        valor={inteiro(pendentes.length)}
-        nota="Aguardando definição da rede"
-      />
-      <Cartao
-        titulo="Manutenção e missões"
-        valor={inteiro(apoio.length)}
-        nota="Linhas planejadas nessas rubricas"
       />
     </Cartoes>
   );
@@ -572,28 +709,65 @@ function BlocoTematica({
   const missoes = linhas.filter((linha) => linha.rubrica === "MISSOES");
 
   return (
-    <article className={`overflow-hidden rounded-2xl border border-l-[3px] border-border bg-surface shadow-[0_14px_35px_-30px_var(--border-strong)] ${identidade.borda}`}>
+    <article
+      className={`overflow-hidden rounded-2xl border border-l-[3px] border-border bg-surface shadow-[0_14px_35px_-30px_var(--border-strong)] ${identidade.borda}`}
+    >
       <header className="flex flex-wrap items-start justify-between gap-4 border-b border-border bg-surface-muted/55 px-5 py-4">
         <div>
-          <p className={`mb-1 text-[0.65rem] font-semibold uppercase tracking-[0.12em] ${identidade.texto}`}>
+          <p
+            className={`mb-1 text-[0.65rem] font-semibold uppercase tracking-[0.12em] ${identidade.texto}`}
+          >
             Área temática
           </p>
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-semibold text-foreground">{area.codigo} · {area.nome}</h3>
-            {area.statusOrcamento === "A_DEFINIR" ? <Selo tom="aviso">Orçamento a definir</Selo> : null}
+            <h3 className="font-semibold text-foreground">
+              {area.codigo} · {area.nome}
+            </h3>
+            {area.statusOrcamento === "A_DEFINIR" ? (
+              <Selo tom="aviso">Orçamento a definir</Selo>
+            ) : null}
+            <Selo
+              tom={
+                area.statusComposicao === "APROVADA"
+                  ? "sucesso"
+                  : area.statusComposicao === "EM_ELABORACAO"
+                    ? "info"
+                    : "aviso"
+              }
+            >
+              {area.statusComposicao === "APROVADA"
+                ? "Composição aprovada"
+                : area.statusComposicao === "EM_ELABORACAO"
+                  ? "Composição em elaboração"
+                  : "Composição a definir"}
+            </Selo>
           </div>
           <p className="mt-1 text-xs text-muted">
             {area.coordenadores.length > 0
-              ? area.coordenadores.map((c) => `${c.ppgSigla}: ${c.nome}`).join(" · ")
+              ? area.coordenadores
+                  .map((c) => `${c.ppgSigla}: ${c.nome}`)
+                  .join(" · ")
               : "Nenhum Coordenador de Temática designado"}
           </p>
         </div>
-        <div className="text-right">
-          <p className="text-xs uppercase tracking-wide text-subtle">Custo anual de bolsas</p>
-          <p className="mt-1 font-semibold text-foreground">
-            <Moeda valor={somarMoeda(bolsas.map((linha) => linha.custoAnual))} />
-          </p>
-        </div>
+        <dl className="grid grid-cols-2 gap-x-5 gap-y-2 text-right sm:grid-cols-4">
+          <MetricaTematica
+            rotulo="Orçamento"
+            valor={<Moeda valor={area.valorBolsas} />}
+          />
+          <MetricaTematica
+            rotulo="Programado"
+            valor={<Moeda valor={area.custoBolsas} />}
+          />
+          <MetricaTematica
+            rotulo="Saldo potencial"
+            valor={<Moeda valor={area.saldoPotencial} />}
+          />
+          <MetricaTematica
+            rotulo="Utilização"
+            valor={<Utilizacao fracao={area.utilizacao} />}
+          />
+        </dl>
       </header>
 
       <div className="space-y-7 p-5">
@@ -632,7 +806,32 @@ function BlocoTematica({
   );
 }
 
-function GrupoTabela({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+function MetricaTematica({
+  rotulo: nome,
+  valor,
+}: {
+  rotulo: string;
+  valor: React.ReactNode;
+}) {
+  return (
+    <div>
+      <dt className="text-[0.65rem] uppercase tracking-wide text-subtle">
+        {nome}
+      </dt>
+      <dd className="mt-1 font-semibold tabular-nums text-foreground">
+        {valor}
+      </dd>
+    </div>
+  );
+}
+
+function GrupoTabela({
+  titulo,
+  children,
+}: {
+  titulo: string;
+  children: React.ReactNode;
+}) {
   return (
     <section>
       <h4 className="mb-3 text-sm font-semibold text-foreground">{titulo}</h4>
@@ -641,7 +840,13 @@ function GrupoTabela({ titulo, children }: { titulo: string; children: React.Rea
   );
 }
 
-function TabelaDeBolsas({ linhas, contexto }: { linhas: LinhaPlano[]; contexto: ContextoDaLinha }) {
+function TabelaDeBolsas({
+  linhas,
+  contexto,
+}: {
+  linhas: LinhaPlano[];
+  contexto: ContextoDaLinha;
+}) {
   return (
     <Tabela
       colunas={[
@@ -651,6 +856,7 @@ function TabelaDeBolsas({ linhas, contexto }: { linhas: LinhaPlano[]; contexto: 
         { chave: "modalidade", texto: "Modalidade" },
         { chave: "destino", texto: "Destino / fluxo" },
         { chave: "vigencia", texto: "Vigência" },
+        { chave: "implementacao", texto: "Implementação prevista" },
         { chave: "qtd", texto: "Qtd./ano", alinhamento: "direita" },
         { chave: "unit", texto: "Valor unitário", alinhamento: "direita" },
         { chave: "custo", texto: "Custo/ano", alinhamento: "direita" },
@@ -659,9 +865,19 @@ function TabelaDeBolsas({ linhas, contexto }: { linhas: LinhaPlano[]; contexto: 
     >
       {linhas.map((linha) => (
         <tr key={linha.id}>
-          <Celula><span className="font-mono text-xs">{linha.codigo}</span></Celula>
-          <Celula><span className="font-medium text-foreground">{linha.ppgSigla}</span></Celula>
-          <Celula className="max-w-52">{linha.coordenadorTematica ?? <span className="italic text-subtle">Não designado</span>}</Celula>
+          <Celula>
+            <span className="font-mono text-xs">{linha.codigo}</span>
+          </Celula>
+          <Celula>
+            <span className="font-medium text-foreground">
+              {linha.ppgSigla}
+            </span>
+          </Celula>
+          <Celula className="max-w-52">
+            {linha.coordenadorTematica ?? (
+              <span className="italic text-subtle">Não designado</span>
+            )}
+          </Celula>
           <Celula>{linha.modalidade ?? "—"}</Celula>
           <Celula>
             <Selo tom={linha.destino === "BRASIL" ? "info" : "primario"}>
@@ -669,81 +885,255 @@ function TabelaDeBolsas({ linhas, contexto }: { linhas: LinhaPlano[]; contexto: 
             </Selo>
           </Celula>
           <Celula>{meses(linha.vigenciaMeses)}</Celula>
+          <Celula>
+            <PrevisaoDaLinha linha={linha} />
+          </Celula>
           <Celula direita>{inteiro(linha.quantidadeAnual)}</Celula>
-          <Celula direita><Moeda valor={linha.valorUnitario} /><span className="mt-1 block"><OrigemDoValor linha={linha} /></span></Celula>
-          <Celula direita><Moeda valor={linha.custoAnual} /></Celula>
-          <Celula><Acoes linha={linha} contexto={contexto} /></Celula>
+          <Celula direita>
+            <Moeda valor={linha.valorUnitario} />
+            <span className="mt-1 block">
+              <OrigemDoValor linha={linha} />
+            </span>
+          </Celula>
+          <Celula direita>
+            <Moeda valor={linha.custoAnual} />
+          </Celula>
+          <Celula>
+            <Acoes linha={linha} contexto={contexto} />
+          </Celula>
         </tr>
       ))}
     </Tabela>
   );
 }
 
-function TabelaDePendentes({ linhas, contexto }: { linhas: LinhaPlano[]; contexto: ContextoDaLinha }) {
+function TabelaDePendentes({
+  linhas,
+  contexto,
+}: {
+  linhas: LinhaPlano[];
+  contexto: ContextoDaLinha;
+}) {
   return (
-    <Tabela colunas={[
-      { chave: "codigo", texto: "Código" },
-      { chave: "ppg", texto: "PPG" },
-      { chave: "coordenador", texto: "Coordenador de Temática" },
-      { chave: "situacao", texto: "Situação" },
-      { chave: "acoes", texto: "Ações" },
-    ]}>
+    <Tabela
+      colunas={[
+        { chave: "codigo", texto: "Código" },
+        { chave: "ppg", texto: "PPG" },
+        { chave: "coordenador", texto: "Coordenador de Temática" },
+        { chave: "situacao", texto: "Situação" },
+        { chave: "acoes", texto: "Ações" },
+      ]}
+    >
       {linhas.map((linha) => (
         <tr key={linha.id}>
-          <Celula><span className="font-mono text-xs">{linha.codigo}</span></Celula>
+          <Celula>
+            <span className="font-mono text-xs">{linha.codigo}</span>
+          </Celula>
           <Celula>{linha.ppgSigla}</Celula>
           <Celula>{linha.coordenadorTematica ?? "—"}</Celula>
-          <Celula className="max-w-md text-muted">{linha.validacaoPendencia ?? "Aguardando definição de orçamento pela rede."}</Celula>
-          <Celula><Acoes linha={linha} contexto={contexto} /></Celula>
+          <Celula className="max-w-md text-muted">
+            {linha.validacaoPendencia ??
+              "Aguardando definição de orçamento pela rede."}
+          </Celula>
+          <Celula>
+            <Acoes linha={linha} contexto={contexto} />
+          </Celula>
         </tr>
       ))}
     </Tabela>
   );
 }
 
-function TabelaDeApoio({ linhas, contexto }: { linhas: LinhaPlano[]; contexto: ContextoDaLinha }) {
+function TabelaDeApoio({
+  linhas,
+  contexto,
+}: {
+  linhas: LinhaPlano[];
+  contexto: ContextoDaLinha;
+}) {
   return (
-    <Tabela colunas={[
-      { chave: "codigo", texto: "Código" },
-      { chave: "ppg", texto: "PPG" },
-      { chave: "coordenador", texto: "Coordenador de Temática" },
-      { chave: "descricao", texto: "Descrição" },
-      { chave: "qtd", texto: "Qtd./ano", alinhamento: "direita" },
-      { chave: "unit", texto: "Valor unitário", alinhamento: "direita" },
-      { chave: "custo", texto: "Custo/ano", alinhamento: "direita" },
-      { chave: "acoes", texto: "Ações" },
-    ]}>
+    <Tabela
+      colunas={[
+        { chave: "codigo", texto: "Código" },
+        { chave: "ppg", texto: "PPG" },
+        { chave: "coordenador", texto: "Coordenador de Temática" },
+        { chave: "descricao", texto: "Descrição" },
+        { chave: "qtd", texto: "Qtd./ano", alinhamento: "direita" },
+        { chave: "unit", texto: "Valor unitário", alinhamento: "direita" },
+        { chave: "custo", texto: "Custo/ano", alinhamento: "direita" },
+        { chave: "acoes", texto: "Ações" },
+      ]}
+    >
       {linhas.map((linha) => (
         <tr key={linha.id}>
-          <Celula><span className="font-mono text-xs">{linha.codigo}</span></Celula>
+          <Celula>
+            <span className="font-mono text-xs">{linha.codigo}</span>
+          </Celula>
           <Celula>{linha.ppgSigla}</Celula>
           <Celula>{linha.coordenadorTematica ?? "—"}</Celula>
           <Celula className="max-w-xs">{linha.descricao ?? "—"}</Celula>
           <Celula direita>{inteiro(linha.quantidadeAnual)}</Celula>
-          <Celula direita><Moeda valor={linha.valorUnitario} /><span className="mt-1 block"><OrigemDoValor linha={linha} /></span></Celula>
-          <Celula direita><Moeda valor={linha.custoAnual} /></Celula>
-          <Celula><Acoes linha={linha} contexto={contexto} /></Celula>
+          <Celula direita>
+            <Moeda valor={linha.valorUnitario} />
+            <span className="mt-1 block">
+              <OrigemDoValor linha={linha} />
+            </span>
+          </Celula>
+          <Celula direita>
+            <Moeda valor={linha.custoAnual} />
+          </Celula>
+          <Celula>
+            <Acoes linha={linha} contexto={contexto} />
+          </Celula>
         </tr>
       ))}
     </Tabela>
   );
 }
 
-function Acoes({ linha, contexto }: { linha: LinhaPlano; contexto: ContextoDaLinha }) {
-  return (
-    <AcoesLinhaPlano
-      {...contexto}
-      linha={linha}
-    />
-  );
+function Acoes({
+  linha,
+  contexto,
+}: {
+  linha: LinhaPlano;
+  contexto: ContextoDaLinha;
+}) {
+  return <AcoesLinhaPlano {...contexto} linha={linha} />;
 }
 
 function OrigemDoValor({ linha }: { linha: LinhaPlano }) {
   if (linha.origemValor === "CATALOGO") {
-    return <Selo tom="sucesso" titulo={`Item ${linha.itemCatalogoCodigo} do catálogo vigente`}>oficial · {linha.itemCatalogoCodigo}</Selo>;
+    return (
+      <Selo
+        tom="sucesso"
+        titulo={`Item ${linha.itemCatalogoCodigo} do catálogo vigente`}
+      >
+        oficial · {linha.itemCatalogoCodigo}
+      </Selo>
+    );
   }
   if (linha.origemValor === "ESTIMADO") {
-    return <Selo tom="aviso" titulo="Valor digitado, não tabelado">estimado</Selo>;
+    return (
+      <Selo tom="aviso" titulo="Valor digitado, não tabelado">
+        estimado
+      </Selo>
+    );
   }
-  return <Selo tom="neutro" titulo="Sem valor definido">sem valor</Selo>;
+  return (
+    <Selo tom="neutro" titulo="Sem valor definido">
+      sem valor
+    </Selo>
+  );
+}
+
+const INDICE_MES: Record<string, number> = {
+  JANEIRO: 0,
+  FEVEREIRO: 1,
+  MARCO: 2,
+  ABRIL: 3,
+  MAIO: 4,
+  JUNHO: 5,
+  JULHO: 6,
+  AGOSTO: 7,
+  SETEMBRO: 8,
+  OUTUBRO: 9,
+  NOVEMBRO: 10,
+  DEZEMBRO: 11,
+};
+
+type SituacaoPrevista =
+  "PROGRAMADA" | "PROXIMA" | "EM_VIGENCIA" | "PRESTES_A_EXPIRAR" | "ENCERRADA";
+
+function PrevisaoDaLinha({ linha }: { linha: LinhaPlano }) {
+  const previsao = proximaPrevisao(linha);
+
+  if (!previsao) return <span className="italic text-subtle">A definir</span>;
+
+  const tons: Record<
+    SituacaoPrevista,
+    "neutro" | "primario" | "sucesso" | "aviso" | "perigo"
+  > = {
+    PROGRAMADA: "neutro",
+    PROXIMA: "primario",
+    EM_VIGENCIA: "sucesso",
+    PRESTES_A_EXPIRAR: "aviso",
+    ENCERRADA: "perigo",
+  };
+  const nomes: Record<SituacaoPrevista, string> = {
+    PROGRAMADA: "Programada",
+    PROXIMA: "Próxima",
+    EM_VIGENCIA: "Em vigência prevista",
+    PRESTES_A_EXPIRAR: "Prestes a expirar",
+    ENCERRADA: "Programação encerrada",
+  };
+
+  return (
+    <div className="min-w-40">
+      <span className="block text-foreground">
+        {rotulo(linha.mesImplementacao)}/{previsao.ano}
+      </span>
+      <span className="mt-1 block">
+        <Selo tom={tons[previsao.situacao]}>{nomes[previsao.situacao]}</Selo>
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Situação da agenda planejada. Datas operacionais exatas pertencem à bolsa
+ * concedida; aqui só se usa mês, ano e vigência para antecipar atenção.
+ */
+function proximaPrevisao(
+  linha: LinhaPlano,
+  agora = new Date(),
+): { ano: number; situacao: SituacaoPrevista } | null {
+  const indiceMes = linha.mesImplementacao
+    ? INDICE_MES[linha.mesImplementacao]
+    : undefined;
+  const vigencia = Number(linha.vigenciaMeses);
+  if (indiceMes === undefined || !Number.isFinite(vigencia) || vigencia <= 0) {
+    return null;
+  }
+
+  const hojeInstitucional = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Manaus",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(agora);
+  const hoje = Date.parse(`${hojeInstitucional}T00:00:00Z`);
+  const dia = 86_400_000;
+  const ocorrencias = linha.porAno
+    .filter((item) => item.quantidade > 0)
+    .map((item) => {
+      const inicio = Date.UTC(item.ano, indiceMes, 1);
+      const mesesInteiros = Math.trunc(vigencia);
+      const meioMes = vigencia - mesesInteiros >= 0.5;
+      const fim = meioMes
+        ? Date.UTC(item.ano, indiceMes + mesesInteiros, 15)
+        : Date.UTC(item.ano, indiceMes + mesesInteiros, 0);
+      return { ano: item.ano, inicio, fim };
+    });
+
+  const atual = ocorrencias.find(
+    (item) => hoje >= item.inicio && hoje <= item.fim,
+  );
+  if (atual) {
+    return {
+      ano: atual.ano,
+      situacao:
+        (atual.fim - hoje) / dia <= 30 ? "PRESTES_A_EXPIRAR" : "EM_VIGENCIA",
+    };
+  }
+
+  const proxima = ocorrencias.find((item) => item.inicio > hoje);
+  if (proxima) {
+    return {
+      ano: proxima.ano,
+      situacao: (proxima.inicio - hoje) / dia <= 60 ? "PROXIMA" : "PROGRAMADA",
+    };
+  }
+
+  const ultima = ocorrencias.at(-1);
+  return ultima ? { ano: ultima.ano, situacao: "ENCERRADA" } : null;
 }

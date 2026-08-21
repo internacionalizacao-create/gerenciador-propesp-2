@@ -112,9 +112,9 @@ A mais complexa. É a "tela mais importante do sistema" segundo a própria spec.
 - **Resolve:** dar uma leitura única de saldo e execução por rubrica, hoje
   espalhada em fórmulas manuais.
 - **Pontos finos:** RN-06 (saldo potencial) e RN-08 (divergência calculado vs
-  informado) — já existem duas temáticas com divergência real nos dados
-  (UNESP-T3: 206,10; UNESP-T1: 11.005,49) que viraram `PEND-001`/`PEND-003`. Bom
-  par de números pra conferir de propósito.
+  informado). As divergências históricas que originaram `PEND-001`/`PEND-003`
+  foram conciliadas; o esperado agora é zero, mantendo a regra ativa para
+  detectar diferenças futuras.
 
 **Observações:**
 
@@ -127,7 +127,8 @@ A mais complexa. É a "tela mais importante do sistema" segundo a própria spec.
 **Status da validação:** [ ] Validado
 
 - **Objetivo:** cartões por rede + tabela de áreas temáticas com orçamento,
-  custo, saldo, divergência, utilização.
+  custo, saldo e utilização. Divergência aparece somente como alerta excepcional;
+  os valores da conferência ficam no detalhe da temática.
 - **Base:** substitui `Redes_Tematicas` e as abas `Comitê *`.
 - **Resolve:** mesma frente de "fonte única", num nível acima do orçamento (por
   rede, não só por temática).

@@ -15,7 +15,7 @@ export const id = () => uuid('id').primaryKey().defaultRandom();
  * Dinheiro em `numeric(14,2)`.
  *
  * Nunca `double precision`: o teste de aceite da migração exige reproduzir
- * R$ 1.144.357,20 somando 23 parcelas, e ponto flutuante erra centavo em soma
+ * R$ 1.033.513,40 somando as parcelas aprovadas, e ponto flutuante erra centavo em soma
  * dessa ordem. `numeric` soma exato no proprio Postgres.
  *
  * O driver devolve `string` de proposito — converter para `number` no limite do
@@ -63,6 +63,13 @@ export const rubricaEnum = pgEnum('rubrica', [
 export const statusOrcamentoEnum = pgEnum('status_orcamento', [
   'DEFINIDO',
   'A_DEFINIR',
+]);
+
+/** Situação informada manualmente para a composição de cada exercício. */
+export const statusComposicaoAnualEnum = pgEnum('status_composicao_anual', [
+  'A_DEFINIR',
+  'EM_ELABORACAO',
+  'APROVADA',
 ]);
 
 export const statusItemPlanejadoEnum = pgEnum('status_item_planejado', [
@@ -122,6 +129,27 @@ export const nivelBeneficiarioEnum = pgEnum('nivel_beneficiario', [
   'POS_DOC',
   'DOCENTE',
   'MOBILIDADE_BREVE',
+]);
+
+export const tipoProdutoBolsaEnum = pgEnum('tipo_produto_bolsa', [
+  'ARTIGO',
+  'TRABALHO',
+  'PROJETO',
+  'RELATORIO',
+  'PUBLICACAO',
+  'LIVRO',
+  'CAPITULO_LIVRO',
+  'PATENTE',
+  'EVENTO',
+  'OUTRO',
+]);
+
+export const statusProdutoBolsaEnum = pgEnum('status_produto_bolsa', [
+  'PREVISTO',
+  'EM_DESENVOLVIMENTO',
+  'ENTREGUE',
+  'VALIDADO',
+  'CANCELADO',
 ]);
 
 export const statusExecucaoEnum = pgEnum('status_execucao', [

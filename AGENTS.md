@@ -4,25 +4,29 @@ Documento de referência para quem (pessoa ou LLM) vai mexer neste repositório 
 tê-lo escrito. Descreve o que existe hoje, por que está assim, e o que ainda não
 existe. **Mantenha-o atualizado quando mudar arquitetura ou convenção.**
 
-Última revisão: 2026-08-06.
+Última revisão: 2026-08-19.
 
 ---
 
 ## 1. O que é o sistema
 
 Sistema de gestão da PROPESP (Pró-Reitoria de Pesquisa e Pós-Graduação) para o
-PPGE e demais programas de pós-graduação, com foco no planejamento e na execução
-de recursos de internacionalização: bolsas, orçamento por rede e área temática,
-mobilidade IN/OUT. Uso institucional, dados pessoais de alunos e servidores — o
+PPGE e demais programas de pós-graduação, com foco no planejamento de recursos
+de internacionalização: bolsas, orçamento por rede e área temática, mobilidade
+IN/OUT e resultados individuais. Uso institucional, dados pessoais de alunos e servidores — o
 que justifica o rigor na parte de autenticação/autorização.
 
 **Estado atual: o núcleo de planejamento está de pé.** Autenticação, modelo de
-dados com a seed real, serviços de cálculo (RN-01 a RN-14) e as telas de
-planejamento existem e são verificadas contra os números das planilhas. Falta
-tudo que depende de dado que ainda não existe — bolsista individual, execução
-financeira, remanejamento — e o escopo por PPG na autorização. Ver §9.
+dados com a seed real, serviços de cálculo (RN-01 a RN-20), telas de planejamento
+anual e o cadastro individual de bolsas/produtos existem e são verificados. As planilhas
+não fornecem beneficiários, então P03 começa vazio e será alimentado pela equipe.
+No CAPES Global não há execução financeira na UEA: a CAPES paga diretamente. Falta
+o registro histórico de movimentações externas, documentos, relatórios, panorama/mapa
+de mobilidade e o escopo local por PPG/temática na autorização. Ver §9.
 
-A especificação funcional completa, com as 23 páginas previstas, está em
+A visão de arquitetura e os fluxos de negócio/técnicos estão em
+[docs/arquitetura-sistema.md](docs/arquitetura-sistema.md). A especificação
+funcional completa, com as 23 páginas previstas, está em
 [system-structl.md](system-structl.md).
 
 ---
@@ -37,7 +41,7 @@ A especificação funcional completa, com as 23 páginas previstas, está em
 | Next.js | **16.2.12** | App Router, Turbopack, React 19.2.4 |
 | NestJS | 11.x | Express, TypeScript, CommonJS |
 | Keycloak | 26.7.0 | container Docker, modo `start-dev` |
-| PostgreSQL | 17 | dois bancos: um do Keycloak, um da API (ainda sem uso) |
+| PostgreSQL | 17 | dois bancos: um do Keycloak e um com os dados de domínio da API |
 | Tailwind CSS | 4.x | tokens semânticos, ver §8 |
 
 ### Armadilhas de versão (leia antes de escrever código)
@@ -80,6 +84,7 @@ apps/
         painel.service.ts     P01 — indicadores, alertas, IN/OUT
         catalogo.service.ts   RN-01 — resolução de preço, recusa sem match
         plano.service.ts      P10 — três rubricas, edição e auditoria por campo
+        bolsistas.service.ts  P03 — concessões, datas, alertas e produtos individuais
         ciclo.service.ts      P06/P07/P08/P16/P17
         ppgs.service.ts       P14
         pendencias.service.ts P13
@@ -101,7 +106,7 @@ apps/
         dominio.ts         espelho dos tipos da API
         formato.ts         moeda, percentual, rótulos de enum, somarMoeda
         navegacao.ts       menu, incluindo o que ainda não existe
-      acoes/               Server Actions (ppgs, plano, pendencias)
+      acoes/               Server Actions (ppgs, plano, bolsistas, pendencias)
       componentes/
         layout/            menu lateral, sub-nav do ciclo, troca de tema
         ui/sidesheet.tsx   painel lateral sobre <dialog> nativo
@@ -376,19 +381,25 @@ o ícone estiver visível.
 
 - **Autenticação/autorização**: login e logout OIDC completos, sessão renovada
   automaticamente, guards globais, catálogo de permissões, realm versionado.
-- **Modelo de dados**: 26 tabelas em 7 módulos de schema Drizzle
+- **Modelo de dados**: 27 tabelas em 7 módulos de schema Drizzle
   ([apps/api/src/database/schema/](apps/api/src/database/schema/)), com migrations.
   Segue [system-structl.md](system-structl.md) §4.
-- **Seed com os dados reais** das planilhas
+- **Seed com os dados reais** das planilhas e respostas formais
   ([apps/api/src/database/seed/](apps/api/src/database/seed/)): 24 PPGs, 60 itens
-  de catálogo, 33 linhas de plano, 48 orçamentos, 14 pendências.
-- **Serviços de cálculo**: RN-01 a RN-14 em
+  de catálogo, 23 linhas de plano (18 aprovadas, 4 UFMG pendentes e 1 cancelada),
+  48 orçamentos anuais e 14 pendências históricas (7 abertas).
+- **Serviços de cálculo**: RN-01 a RN-20 em
   [apps/api/src/dominio/](apps/api/src/dominio/), todos em SQL e sem nenhum
   derivado persistido. A API expõe programas, ciclo, redes, temáticas, orçamento,
-  plano, comitê gestor, premissas, PPGs, pendências e catálogo.
+  plano, bolsas concedidas e produtos individuais, comitê gestor, premissas,
+  PPGs, pendências e catálogo.
 - **Telas de planejamento**: P01, P05, P06, P07, P08, P09, P10, P13, P14, P15,
   P16, P17 e as configurações da conta. Cadastro de PPG e de linha de plano em
   sidesheet com formulário em etapas; pendência em sidesheet simples.
+- **Recorte inicial de Bolsistas (P03)**: concessão individual a partir de uma linha planejada, com
+  vaga por exercício, CPF, destino, datas completas, alertas temporais, regra de uma
+  modalidade por CPF/ciclo e cadastro/acompanhamento de produtos por pessoa. Não há
+  seed de beneficiários porque a planilha não os traz.
 
 Na P10, a leitura segue `programa → rede → temática → PPG`. A rota `.../plano`
 tem a aba **Visão geral** e uma aba por rede, persistida em `?rede=`; não crie
@@ -397,22 +408,26 @@ aponta para um `coordenadorTematicaId`; uma pessoa pode coordenar vários PPGs e
 uma temática pode ter coordenadores diferentes conforme o PPG. O termo de
 interface é **Coordenador de Temática**, não “membro do comitê”. Edição de linha
 existente exige `plano:edit` (só `admin`), preserva código/rubrica e grava uma
-entrada de auditoria por campo alterado.
-- **Testes**: 21 unitários + 101 de integração contra Postgres real (29 de
-  integridade do schema, 26 de aceite da migração, 44 dos serviços de domínio).
+entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: somente
+2027 vem composto; 2028–2030 começam vazios e nunca copiam a quantidade automaticamente.
+- **Testes**: 26 unitários + 103 de integração contra Postgres real.
 - Smoke de login (`pnpm smoke:login`) e de telas (`pnpm smoke:telas`) ponta a
   ponta; CI de lint/build/test.
 
 **Não existe ainda:**
 
-- **Bolsista individual (P03), mapa (P04) e panorama de mobilidade (P02).**
-  As planilhas de origem não têm o dado: sabe-se que há "1 bolsa de Doutorado
-  Sanduíche de 6 meses para o PPGCLIAMB", não quem foi nem se voltou.
-- **Execução financeira (P11) e remanejamentos (P12).** As abas de origem estão
-  vazias — 100 e 50 linhas de gabarito. O modelo de dados e RN-12/RN-13 existem;
-  falta a tela e o serviço.
-- Relatórios (P20), importação com adaptador por programa (P21), documentos
-  oficiais (P22), convênios e produção (P18/P19, fase 2).
+- **Mapa (P04) e panorama de mobilidade (P02).** P03 já permite cadastrar as
+  concessões, mas as planilhas de origem não têm o dado individual: sabe-se que
+  há "1 bolsa de Doutorado Sanduíche de 6 meses para o PPGCLIAMB", não quem foi
+  nem se voltou. As visões consolidadas dependem desse cadastro começar.
+- **Registro de movimentações externas (P12).** Deve aceitar apenas origem/destino
+  da mesma temática e registrar o que já aconteceu na CAPES, com status manual e
+  auditoria. O Gerenciador não propõe, autoriza ou executa. A estrutura genérica de
+  execução financeira permanece no schema para outros programas, mas P11 é fora do
+  escopo do CAPES Global porque os pagamentos são feitos diretamente pela CAPES.
+- Relatórios (P20), importação com adaptador por programa (P21), documentos e
+  evidências (P22), convênios e produção consolidada (P18/P19, fase 2). Produtos
+  individuais por bolsa já existem em P03.
 - Edição de orçamento pela interface. Hoje o orçamento entra pela seed; a tela é
   de leitura, com célula de entrada e célula calculada já distinguidas.
 - **Escopo por PPG na autorização.** `coordenador` é global, não "coordenador do
@@ -425,6 +440,8 @@ entrada de auditoria por campo alterado.
   precisa ser decidido.
 - Testes na `web` (não há runner configurado no app web — o que cobre a interface
   hoje é `pnpm smoke:telas`).
+- Upload/versionamento e política de acesso dos documentos pessoais, além do
+  histórico de cancelamento, desistência, falecimento e substituição.
 - Rate limiting, logs de auditoria populados, observabilidade.
 - Qualquer configuração de produção: HTTPS, segredos fora do repositório,
   Keycloak em modo `start` (não `start-dev`), origem de sessão externa.

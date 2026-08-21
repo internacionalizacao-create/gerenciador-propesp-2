@@ -74,11 +74,14 @@ export class PpgsService {
       sql`
       with custo as (
         select ip.ppg_id,
-               sum(ip.quantidade_anual)::int            as bolsas,
-               sum(ip.quantidade_anual * ic.valor_brl)  as custo
+               sum(pa.quantidade)::int                  as bolsas,
+               sum(pa.quantidade * ic.valor_brl)        as custo
           from item_planejado      ip
+          join planejamento_anual  pa on pa.item_planejado_id = ip.id
+          join ciclo               ci on ci.id = ip.ciclo_id
           join item_catalogo_bolsa ic on ic.id = ip.item_catalogo_id
          where ip.status = 'PROGRAMADO'
+           and pa.ano = ci.ano_inicio
          group by ip.ppg_id
       ),
       vinculos as (

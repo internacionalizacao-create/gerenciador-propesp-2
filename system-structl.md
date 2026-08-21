@@ -4,17 +4,23 @@ Especificação funcional e de dados do sistema que substitui as planilhas hoje 
 pela PROPESP/UEA para gerir bolsas, orçamento e mobilidade internacional da
 pós-graduação.
 
-**Última revisão:** 2026-08-06
-**Fontes:** `dados/levamtamento de bolsas/`, `dados/Planejamento_CAPES_Global_Consolidado_UFMG_Comite_Gestor/`, `dados/insights/`, `dados/sugestaov1-prototipo/`
-**Estado da implementação:** autenticação/autorização, modelo de dados (26 tabelas),
-seed com os dados reais, **serviços de cálculo (RN-01 a RN-14) e as telas de
-planejamento** estão implementados e testados.
+**Última revisão:** 2026-08-18
+**Fontes:** `dados/levamtamento de bolsas/`, incluindo a planilha atualizada
+`Planejamento_CAPES_Global_2027_2030_Atualizado_UNICAMP_UFMG.xlsx`;
+`dados/remanejamento/Guia_Orientacoes_Remanejamento_Transformacao_CAPES_Global final (1).pdf`;
+`respostas/`; `dados/Planejamento_CAPES_Global_Consolidado_UFMG_Comite_Gestor/`;
+`dados/insights/`; `dados/sugestaov1-prototipo/`.
+**Estado da implementação:** autenticação/autorização, modelo de dados (27 tabelas),
+seed com os dados reais, **serviços de cálculo (RN-01 a RN-20), telas de
+planejamento anual e cadastro individual de bolsas/produtos** estão implementados e testados.
 
 | Página | Situação |
 |---|---|
 | P01, P05, P06, P07, P08, P09, P10, P13, P14, P15, P16, P17, P23 | **implementadas** |
-| P02, P03, P04 | dependem de bolsa concedida a pessoa — dado que não existe nas planilhas |
-| P11, P12 | as abas de origem estão vazias; modelo e RN-12/RN-13 prontos, falta a tela |
+| P03 | **recorte inicial implementado**: concessão planejada, CPF, destino, datas, alertas e produtos individuais; anexos ainda pendentes |
+| P02, P04 | dependem das bolsas concedidas que a equipe ainda cadastrará; o dado não existe nas planilhas |
+| P11 | **fora do escopo do CAPES Global**: pagamentos são feitos diretamente pela CAPES; não há execução financeira no caixa da UEA |
+| P12 | previsto apenas como **registro histórico** de movimentação já feita na CAPES, dentro da mesma temática |
 | P18, P19 | fase 2 |
 | P20, P21, P22 | dependem dos módulos acima |
 
@@ -34,7 +40,7 @@ Ver [AGENTS.md](AGENTS.md) §9 para o detalhamento do que existe e do que falta.
 8. [Seed: mapeamento planilha → banco](#8-seed-mapeamento-planilha--banco)
 9. [Inconsistências encontradas nos dados](#9-inconsistências-encontradas-nos-dados)
 10. [Fases de entrega](#10-fases-de-entrega)
-11. [Perguntas e respostas](#11-perguntas-e-respostas)
+11. [Checklist de decisões e pendências](#11-checklist-de-decisões-e-pendências)
 
 ---
 
@@ -67,7 +73,8 @@ Substitui essas planilhas por um sistema web que:
 
 1. Mantém **uma tabela oficial de valores de bolsa** e calcula todo custo a partir dela.
 2. Organiza o planejamento em **programa → ciclo → rede → área temática → PPG → bolsa**.
-3. Acompanha **orçamento, execução financeira, saldo e remanejamento** por rubrica.
+3. Acompanha **orçamento, composição anual e saldo potencial**; no CAPES Global,
+   registra movimentações externas sem executar ou autorizar remanejamentos.
 4. Registra o **bolsista individual** — quem foi, para onde, quando, por quanto tempo.
 5. Consolida a **mobilidade IN/OUT de todos os programas** numa visão única.
 6. Guarda **pendências e decisões** como itens de trabalho, não como comentários soltos.
@@ -77,7 +84,7 @@ Substitui essas planilhas por um sistema web que:
 
 | Dentro | Fora (por ora) |
 |---|---|
-| Planejamento e execução orçamentária de programas de mobilidade | Folha de pagamento, empenho no SIAFI/SIGEFA |
+| Planejamento orçamentário de programas de mobilidade | Execução financeira, folha, empenho e pagamento do CAPES Global |
 | Cadastro de PPGs, redes, áreas temáticas, comitês | Gestão acadêmica do PPG (matrícula, disciplinas, defesas) |
 | Bolsas planejadas e concedidas | Seleção/edital dos bolsistas (o sistema registra o resultado) |
 | Convênios internacionais e produtos da cooperação (fase 2) | Currículo Lattes / integração CAPES Sucupira (fase 3) |
@@ -108,16 +115,16 @@ conversas com a equipe. **Não invente sinônimos.**
 | **Modalidade** | Tipo de bolsa: Professor Visitante, Professor Visitante Sênior, Professor Visitante Junior, Jovem Talento, Pós-doutorado, Doutorado Sanduíche, Capacitação. |
 | **Destino** | `Brasil` ou `Exterior`. Determina qual tabela de valores se aplica. |
 | **Vigência** | Duração da bolsa em meses. Aceita `0,5` (até 15 dias). |
-| **Catálogo de bolsas** | Tabela oficial (destino × modalidade × vigência → valor). 60 itens, `CAT-001` a `CAT-060`. |
+| **Catálogo de bolsas** | Lista oficial e fechada (destino × modalidade × vigência → valor). No CAPES Global há 60 itens, `CAT-001` a `CAT-060`, sem cadastro de novas modalidades. |
 | **Rubrica** | Natureza do recurso: `Bolsas`, `Manutenção`, `Missões`. |
 | **Bolsa planejada** | Linha do plano anual: "PPG X recebe N bolsas da modalidade Y por Z meses, em Março". |
 | **Bolsa concedida** | A bolsa planejada atribuída a uma pessoa concreta. |
 | **Fluxo IN/OUT** | `IN` = alguém entra na UEA (bolsa com destino Brasil). `OUT` = alguém da UEA sai (destino Exterior). |
 | **Implementação** | Mês em que a bolsa entra em vigor. Hoje só `Março` e `Setembro` (editais). |
-| **Saldo potencial** | Orçamento de bolsas − custo das bolsas programadas. Ainda não executado. |
-| **Sobra** | Saldo efetivamente disponível após a execução, passível de remanejamento. |
-| **Remanejamento** | Transferência formalmente autorizada de saldo entre temáticas, PPGs, rubricas ou anos. |
-| **Aporte vinculado** | Recurso destinado a ações da UEA, mesmo que pago pela rede coordenadora. **Não é o mesmo que entrada em caixa** (pendência `PEN-011`). |
+| **Saldo potencial** | Orçamento de bolsas − custo da composição anual aprovada. Só é exibido como disponível quando a composição daquele exercício está aprovada. |
+| **Sobra informada** | Valor que a equipe/rede informa como disponível na CAPES. É preservado separadamente do saldo calculado para evidenciar divergências. |
+| **Movimentação/remanejamento** | Realocação registrada na plataforma CAPES. Para o Gerenciador, só é válida dentro da mesma temática; o sistema registra o fato, não propõe, autoriza nem executa. |
+| **Pagamento direto CAPES** | Todo recurso do CAPES Global é pago diretamente pela CAPES. Não há entrada desse dinheiro no caixa da UEA. |
 | **Comitê Gestor** | Orçamento à parte (R$ 381.333,00/ano, 2026–2029) para missões e articulação institucional. **Não se soma ao orçamento de bolsas.** |
 | **Produto da cooperação** | Resultado gerado pela mobilidade: publicação, tese em cotutela, projeto, patente. |
 
@@ -193,9 +200,9 @@ métrica que hoje ninguém consegue produzir.
 
 As três fontes contam bolsas de formas diferentes:
 
-- **25** = soma das quantidades anuais (o número correto para custo)
-- **23** = número de linhas do plano (`BOL-001`..`BOL-023`)
-- **21** = idem, antes das 4 Capacitações que a UFMG acrescentou
+- **22** = bolsas da composição aprovada de 2027 (2 IN + 20 OUT)
+- **18** = linhas aprovadas que produzem essas 22 unidades
+- **4** = propostas adicionais de Capacitação da UFMG, ainda pendentes
 
 O sistema deve usar **sempre** "quantidade de bolsas" (unidades) nos indicadores
 financeiros, e chamar a linha de plano de **"linha de planejamento"**, nunca de
@@ -207,9 +214,9 @@ Duas populações lançam dados (resposta **Q2**), e isso muda o desenho de auto
 
 | Perfil | Quem é | O que faz |
 |---|---|---|
-| **Gestão PROPESP** | Equipe da Pró-Reitoria | Enxerga e edita tudo. Publica catálogo, define orçamento, autoriza remanejamento, fecha o ciclo. |
-| **Coordenação de PPG** | Coordenador e vice de cada programa | Lança e edita **o que é do seu PPG**: plano, bolsistas, execução, produtos, convênios. Enxerga o consolidado, mas em modo leitura. |
-| **Membro de comitê temático** | Docente responsável por uma área | Acompanha sua temática e valida decisões que a envolvem. |
+| **Gestão PROPESP** | Equipe da Pró-Reitoria | Enxerga e edita tudo, registra orçamento e situações informadas pela CAPES e fecha o ciclo. Não autoriza atos em nome da CAPES. |
+| **Coordenação de PPG** | Coordenador e vice de cada programa | Lança e edita **o que é do seu PPG**: plano, bolsistas, documentos, produtos e convênios. Enxerga o consolidado, mas em modo leitura. |
+| **Coordenador de Temática** | Docente responsável por uma área | Visualiza todos os PPGs e bolsistas das temáticas que coordena. |
 | **Consulta** | Direção, auditoria | Só leitura de painéis e relatórios. |
 
 **A consequência técnica é grande.** A autorização deixa de depender só de quem é o
@@ -231,8 +238,8 @@ chega junto com o primeiro módulo de domínio, não depois.
   Sem isso não há como filtrar por escopo.
 - Toda listagem é filtrada por escopo no **servidor**, nunca escondendo linha na
   interface.
-- Ações que atravessam PPGs — remanejar entre PPGs, publicar catálogo, fechar
-  orçamento — são exclusivas da PROPESP.
+- Movimentações externas e mudança de status são registradas pela PROPESP com
+  autoria e data; o Gerenciador não substitui a decisão da CAPES.
 - O coordenador vê o consolidado institucional (é informação de governança, não
   sigilo), mas não edita.
 
@@ -280,7 +287,7 @@ id PK · ppgId FK · nome · descricao? · ativa
 
 **`Pessoa`** — docentes, discentes, pesquisadores. Serve para comitê e bolsista.
 ```
-id PK · nome · email? · documento? · tipo (DOCENTE | DISCENTE | PESQUISADOR | EXTERNO)
+id PK · nome · email? · cpf? (11 dígitos, único) · documento? · tipo (DOCENTE | DISCENTE | PESQUISADOR | EXTERNO)
 ppgId FK? · lattes? · instituicaoId FK? · ativo
 ```
 
@@ -319,8 +326,8 @@ coordenadorTematicaId FK → Pessoa
 situacao (CONTEMPLADO | CADASTRO_PRELIMINAR | NAO_CONTEMPLADO)
 modalidadesPrevistas[]? · observacoes?
 ```
-> Precisa de **unique(areaTematicaId, ppgId)** e de um alerta quando o mesmo PPG
-> aparece em duas temáticas da mesma rede — é a pendência `PEND-006` (PROFSAÚDE).
+> Precisa de **unique(areaTematicaId, ppgId)**. O PROFSAÚDE foi formalmente
+> confirmado somente em `UNICAMP-T1`; a antiga dúvida `PEND-006` está resolvida.
 > Cada participação tem exatamente um Coordenador de Temática. Uma temática pode
 > ter vários coordenadores quando eles cuidam de PPGs diferentes, e uma pessoa
 > pode coordenar vários PPGs — é o caso de `UNICAMP-T1`.
@@ -349,6 +356,8 @@ valorUsd? · valorBrl · fonte · observacao?
 ```
 > **unique(tabelaValoresId, destino, modalidadeId, vigenciaMeses)** — é a chave de
 > busca do cálculo de custo.
+> No CAPES Global, as modalidades vêm exclusivamente das listas **Bolsa destino
+> Brasil** e **Bolsa p/ exterior**. Usuários não cadastram novos tipos.
 
 ### 4.4 Orçamento
 
@@ -356,8 +365,13 @@ valorUsd? · valorBrl · fonte · observacao?
 ```
 id PK · areaTematicaId FK · ano
 valorBolsas · valorManutencao · valorMissoes
-status (DEFINIDO | A_DEFINIR) · fonte? · observacoes?
+status (DEFINIDO | A_DEFINIR)
+statusComposicao (A_DEFINIR | EM_ELABORACAO | APROVADA)
+fonte? · observacoes?
 ```
+> Orçamento e composição são fatos diferentes: a UNICAMP já tem teto de bolsas,
+> mas ainda não tem modalidades e quantidades aprovadas. Os dois estados nunca
+> devem ser condensados num único “aprovado”.
 > **Derivado:** `totalPrevisto = valorBolsas + valorManutencao + valorMissoes`.
 > Não persista o total; calcule.
 
@@ -423,25 +437,26 @@ tipoDespesa (MATERIAL_CONSUMO | SERVICO | EQUIPAMENTO | PUBLICACAO | OUTRO)
 >
 > **Derivado:** `custoAnual = quantidadeAnual × valorUnitario`.
 
-**`PlanejamentoAnual`** — quantidade por ano. Hoje a premissa é repetir o mesmo valor
-em 2027–2030, mas o modelo não deve assumir isso.
+**`PlanejamentoAnual`** — quantidade por ano. A composição de modalidades pode
+mudar entre os exercícios, embora o valor consolidado anual do programa permaneça
+o mesmo (resposta **Q15**). Cada ano permanece explícito para registrar quais tipos
+e quantidades foram escolhidos naquele exercício.
 ```
 id PK · itemPlanejadoId FK · ano · quantidade
 ```
 
-> **Nota sobre a seed:** os anexos de UNESP e UFMG informam os valores globais de
-> manutenção e missões, mas **não detalham em que serão gastos** — é exatamente o que
-> `PEND-009` e `PEND-010` registram. Logo, a seed nasce com R$ 69.751,14/ano de
-> manutenção e missões no orçamento e **zero itens planejados** nessas rubricas. O
-> sistema vai mostrar essa lacuna como recurso não programado, que é o comportamento
-> correto — e é a informação que a planilha hoje não dá.
+> **Nota sobre a seed:** todas as redes têm orçamento de manutenção, mas somente a
+> UNESP informou os valores (R$ 69.751,14/ano somando manutenção e missões). UFMG e
+> UNICAMP ficam com valor nulo, exibido como **A definir**, nunca R$ 0,00. Não há
+> itens detalhados de manutenção/missão na fonte.
 
 **`BolsaConcedida`**
 ```
 id PK · itemPlanejadoId FK? · ppgId FK · pessoaId FK
 programaId FK · cicloId FK · modalidadeId FK · destino
 nivelBeneficiario (MESTRADO | DOUTORADO | POS_DOC | DOCENTE | MOBILIDADE_BREVE)
-paisDestinoId FK · instituicaoDestinoId FK?
+paisDestinoId FK? · instituicaoDestinoId FK?
+paisDestinoNome · instituicaoDestinoNome
 dataInicio · dataFim · vigenciaMeses · valorConcedido
 fluxo (IN | OUT)
 status (SELECIONADO | EM_ANDAMENTO | CONCLUIDA | CANCELADA | INTERROMPIDA)
@@ -451,8 +466,26 @@ processo? · observacoes?
 > chegar sem passar por planejamento nesta ferramenta. Quando preenchido, aponta
 > obrigatoriamente para um item de `rubrica = BOLSAS`.
 > `nivelBeneficiario` inclui `MOBILIDADE_BREVE`, termo que veio da sua anotação.
+> Para o CAPES Global, CPF, país e universidade/instituição de destino são
+> obrigatórios no cadastro. O texto de destino é preservado mesmo antes de existir
+> um catálogo completo de instituições.
 
-### 4.6 Execução financeira
+**`ProdutoBolsa`** — entrega cobrada de um bolsista específico.
+```
+id PK · bolsaConcedidaId FK · tipo
+titulo · descricao? · prazoEntrega · status
+dataEntrega? · doi? · link? · observacoes?
+```
+> Os tipos cobrem artigo, trabalho, projeto, relatório, publicação, livro,
+> capítulo de livro, patente, evento e outros. Produto entregue ou validado exige
+> `dataEntrega`. Este registro individual não substitui a visão consolidada P19.
+
+### 4.6 Estrutura financeira genérica — não usada pelo CAPES Global
+
+As tabelas abaixo permanecem no modelo multiprograma, mas **não alimentam o CAPES
+Global**. A equipe confirmou que todos os recursos desse programa são pagos
+diretamente pela CAPES e que o Gerenciador não acompanhará empenho, pagamento,
+cancelamento ou estorno.
 
 **`LancamentoExecucao`**
 ```
@@ -475,6 +508,9 @@ ppgOrigemId FK? · ppgDestinoId FK? · rubrica · valor
 justificativa · documentoAutorizacao? · anexoId FK?
 status (PROPOSTO | AUTORIZADO | EXECUTADO | REJEITADO) · observacoes?
 ```
+> No CAPES Global essa estrutura será usada, quando implementada, somente como
+> registro histórico de movimentação já feita na CAPES, com origem e destino na
+> mesma temática. Os estados propositivos permanecem apenas para outros programas.
 
 ### 4.7 Governança
 
@@ -488,7 +524,8 @@ status (PENDENTE | EM_ANALISE | MONITORAR | RESOLVIDA)
 resolucao? · resolvidaEm? · resolvidaPorId FK?
 ```
 
-**`Anexo`** — documentos (portarias, autorizações, convênios).
+**`Anexo`** — documentos (edital, resultado final, documentos do bolsista,
+plano de trabalho, produto final, carta oficial excepcional, convênios).
 ```
 id PK · nome · mimeType · tamanho · caminho · enviadoPorId FK · enviadoEm
 entidadeTipo · entidadeId    (polimórfico)
@@ -529,7 +566,8 @@ Os totais conferem até o centavo.
 
 ### RN-01 · Valor unitário da bolsa
 Busca no catálogo vigente por `(destino, modalidade, vigenciaMeses)`.
-Se não houver correspondência exata, **não interpole**: gere uma pendência.
+Se não houver correspondência exata, **não interpole nem cadastre uma modalidade
+nova**: a combinação não pode ser usada no CAPES Global.
 
 > Exemplos verificados: Exterior/Doutorado Sanduíche/6m → R$ 82.902,20 (`CAT-053`);
 > Brasil/Professor Visitante/1m → R$ 21.650,00 (`CAT-002`).
@@ -539,9 +577,11 @@ Bolsa de até 15 dias (inclusive) usa `vigencia = 0,5`. De 16 dias a um mês, us
 `vigencia = 1`. Regra textual do anexo de bolsas no Brasil.
 
 ### RN-03 · Conversão de bolsas no exterior
-`valorBrl = valorUsd × cotacao`, com `cotacao` vinda de `Premissa` (hoje **6,59**).
-O valor já inclui adicional de cidade de alto custo, estimado para 70% das bolsas.
-**A cotação é parâmetro do ciclo, nunca constante no código.**
+A CAPES calcula a conversão com uma cotação máxima de segurança. O sistema recebe
+e armazena o **valor final em BRL**, já incluído no orçamento aprovado. Depois da
+aprovação esse valor em reais fica congelado: nenhuma tela consulta câmbio ao vivo
+ou recalcula bolsas antigas. A cotação de **6,59** permanece apenas como memória da
+versão da tabela que originou os valores atuais.
 
 ### RN-04 · Custo de uma linha de planejamento
 ```
@@ -555,38 +595,50 @@ custoCiclo    = Σ custoNoAno(a), a ∈ anos do ciclo
 totalPrevisto = valorBolsas + valorManutencao + valorMissoes
 ```
 > Verificado: UNESP-T4 = 233.854,04 + 10.555,60 + 21.999,60 = **266.409,24** ✓
+> Valor ainda não informado permanece nulo/A definir. UFMG e UNICAMP não recebem
+> R$ 0,00 fictício para manutenção.
 
 ### RN-06 · Saldo potencial
 ```
-saldoPotencial = valorBolsas − Σ custoAnual das bolsas da temática
+saldoPotencial = valorBolsas − Σ custoNoAno das bolsas PROGRAMADAS da temática
 ```
 > Verificado: UNESP-T4 = 233.854,04 − 231.045,40 = **2.808,64** ✓
-> Soma de todas as temáticas definidas = **36.247,25/ano** ✓ (= 144.989,00 em 4 anos)
+> Em 2027, UNESP + composição original aprovada da UFMG deixam **R$ 147.091,05**.
+> A UNICAMP tem orçamento, mas composição a definir; por isso seu teto não é
+> apresentado como saldo livre. Propostas `PENDENTE` também não consomem saldo.
 
 ### RN-07 · Utilização do orçamento
 ```
 utilizacao = custoBolsasProgramado / valorBolsas
 ```
 Semáforo sugerido: < 90% atenção (recurso ocioso) · 90–100% saudável · > 100% estouro.
-> Verificado: UFMG-T1 = 82.572,70 / 89.500,00 = **92,26%** ✓
+> Verificado sobre a composição original aprovada: UFMG-T1 = 54.697,00 /
+> 89.500,00 = **61,11%**. A Capacitação adicional continua pendente.
 
 ### RN-08 · Divergência de saldo
 ```
 divergencia = saldoCalculado − saldoInformado
 ```
-Quando ≠ 0, cria alerta e pendência. **Isto já ocorre em duas temáticas** e foi o que
-gerou `PEND-001` e `PEND-003`.
-> UNESP-T3: 1.457,39 vs 1.251,29 → divergência **206,10**
-> UNESP-T1: 11.933,05 vs 927,56 → divergência **11.005,49**
+Quando ≠ 0, cria alerta e pendência. As divergências históricas da UNESP-T3 e da
+UNESP-T1 foram conciliadas com a equipe. Para a UNESP-T3, a equipe validou o
+saldo calculado de **R$ 1.457,39** e orientou desconsiderar o valor divergente do
+anexo. Na UNESP-T1, a composição atualizada totaliza R$ 261.095,80; contra o teto
+de R$ 261.364,55, o saldo calculado e o informado são ambos **R$ 268,75**.
 
 ### RN-09 · Projeção plurianual
-Premissa vigente: **repetir o valor nominal, sem reajuste**, em todos os anos do ciclo.
+O **valor consolidado anual do programa não muda**, mas a composição de bolsas
+pode mudar a cada exercício. O programa escolhe, em cada ano, entre as modalidades
+já elencadas, preservando a distinção entre destino Brasil e destino exterior
+(resposta **Q15**).
 ```
 orcamentoCiclo = orcamentoAnual × númeroDeAnos
 ```
-> Verificado: 1.250.355,59 × 4 = **5.001.422,36** ✓
-> A premissa é explícita e revisável (`PEND-007`). O sistema deve permitir sobrescrever
-> o valor de um ano específico sem quebrar os demais.
+> Verificado com a planilha atualizada: 2.315.444,58 × 4 = **9.261.778,32** de
+> orçamento conhecido (inclui somente os R$ 69.751,14 de apoio conhecidos da
+> UNESP; manutenção de UFMG/UNICAMP segue a definir).
+> Portanto, uma modalidade não precisa se repetir em todos os anos. O sistema
+> mantém cada exercício separado. A seed registra as bolsas conhecidas apenas em
+> 2027; 2028–2030 começam sem modalidade/quantidade, até decisão formal.
 
 ### RN-10 · Classificação IN/OUT
 ```
@@ -600,41 +652,23 @@ destino = EXTERIOR → fluxo = OUT  (alguém da UEA sai)
 ### RN-11 · Contagem de bolsas
 Indicadores financeiros e de mobilidade usam **soma de quantidades**, não contagem de
 linhas. Ver [§3.4](#34-bolsa-é-ambíguo--e-isso-já-causou-erro).
-> Verificado: 25 bolsas/ano (2 IN + 23 OUT) a partir de 23 linhas de planejamento.
+> Verificado para a composição aprovada de 2027: 22 bolsas (2 IN + 20 OUT) a
+> partir de 18 linhas. As 4 Capacitações adicionais da UFMG estão `PENDENTE`.
 
-### RN-12 · Execução financeira
-```
-valorLiquido       = valorPago − valorCancelado
-totalExecutado     = Σ valorLiquido dos lançamentos do ano/temática
-totalComprometido  = Σ valorEmpenhado − Σ valorCancelado
-percentualExecucao = totalExecutado / totalPrevisto
-saldoAposExecucao  = totalPrevisto − totalExecutado + remanejamentoLiquido
-saldoDisponivel    = totalPrevisto − totalComprometido + remanejamentoLiquido
-```
-> **Executado** e **comprometido** são indicadores diferentes e ambos importam.
-> Um empenho de R$ 50.000 ainda não pago não aparece no executado, mas o dinheiro
-> já não está livre. Painéis que mostram só um dos dois induzem a erro de decisão —
-> mostre os dois lado a lado.
->
-> Como o recurso é **transferido à UEA** (premissa de trabalho da resposta **Q4**),
-> a execução aqui representa movimento de caixa institucional, não apenas
-> acompanhamento de um gasto feito por terceiro. Ver [§11](#11-perguntas-e-respostas)
-> — isso ainda precisa de confirmação formal.
+### RN-12 · Sem execução financeira interna no CAPES Global
+Todos os recursos são pagos diretamente pela CAPES. O Gerenciador **não** registra
+empenho, pagamento, cancelamento, estorno nem fluxo de caixa da UEA para esse
+programa. “Saldo” nesta especificação é diferença entre teto e composição aprovada,
+não conciliação bancária. A estrutura financeira genérica só poderá ser usada por
+outros programas com política própria.
 
-### RN-13 · Remanejamento
-Só entra no cálculo quando `status = AUTORIZADO` ou `EXECUTADO`. Exige
-`documentoAutorizacao`. `PROPOSTO` aparece nos painéis como "em trâmite", separado.
-```
-remanejamentoLiquido(tema) = Σ entradas − Σ saídas (autorizadas)
-```
-> **Remanejamento é permitido entre PPGs, entre temáticas e entre anos** (resposta
-> **Q6**). O sistema, portanto, oferece os três movimentos.
->
-> Atenção a uma distinção que a resposta não elimina: **a PROPESP querer remanejar não
-> é a CAPES autorizar.** `PEND-008` perguntava pela regra do financiador. Enquanto o
-> normativo não estiver anexado, o sistema permite o lançamento, exige documento de
-> autorização para sair de `PROPOSTO`, e sinaliza remanejamento entre anos como o de
-> maior risco — é o que costuma esbarrar em anualidade orçamentária.
+### RN-13 · Registro de movimentação externa
+Para o CAPES Global, a movimentação é permitida **somente dentro da mesma área
+temática**. Pode mudar a distribuição entre PPGs/bolsas dessa temática, mas nunca
+cruza temática ou rede. O Gerenciador não solicita, autoriza ou executa: apenas
+registra o que já ocorreu na CAPES, com valor, origem, destino, data, usuário e
+evidência disponível. A tela não oferece estados `PROPOSTO`/`AUTORIZADO` para esse
+programa.
 
 ### RN-14 · Orçamento do Comitê Gestor
 É **paralelo**. Nunca deve ser somado ao orçamento de bolsas em nenhum indicador.
@@ -646,6 +680,42 @@ Painéis que mostram os dois precisam separá-los visualmente e dizer isso por e
 taxaEfetivacao = Σ bolsas concedidas / Σ bolsas planejadas (mesmo ano/temática)
 ```
 Métrica nova, impossível na planilha atual.
+
+### RN-16 · Situação temporal da bolsa concedida
+A situação é derivada das **datas completas** informadas pela equipe, sem persistir
+um estado que envelheceria no banco:
+
+- antes do início: `PROGRAMADA`; nos 60 dias anteriores: `PROXIMA`;
+- do início até 31 dias antes do fim: `EM_VIGENCIA`;
+- nos 30 dias finais: `PRESTES_A_EXPIRAR`;
+- depois do fim, sem conclusão: `EXPIRADA`;
+- `CONCLUIDA`, `CANCELADA` e `INTERROMPIDA` prevalecem sobre o calendário.
+
+### RN-17 · Produtos individuais da bolsa
+Cada produto pertence a uma única `BolsaConcedida`. Um produto aberto cujo
+`prazoEntrega` já passou é apresentado como `ATRASADO`; entrega e validação exigem
+data de entrega. Assim a cobrança responde diretamente qual bolsista ainda deve
+qual artigo, trabalho, projeto ou outra entrega.
+
+### RN-18 · Uma modalidade por CPF no ciclo
+Um mesmo CPF pode usar apenas **uma modalidade de bolsa** durante todo o ciclo
+CAPES Global 2027–2030. O sistema normaliza e valida o CPF e bloqueia uma nova
+concessão quando já houver concessão desse CPF em modalidade diferente. Essa regra
+não significa, por si só, “uma única linha”: repetições da mesma modalidade devem
+ser analisadas conforme o edital.
+
+### RN-19 · Confirmação e documentos do bolsista
+O beneficiário só é confirmado pela PROPESP com base no resultado final do edital.
+Para cada concessão devem poder ser anexados: RG antigo **ou** CIN, CPF, passaporte,
+comprovante de residência, plano de trabalho e produto final. Edital e resultado
+final também ficam no sistema. Carta oficial é armazenada somente quando houver
+caso excepcional; o Gerenciador não a gera.
+
+### RN-20 · Fonte externa e auditoria manual
+Situações de aprovação, cancelamento, desistência, falecimento, substituição e
+movimentação são informadas manualmente, porque acontecem na CAPES. O sistema confia
+no estado informado, mas registra obrigatoriamente autoria, data/hora e histórico;
+nunca sobrescreve silenciosamente o fato anterior.
 
 ---
 
@@ -665,8 +735,7 @@ Programas                 /programas
           │   └─ Área temática   .../tematicas/[codigo]
           ├─ Orçamento           .../orcamento
           ├─ Plano de aplicação  .../plano
-          ├─ Execução            .../execucao
-          ├─ Remanejamentos      .../remanejamentos
+          ├─ Movimentações       .../remanejamentos
           ├─ Comitê Gestor       .../comite-gestor
           └─ Premissas e fontes  .../premissas
 PPGs                      /ppgs
@@ -696,24 +765,26 @@ Primeira tela após o login. Responde "como está o programa" em dez segundos.
 **Blocos**
 
 1. **Faixa de indicadores** (8 cartões)
-   - Aporte anual conhecido — R$ 1.250.355,59
-   - Projeção do ciclo — R$ 5.001.422,36
-   - Bolsas programadas/ano — 25
-   - Custo anual das bolsas — R$ 1.144.357,20
+   - Aporte anual conhecido — R$ 2.315.444,58
+   - Projeção nominal do ciclo — R$ 9.261.778,32
+   - Bolsas aprovadas em 2027 — 22
+   - Custo das bolsas aprovadas em 2027 — R$ 1.033.513,40
    - PPGs mapeados — 24
-   - Bolsas no ciclo — 100
-   - Saldo potencial/ano — R$ 36.247,25
-   - Pendências abertas — 14
+   - Bolsas programadas no ciclo — 22; 2028–2030 ainda não têm composição
+   - Saldo potencial aprovado em 2027 — R$ 147.091,05; exclui a UNICAMP
+   - Pendências abertas — 7 de 14 registradas
 2. **Resumo por rede** — tabela + barras. Colunas: rede, orçamento anual, custo de
    bolsas, apoio (manutenção + missões), orçamento do ciclo, PPGs. Rede sem orçamento
    definido aparece hachurada com o rótulo "Pendente", **nunca como zero**.
 3. **Resumo por modalidade** — modalidade, destino, qtd/ano, custo/ano, qtd e custo no ciclo.
 4. **Impacto anual e do ciclo** — linha por indicador, coluna por ano.
-5. **Alertas gerenciais** — temáticas sem orçamento (4), divergências de saldo (2),
-   PPGs sem bolsa definida (10), saldo potencial do ciclo. Cada alerta leva ao registro.
+5. **Alertas gerenciais** — composições anuais a definir, divergência de saldo (0),
+   PPGs sem bolsa definida (10), apoio sem plano e pendências. Cada alerta leva ao registro.
 
 **Regras**
-- Todo cartão informa a **data-base** e se inclui ou não a UNICAMP.
+- Todo cartão informa a **data-base** e distingue teto orçamentário de composição
+  anual aprovada. A UNICAMP entra no aporte, mas não no saldo livre enquanto sua
+  distribuição não for aprovada.
 - Valores pendentes nunca são tratados como zero em médias ou percentuais.
 - Filtro global de ciclo e programa no topo, persistido na sessão.
 
@@ -735,7 +806,8 @@ PPG · rede · situação
 **Blocos**
 1. **Cartões** — ações/ano, IN, OUT, valor IN, valor OUT, países envolvidos, PPGs envolvidos.
 2. **IN × OUT** — comparativo por ano e no ciclo, com % de cada lado.
-   > Hoje: 2 IN (8%) e 23 OUT (92%). O desequilíbrio é uma informação estratégica, não um defeito.
+   > Composição aprovada de 2027: 2 IN e 20 OUT. As quatro Capacitações da UFMG
+   > ficam fora até aprovação formal.
 3. **Distribuição por modalidade** — barras, com valor e quantidade.
 4. **Por programa** — quanto cada programa representa da mobilidade total.
 5. **Série temporal** — evolução ao longo dos anos do ciclo.
@@ -747,27 +819,38 @@ PPG · rede · situação
 ---
 
 ### P03 · Bolsistas
-**Rota** `/mobilidade/bolsistas` · **Novo — não existe na planilha** · **MVP**
+**Rota** `/mobilidade/bolsistas` · **Recorte inicial implementado — sem seed individual** · **MVP**
 
 Lista de todas as bolsas concedidas a pessoas.
 
 **Colunas** beneficiário · nível · PPG · programa · modalidade · destino (país/universidade) ·
 período · vigência · valor · fluxo · status
 
-**Filtros** iguais aos de P02, mais: status, período de vigência, com/sem produto registrado.
+**Filtros previstos** iguais aos de P02, mais: status, período de vigência,
+com/sem produto registrado. Ainda não fazem parte do recorte inicial.
 
 **Ações**
 - **Conceder bolsa** — parte de uma linha de planejamento e atribui a uma pessoa.
   O formulário pré-preenche modalidade, vigência e valor, e mostra quantas vagas
   daquela linha ainda estão livres.
-- Registrar bolsa avulsa (programas sem planejamento no sistema).
-- Editar, cancelar (com justificativa obrigatória), registrar retorno.
-- Vincular produto da cooperação (fase 2).
+- Editar as datas e a situação administrativa da concessão.
+- Cadastrar e acompanhar produtos individualmente por bolsa concedida.
+
+**Evolução restante de P03** — filtros, anexos dos documentos exigidos, histórico
+auditável dos estados externos, retorno e justificativa estruturada de cancelamento.
 
 **Regras**
-- Ao conceder, valida se `quantidade concedida < quantidade planejada`. Se exceder,
-  exige justificativa e gera pendência.
-- Bolsa concedida com `dataFim` no passado e status `EM_ANDAMENTO` gera alerta.
+- Ao conceder, exige uma vaga no `PlanejamentoAnual` do ano da data inicial e
+  impede consumo concorrente ou acima da quantidade planejada.
+- As datas de início e fim são completas e alimentam os alertas da RN-16.
+- Produto aberto com prazo vencido alimenta o alerta individual da RN-17.
+- CPF é obrigatório e um mesmo CPF não pode usar modalidades diferentes dentro
+  do ciclo 2027–2030 (RN-18).
+- País e universidade/instituição de destino são obrigatórios.
+- O status é informado manualmente pela equipe; confirmação do beneficiário vem
+  do resultado final do edital, não de um protocolo do Gerenciador.
+- Devem ser anexáveis RG antigo ou CIN, CPF, passaporte, comprovante de residência,
+  plano de trabalho e produto final. Essa parte documental ainda não foi implementada.
 
 ---
 
@@ -801,8 +884,8 @@ primeiro dia.
 **Rota** `/programas/[programa]/[ciclo]` · **Substitui** aba `Premissas` (navegação) · **MVP**
 
 Página-índice do ciclo, equivalente à "central de navegação" que a aba `Premissas` tenta
-ser. Cartões de atalho para redes, orçamento, plano de bolsas, execução, remanejamentos,
-pendências, comitê gestor e premissas — cada um com um número vivo (ex.: "Pendências · 13 abertas").
+ser. Cartões de atalho para redes, orçamento, plano de bolsas, movimentações externas,
+pendências, comitê gestor e premissas — cada um com um número vivo (ex.: "Pendências · 7 abertas").
 
 Inclui a **legenda de uso** herdada da planilha, traduzida para o sistema:
 | Planilha | Sistema |
@@ -822,12 +905,14 @@ Inclui a **legenda de uso** herdada da planilha, traduzida para o sistema:
 2. Tabela de áreas temáticas agrupada por rede. Colunas: código, área, membro(s) do
    Coordenadores de Temática por PPG, PPGs, status, orçamento
    (bolsas/manutenção/missões/total), custo calculado,
-   custo informado, saldo, **divergência**, utilização.
+   custo informado, saldo e utilização. A divergência não ocupa uma coluna fixa.
 
 **Regras**
-- Divergência ≠ 0 marca a linha em vermelho e abre acesso rápido a "criar pendência".
-- Rede `A_DEFINIR` (UNICAMP) mostra as temáticas e PPGs, com orçamento em branco e
-  o rótulo "A definir" — **jamais zero**.
+- Divergência ≠ 0 exibe alerta, marca a linha em vermelho e abre acesso rápido a
+  "criar pendência". Os valores calculado, informado e a diferença aparecem no
+  detalhe da temática.
+- A UNICAMP mostra o orçamento de bolsas aprovado e, separadamente, a composição
+  `A_DEFINIR`; manutenção sem valor aparece como **A definir**, jamais zero.
 
 **Ações** nova rede · nova área temática · gerenciar Coordenadores de Temática · vincular PPGs.
 
@@ -843,7 +928,7 @@ Tudo sobre uma temática em uma página.
 - **PPGs** — participantes, nota, situação, modalidades previstas, participação no
   custo (%), com alerta de PPG duplicado em outra temática.
 - **Plano de aplicação** — as linhas daquela temática nas três rubricas, com custo e projeção.
-- **Execução** — lançamentos financeiros.
+- **Movimentações** — histórico do que já foi realizado na plataforma CAPES.
 - **Histórico** — trilha de auditoria (quem mudou orçamento/plano, quando, por quê).
   > É o que teria preservado a programação da UFMG antes da transformação das sobras.
 
@@ -852,19 +937,21 @@ Tudo sobre uma temática em uma página.
 ### P09 · Orçamento
 **Rota** `.../orcamento` · **Substitui** `Orçamento_2027_2030` · **MVP**
 
-Matriz ano × rede/temática com as colunas da planilha: bolsas disponíveis, manutenção,
-missões, total previsto, custo programado, demais rubricas, total programado, saldo
-potencial, execução por rubrica, remanejamento líquido, total executado, saldo após
-execução, % execução, sobra, estouro, situação.
+Matriz ano × rede/temática com: orçamento aprovado de bolsas, manutenção e missões,
+status da composição anual, custo programado e saldo potencial. Valores não informados
+ficam nulos/A definir. A tela não exibe execução financeira da UEA, porque os pagamentos
+são feitos diretamente pela CAPES.
 
 **Modos de visualização** por ano · por rede · por temática · consolidado do ciclo.
 
-**Ações** editar orçamento de uma temática/ano · replicar para os demais anos (aplicando
-RN-09) · registrar reajuste · exportar.
+**Ações previstas** registrar o orçamento formalmente aprovado · exportar. O teto
+nominal pode repetir-se nos quatro anos, mas a composição de bolsas nunca é replicada
+automaticamente.
 
 **Regras**
-- Editar exige justificativa quando o ciclo está `VIGENTE`.
-- `Situação` derivada: `NÃO INICIADA` · `EM EXECUÇÃO` · `CONCLUÍDA` · `ESTOURO`.
+- O orçamento em BRL fica congelado após aprovação; alteração exige novo ato formal,
+  justificativa e auditoria.
+- Composição anual tem estado próprio: `A_DEFINIR`, `EM_ELABORACAO` ou `APROVADA`.
 - Célula editável e célula calculada precisam ser visualmente distintas.
 
 ---
@@ -875,9 +962,9 @@ RN-09) · registrar reajuste · exportar.
 Onde a equipe planeja o que será gasto, nas **três rubricas**. A aba original só tem
 bolsas; manutenção e missões passam a ter o mesmo tratamento (resposta **Q3**).
 
-**Abas principais** — `Visão geral` · `UNESP` · `UFMG` · `UNICAMP`. A seleção
-fica na query `?rede=` para que atualizar, compartilhar e voltar no navegador
-preservem o contexto sem criar páginas que duplicam regras.
+**Navegação principal** — exercício (`?ano=`), depois `Visão geral` · `UNESP` ·
+`UFMG` · `UNICAMP` (`?rede=`). Atualizar, compartilhar e voltar no navegador
+preservam ambos os recortes sem criar páginas que duplicam regras.
 
 **Organização da tela** — a Visão geral consolida indicadores operacionais,
 dimensão institucional (redes, temáticas, PPGs e Coordenadores de Temática) e um
@@ -926,7 +1013,11 @@ Quantidade     [número]   Mês [select]
   marca esses valores com um selo visual distinto de "oficial" — misturar os dois sem
   aviso é como um número errado entra num relatório de prestação de contas.
 - Ao salvar, recalcula o saldo da temática **por rubrica** e avisa se ultrapassar.
-- Linha com `status = PENDENTE` (caso UNICAMP) é aceita sem modalidade nem quantidade.
+- A seleção aceita somente as modalidades e vigências do catálogo fechado do CAPES
+  Global. Combinação inexistente é erro; não há cadastro de nova modalidade.
+- Modalidade, quantidade e implementação pertencem a um exercício específico.
+  2028–2030 começam vazios e não herdam automaticamente 2027.
+- Linha com `status = PENDENTE` não consome orçamento nem vaga.
 - Uma linha nunca é excluída em ciclo vigente — é cancelada, preservando o histórico.
 - Coordenador de PPG só enxerga e edita linhas do seu PPG (§3.5).
 - Administrador pode corrigir uma linha existente, exceto código e rubrica. A
@@ -935,55 +1026,49 @@ Quantidade     [número]   Mês [select]
   em `ENCERRADO`, edição é bloqueada.
 
 **Estados especiais**
-- As 10 linhas UNICAMP (`BOL-024`..`BOL-033`) existem com quantidade 0 e status
-  `PENDENTE`, agrupadas com o aviso *"aguardando definição de orçamento pela rede"*.
-- As abas Manutenção e Missões começam **vazias**, com R$ 69.751,14/ano de orçamento
-  não programado. É `PEND-009` e `PEND-010` visíveis como lacuna, não como comentário.
+- Em 2027 há 18 linhas/22 bolsas aprovadas e quatro propostas de Capacitação da
+  UFMG (`BOL-020`..`BOL-023`) pendentes, todas previstas para setembro de 2027.
+- A UNICAMP possui orçamento, PPGs elegíveis e nenhuma linha artificial: modalidades,
+  quantidades, vigências, implementação e beneficiários ainda serão definidos.
+- 2028–2030 começam sem linhas/quantidades aprovadas.
+- Manutenção e missões começam sem plano detalhado. Somente a UNESP possui valor
+  informado (R$ 69.751,14/ano); UFMG e UNICAMP ficam como **A definir**.
 
 ---
 
-### P11 · Execução financeira
-**Rota** `.../execucao` · **Substitui** `Execucao` · **MVP**
+### P11 · Execução financeira — fora do escopo do CAPES Global
 
-Registro de empenhos, pagamentos e estornos. A aba original está **vazia** (100 linhas
-de gabarito) — o sistema começa sem dados aqui.
-
-**Colunas** código · data · ano · rede · temática · PPG · rubrica · descrição ·
-documento/processo · empenhado · pago · cancelado · **líquido (calculado)** · status.
-
-**Ações** novo lançamento · anexar documento · vincular a bolsa concedida · importar CSV.
-
-**Regras**
-- Vincular a lançamento a uma bolsa concedida é opcional, mas quando existe, alimenta
-  o custo real por bolsista.
-- Status derivado dos valores, sobrescrevível.
-- Somatórios por rubrica alimentam P09 e P01.
+Os recursos e bolsas são pagos diretamente pela CAPES; não entram no caixa da UEA.
+Logo, o Gerenciador não registra empenho, pagamento, cancelamento ou estorno como
+execução financeira institucional e não calcula “valor líquido” desses lançamentos.
+A estrutura genérica do banco fica reservada para outros programas que realmente
+tenham execução local, mas não deve ser exposta no ciclo CAPES Global.
 
 ---
 
-### P12 · Remanejamentos
-**Rota** `.../remanejamentos` · **Substitui** `Remanejamentos` · **MVP**
+### P12 · Registro de movimentações externas
+**Rota prevista** `.../remanejamentos` · **Fase posterior**
 
-Transferências de saldo. Aba original também **vazia** (50 linhas de gabarito).
+Histórico do que já foi realizado na plataforma CAPES. O Gerenciador não propõe,
+autoriza nem executa a movimentação.
 
-**Fluxo** `PROPOSTO` → `AUTORIZADO` → `EXECUTADO` (ou `REJEITADO`)
-
-**Formulário** origem (rede/temática/PPG) · destino · rubrica · valor · justificativa ·
-documento de autorização (anexo obrigatório para autorizar).
+**Formulário** data · origem e destino (PPGs) · temática · rubrica/modalidade · valor
+ou quantidade · justificativa · documento comprobatório · status informado manualmente.
 
 **Regras**
-- Só `AUTORIZADO`/`EXECUTADO` afeta saldo (RN-13).
-- Valida se a origem tem saldo suficiente; se não, alerta sem bloquear (a regra oficial
-  ainda não existe — `PEND-008`).
-- Visualização em Sankey origem → destino, opcional.
+- Origem e destino devem pertencer à **mesma temática**; outra temática ou rede é bloqueada.
+- A movimentação não altera o teto consolidado da temática.
+- O sistema confia no status informado e grava quem registrou, quando e todo o histórico.
+- Cancelamento, desistência, falecimento e substituição seguem o mesmo princípio:
+  acontecem na CAPES e são registrados no Gerenciador como eventos externos.
 
 ---
 
 ### P13 · Pendências e decisões
 **Rota** `/pendencias` · **Substitui** `Pendencias` · **MVP**
 
-Lista de trabalho da equipe. Hoje são **14 itens** e eles não têm dono nem prazo real
-— e o painel da própria planilha ainda anuncia 10 (ver §9.8).
+Lista de trabalho da equipe. A seed preserva **14 itens históricos**, dos quais
+**8 permanecem abertos** após as respostas e a planilha atualizada.
 
 **Visões** lista (com filtros) · kanban por status · agrupada por rede.
 
@@ -1039,17 +1124,16 @@ A tabela oficial. **É a fonte de verdade de todo cálculo do sistema.**
    modalidade, vigência, USD, BRL, fonte, observação.
 3. Notas normativas (regra dos 15 dias, composição do valor, adicional de alto custo).
 
-**Ações** nova versão da tabela · editar item (só em versão não vigente) · importar de
-planilha · comparar versões · exportar.
+**Ações** consultar e exportar. Para o CAPES Global, o catálogo é fechado e somente
+as listas “Bolsa destino Brasil” e “Bolsa p/ exterior” podem ser usadas.
 
 **Regras**
-- **A PROPESP é a autoridade sobre o catálogo** (resposta **Q10**): ela replica o anexo
-  da CAPES e publica a versão institucional. Coordenadores de PPG só consultam.
-- **Versão vigente é imutável.** Reajuste cria versão nova; bolsas já planejadas mantêm
-  o vínculo com a versão em que foram calculadas.
-- Ao publicar nova versão, o sistema lista quais linhas de plano mudam de valor e por
-  quanto, antes de confirmar.
-- Toda versão registra a norma de origem e o anexo do documento da CAPES.
+- Não existe cadastro de nova modalidade para o CAPES Global.
+- Valores são armazenados e calculados em BRL. A cotação máxima usada pela CAPES já
+  está incorporada ao valor aprovado; não há conversão cambial ao vivo.
+- Após aprovação, a versão e os valores em BRL ficam congelados. Bolsas preservam o
+  vínculo com a tabela usada no planejamento.
+- Coordenadores de PPG e de Temática apenas consultam o catálogo.
 
 ---
 
@@ -1108,6 +1192,9 @@ produção por ano/PPG/área · distribuição por tipo · vínculo com bolsa e 
 **Regra** — todo produto pode apontar para a bolsa e/ou o convênio que o originou. É o
 que permite responder "o que rendeu o dinheiro investido".
 
+> O cadastro e a cobrança **individual por bolsa** já existem em P03. Esta fase
+> acrescentará autores múltiplos, convênios e a análise consolidada da produção.
+
 ---
 
 ### P20 · Relatórios e exportações
@@ -1118,11 +1205,12 @@ Modelos prontos, em PDF e XLSX:
 - Panorama de mobilidade (equivalente aos três PNGs de insight, gerados pelo sistema)
 - Orçamento por rede e temática
 - Plano de aplicação completo (bolsas, manutenção e missões)
-- Prestação de contas por temática
+- Movimentações externas registradas por temática
 - Relação de bolsistas por período
+- Produtos previstos, entregues, validados e atrasados por bolsista/bolsa
 
 **Regra** — todo relatório carimba data/hora de geração, ciclo, filtros aplicados e
-uma nota sobre dados pendentes (ex.: "UNICAMP sem orçamento definido").
+uma nota sobre dados pendentes (ex.: "composição da UNICAMP a definir").
 
 ---
 
@@ -1134,7 +1222,8 @@ Como GCUB e Erasmus já existem em planilha, importar precisa ser rotina, não e
 **Fluxo** upload → escolha do modelo → **pré-visualização com validação** → correção
 linha a linha → confirmação → registro da importação (arquivo, quem, quando, quantas linhas).
 
-**Modelos** catálogo de bolsas · PPGs · plano de aplicação · orçamento · execução · bolsistas.
+**Modelos** catálogo de bolsas · PPGs · plano de aplicação · orçamento · bolsistas ·
+produtos · movimentações externas. Execução financeira não se aplica ao CAPES Global.
 
 **Adaptador por programa.** Cada programa traz planilha com estrutura própria
 (resposta **Q9**) — GCUB, Erasmus e CAPES Global não compartilham layout. Em vez de
@@ -1163,43 +1252,34 @@ formato de quem envia o arquivo.
 
 ---
 
-### P22 · Documentos oficiais
-**Rota** `/documentos` · **Novo** (resposta **Q7**) · Fase 1.5
+### P22 · Documentos e evidências
+**Rota** `/documentos` · **Novo** · Fase 1.5
 
-O sistema gera os documentos que hoje são redigidos à mão a partir dos números da
-planilha — que é justamente onde o número desatualizado costuma entrar.
+Repositório dos documentos recebidos e usados para confirmar bolsistas, resultados
+e eventos. O Gerenciador não solicita nem acompanha protocolo na plataforma CAPES.
 
-**Modelos previstos**
-- Ofício de solicitação de implementação de bolsa
-- Termo de concessão / compromisso do bolsista
-- Ofício de remanejamento (a partir de um `Remanejamento` autorizado)
-- Portaria de designação de membro de comitê
-- Declaração de participação em mobilidade
-- Relatório de prestação de contas por temática
-
-**Como funciona** modelo com marcadores (`{{ppg.nome}}`, `{{bolsa.valor}}`) →
-preenchimento automático a partir do registro de origem → pré-visualização →
-geração em PDF/DOCX → anexo fica vinculado ao registro que o originou.
+**Documentos por bolsista/concessão**
+- RG antigo **ou** CIN (novo documento de identidade), CPF, passaporte e comprovante
+  de residência;
+- plano de trabalho e produto final, obrigatórios para todos os bolsistas;
+- edital e resultado final que fundamentam a confirmação do beneficiário;
+- carta oficial apenas em caso excepcional, armazenada como anexo — não gerada pelo sistema.
 
 **Regras**
-- Todo documento gerado guarda **quem gerou, quando e com quais dados** — se o valor
-  mudar depois, o documento emitido continua sendo o que foi assinado.
-- Documento gerado a partir de registro com pendência aberta sai com marca d'água
-  de rascunho.
-- Numeração sequencial por tipo e ano, sem lacuna.
-
-> **A definir com a equipe:** quais modelos são realmente necessários no primeiro
-> momento, e se algum deles tem forma obrigatória definida pela CAPES ou pela
-> Procuradoria da UEA. Isso está na lista de perguntas ([§11](#11-perguntas-e-respostas), Q11).
+- Metadados registram tipo, titular, origem, quem anexou, data/hora e versão.
+- O acesso precisa respeitar a LGPD: documentos pessoais não acompanham a mesma
+  visibilidade ampla dos indicadores consolidados.
+- Substituir um arquivo não apaga silenciosamente a versão anterior.
+- A geração automática de ofícios e declarações não está confirmada e fica fora do MVP.
 
 ---
 
 ### P23 · Catálogos auxiliares e configurações
 **Rotas** `/catalogos/modalidades`, `/catalogos/instituicoes`, `/configuracoes` · **MVP (parcial)**
 
-Modalidades · instituições (redes, parceiras internacionais) · países · tipos de acordo ·
-meses de implementação · e as configurações gerais (ciclo padrão, formato de exportação,
-identidade visual).
+Instituições (redes e parceiras internacionais) · países · tipos de acordo · meses de
+implementação · e configurações gerais (ciclo padrão, formato de exportação, identidade
+visual). A tela de modalidades do CAPES Global é somente leitura, por ser catálogo fechado.
 
 ---
 
@@ -1224,16 +1304,17 @@ comportamento real e a migração seja verificável.
 | `Modalidade` | 7 | catálogo |
 | `TabelaValores` | 1 | versão 2026-07-29, cotação 6,59 |
 | `ItemCatalogoBolsa` | 60 | `Catálogo Bolsas` (`CAT-001`..`CAT-060`) |
-| `OrcamentoTematica` | 48 | 12 temáticas × 4 anos (16 delas `A_DEFINIR`) |
-| `ItemPlanejado` | 33 | `Plano_Bolsas` — todas de `rubrica = BOLSAS` (23 programadas + 10 pendentes). Manutenção e missões: **0 itens** (§4.5) |
-| `PlanejamentoAnual` | 132 | 33 × 4 anos |
+| `OrcamentoTematica` | 48 | 12 temáticas × 4 anos. O orçamento está definido; a composição é aprovada só para UNESP/UFMG em 2027 (8 registros) e `A_DEFINIR` nos outros 40. |
+| `ItemPlanejado` | 23 | `Plano_Bolsas`: 18 linhas aprovadas + 4 propostas UFMG pendentes + 1 linha cancelada e preservada como histórico. As 10 reservas artificiais da UNICAMP foram removidas. |
+| `PlanejamentoAnual` | 92 | 23 × 4 anos; só 2027 tem quantidade, 2028–2030 começam zerados/a definir. |
 | `OrcamentoComiteGestor` | 12 | 3 redes × 4 anos |
 | `Premissa` | 5 | `Premissas` — a aba lista 6 itens, mas "Atualização monetária" vem **sem valor**; ele é na verdade `PEND-007`, não uma premissa |
-| `FonteDocumental` | 2 | `Premissas` |
-| `Pendencia` | 14 | `Pendencias` — o painel da planilha diz 10 (ver §9.8) |
-| `LancamentoExecucao` | 0 | aba vazia |
-| `Remanejamento` | 0 | aba vazia |
-| `BolsaConcedida` | 0 | não existe hoje |
+| `FonteDocumental` | 4 | anexos Brasil/exterior + guia de remanejamento + planejamento atualizado |
+| `Pendencia` | 14 | histórico preservado; 7 resolvidas e 7 abertas |
+| `LancamentoExecucao` | 0 | estrutura genérica; não aplicável ao CAPES Global |
+| `Remanejamento` | 0 | estrutura genérica; registro externo ainda não implementado |
+| `BolsaConcedida` | 0 | a fonte não informa beneficiários; cadastro começa vazio |
+| `ProdutoBolsa` | 0 | será alimentado individualmente por concessão |
 
 ### 8.2 Correspondência aba → entidade
 
@@ -1244,12 +1325,14 @@ comportamento real e a migração seja verificável.
 | `Redes_Tematicas` | `RedeCoordenadora` + `AreaTematica` + `OrcamentoTematica` | A coluna de rubricas vem de células multilinha (ver §9.3). |
 | `Plano_Bolsas` | `ItemPlanejado` (rubrica `BOLSAS`) + `PlanejamentoAnual` | Guardar `Texto-fonte` em `textoFonte`. |
 | `Orçamento_2027_2030` | `OrcamentoTematica` | Redundante com `Redes_Tematicas`; usar como conferência, não como fonte. |
-| `Execucao` | `LancamentoExecucao` | Vazia — só cria a estrutura. |
-| `Remanejamentos` | `Remanejamento` | Vazia. |
-| `Pendencias` | `Pendencia` | 13 itens, com dois padrões de código (ver §9.5). |
+| `Execucao` | — | Gabarito vazio e não aplicável: pagamentos diretos pela CAPES. |
+| `Remanejamentos` | `Remanejamento` | Gabarito vazio; no Gerenciador será somente histórico externo dentro da mesma temática. |
+| `Pendencias` | `Pendencia` | 14 itens históricos, com três padrões de código (ver §9.5). |
 | `Premissas` | `Premissa` + `FonteDocumental` | Conteúdo duplicado na própria aba (ver §9.4). |
 | `Comitê Gestor 2026-2029` | `OrcamentoComiteGestor` | Ciclo separado. |
 | `Atualização UFMG` | `RegistroAuditoria` | **Não é entidade nova** — é o registro de uma alteração. Semear como histórico. |
+| `Planejamento_CAPES_Global_2027_2030_Atualizado_UNICAMP_UFMG.xlsx` | orçamento, PPGs e fontes | Atualiza UNICAMP e confirma dados de UNESP/UFMG; não aprova a composição da UNICAMP. |
+| `Guia_Orientacoes_Remanejamento_Transformacao_CAPES_Global...pdf` | `FonteDocumental` + regras | Fonte do fluxo externo; o sistema não autoriza nem executa a operação. |
 | `Painel Executivo`, `Painel_UEA`, `Mapa_Recursos_UEA` | — | **Nada a semear.** São visões calculadas; viram P01 e P02. |
 | `Comitê UNESP/UFMG/UNICAMP` | conferência | Origem dos dados já consolidados nas demais abas. |
 
@@ -1264,19 +1347,20 @@ exatamente isso que a seed precisa expor.
 
 | Indicador | Valor esperado |
 |---|---|
-| Aporte anual conhecido | R$ 1.250.355,59 |
-| Aporte do ciclo | R$ 5.001.422,36 |
-| Custo anual de bolsas | R$ 1.144.357,20 |
-| — UNESP | R$ 624.867,50 |
-| — UFMG | R$ 519.489,70 |
-| Bolsas/ano | 25 (2 IN + 23 OUT) |
-| Bolsas no ciclo | 100 |
-| Saldo potencial/ano | R$ 36.247,25 |
-| Saldo potencial do ciclo | R$ 144.989,00 |
+| Aporte anual conhecido | R$ 2.315.444,58 |
+| Aporte nominal do ciclo | R$ 9.261.778,32 |
+| Orçamento anual de bolsas | R$ 2.245.693,44 |
+| Custo aprovado de bolsas em 2027 | R$ 1.033.513,40 |
+| — UNESP | R$ 636.531,80 |
+| — UFMG aprovada | R$ 396.981,60 |
+| Propostas UFMG pendentes | 4 linhas, custo R$ 122.508,10 |
+| Bolsas aprovadas em 2027 | 22 (2 IN + 20 OUT), em 18 linhas |
+| Bolsas programadas em 2028–2030 | 0; composição a definir |
+| Saldo potencial aprovado em 2027 | R$ 147.091,05; UNICAMP excluída até aprovar a composição |
 | PPGs mapeados | 24 (UNESP 8 · UFMG 6 · UNICAMP 10) |
-| Temáticas sem orçamento | 4 |
-| Divergências de saldo | 2 |
-| Pendências abertas | 14 (a planilha exibe 10 — §9.8) |
+| Composições a definir em 2027 | 4 (UNICAMP) |
+| Divergências de saldo | 0; UNESP-T1 e UNESP-T3 conciliadas |
+| Pendências abertas | 7 de 14 registradas |
 | Comitê Gestor/ano | R$ 381.333,00 |
 
 ---
@@ -1286,23 +1370,29 @@ exatamente isso que a seed precisa expor.
 Levantadas durante a extração. **Cada uma vira uma decisão de projeto**, não apenas um
 conserto pontual.
 
-### 9.1 Três contagens diferentes de "bolsas"
+### 9.1 Três contagens históricas de "bolsas"
 | Fonte | Valor | O que está contando |
 |---|---|---|
 | `Painel Executivo`, `Mapa_Recursos_UEA` | **25** (2 IN + 23 OUT) | soma das quantidades |
 | PNG "Panorama de Bolsas" | **23** (2 IN + 21 OUT) | linhas de planejamento |
 | PNG "Panorama Orçamentário" | **21** (2 IN + 19 OUT) | linhas, antes da atualização da UFMG |
 
-O mesmo aparece no custo: o PNG informa **R$ 1.021.849,10/ano** e a planilha
-**R$ 1.144.357,20/ano**. A diferença é exatamente **R$ 122.508,10** — as quatro bolsas
-de Capacitação que a UFMG acrescentou depois.
+O mesmo aparecia no custo: o PNG informa **R$ 1.021.849,10/ano** e a atualização
+propunha **R$ 1.144.357,20/ano**. A diferença de **R$ 122.508,10** são as quatro
+Capacitações da UFMG, ainda sem aprovação formal.
 
-→ **Decisão:** RN-11 fixa "bolsa = unidade". Painéis carimbam data-base. Um valor
-recalculado nunca sai desatualizado.
+→ **Decisão:** RN-11 fixa "bolsa = unidade" e separa `PROGRAMADO` de `PENDENTE`.
+Em 2027 o painel conta 22 bolsas aprovadas em 18 linhas e mostra as 4 propostas à parte.
 
-### 9.2 Divergência entre saldo calculado e informado
-`UNESP-T3`: R$ 206,10 · `UNESP-T1`: R$ 11.005,49 — origem de `PEND-001` e `PEND-003`.
-→ **Decisão:** RN-08 detecta e cria pendência automaticamente.
+### 9.2 Divergência entre saldo calculado e informado — resolvida
+Na `UNESP-T3`, a equipe validou o cálculo de R$ 1.457,39 e determinou que o valor
+divergente do anexo fosse desconsiderado, resolvendo `PEND-001`. Para `UNESP-T1`,
+a equipe confirmou a composição de R$ 261.095,80: uma bolsa de Doutorado Sanduíche
+de 6 meses; três Capacitações de 1 mês; uma bolsa de Doutorado Sanduíche de 5
+meses; e uma Capacitação de 15 dias. O teto de R$ 261.364,55 deixa exatamente
+R$ 268,75, igual ao saldo informado.
+→ **Decisão:** PEND-002 e PEND-003 estão resolvidas. RN-08 continua comparando os
+dois valores para detectar automaticamente qualquer divergência futura.
 
 ### 9.3 Três valores numa célula só
 Em `Comitê UNESP`, o orçamento vem como texto multilinha:
@@ -1328,11 +1418,10 @@ Convivem `PEND-001`, `PEND-011-UFMG`, `PEN-011`, `PEN-012`, `PEN-013` — três 
 As três últimas ainda usam colunas com significado diferente das demais.
 → **Decisão:** código gerado pelo sistema, sequencial por ciclo.
 
-### 9.6 PPG em duas temáticas
-`PROFSAÚDE` aparece em `UNICAMP-T1` (Saúde, Natureza e Sociedade) e em "Tecnologias e
-Inovação para os Territórios" — é `PEND-006`, risco de dupla contagem.
-→ **Decisão:** o sistema permite, mas sinaliza e exige decisão explícita sobre qual
-temática contabiliza o orçamento.
+### 9.6 PROFSAÚDE em duas temáticas na fonte inicial — resolvida
+O dado original colocava `PROFSAÚDE` em duas temáticas da UNICAMP. A equipe confirmou
+que ele é elegível somente em `UNICAMP-T1` — Saúde, Natureza e Sociedade.
+→ **Decisão:** a seed guarda apenas esse vínculo e marca `PEND-006` como resolvida.
 
 ### 9.7 Áreas temáticas não são as mesmas entre redes
 "Saúde" aparece como `Saúde única` (UNESP-T3), `Saúde e Bem-estar` (UFMG-T3) e
@@ -1340,19 +1429,21 @@ temática contabiliza o orçamento.
 → **Decisão:** `AreaTematica` pertence à rede. Um agrupamento temático transversal, se
 for necessário, é uma etiqueta à parte — **não** o mesmo campo.
 
-### 9.8 O contador de pendências está defasado
-A aba `Pendencias` tem **14 itens**; o `Painel Executivo` anuncia **10**. A diferença
-são justamente os quatro últimos (`PEND-011-UFMG`, `PEN-011`, `PEN-012`, `PEN-013`),
-acrescentados depois de o painel ter sido calculado.
+### 9.8 O contador da planilha estava defasado
+A aba `Pendencias` tem **14 itens**; o painel antigo anunciava **10**. Após incorporar
+as respostas, o sistema preserva os 14 registros e calcula **7 abertos** pelo status.
 
 É o mesmo defeito de §9.1, em outra célula: **um número escrito à mão que não sabe que
 a fonte mudou.** É exatamente isso que o sistema elimina — contadores derivados de
 consulta, nunca digitados.
 
-### 9.9 UNICAMP sem orçamento
-10 PPGs mapeados, 4 temáticas, zero recurso definido (`PEND-004`, `PEND-005`, `PEN-013`).
-→ **Decisão:** `A_DEFINIR` é um estado de primeira classe. Nenhum indicador trata
-pendente como zero; todo total diz o que está de fora.
+### 9.9 UNICAMP: orçamento aprovado, composição pendente
+A planilha atualizada define R$ 1.065.089,00/ano em bolsas para a UNICAMP e lista
+10 PPGs elegíveis. Ainda não define modalidades, quantidades, vigências, datas nem
+beneficiários.
+→ **Decisão:** orçamento e composição têm estados separados. O teto entra no aporte,
+mas não vira saldo livre e não gera linhas artificiais enquanto a composição estiver
+`A_DEFINIR`.
 
 ---
 
@@ -1360,8 +1451,8 @@ pendente como zero; todo total diz o que está de fora.
 
 ### Fase 1 — MVP (substitui as planilhas)
 Núcleo (PPGs, redes, temáticas, catálogo) · orçamento e plano de aplicação nas três
-rubricas · painéis e indicadores · pendências, execução e remanejamento · importação ·
-seed com os dados reais.
+rubricas · composição anual de bolsas · saldos · bolsistas e produtos individuais ·
+pendências · registro de movimentações externas · importação · seed com os dados reais.
 
 **Critério de pronto:** a equipe consegue abandonar as duas planilhas, e todos os
 indicadores da tabela de §8.3 batem.
@@ -1370,13 +1461,14 @@ indicadores da tabela de §8.3 batem.
 > Isso significa que o **escopo por PPG na autorização precisa entrar junto** — não é
 > item de fase posterior. É a única peça do controle de acesso que não dá para adiar.
 
-### Fase 1.5 — Mobilidade individual e documentos
-Bolsistas · mapa de países e universidades · taxa de efetivação · consolidação
-multiprograma com GCUB e Erasmus importados · geração de documentos oficiais (P22).
+### Fase 1.5 — Consolidação da mobilidade e documentos
+Mapa de países e universidades · taxa de efetivação · consolidação multiprograma com
+GCUB e Erasmus importados · anexos pessoais, edital, resultado, plano de trabalho e
+produto final (P22).
 
 ### Fase 2 — Ciclo completo
-Convênios internacionais · produtos da cooperação · vínculo mobilidade → resultado ·
-relatórios de impacto.
+Convênios internacionais · produção consolidada · vínculo mobilidade → resultado ·
+relatórios operacionais e de impacto.
 
 ### Fase 3 — Integrações
 Sucupira/CAPES · Lattes · sistema financeiro institucional · SSO com o diretório da UEA
@@ -1384,30 +1476,69 @@ Sucupira/CAPES · Lattes · sistema financeiro institucional · SSO com o diret�
 
 ---
 
-## 11. Perguntas e respostas
+## 11. Checklist de decisões e pendências
 
-### 11.1 Respondidas — 2026-08-04
+### 11.1 Confirmado formalmente
 
-| # | Pergunta | Resposta | Onde entrou |
-|---|---|---|---|
-| **Q1** | Fórmula do valor líquido | `pago − cancelado` | RN-12. `empenhado` virou indicador separado de comprometimento. |
-| **Q2** | Quem opera o sistema | PROPESP **e** coordenadores de PPG, que cuidam dos próprios programas | §3.5. Autorização passa a depender do recurso, não só do usuário. |
-| **Q3** | Manutenção e missões têm plano detalhado? | Sim, como as bolsas | §4.5 (`ItemPlanejado` com rubrica) e P10 (três abas). |
-| **Q4** | O recurso é transferido à UEA? | *Sem informação — adotado como premissa de trabalho* | RN-12. **Continua em aberto** (ver §11.2). |
-| **Q5** | Convenção IN/OUT validada? | Sim | RN-10. Resolve `PEN-012`. |
-| **Q6** | Remanejamento entre PPGs, temáticas e anos? | Sim | RN-13. Ressalva sobre a regra da CAPES abaixo. |
-| **Q7** | Gerar documentos oficiais? | Sim | Nova página P22. |
-| **Q9** | Planilhas de GCUB e Erasmus seguem o mesmo formato? | Não — cada uma tem sua peculiaridade | P21 ganha adaptador de mapeamento por programa. |
-| **Q10** | Autoridade sobre o catálogo | PROPESP | P15. |
+1. [x] Remanejamento é permitido somente entre PPGs da mesma temática; o
+   Gerenciador apenas registra o que ocorreu na CAPES.
+2. [x] Os recursos são pagos diretamente pela CAPES e não entram no caixa da UEA;
+   P11 não se aplica ao CAPES Global.
+3. [x] O orçamento aprovado é um teto fixo e não pode ser ultrapassado pela soma
+   das bolsas da temática.
+4. [x] Todos os cálculos usam BRL. Para bolsas referenciadas em dólar, o valor
+   aprovado já incorpora a cotação máxima adotada pela CAPES e fica congelado.
+5. [x] A regra percentual de 30% discutida anteriormente não se aplica.
+6. [x] A composição da UNESP em 2027 está aprovada. `BOL-008` tem 5 meses;
+   para UNESP-T3, o cálculo de R$ 1.457,39 foi validado e o valor divergente do
+   anexo deve ser desconsiderado.
+7. [x] A composição atualizada da UNESP-T1 custa R$ 261.095,80 e deixa saldo de
+   R$ 268,75; o saldo informado e o calculado estão conciliados, sem divergência.
+8. [x] A programação original da UFMG está aprovada. As quatro Capacitações
+   adicionais são propostas pendentes, previstas para setembro de 2027.
+9. [x] O orçamento de bolsas da UNICAMP está aprovado por temática; PPGs são
+   somente elegíveis e modalidades, distribuição e beneficiários dependem dos editais.
+10. [x] `PROFSAÚDE` pertence somente à UNICAMP-T1 — Saúde, Natureza e Sociedade.
+11. [x] Os tetos nominais conhecidos repetem-se em 2027–2030, mas modalidades e
+    quantidades podem mudar por exercício. Somente 2027 é carregado; anos futuros
+    não copiam automaticamente sua composição.
+12. [x] O catálogo do CAPES Global é fechado: somente as modalidades de “Bolsa
+    destino Brasil” e “Bolsa p/ exterior”; não há cadastro de novas modalidades.
+13. [x] Datas de concessão são completas (dia, mês e ano). Março e setembro são
+    as janelas usuais de implementação.
+14. [x] Um CPF pode utilizar somente uma modalidade de bolsa em todo o ciclo
+    2027–2030.
+15. [x] Beneficiários são confirmados pela PROPESP com base no resultado final do
+    edital. O Gerenciador ignora solicitação ou acompanhamento de protocolo CAPES.
+16. [x] País e universidade/instituição de destino são registrados por bolsista.
+17. [x] Produtos, artigos, trabalhos e projetos são cadastrados e acompanhados
+    individualmente por bolsa concedida.
+18. [x] Para todos os bolsistas serão armazenados documentos pessoais (RG antigo
+    ou CIN, CPF, passaporte e comprovante de residência), plano de trabalho e
+    produto final; edital e resultado final também são evidências.
+19. [x] Carta oficial é apenas anexada em caso excepcional; o Gerenciador não a gera.
+20. [x] Status externos são informados manualmente. O sistema confia no valor
+    informado e registra usuário, data/hora e histórico.
+21. [x] O Coordenador de Temática visualiza todos os PPGs e bolsistas da temática
+    que coordena.
+22. [x] Todas as redes possuem orçamento de manutenção, mas somente o valor da
+    UNESP foi informado; UFMG e UNICAMP devem aparecer como “A definir”.
+23. [x] Relatórios operacionais e de produtos serão necessários.
 
-### 11.2 Ainda em aberto
+### 11.2 Confirmações ainda pendentes
 
-| # | Pergunta | Por que ainda importa |
-|---|---|---|
-| **Q4** | Confirmar formalmente que o recurso é transferido à UEA, e quais rubricas. | Foi adotado como premissa, não como fato — a própria planilha registra isso em `PEN-011`. Se parte for paga direto pela rede coordenadora, "execução" muda de significado e o módulo financeiro precisa distinguir caixa de compromisso. **É a premissa mais cara de corrigir depois.** |
-| **Q6b** | A **CAPES** autoriza remanejamento entre anos? | Q6 respondeu o que a PROPESP quer fazer; `PEND-008` pergunta o que o financiador permite. Remanejar entre exercícios costuma esbarrar em anualidade orçamentária. Até haver normativo anexado, o sistema permite e sinaliza o risco. |
-| **Q8** | Há prazo institucional amarrado ao ciclo 2027–2030? | Não respondida. Define a ordem das fases — se o edital de março de 2027 for o alvo, o plano de aplicação precisa estar pronto antes da execução. |
-| **Q11** | Quais modelos de documento são necessários primeiro, e algum tem forma obrigatória (CAPES ou Procuradoria)? | Nova, decorrente de Q7. Determina o esforço de P22. |
-| **Q12** | Um coordenador enxerga dados financeiros de outros PPGs? | Nova, decorrente de Q2. Assumi que **sim, em leitura** (é governança, não sigilo). Se for sigiloso, muda todas as consultas dos painéis. |
-| **Q13** | Manutenção e missões têm alguma tabela de referência (diária, teto de passagem), ou é estimativa livre? | Nova, decorrente de Q3. Se houver teto institucional, o sistema valida; se não, fica só a justificativa. |
-| **Q14** | Quando o coordenador lança um bolsista, isso precisa de aprovação da PROPESP? | Nova, decorrente de Q2. Define se existe fluxo de submissão/homologação ou se o lançamento já vale. |
+1. [ ] Confirmar formalmente se alguma bolsa deve ser repetida automaticamente em
+   exercícios futuros. A regra segura atual é **não repetir**: cada composição anual
+   começa vazia até aprovação.
+2. [ ] Informar os valores de manutenção de UFMG e UNICAMP e, para todas as redes,
+   como esse orçamento será detalhado por PPG/ano.
+3. [ ] Aprovar ou rejeitar formalmente as quatro Capacitações propostas pela UFMG.
+4. [ ] Definir a composição da UNICAMP: modalidades, quantidades, vigências, mês de
+   implementação e distribuição entre PPGs; depois, informar os beneficiários dos editais.
+5. [ ] Definir formatos, tamanho máximo, prazo de retenção e perfis de acesso aos
+   documentos pessoais (decisão necessária para implementar uploads com LGPD).
+6. [ ] Fechar o vocabulário de eventos/status externos e os campos obrigatórios de
+   cancelamento, desistência, falecimento e substituição.
+7. [ ] Definir os modelos, filtros, periodicidade e formatos dos relatórios prioritários.
+8. [ ] Vincular cada usuário do Keycloak à pessoa/PPGs/temáticas locais para aplicar
+   tecnicamente o escopo confirmado do Coordenador de Temática.

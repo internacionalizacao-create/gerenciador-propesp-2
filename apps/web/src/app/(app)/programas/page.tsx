@@ -1,11 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import {
-  Aviso,
-  Pagina,
-  Selo,
-} from "@/componentes/ui/basicos";
+import { Pagina, Selo } from "@/componentes/ui/basicos";
 import { apiFetch } from "@/lib/api";
 import type { Programa } from "@/lib/dominio";
 import { inteiro, moeda } from "@/lib/formato";
@@ -39,19 +35,11 @@ export default async function Programas() {
       </div>
 
       {semDados.length > 0 ? (
-        <>
-          <Aviso tom="info" titulo="Cadastrados, ainda sem dados">
-            Estes programas existem no mundo real e já têm lugar na estrutura.
-            Quando a planilha de cada um chegar, ela entra por importação — sem
-            precisar de um modelo de dados novo (resposta Q9).
-          </Aviso>
-
-          <div className="grid gap-3 lg:grid-cols-2">
-            {semDados.map((programa) => (
-              <CartaoPrograma key={programa.id} programa={programa} />
-            ))}
-          </div>
-        </>
+        <div className="grid gap-3 lg:grid-cols-2">
+          {semDados.map((programa) => (
+            <CartaoPrograma key={programa.id} programa={programa} />
+          ))}
+        </div>
       ) : null}
     </Pagina>
   );

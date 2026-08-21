@@ -183,9 +183,7 @@ describe('Schema — integridade', () => {
       );
     });
 
-    it('aceita bolsa PENDENTE sem catálogo (caso UNICAMP)', async () => {
-      // As 10 linhas da UNICAMP existem sem modalidade, vigência nem quantidade,
-      // aguardando o orçamento da rede.
+    it('aceita proposta PENDENTE ainda sem combinação definida', async () => {
       const [item] = await ctx.db
         .insert(s.itemPlanejado)
         .values({
@@ -351,7 +349,7 @@ describe('Schema — integridade', () => {
       expect(rem.status).toBe('PROPOSTO');
     });
 
-    it('aceita remanejamento entre anos (Q6)', async () => {
+    it('mantém estrutura genérica para políticas de outros programas', async () => {
       const [rem] = await ctx.db
         .insert(s.remanejamento)
         .values({
@@ -395,9 +393,10 @@ describe('Schema — integridade', () => {
       );
     });
 
-    it('permite o mesmo PPG em duas temáticas diferentes (caso PROFSAÚDE)', async () => {
-      // PEND-006 é regra de negócio a sinalizar, não constraint a bloquear: o
-      // dado existe de verdade nas planilhas.
+    it('permite o mesmo PPG em duas temáticas para programas que adotem essa regra', async () => {
+      // No CAPES Global o PROFSAÚDE foi confirmado apenas na UNICAMP-T1. A
+      // tabela continua genérica porque outros programas podem admitir mais de
+      // uma participação; a política específica fica na camada de domínio.
       const [outraArea] = await ctx.db
         .insert(s.areaTematica)
         .values({
@@ -563,6 +562,41 @@ describe('Schema — integridade', () => {
         .returning();
 
       expect(bolsa.itemPlanejadoId).toBeNull();
+    });
+
+    it('exige data quando um produto e marcado como entregue', async () => {
+      const [pessoa] = await ctx.db
+        .insert(s.pessoa)
+        .values({ nome: 'Bolsista com Produto', tipo: 'DISCENTE' })
+        .returning();
+      const [bolsa] = await ctx.db
+        .insert(s.bolsaConcedida)
+        .values({
+          programaId: base.programaId,
+          cicloId: base.cicloId,
+          ppgId: base.ppgId,
+          pessoaId: pessoa.id,
+          modalidadeId: base.modalidadeId,
+          destino: 'EXTERIOR',
+          nivelBeneficiario: 'DOUTORADO',
+          dataInicio: '2027-03-01',
+          dataFim: '2027-08-31',
+          vigenciaMeses: '6.0',
+          valorConcedido: '82902.20',
+          fluxo: 'OUT',
+        })
+        .returning();
+
+      await esperarViolacao(
+        ctx.db.insert(s.produtoBolsa).values({
+          bolsaConcedidaId: bolsa.id,
+          tipo: 'ARTIGO',
+          titulo: 'Artigo de teste',
+          prazoEntrega: '2027-12-01',
+          status: 'ENTREGUE',
+        }),
+        'produto_bolsa_entrega_ck',
+      );
     });
   });
 });

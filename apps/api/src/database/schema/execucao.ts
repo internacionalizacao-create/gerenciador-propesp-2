@@ -24,12 +24,13 @@ import { bolsaConcedida } from './planejamento';
 import { areaTematica, ciclo, redeCoordenadora } from './programa';
 
 /**
- * Execução financeira e remanejamentos.
+ * Estrutura generica de execução financeira e movimentações.
  *
  * `valorLiquido = valorPago − valorCancelado` (RN-12). Não é coluna: é conta.
  * `valorEmpenhado` fica de fora do líquido de propósito — empenho é compromisso,
  * não desembolso —, mas alimenta o indicador de comprometido, que é o que diz
- * quanto do orçamento já não está livre.
+ * quanto do orçamento já não está livre. Ela nao e usada pelo CAPES Global:
+ * nesse programa os pagamentos ocorrem diretamente na CAPES, sem caixa na UEA.
  */
 
 export const lancamentoExecucao = pgTable(
@@ -84,7 +85,11 @@ export const remanejamento = pgTable(
     temaDestinoId: uuid('tema_destino_id').references(() => areaTematica.id),
     ppgOrigemId: uuid('ppg_origem_id').references(() => ppg.id),
     ppgDestinoId: uuid('ppg_destino_id').references(() => ppg.id),
-    /** Ano de origem e destino: remanejar entre exercícios é permitido (Q6). */
+    /**
+     * Campos genericos para outros programas. No CAPES Global, a camada de
+     * dominio deve exigir mesmo ano e mesma tematica e apenas registrar o ato
+     * ja realizado na CAPES.
+     */
     anoOrigem: integer('ano_origem'),
     anoDestino: integer('ano_destino'),
     rubrica: rubricaEnum('rubrica').notNull(),
@@ -101,9 +106,8 @@ export const remanejamento = pgTable(
     index('remanejamento_status_idx').on(t.status),
     check('remanejamento_valor_ck', sql`${t.valor} > 0`),
     /**
-     * Sair de PROPOSTO exige documento de autorização. A regra da CAPES sobre o
-     * que pode ser remanejado ainda não existe (PEND-008/Q6b), mas o registro
-     * formal do ato é exigível de qualquer maneira.
+     * Sair de PROPOSTO exige evidência. No CAPES Global o Gerenciador não
+     * propõe nem autoriza: registra a movimentação e o documento, quando houver.
      */
     check(
       'remanejamento_autorizacao_ck',

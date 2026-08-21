@@ -228,11 +228,13 @@ export class ProgramasController {
     @Param('ciclo') nome: string,
     @Query('rubrica') rubrica?: string,
     @Query('ppgId') ppgId?: string,
+    @Query('ano') ano?: string,
   ) {
     const ciclo = await this.contexto.resolver(slug, nome);
     const linhas = await this.plano.listar(ciclo.cicloId, {
       rubrica: rubricaValida(rubrica),
       ppgId,
+      ano: anoValido(ano, ciclo.anos),
     });
 
     return { ciclo, linhas };

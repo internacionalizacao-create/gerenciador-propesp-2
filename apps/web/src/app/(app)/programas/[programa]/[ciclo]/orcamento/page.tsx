@@ -59,11 +59,10 @@ export default async function Orcamento({
       titulo="Orçamento"
       descricao={`Matriz de exercícios × áreas temáticas do ciclo ${ciclo.cicloNome}.`}
     >
-      <Aviso tom="info" titulo="Entrada e cálculo são coisas diferentes">
-        As colunas de <strong>orçamento</strong> vêm dos anexos das redes e são
-        campos de entrada. As de <strong>custo</strong>, <strong>saldo</strong> e{" "}
-        <strong>utilização</strong> são calculadas a partir do plano de
-        aplicação, e mudam sozinhas quando o plano muda. Nenhum total é gravado.
+      <Aviso tom="aviso" titulo="Manutenção ainda está a definir">
+        Todas as redes terão orçamento de manutenção, mas apenas a UNESP
+        informou valores. UFMG e UNICAMP aparecem como “A definir”; esses campos
+        não são tratados como R$ 0,00 nem entram no total conhecido.
       </Aviso>
 
       <Secao
@@ -164,7 +163,7 @@ export default async function Orcamento({
               </Celula>
               <Celula direita>
                 <Moeda
-                  valor={somarMoeda(
+                  valor={somarConhecido(
                     doAno(tematicas, anos[0]).map((t) => t.valorManutencao),
                   )}
                   forte
@@ -172,7 +171,7 @@ export default async function Orcamento({
               </Celula>
               <Celula direita>
                 <Moeda
-                  valor={somarMoeda(
+                  valor={somarConhecido(
                     doAno(tematicas, anos[0]).map((t) => t.valorMissoes),
                   )}
                   forte
@@ -244,15 +243,32 @@ export default async function Orcamento({
                   <Utilizacao fracao={linha.utilizacao} />
                 </Celula>
                 <Celula>
-                  <Selo
-                    tom={
-                      linha.statusOrcamento === "DEFINIDO" ? "sucesso" : "aviso"
-                    }
-                  >
-                    {linha.statusOrcamento === "DEFINIDO"
-                      ? "Definido"
-                      : "A definir"}
-                  </Selo>
+                  <div className="flex flex-col items-start gap-1.5">
+                    <Selo
+                      tom={
+                        linha.statusOrcamento === "DEFINIDO"
+                          ? "sucesso"
+                          : "aviso"
+                      }
+                    >
+                      Orçamento {linha.statusOrcamento === "DEFINIDO" ? "definido" : "a definir"}
+                    </Selo>
+                    <Selo
+                      tom={
+                        linha.statusComposicao === "APROVADA"
+                          ? "sucesso"
+                          : linha.statusComposicao === "EM_ELABORACAO"
+                            ? "info"
+                            : "aviso"
+                      }
+                    >
+                      Composição {linha.statusComposicao === "APROVADA"
+                        ? "aprovada"
+                        : linha.statusComposicao === "EM_ELABORACAO"
+                          ? "em elaboração"
+                          : "a definir"}
+                    </Selo>
+                  </div>
                 </Celula>
               </tr>
             );
@@ -270,4 +286,8 @@ export default async function Orcamento({
 
 function doAno(linhas: LinhaTematica[], ano: number) {
   return linhas.filter((l) => l.ano === ano);
+}
+
+function somarConhecido(valores: readonly (string | null)[]): string | null {
+  return valores.every((valor) => valor === null) ? null : somarMoeda(valores);
 }

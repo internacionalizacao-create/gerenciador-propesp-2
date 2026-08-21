@@ -28,7 +28,7 @@ export default async function Modalidades() {
   return (
     <Pagina
       titulo="Modalidades de bolsa"
-      descricao="Tipos de bolsa reconhecidos pelo sistema, com os destinos que o catálogo cobre para cada um."
+      descricao="Lista fechada do CAPES Global, com os destinos cobertos pelo catálogo oficial. Não é permitido cadastrar novas modalidades."
     >
       <Secao titulo="Modalidades">
         <Tabela

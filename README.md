@@ -53,8 +53,10 @@ O login é feito no Keycloak (Authorization Code + PKCE) e o Next atua como
 nunca chegam ao JavaScript do browser. A API valida o JWT contra o JWKS do realm
 e autoriza por permissão (`@RequirePermission('plano:write')`).
 
-Detalhes em **[docs/autenticacao.md](docs/autenticacao.md)**; visão geral do
-projeto para quem está chegando (ou para um LLM) em **[AGENTS.md](AGENTS.md)**.
+Comece pela **[arquitetura do sistema](docs/arquitetura-sistema.md)** para entender
+o negócio, os componentes e os principais fluxos. Detalhes de login ficam em
+**[docs/autenticacao.md](docs/autenticacao.md)**; convenções e estado atual do
+projeto para quem vai alterar o código ficam em **[AGENTS.md](AGENTS.md)**.
 
 ## Scripts (raiz)
 

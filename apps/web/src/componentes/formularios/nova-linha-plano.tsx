@@ -12,6 +12,8 @@ export function NovaLinhaDePlano({
   ppgs,
   areas,
   catalogo,
+  anos,
+  anoInicial,
 }: {
   programa: string;
   ciclo: string;
@@ -25,6 +27,8 @@ export function NovaLinhaDePlano({
     ppgIds: string[];
   }[];
   catalogo: ItemCatalogo[];
+  anos: number[];
+  anoInicial: number;
 }) {
   return (
     <AbrirSidesheet
@@ -41,6 +45,8 @@ export function NovaLinhaDePlano({
           ppgs={ppgs}
           areas={areas}
           catalogo={catalogo}
+          anos={anos}
+          anoInicial={anoInicial}
           aoConcluir={fechar}
         />
       )}

@@ -38,9 +38,7 @@ export function menu(programaSlug: string, cicloNome: string): GrupoMenu[] {
         {
           rotulo: "Bolsistas",
           href: "/mobilidade/bolsistas",
-          disponivel: false,
-          motivo:
-            "O dado individual do bolsista não existe nas planilhas de origem.",
+          disponivel: true,
         },
       ],
     },
@@ -49,7 +47,11 @@ export function menu(programaSlug: string, cicloNome: string): GrupoMenu[] {
       itens: [
         { rotulo: "Programas", href: "/programas", disponivel: true },
         { rotulo: "Ciclo atual", href: ciclo, disponivel: true },
-        { rotulo: "Redes e temáticas", href: `${ciclo}/redes`, disponivel: true },
+        {
+          rotulo: "Redes e temáticas",
+          href: `${ciclo}/redes`,
+          disponivel: true,
+        },
         { rotulo: "Orçamento", href: `${ciclo}/orcamento`, disponivel: true },
         {
           rotulo: "Plano de aplicação",
@@ -72,13 +74,14 @@ export function menu(programaSlug: string, cicloNome: string): GrupoMenu[] {
           href: `${ciclo}/execucao`,
           disponivel: false,
           motivo:
-            "A aba de origem está vazia: 100 linhas de gabarito, nenhum lançamento.",
+            "Fora do escopo do CAPES Global: os recursos são pagos diretamente pela CAPES e não entram no caixa da UEA.",
         },
         {
           rotulo: "Remanejamentos",
           href: `${ciclo}/remanejamentos`,
           disponivel: false,
-          motivo: "A aba de origem está vazia, e a regra do financiador é PEND-008.",
+          motivo:
+            "O Gerenciador apenas registrará movimentações já realizadas na CAPES, sempre dentro da mesma temática.",
         },
       ],
     },
@@ -112,13 +115,15 @@ export function menu(programaSlug: string, cicloNome: string): GrupoMenu[] {
           rotulo: "Produção",
           href: "/producao",
           disponivel: false,
-          motivo: "Fase 2 — depende de bolsas concedidas e convênios.",
+          motivo:
+            "Fase 2 — visão consolidada e vínculos com convênios; produtos individuais ficam em Bolsistas.",
         },
         {
           rotulo: "Relatórios",
           href: "/relatorios",
           disponivel: false,
-          motivo: "Depende dos módulos de execução e mobilidade.",
+          motivo:
+            "Precisa consolidar planejamento, bolsistas, documentos, produtos e movimentações registradas.",
         },
         {
           rotulo: "Importação",

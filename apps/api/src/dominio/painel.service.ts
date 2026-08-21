@@ -88,8 +88,8 @@ export class PainelService {
       await Promise.all([
         this.orcamento.porTematica(ciclo.cicloId),
         this.orcamento.porRede(ciclo.cicloId, anoBase),
-        this.porModalidade(ciclo.cicloId),
-        this.contagens(ciclo.cicloId),
+        this.porModalidade(ciclo.cicloId, anoBase),
+        this.contagens(ciclo.cicloId, anoBase),
         this.comiteGestorAnual(ciclo.cicloId),
       ]);
 
@@ -182,13 +182,20 @@ export class PainelService {
         aporte: somarMoeda(doAno.map((l) => l.totalPrevisto)),
         custoBolsas: somarMoeda(doAno.map((l) => l.custoBolsas)),
         custoApoio: somarMoeda(doAno.map((l) => l.custoApoio)),
-        saldoPotencial: somarMoeda(doAno.map((l) => l.saldoPotencial)),
+        saldoPotencial: doAno.some(
+          (linha) => linha.statusComposicao === 'APROVADA',
+        )
+          ? somarMoeda(doAno.map((l) => l.saldoPotencial))
+          : null,
         bolsas: doAno.reduce((total, l) => total + l.bolsas, 0),
       };
     });
   }
 
-  private async porModalidade(cicloId: string): Promise<LinhaModalidade[]> {
+  private async porModalidade(
+    cicloId: string,
+    anoBase: number,
+  ): Promise<LinhaModalidade[]> {
     return consultar<LinhaModalidade>(
       this.db,
       sql`
@@ -205,28 +212,32 @@ export class PainelService {
       )
       select m.nome                                     as "modalidade",
              ip.destino                                 as "destino",
-             sum(ip.quantidade_anual)::int              as "quantidadeAno",
-             sum(ip.quantidade_anual * ic.valor_brl)    as "custoAno",
+             sum(pa_ano.quantidade)::int                as "quantidadeAno",
+             sum(pa_ano.quantidade * ic.valor_brl)      as "custoAno",
              sum(c.quantidade)::int                     as "quantidadeCiclo",
              sum(c.custo)                               as "custoCiclo"
         from item_planejado      ip
         join item_catalogo_bolsa ic on ic.id = ip.item_catalogo_id
         join modalidade          m  on m.id  = ip.modalidade_id
         join no_ciclo            c  on c.id  = ip.id
+        join planejamento_anual pa_ano
+          on pa_ano.item_planejado_id = ip.id
+         and pa_ano.ano = ${anoBase}
        where ip.ciclo_id = ${cicloId}
          and ip.status   = 'PROGRAMADO'
        group by m.nome, ip.destino
-       order by sum(ip.quantidade_anual * ic.valor_brl) desc
+       order by sum(pa_ano.quantidade * ic.valor_brl) desc
     `,
     );
   }
 
-  private async contagens(cicloId: string) {
+  private async contagens(cicloId: string, anoBase: number) {
     const linha = await consultarUma<{
       ppgs: number;
       ppgsSemBolsa: number;
       pendenciasAbertas: number;
       tematicasSemOrcamento: number;
+      composicoesADefinir: number;
       bolsasIn: number;
       bolsasOut: number;
     }>(
@@ -254,13 +265,28 @@ export class PainelService {
           where rc.ciclo_id = ${cicloId}
             and at.status_orcamento = 'A_DEFINIR') as "tematicasSemOrcamento",
 
-        (select coalesce(sum(ip.quantidade_anual), 0)::int from item_planejado ip
-          where ip.ciclo_id = ${cicloId} and ip.status = 'PROGRAMADO'
-            and ip.fluxo = 'IN') as "bolsasIn",
+        (select count(*)::int
+           from orcamento_tematica o
+           join area_tematica at on at.id = o.area_tematica_id
+           join rede_coordenadora rc on rc.id = at.rede_id
+          where rc.ciclo_id = ${cicloId}
+            and o.ano = (select min(o2.ano) from orcamento_tematica o2
+                          join area_tematica at2 on at2.id = o2.area_tematica_id
+                          join rede_coordenadora rc2 on rc2.id = at2.rede_id
+                         where rc2.ciclo_id = ${cicloId})
+            and o.status_composicao <> 'APROVADA') as "composicoesADefinir",
 
-        (select coalesce(sum(ip.quantidade_anual), 0)::int from item_planejado ip
+        (select coalesce(sum(pa.quantidade), 0)::int
+           from planejamento_anual pa
+           join item_planejado ip on ip.id = pa.item_planejado_id
           where ip.ciclo_id = ${cicloId} and ip.status = 'PROGRAMADO'
-            and ip.fluxo = 'OUT') as "bolsasOut"
+            and pa.ano = ${anoBase} and ip.fluxo = 'IN') as "bolsasIn",
+
+        (select coalesce(sum(pa.quantidade), 0)::int
+           from planejamento_anual pa
+           join item_planejado ip on ip.id = pa.item_planejado_id
+          where ip.ciclo_id = ${cicloId} and ip.status = 'PROGRAMADO'
+            and pa.ano = ${anoBase} and ip.fluxo = 'OUT') as "bolsasOut"
     `,
     );
 
@@ -290,6 +316,7 @@ export class PainelService {
     contagens: {
       ppgsSemBolsa: number;
       tematicasSemOrcamento: number;
+      composicoesADefinir: number;
       pendenciasAbertas: number;
     },
   ): Alerta[] {
@@ -320,6 +347,19 @@ export class PainelService {
           'entrariam distorcendo medias e percentuais.',
         quantidade: contagens.tematicasSemOrcamento,
         destino: `${base}/redes`,
+      });
+    }
+
+    if (contagens.composicoesADefinir > 0) {
+      alertas.push({
+        chave: 'composicoes-a-definir',
+        nivel: 'ALTA',
+        titulo: 'Composições anuais ainda não aprovadas',
+        detalhe:
+          'O teto orçamentário existe, mas modalidades e quantidades ainda não ' +
+          'foram definidas. O valor não é apresentado como saldo livre.',
+        quantidade: contagens.composicoesADefinir,
+        destino: `${base}/plano`,
       });
     }
 

@@ -120,7 +120,7 @@ describe('Seed — aceite da migração CAPES Global 2027–2030', () => {
 
   // ------------------------------------------------------------------ //
   describe('orçamento', () => {
-    it('aporte anual conhecido = R$ 1.250.355,59', async () => {
+    it('aporte anual conhecido = R$ 2.315.444,58', async () => {
       const [{ total }] = await ctx.db
         .select({
           total: sql<string>`sum(
@@ -136,10 +136,10 @@ describe('Seed — aceite da migração CAPES Global 2027–2030', () => {
           ),
         );
 
-      expect(total).toBe('1250355.59');
+      expect(total).toBe('2315444.58');
     });
 
-    it('aporte do ciclo = R$ 5.001.422,36 (RN-09)', async () => {
+    it('aporte do ciclo = R$ 9.261.778,32 (RN-09)', async () => {
       const [{ total }] = await ctx.db
         .select({
           total: sql<string>`sum(
@@ -150,14 +150,23 @@ describe('Seed — aceite da migração CAPES Global 2027–2030', () => {
         .from(s.orcamentoTematica)
         .where(eq(s.orcamentoTematica.status, 'DEFINIDO'));
 
-      expect(total).toBe('5001422.36');
+      expect(total).toBe('9261778.32');
     });
 
-    it('4 temáticas sem orçamento definido, todas da UNICAMP', async () => {
+    it('4 composições de 2027 a definir, todas da UNICAMP', async () => {
       const pendentes = await ctx.db
         .selectDistinct({ codigo: s.areaTematica.codigo })
-        .from(s.areaTematica)
-        .where(eq(s.areaTematica.statusOrcamento, 'A_DEFINIR'));
+        .from(s.orcamentoTematica)
+        .innerJoin(
+          s.areaTematica,
+          eq(s.areaTematica.id, s.orcamentoTematica.areaTematicaId),
+        )
+        .where(
+          and(
+            eq(s.orcamentoTematica.ano, 2027),
+            eq(s.orcamentoTematica.statusComposicao, 'A_DEFINIR'),
+          ),
+        );
 
       expect(pendentes).toHaveLength(4);
       expect(pendentes.every((t) => t.codigo.startsWith('UNICAMP-'))).toBe(
@@ -165,10 +174,13 @@ describe('Seed — aceite da migração CAPES Global 2027–2030', () => {
       );
     });
 
-    it('temática A_DEFINIR guarda nulo, não zero', async () => {
-      // A diferença que impede a UNICAMP de baixar as médias do painel.
+    it('UNICAMP guarda orçamento de bolsas, mas manutenção nula', async () => {
       const [orc] = await ctx.db
-        .select({ valorBolsas: s.orcamentoTematica.valorBolsas })
+        .select({
+          valorBolsas: s.orcamentoTematica.valorBolsas,
+          valorManutencao: s.orcamentoTematica.valorManutencao,
+          statusComposicao: s.orcamentoTematica.statusComposicao,
+        })
         .from(s.orcamentoTematica)
         .innerJoin(
           s.areaTematica,
@@ -177,13 +189,15 @@ describe('Seed — aceite da migração CAPES Global 2027–2030', () => {
         .where(eq(s.areaTematica.codigo, 'UNICAMP-T1'))
         .limit(1);
 
-      expect(orc.valorBolsas).toBeNull();
+      expect(orc.valorBolsas).toBe('538291.22');
+      expect(orc.valorManutencao).toBeNull();
+      expect(orc.statusComposicao).toBe('A_DEFINIR');
     });
   });
 
   // ------------------------------------------------------------------ //
   describe('plano de bolsas', () => {
-    it('custo anual das bolsas = R$ 1.144.357,20', async () => {
+    it('custo aprovado de 2027 = R$ 1.033.513,40', async () => {
       const [{ total }] = await ctx.db
         .select({ total: custoAnualPorTematica })
         .from(s.itemPlanejado)
@@ -191,12 +205,17 @@ describe('Seed — aceite da migração CAPES Global 2027–2030', () => {
           s.itemCatalogoBolsa,
           eq(s.itemCatalogoBolsa.id, s.itemPlanejado.itemCatalogoId),
         )
-        .where(eq(s.itemPlanejado.cicloId, cicloId));
+        .where(
+          and(
+            eq(s.itemPlanejado.cicloId, cicloId),
+            eq(s.itemPlanejado.status, 'PROGRAMADO'),
+          ),
+        );
 
-      expect(total).toBe('1144357.20');
+      expect(total).toBe('1033513.40');
     });
 
-    it('custo anual por rede: UNESP R$ 624.867,50 e UFMG R$ 519.489,70', async () => {
+    it('custo aprovado por rede: UNESP R$ 636.531,80 e UFMG R$ 396.981,60', async () => {
       const porRede = await ctx.db
         .select({ rede: s.redeCoordenadora.nome, custo: custoAnualPorTematica })
         .from(s.itemPlanejado)
@@ -212,17 +231,18 @@ describe('Seed — aceite da migração CAPES Global 2027–2030', () => {
           s.redeCoordenadora,
           eq(s.redeCoordenadora.id, s.areaTematica.redeId),
         )
+        .where(eq(s.itemPlanejado.status, 'PROGRAMADO'))
         .groupBy(s.redeCoordenadora.nome);
 
       const mapa = Object.fromEntries(porRede.map((r) => [r.rede, r.custo]));
-      expect(mapa).toEqual({ UNESP: '624867.50', UFMG: '519489.70' });
+      expect(mapa).toEqual({ UNESP: '636531.80', UFMG: '396981.60' });
     });
 
-    it('25 bolsas por ano: 2 IN e 23 OUT (RN-11)', async () => {
+    it('22 bolsas aprovadas em 2027: 2 IN e 20 OUT (RN-11)', async () => {
       const porFluxo = await ctx.db
         .select({
           fluxo: s.itemPlanejado.fluxo,
-          // Soma de QUANTIDADES, não contagem de linhas: 23 linhas rendem 25 bolsas.
+          // Soma de QUANTIDADES, não contagem de linhas.
           bolsas: sql<number>`sum(${s.itemPlanejado.quantidadeAnual})::int`,
         })
         .from(s.itemPlanejado)
@@ -236,11 +256,11 @@ describe('Seed — aceite da migração CAPES Global 2027–2030', () => {
 
       const mapa = new Map(porFluxo.map((f) => [f.fluxo, f.bolsas]));
       expect(mapa.get('IN')).toBe(2);
-      expect(mapa.get('OUT')).toBe(23);
-      expect((mapa.get('IN') ?? 0) + (mapa.get('OUT') ?? 0)).toBe(25);
+      expect(mapa.get('OUT')).toBe(20);
+      expect((mapa.get('IN') ?? 0) + (mapa.get('OUT') ?? 0)).toBe(22);
     });
 
-    it('23 linhas de planejamento programadas — a contagem que gerou confusão', async () => {
+    it('18 linhas aprovadas em 2027', async () => {
       // O PNG de insight dizia 23 "bolsas"; eram linhas. Guardar os dois números
       // com nomes diferentes é o que impede o equívoco de voltar.
       const [{ linhas }] = await ctx.db
@@ -253,10 +273,10 @@ describe('Seed — aceite da migração CAPES Global 2027–2030', () => {
           ),
         );
 
-      expect(linhas).toBe(23);
+      expect(linhas).toBe(18);
     });
 
-    it('100 bolsas no ciclo', async () => {
+    it('não replica as 22 bolsas de 2027 nos anos futuros', async () => {
       const [{ total }] = await ctx.db
         .select({
           total: sql<number>`sum(${s.planejamentoAnual.quantidade})::int`,
@@ -268,10 +288,18 @@ describe('Seed — aceite da migração CAPES Global 2027–2030', () => {
         )
         .where(eq(s.itemPlanejado.status, 'PROGRAMADO'));
 
-      expect(total).toBe(100);
+      expect(total).toBe(22);
+
+      const [{ futuras }] = await ctx.db
+        .select({
+          futuras: sql<number>`sum(${s.planejamentoAnual.quantidade})::int`,
+        })
+        .from(s.planejamentoAnual)
+        .where(sql`${s.planejamentoAnual.ano} > 2027`);
+      expect(futuras).toBe(0);
     });
 
-    it('10 linhas da UNICAMP pendentes, sem catálogo e sem quantidade', async () => {
+    it('4 Capacitações da UFMG pendentes, com impacto tabelado', async () => {
       const pendentes = await ctx.db
         .select({
           codigo: s.itemPlanejado.codigo,
@@ -281,9 +309,9 @@ describe('Seed — aceite da migração CAPES Global 2027–2030', () => {
         .from(s.itemPlanejado)
         .where(eq(s.itemPlanejado.status, 'PENDENTE'));
 
-      expect(pendentes).toHaveLength(10);
-      expect(pendentes.every((p) => p.quantidade === 0)).toBe(true);
-      expect(pendentes.every((p) => p.catalogo === null)).toBe(true);
+      expect(pendentes).toHaveLength(4);
+      expect(pendentes.every((p) => p.quantidade === 1)).toBe(true);
+      expect(pendentes.every((p) => p.catalogo !== null)).toBe(true);
     });
 
     it('toda bolsa programada tem preço vindo do catálogo (RN-01)', async () => {
@@ -314,16 +342,17 @@ describe('Seed — aceite da migração CAPES Global 2027–2030', () => {
         .innerJoin(
           s.itemCatalogoBolsa,
           eq(s.itemCatalogoBolsa.id, s.itemPlanejado.itemCatalogoId),
-        );
+        )
+        .where(eq(s.itemPlanejado.status, 'PROGRAMADO'));
 
-      expect(linhas).toHaveLength(23);
+      expect(linhas).toHaveLength(18);
       expect(linhas.every((l) => Number(l.doCatalogo) > 0)).toBe(true);
     });
   });
 
   // ------------------------------------------------------------------ //
   describe('saldo e divergência', () => {
-    it('saldo potencial anual = R$ 36.247,25 (RN-06)', async () => {
+    it('saldo potencial aprovado de 2027 = R$ 147.091,05 (RN-06)', async () => {
       const custos = ctx.db
         .select({
           areaId: s.itemPlanejado.areaTematicaId,
@@ -334,6 +363,7 @@ describe('Seed — aceite da migração CAPES Global 2027–2030', () => {
           s.itemCatalogoBolsa,
           eq(s.itemCatalogoBolsa.id, s.itemPlanejado.itemCatalogoId),
         )
+        .where(eq(s.itemPlanejado.status, 'PROGRAMADO'))
         .groupBy(s.itemPlanejado.areaTematicaId)
         .as('custos');
 
@@ -349,14 +379,14 @@ describe('Seed — aceite da migração CAPES Global 2027–2030', () => {
         .where(
           and(
             eq(s.orcamentoTematica.ano, 2027),
-            eq(s.orcamentoTematica.status, 'DEFINIDO'),
+            eq(s.orcamentoTematica.statusComposicao, 'APROVADA'),
           ),
         );
 
-      expect(saldo).toBe('36247.25');
+      expect(saldo).toBe('147091.05');
     });
 
-    it('saldo potencial do ciclo = R$ 144.989,00', async () => {
+    it('não apresenta os anos sem composição como saldo livre', async () => {
       const custos = ctx.db
         .select({
           areaId: s.itemPlanejado.areaTematicaId,
@@ -367,6 +397,7 @@ describe('Seed — aceite da migração CAPES Global 2027–2030', () => {
           s.itemCatalogoBolsa,
           eq(s.itemCatalogoBolsa.id, s.itemPlanejado.itemCatalogoId),
         )
+        .where(eq(s.itemPlanejado.status, 'PROGRAMADO'))
         .groupBy(s.itemPlanejado.areaTematicaId)
         .as('custos');
 
@@ -379,15 +410,12 @@ describe('Seed — aceite da migração CAPES Global 2027–2030', () => {
           custos,
           eq(custos.areaId, s.orcamentoTematica.areaTematicaId),
         )
-        .where(eq(s.orcamentoTematica.status, 'DEFINIDO'));
+        .where(eq(s.orcamentoTematica.statusComposicao, 'APROVADA'));
 
-      expect(saldo).toBe('144989.00');
+      expect(saldo).toBe('147091.05');
     });
 
-    it('detecta as 2 divergências entre saldo calculado e informado (RN-08)', async () => {
-      // O sistema calcula o saldo e compara com o que o anexo alegava. As duas
-      // diferenças que aparecem — R$ 206,10 e R$ 11.005,49 — são exatamente a
-      // origem de PEND-001 e PEND-003, e o sistema tem que achá-las sozinho.
+    it('não mantém divergência depois da conciliação da UNESP-T1 (RN-08)', async () => {
       const custos = ctx.db
         .select({
           areaId: s.itemPlanejado.areaTematicaId,
@@ -398,6 +426,7 @@ describe('Seed — aceite da migração CAPES Global 2027–2030', () => {
           s.itemCatalogoBolsa,
           eq(s.itemCatalogoBolsa.id, s.itemPlanejado.itemCatalogoId),
         )
+        .where(eq(s.itemPlanejado.status, 'PROGRAMADO'))
         .groupBy(s.itemPlanejado.areaTematicaId)
         .as('custos');
 
@@ -426,24 +455,23 @@ describe('Seed — aceite da migração CAPES Global 2027–2030', () => {
           ),
         );
 
-      const mapa = Object.fromEntries(
-        divergentes.map((d) => [d.codigo, d.divergencia]),
-      );
-      expect(mapa).toEqual({
-        'UNESP-T3': '206.10',
-        'UNESP-T1': '11005.49',
-      });
+      expect(divergentes).toEqual([]);
     });
   });
 
   // ------------------------------------------------------------------ //
   describe('governança', () => {
-    it('14 pendências carregadas — e não as 10 que o painel anunciava', async () => {
+    it('preserva 14 pendências históricas, com 7 ainda abertas', async () => {
       const [{ total }] = await ctx.db
         .select({ total: sql<number>`count(*)::int` })
         .from(s.pendencia);
+      const [{ abertas }] = await ctx.db
+        .select({ abertas: sql<number>`count(*)::int` })
+        .from(s.pendencia)
+        .where(sql`${s.pendencia.status} <> 'RESOLVIDA'`);
 
       expect(total).toBe(14);
+      expect(abertas).toBe(7);
     });
 
     it('Comitê Gestor = R$ 381.333,00/ano e R$ 1.525.332,00 no ciclo (RN-14)', async () => {
@@ -478,8 +506,8 @@ describe('Seed — aceite da migração CAPES Global 2027–2030', () => {
         .from(s.orcamentoTematica)
         .where(eq(s.orcamentoTematica.ano, 2027));
 
-      expect(bolsas).toBe('1250355.59');
-      expect(bolsas).not.toBe('1631688.59');
+      expect(bolsas).toBe('2315444.58');
+      expect(bolsas).not.toBe('2696777.58');
     });
 
     it('registra as premissas e fontes documentais do modelo', async () => {
@@ -494,7 +522,7 @@ describe('Seed — aceite da migração CAPES Global 2027–2030', () => {
         p.item.toLowerCase().includes('cotação'),
       );
       expect(cotacao?.valor).toBe('6.59');
-      expect(fontes).toBe(2);
+      expect(fontes).toBe(4);
     });
 
     it('a cotação do catálogo é a mesma da premissa (RN-03)', async () => {
@@ -545,7 +573,7 @@ describe('Seed — aceite da migração CAPES Global 2027–2030', () => {
 
       // Sem a frase original, uma divergência futura não teria como ser
       // conferida contra a fonte.
-      expect(comTexto).toBe(23);
+      expect(comTexto).toBe(18);
     });
   });
 });

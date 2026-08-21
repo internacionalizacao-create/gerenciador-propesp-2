@@ -11,7 +11,13 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 
-import { dinheiro, id, statusOrcamentoEnum, timestamps } from './comum';
+import {
+  dinheiro,
+  id,
+  statusComposicaoAnualEnum,
+  statusOrcamentoEnum,
+  timestamps,
+} from './comum';
 import { instituicao } from './institucional';
 import { areaTematica, ciclo } from './programa';
 
@@ -44,13 +50,22 @@ export const orcamentoTematica = pgTable(
      *
      * Parece contradizer a regra de não guardar derivado, mas não é derivado
      * nosso: é a afirmação do anexo, guardada como evidência. RN-08 compara o
-     * saldo que o sistema calcula com este número, e é dessa comparação que
-     * saem as divergências de R$ 206,10 e R$ 11.005,49 (PEND-001 e PEND-003).
-     * Sem guardar a alegação, não haveria como detectá-las.
+     * saldo que o sistema calcula com este número. Foi dessa comparação que
+     * surgiram PEND-001 e PEND-003, depois conciliadas com a equipe. Sem guardar
+     * a alegação, não haveria como detectar uma divergência futura.
      */
     custoBolsasInformado: dinheiro('custo_bolsas_informado'),
     saldoInformado: dinheiro('saldo_informado'),
     status: statusOrcamentoEnum('status').notNull().default('A_DEFINIR'),
+    /**
+     * Orçamento aprovado e composição aprovada são fatos diferentes. A
+     * UNICAMP, por exemplo, já tem teto por temática, mas ainda não definiu as
+     * modalidades e quantidades. O status é manual porque a CAPES é a fonte do
+     * ato; o Gerenciador apenas o registra.
+     */
+    statusComposicao: statusComposicaoAnualEnum('status_composicao')
+      .notNull()
+      .default('A_DEFINIR'),
     fonte: varchar('fonte', { length: 200 }),
     observacoes: text('observacoes'),
     ...timestamps,

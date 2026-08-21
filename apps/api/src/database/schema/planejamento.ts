@@ -23,7 +23,9 @@ import {
   rubricaEnum,
   statusBolsaConcedidaEnum,
   statusItemPlanejadoEnum,
+  statusProdutoBolsaEnum,
   timestamps,
+  tipoProdutoBolsaEnum,
 } from './comum';
 import { itemCatalogoBolsa, modalidade } from './catalogo';
 import { instituicao, pais, pessoa, ppg } from './institucional';
@@ -136,8 +138,9 @@ export const itemPlanejado = pgTable(
     /**
      * Item de bolsa PROGRAMADO precisa estar resolvido no catálogo. É o que
      * garante que nenhum custo de bolsa venha de valor digitado (RN-01).
-     * `PENDENTE` escapa: são as 10 linhas da UNICAMP, que existem sem
-     * modalidade nem quantidade definidas.
+     * `PENDENTE` escapa para registrar propostas ainda não aprovadas. Quando a
+     * combinação já é conhecida, como nas quatro Capacitações da UFMG, ela
+     * continua vinculada ao catálogo para mostrar seu impacto potencial.
      */
     check(
       'item_planejado_bolsa_catalogo_ck',
@@ -204,6 +207,11 @@ export const bolsaConcedida = pgTable(
     instituicaoDestinoId: uuid('instituicao_destino_id').references(
       () => instituicao.id,
     ),
+    /** Texto preserva o destino quando ainda nao ha catalogo institucional. */
+    paisDestinoNome: varchar('pais_destino_nome', { length: 120 }),
+    instituicaoDestinoNome: varchar('instituicao_destino_nome', {
+      length: 240,
+    }),
     dataInicio: date('data_inicio').notNull(),
     dataFim: date('data_fim').notNull(),
     vigenciaMeses: meses('vigencia_meses').notNull(),
@@ -221,6 +229,41 @@ export const bolsaConcedida = pgTable(
     index('bolsa_concedida_item_idx').on(t.itemPlanejadoId),
     check('bolsa_concedida_periodo_ck', sql`${t.dataFim} >= ${t.dataInicio}`),
     check('bolsa_concedida_valor_ck', sql`${t.valorConcedido} >= 0`),
+  ],
+);
+
+/**
+ * Entrega cobrada individualmente de uma bolsa concedida.
+ *
+ * O prazo faz parte do registro desde a criação: guardar só o produto pronto
+ * permitiria contar publicações, mas não descobrir quem ainda deve uma entrega.
+ */
+export const produtoBolsa = pgTable(
+  'produto_bolsa',
+  {
+    id: id(),
+    bolsaConcedidaId: uuid('bolsa_concedida_id')
+      .notNull()
+      .references(() => bolsaConcedida.id, { onDelete: 'cascade' }),
+    tipo: tipoProdutoBolsaEnum('tipo').notNull(),
+    titulo: varchar('titulo', { length: 400 }).notNull(),
+    descricao: text('descricao'),
+    prazoEntrega: date('prazo_entrega').notNull(),
+    status: statusProdutoBolsaEnum('status').notNull().default('PREVISTO'),
+    dataEntrega: date('data_entrega'),
+    doi: varchar('doi', { length: 240 }),
+    link: varchar('link', { length: 500 }),
+    observacoes: text('observacoes'),
+    ...timestamps,
+  },
+  (t) => [
+    index('produto_bolsa_concessao_idx').on(t.bolsaConcedidaId),
+    index('produto_bolsa_prazo_idx').on(t.prazoEntrega),
+    index('produto_bolsa_status_idx').on(t.status),
+    check(
+      'produto_bolsa_entrega_ck',
+      sql`${t.status} not in ('ENTREGUE', 'VALIDADO') or ${t.dataEntrega} is not null`,
+    ),
   ],
 );
 
@@ -259,18 +302,29 @@ export const planejamentoAnualRelations = relations(
   }),
 );
 
-export const bolsaConcedidaRelations = relations(bolsaConcedida, ({ one }) => ({
-  item: one(itemPlanejado, {
-    fields: [bolsaConcedida.itemPlanejadoId],
-    references: [itemPlanejado.id],
+export const bolsaConcedidaRelations = relations(
+  bolsaConcedida,
+  ({ one, many }) => ({
+    item: one(itemPlanejado, {
+      fields: [bolsaConcedida.itemPlanejadoId],
+      references: [itemPlanejado.id],
+    }),
+    ppg: one(ppg, { fields: [bolsaConcedida.ppgId], references: [ppg.id] }),
+    pessoa: one(pessoa, {
+      fields: [bolsaConcedida.pessoaId],
+      references: [pessoa.id],
+    }),
+    paisDestino: one(pais, {
+      fields: [bolsaConcedida.paisDestinoId],
+      references: [pais.id],
+    }),
+    produtos: many(produtoBolsa),
   }),
-  ppg: one(ppg, { fields: [bolsaConcedida.ppgId], references: [ppg.id] }),
-  pessoa: one(pessoa, {
-    fields: [bolsaConcedida.pessoaId],
-    references: [pessoa.id],
-  }),
-  paisDestino: one(pais, {
-    fields: [bolsaConcedida.paisDestinoId],
-    references: [pais.id],
+);
+
+export const produtoBolsaRelations = relations(produtoBolsa, ({ one }) => ({
+  bolsaConcedida: one(bolsaConcedida, {
+    fields: [produtoBolsa.bolsaConcedidaId],
+    references: [bolsaConcedida.id],
   }),
 }));

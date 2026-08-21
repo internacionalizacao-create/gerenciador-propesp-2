@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 
 import {
-  Aviso,
   Cartao,
   Cartoes,
   Celula,
@@ -58,14 +57,6 @@ export default async function CatalogoDeBolsas({
       </Cartoes>
 
       <div className="mt-6" />
-
-      <Aviso tom="info" titulo="A versão vigente é imutável">
-        Um reajuste da CAPES cria uma <strong>versão nova</strong> e fecha a
-        anterior — a tabela em uso nunca é sobrescrita. Sem isso, uma bolsa já
-        planejada perderia a base de cálculo em que foi aprovada, e o
-        planejamento passado deixaria de ser auditável. Publicar versão é ato
-        exclusivo da PROPESP.
-      </Aviso>
 
       {tabela.referenciaNormativa ? (
         <p className="mb-8 text-sm text-muted">

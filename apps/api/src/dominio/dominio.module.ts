@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 
 import { CatalogoService } from './catalogo.service';
+import { BolsistasController } from './bolsistas.controller';
+import { BolsistasService } from './bolsistas.service';
 import { CicloService } from './ciclo.service';
 import { ContextoService } from './contexto.service';
 import { OrcamentoService } from './orcamento.service';
@@ -28,6 +30,7 @@ import { CatalogoController, PpgsController } from './ppgs.controller';
     PendenciasController,
     PpgsController,
     CatalogoController,
+    BolsistasController,
   ],
   providers: [
     ContextoService,
@@ -38,6 +41,7 @@ import { CatalogoController, PpgsController } from './ppgs.controller';
     CicloService,
     PpgsService,
     PendenciasService,
+    BolsistasService,
   ],
   exports: [ContextoService, OrcamentoService, PainelService, CatalogoService],
 })

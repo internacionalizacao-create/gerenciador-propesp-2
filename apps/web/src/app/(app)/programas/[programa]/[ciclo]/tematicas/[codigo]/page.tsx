@@ -62,8 +62,8 @@ export default async function DetalheDaTematica({
       {divergente ? (
         <Aviso tom="perigo" titulo="Divergência de saldo (RN-08)">
           O sistema calcula <Moeda valor={area.saldoPotencial} /> de saldo. O
-          anexo da rede informava <Moeda valor={area.saldoInformado} />. A
-          diferença é <Moeda valor={area.divergencia} /> e precisa de decisão.
+          valor de referência registrado é <Moeda valor={area.saldoInformado} />.
+          A diferença é <Moeda valor={area.divergencia} /> e precisa de decisão.
         </Aviso>
       ) : null}
 
@@ -237,7 +237,7 @@ export default async function DetalheDaTematica({
 
       <Secao
         titulo="Projeção plurianual"
-        descricao="A premissa vigente repete o valor nominal em todos os exercícios (RN-09), e o modelo permite mudar um ano sem quebrar os demais."
+        descricao="O teto nominal repete-se nos exercícios, mas cada composição anual é independente (RN-09)."
       >
         <Tabela
           colunas={[
