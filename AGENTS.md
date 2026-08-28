@@ -4,7 +4,7 @@ Documento de referência para quem (pessoa ou LLM) vai mexer neste repositório 
 tê-lo escrito. Descreve o que existe hoje, por que está assim, e o que ainda não
 existe. **Mantenha-o atualizado quando mudar arquitetura ou convenção.**
 
-Última revisão: 2026-08-20.
+Última revisão: 2026-08-27.
 
 ---
 
@@ -43,6 +43,7 @@ funcional completa, com as 23 páginas previstas, está em
 | Keycloak | 26.7.0 | container Docker, modo `start-dev` |
 | PostgreSQL | 17 | dois bancos: um do Keycloak e um com os dados de domínio da API |
 | Tailwind CSS | 4.x | tokens semânticos, ver §8 |
+| MUI X Charts | 9.x Community | visualizações; `@mui/material` e Emotion são apenas dependências de integração |
 
 ### Armadilhas de versão (leia antes de escrever código)
 
@@ -358,6 +359,14 @@ semânticos: `bg-surface`, `text-muted`, `border-border-strong`, `bg-danger-soft
 - `ThemeSynchronizer`, montado no layout raiz, acompanha mudanças do tema do
   sistema operacional quando a preferência salva é `system`; esse listener não
   deve ficar condicionado à presença visual do seletor.
+- **MUI fica restrito aos gráficos.** `@mui/x-charts` Community está instalado
+  com todos os tipos de gráfico dessa edição. `@mui/material`, Emotion e
+  `@mui/material-nextjs` existem porque são dependências da integração, não para
+  substituir os componentes e tokens próprios do sistema.
+- O `AppRouterCacheProvider` do adaptador para Next 16 fica no layout raiz com a
+  camada CSS `mui` abaixo de `components` e `utilities`. Ao criar um gráfico,
+  importe pelo subpath específico (por exemplo, `@mui/x-charts/BarChart`) e use
+  as variáveis semânticas de `globals.css` para cores, inclusive no tema escuro.
 
 ### Peças de interface que valem conhecer antes de criar outras
 
