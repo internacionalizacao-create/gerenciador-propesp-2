@@ -71,6 +71,13 @@
       "when": 1787288400000,
       "tag": "0009_confirma_pendencias_unicamp_fluxos",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1787627044214,
+      "tag": "0010_atualiza_orcamento_unicamp",
+      "breakpoints": true
     }
   ]
 }

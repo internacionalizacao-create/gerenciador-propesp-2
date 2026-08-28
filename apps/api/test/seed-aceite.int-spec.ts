@@ -193,11 +193,14 @@ describe('Seed — aceite da migração CAPES Global 2027–2030', () => {
       );
     });
 
-    it('UNICAMP guarda orçamento de bolsas, mas manutenção nula', async () => {
-      const [orc] = await ctx.db
+    it('UNICAMP guarda orçamento anual e utilizado sem criar a composição', async () => {
+      const orcamentos = await ctx.db
         .select({
+          codigo: s.areaTematica.codigo,
           valorBolsas: s.orcamentoTematica.valorBolsas,
+          custoBolsasInformado: s.orcamentoTematica.custoBolsasInformado,
           valorManutencao: s.orcamentoTematica.valorManutencao,
+          status: s.orcamentoTematica.status,
           statusComposicao: s.orcamentoTematica.statusComposicao,
         })
         .from(s.orcamentoTematica)
@@ -205,12 +208,48 @@ describe('Seed — aceite da migração CAPES Global 2027–2030', () => {
           s.areaTematica,
           eq(s.areaTematica.id, s.orcamentoTematica.areaTematicaId),
         )
-        .where(eq(s.areaTematica.codigo, 'UNICAMP-T1'))
-        .limit(1);
+        .where(
+          and(
+            eq(s.orcamentoTematica.ano, 2027),
+            sql`${s.areaTematica.codigo} like 'UNICAMP-%'`,
+          ),
+        )
+        .orderBy(s.areaTematica.codigo);
 
-      expect(orc.valorBolsas).toBe('538291.22');
-      expect(orc.valorManutencao).toBeNull();
-      expect(orc.statusComposicao).toBe('A_DEFINIR');
+      expect(orcamentos).toEqual([
+        {
+          codigo: 'UNICAMP-T1',
+          valorBolsas: '538291.22',
+          custoBolsasInformado: '530737.40',
+          valorManutencao: null,
+          status: 'DEFINIDO',
+          statusComposicao: 'A_DEFINIR',
+        },
+        {
+          codigo: 'UNICAMP-T2',
+          valorBolsas: '270894.75',
+          custoBolsasInformado: '331122.00',
+          valorManutencao: null,
+          status: 'DEFINIDO',
+          statusComposicao: 'A_DEFINIR',
+        },
+        {
+          codigo: 'UNICAMP-T3',
+          valorBolsas: '96835.65',
+          custoBolsasInformado: '97308.80',
+          valorManutencao: null,
+          status: 'DEFINIDO',
+          statusComposicao: 'A_DEFINIR',
+        },
+        {
+          codigo: 'UNICAMP-T4',
+          valorBolsas: '159067.37',
+          custoBolsasInformado: '173690.60',
+          valorManutencao: null,
+          status: 'DEFINIDO',
+          statusComposicao: 'A_DEFINIR',
+        },
+      ]);
     });
   });
 

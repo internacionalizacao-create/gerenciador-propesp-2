@@ -166,36 +166,40 @@ const tematicasAtualizadas: Record<string, Partial<TematicaBruta>> = {
     valorBolsas: '538291.22',
     valorManutencao: null,
     valorMissoes: null,
+    custoBolsasInformado: '530737.40',
     nome: 'Saúde, Natureza e Sociedade',
     observacoes:
-      'Orçamento de bolsas aprovado. PPGs são apenas elegíveis; modalidades, distribuição, beneficiários e manutenção ainda estão a definir.',
+      'Orçamento anual e valor utilizado de 2027 informados pelo Comitê UNICAMP. A composição de bolsas será cadastrada manualmente; manutenção permanece a definir.',
   },
   'UNICAMP-T2': {
     statusOrcamento: 'DEFINIDO',
     valorBolsas: '270894.75',
     valorManutencao: null,
     valorMissoes: null,
+    custoBolsasInformado: '331122.00',
     nome: 'Educação, Saberes e Culturas',
     observacoes:
-      'Orçamento de bolsas aprovado. PPGs são apenas elegíveis; modalidades, distribuição, beneficiários e manutenção ainda estão a definir.',
+      'Orçamento anual e valor utilizado de 2027 informados pelo Comitê UNICAMP. A composição de bolsas será cadastrada manualmente; manutenção permanece a definir.',
   },
   'UNICAMP-T3': {
     statusOrcamento: 'DEFINIDO',
     valorBolsas: '96835.65',
     valorManutencao: null,
     valorMissoes: null,
+    custoBolsasInformado: '97308.80',
     nome: 'Biodiversidade e Transformação Territorial Sustentável',
     observacoes:
-      'Orçamento de bolsas aprovado. PPGs são apenas elegíveis; modalidades, distribuição, beneficiários e manutenção ainda estão a definir.',
+      'Orçamento anual e valor utilizado de 2027 informados pelo Comitê UNICAMP. A composição de bolsas será cadastrada manualmente; manutenção permanece a definir.',
   },
   'UNICAMP-T4': {
     statusOrcamento: 'DEFINIDO',
     valorBolsas: '159067.37',
     valorManutencao: null,
     valorMissoes: null,
+    custoBolsasInformado: '173690.60',
     nome: 'Direitos Humanos, Justiça Social e Equidade',
     observacoes:
-      'Orçamento de bolsas aprovado. PPGs são apenas elegíveis; modalidades, distribuição, beneficiários e manutenção ainda estão a definir.',
+      'Orçamento anual e valor utilizado de 2027 informados pelo Comitê UNICAMP. A composição de bolsas será cadastrada manualmente; manutenção permanece a definir.',
   },
 };
 
@@ -294,7 +298,7 @@ const pendenciasResolvidas: Record<string, string> = {
 
 export const dadosCapesGlobal: DadosCapesGlobal = {
   ...dadosOriginais,
-  _origem: `${dadosOriginais._origem}; Planejamento_CAPES_Global_2027_2030_Atualizado_UNICAMP_UFMG.xlsx; respostas da equipe técnica`,
+  _origem: `${dadosOriginais._origem}; Planejamento_CAPES_Global_2027_2030_Atualizado_UNICAMP_UFMG.xlsx; Comitê por Área Temática - UNICAMP (2026-08-24); respostas da equipe técnica`,
   tematicas: dadosOriginais.tematicas.map((tematica) => ({
     ...tematica,
     ...tematicasAtualizadas[tematica.codigo],

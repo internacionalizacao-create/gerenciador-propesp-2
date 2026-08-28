@@ -1443,8 +1443,11 @@ consulta, nunca digitados.
 
 ### 9.9 UNICAMP: orçamento aprovado, composição pendente
 A planilha atualizada define R$ 1.065.089,00/ano em bolsas para a UNICAMP e lista
-10 PPGs elegíveis. Ainda não define modalidades, quantidades, vigências, datas nem
-beneficiários.
+10 PPGs elegíveis. A imagem do Comitê por Área Temática recebida em 24/08/2026
+também informa, para 2027, orçamento utilizado de R$ 530.737,40 (T1),
+R$ 331.122,00 (T2), R$ 97.308,80 (T3) e R$ 173.690,60 (T4). Esses valores são
+preservados como alegação da fonte; as modalidades, quantidades, vigências, datas
+e beneficiários serão cadastrados manualmente no Gerenciador.
 → **Decisão:** orçamento e composição têm estados separados. O teto entra no aporte,
 mas não vira saldo livre e não gera linhas artificiais enquanto a composição estiver
 `A_DEFINIR`.
