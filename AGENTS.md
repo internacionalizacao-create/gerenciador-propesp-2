@@ -4,7 +4,7 @@ Documento de referência para quem (pessoa ou LLM) vai mexer neste repositório 
 tê-lo escrito. Descreve o que existe hoje, por que está assim, e o que ainda não
 existe. **Mantenha-o atualizado quando mudar arquitetura ou convenção.**
 
-Última revisão: 2026-08-27.
+Última revisão: 2026-08-30.
 
 ---
 
@@ -250,8 +250,8 @@ errada ou o dado migrou sujo.
 
 `smoke:telas` fecha o círculo do outro lado: faz login de verdade, abre cada
 tela e procura os números na resposta HTML. É o que impede um serviço correto de
-ficar invisível por causa de um erro na página — e é a única cobertura da
-interface enquanto a `web` não tiver runner de teste.
+ficar invisível por causa de um erro na página. A `web` também roda regressões
+pequenas em `node:test`; o smoke continua sendo a cobertura das páginas completas.
 
 ---
 
@@ -403,7 +403,7 @@ o ícone estiver visível.
 - **Seed com os dados reais** das planilhas e respostas formais
   ([apps/api/src/database/seed/](apps/api/src/database/seed/)): 24 PPGs, 60 itens
   de catálogo, 23 linhas de plano (18 aprovadas, 4 UFMG pendentes e 1 cancelada),
-  48 orçamentos anuais e 14 pendências históricas (6 abertas).
+  48 orçamentos anuais e 14 pendências históricas (5 abertas).
 - **Serviços de cálculo**: RN-01 a RN-20 em
   [apps/api/src/dominio/](apps/api/src/dominio/), todos em SQL e sem nenhum
   derivado persistido. A API expõe programas, ciclo, redes, temáticas, orçamento,
@@ -412,11 +412,14 @@ o ícone estiver visível.
 - **Telas de planejamento**: P01, P05, P06, P07, P08, P09, P10, P13, P14, P15,
   P17 e as configurações da conta. Cadastro de PPG e de linha de plano em
   sidesheet com formulário em etapas; pendência em sidesheet simples.
+- **Edição anual de orçamento**: P09 permite ao `admin` alterar as três rubricas
+  de uma área temática em um exercício, registrar fonte, situação, justificativa
+  e auditoria por campo. O consolidado da rede continua calculado.
 - **Premissas e fontes internas (antiga P16)**: a página foi retirada da interface.
   Tabelas, seed e endpoint permanecem para rastreabilidade e futuro uso em P22;
   decisões confirmadas ficam em [system-structl.md](system-structl.md).
 - **Recorte inicial de Bolsistas (P03)**: concessão individual a partir de uma linha planejada, com
-  vaga por exercício, CPF, destino, datas completas, alertas temporais, regra de uma
+  vaga por exercício, CPF, origem e destino, datas completas, alertas temporais, regra de uma
   modalidade por CPF/ciclo e cadastro/acompanhamento de produtos por pessoa. Não há
   seed de beneficiários porque a planilha não os traz.
 
@@ -429,7 +432,8 @@ interface é **Coordenador de Temática**, não “membro do comitê”. Ediçã
 existente exige `plano:edit` (só `admin`), preserva código/rubrica e grava uma
 entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: somente
 2027 vem composto; 2028–2030 começam vazios e nunca copiam a quantidade automaticamente.
-- **Testes**: 26 unitários + 106 de integração contra Postgres real.
+- **Testes**: 35 unitários (27 API + 8 regressões na web para toast, datas e
+  erros do multistep) + 107 de integração contra Postgres real.
 - Smoke de login (`pnpm smoke:login`) e de telas (`pnpm smoke:telas`) ponta a
   ponta; CI de lint/build/test.
 
@@ -447,8 +451,6 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
 - Relatórios (P20), importação com adaptador por programa (P21), documentos e
   evidências (P22), convênios e produção consolidada (P18/P19, fase 2). Produtos
   individuais por bolsa já existem em P03.
-- Edição de orçamento pela interface. Hoje o orçamento entra pela seed; a tela é
-  de leitura, com célula de entrada e célula calculada já distinguidas.
 - **Escopo por PPG na autorização.** `coordenador` é global, não "coordenador do
   PPGDA". Continua sendo o próximo ponto de pressão: coordenadores lançam dados
   desde o MVP ([system-structl.md](system-structl.md) §3.5), toda entidade já
@@ -457,11 +459,13 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
 - Vínculo entre o `sub` do Keycloak e um registro local de `pessoa`. A identidade
   vive só no token; o provisionamento (JIT no primeiro login é o usual) ainda
   precisa ser decidido.
-- Testes na `web` (não há runner configurado no app web — o que cobre a interface
-  hoje é `pnpm smoke:telas`).
+- Cobertura ampla de componentes na `web`; hoje há oito regressões em
+  `node:test` (toast, conversão/validação de datas e erros do multistep), além do
+  `pnpm smoke:telas` para as páginas.
 - Upload/versionamento e política de acesso dos documentos pessoais, além do
   histórico de cancelamento, desistência, falecimento e substituição.
-- Rate limiting, logs de auditoria populados, observabilidade.
+- Rate limiting, auditoria abrangente fora das edições de plano/orçamento e
+  observabilidade.
 - Qualquer configuração de produção: HTTPS, segredos fora do repositório,
   Keycloak em modo `start` (não `start-dev`), origem de sessão externa.
 

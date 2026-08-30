@@ -20,7 +20,11 @@ import { DRIZZLE, type Database } from '../database/database.module';
 import * as s from '../database/schema';
 import { CicloService } from './ciclo.service';
 import { ContextoService } from './contexto.service';
-import { OrcamentoService } from './orcamento.service';
+import {
+  atualizarOrcamentoSchema,
+  OrcamentoService,
+  type AtualizarOrcamento,
+} from './orcamento.service';
 import { PainelService } from './painel.service';
 import {
   atualizarPendenciaSchema,
@@ -219,6 +223,25 @@ export class ProgramasController {
     ]);
 
     return { ciclo, tematicas, redes };
+  }
+
+  /** Registra alteracao formal do orcamento de uma tematica em um exercicio. */
+  @Patch(':programa/:ciclo/orcamento/:id')
+  @RequirePermission('orcamento:write')
+  async atualizarOrcamento(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(atualizarOrcamentoSchema))
+    dto: AtualizarOrcamento,
+    @CurrentUser() usuario: AuthUser,
+  ) {
+    return this.orcamento.atualizar(
+      await this.contexto.resolver(slug, nome),
+      id,
+      dto,
+      usuario,
+    );
   }
 
   /** P10 · plano de aplicacao nas tres rubricas. */

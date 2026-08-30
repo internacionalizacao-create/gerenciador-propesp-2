@@ -4,7 +4,7 @@ Especificação funcional e de dados do sistema que substitui as planilhas hoje 
 pela PROPESP/UEA para gerir bolsas, orçamento e mobilidade internacional da
 pós-graduação.
 
-**Última revisão:** 2026-08-20
+**Última revisão:** 2026-08-30
 **Fontes:** `dados/levamtamento de bolsas/`, incluindo a planilha atualizada
 `Planejamento_CAPES_Global_2027_2030_Atualizado_UNICAMP_UFMG.xlsx`;
 `dados/remanejamento/Guia_Orientacoes_Remanejamento_Transformacao_CAPES_Global final (1).pdf`;
@@ -342,7 +342,9 @@ publicoAlvo (DOCENTE | DISCENTE | POS_DOC | AMBOS) · ativa
 ```
 
 **`TabelaValores`** — versão do catálogo. Existe porque a CAPES pode reajustar
-(pendência `PEND-007`), e o histórico não pode ser sobrescrito.
+valores. A `PEND-007`, que registrava esse risco, foi resolvida quando orçamento
+por exercício, justificativa e auditoria passaram a existir; o histórico continua
+sem poder ser sobrescrito.
 ```
 id PK · programaId FK · versao · dataBase · cotacaoDolar (6.59)
 referenciaNormativa ("Portaria nº 1/2020; Portaria nº 33/2023")
@@ -456,6 +458,8 @@ id PK · itemPlanejadoId FK · ano · quantidade
 id PK · itemPlanejadoId FK? · ppgId FK · pessoaId FK
 programaId FK · cicloId FK · modalidadeId FK · destino
 nivelBeneficiario (MESTRADO | DOUTORADO | POS_DOC | DOCENTE | MOBILIDADE_BREVE)
+origem: paisOrigemId FK? · instituicaoOrigemId FK?
+paisOrigemNome · instituicaoOrigemNome
 paisDestinoId FK? · instituicaoDestinoId FK?
 paisDestinoNome · instituicaoDestinoNome
 dataInicio · dataFim · vigenciaMeses · valorConcedido
@@ -467,9 +471,9 @@ processo? · observacoes?
 > chegar sem passar por planejamento nesta ferramenta. Quando preenchido, aponta
 > obrigatoriamente para um item de `rubrica = BOLSAS`.
 > `nivelBeneficiario` inclui `MOBILIDADE_BREVE`, termo que veio da sua anotação.
-> Para o CAPES Global, CPF, país e universidade/instituição de destino são
-> obrigatórios no cadastro. O texto de destino é preservado mesmo antes de existir
-> um catálogo completo de instituições.
+> Para o CAPES Global, CPF, país e universidade/instituição de origem e de destino
+> são obrigatórios no cadastro. Os textos são preservados mesmo antes de existir um
+> catálogo completo de instituições.
 
 **`ProdutoBolsa`** — entrega cobrada de um bolsista específico.
 ```
@@ -843,11 +847,13 @@ auditável dos estados externos, retorno e justificativa estruturada de cancelam
 **Regras**
 - Ao conceder, exige uma vaga no `PlanejamentoAnual` do ano da data inicial e
   impede consumo concorrente ou acima da quantidade planejada.
-- As datas de início e fim são completas e alimentam os alertas da RN-16.
+- As datas de início e fim são completas, aparecem como `DD/MM/AAAA` na
+  interface e alimentam os alertas da RN-16. A API e o banco continuam usando
+  `AAAA-MM-DD`, com conversão sem fuso na Server Action.
 - Produto aberto com prazo vencido alimenta o alerta individual da RN-17.
 - CPF é obrigatório e um mesmo CPF não pode usar modalidades diferentes dentro
   do ciclo 2027–2030 (RN-18).
-- País e universidade/instituição de destino são obrigatórios.
+- País e universidade/instituição de origem e de destino são obrigatórios.
 - O status é informado manualmente pela equipe; confirmação do beneficiário vem
   do resultado final do edital, não de um protocolo do Gerenciador.
 - Devem ser anexáveis RG antigo ou CIN, CPF, passaporte, comprovante de residência,
@@ -887,7 +893,7 @@ interface nem aceitam acesso por rota.
 Página-índice do ciclo criada a partir da função de navegação que a aba `Premissas`
 exercia na planilha. Exibe cartões de atalho para redes, orçamento, plano de bolsas,
 movimentações externas, pendências e comitê gestor — cada um com um número vivo
-(ex.: "Pendências · 6 abertas").
+(ex.: "Pendências · 5 abertas").
 
 Inclui a **legenda de uso** herdada da planilha, traduzida para o sistema:
 | Planilha | Sistema |
@@ -904,8 +910,8 @@ Inclui a **legenda de uso** herdada da planilha, traduzida para o sistema:
 
 **Blocos**
 1. Cartões por rede: orçamento anual, temáticas, PPGs, status, IN/OUT.
-2. Tabela de áreas temáticas agrupada por rede. Colunas: código, área, membro(s) do
-   Coordenadores de Temática por PPG, PPGs, status, orçamento
+2. Tabela de áreas temáticas agrupada por rede. Colunas: código, área, PPGs
+   contemplados, Coordenadores de Temática por PPG, quantidade de PPGs no tema, orçamento
    (bolsas/manutenção/missões/total), custo calculado,
    custo informado, saldo e utilização. A divergência não ocupa uma coluna fixa.
 
@@ -946,7 +952,8 @@ são feitos diretamente pela CAPES.
 
 **Modos de visualização** por ano · por rede · por temática · consolidado do ciclo.
 
-**Ações previstas** registrar o orçamento formalmente aprovado · exportar. O teto
+**Ações** registrar o orçamento formalmente aprovado por área temática e exercício,
+com fonte, justificativa e auditoria por campo · exportar (previsto). O teto
 nominal pode repetir-se nos quatro anos, mas a composição de bolsas nunca é replicada
 automaticamente.
 
@@ -1309,7 +1316,7 @@ comportamento real e a migração seja verificável.
 | `OrcamentoComiteGestor` | 12 | 3 redes × 4 anos |
 | `Premissa` | 5 | `Premissas` — a aba lista 6 itens, mas "Atualização monetária" vem **sem valor**; ele é na verdade `PEND-007`, não uma premissa |
 | `FonteDocumental` | 4 | anexos Brasil/exterior + guia de remanejamento + planejamento atualizado |
-| `Pendencia` | 14 | histórico preservado; 8 resolvidas e 6 abertas |
+| `Pendencia` | 14 | histórico preservado; 9 resolvidas e 5 abertas |
 | `LancamentoExecucao` | 0 | estrutura genérica; não aplicável ao CAPES Global |
 | `Remanejamento` | 0 | estrutura genérica; registro externo ainda não implementado |
 | `BolsaConcedida` | 0 | a fonte não informa beneficiários; cadastro começa vazio |
@@ -1517,7 +1524,7 @@ Sucupira/CAPES · Lattes · sistema financeiro institucional · SSO com o diret�
     2027–2030.
 15. [x] Beneficiários são confirmados pela PROPESP com base no resultado final do
     edital. O Gerenciador ignora solicitação ou acompanhamento de protocolo CAPES.
-16. [x] País e universidade/instituição de destino são registrados por bolsista.
+16. [x] País e universidade/instituição de origem e de destino são registrados por bolsista.
 17. [x] Produtos, artigos, trabalhos e projetos são cadastrados e acompanhados
     individualmente por bolsa concedida.
 18. [x] Para todos os bolsistas serão armazenados documentos pessoais (RG antigo

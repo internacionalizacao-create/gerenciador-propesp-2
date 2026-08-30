@@ -56,7 +56,10 @@ export class CicloService {
       this.orcamento.porTematica(ciclo.cicloId, ano),
     ]);
 
-    const coordenadores = await this.coordenadoresPorTematica(ciclo.cicloId);
+    const [coordenadores, participacoes] = await Promise.all([
+      this.coordenadoresPorTematica(ciclo.cicloId),
+      this.ppgsPorTematica(ciclo.cicloId),
+    ]);
 
     return {
       ano,
@@ -67,6 +70,13 @@ export class CicloService {
           .map((t) => ({
             ...t,
             coordenadores: coordenadores.get(t.areaTematicaId) ?? [],
+            ppgsContemplados: (participacoes.get(t.areaTematicaId) ?? [])
+              .filter((participacao) => participacao.situacao === 'CONTEMPLADO')
+              .map(({ ppgId, ppgSigla, ppgNome }) => ({
+                ppgId,
+                ppgSigla,
+                ppgNome,
+              })),
           })),
       })),
     };
@@ -227,6 +237,37 @@ export class CicloService {
       )
       .where(eq(s.redeCoordenadora.cicloId, cicloId))
       .orderBy(asc(s.pessoa.nome), asc(s.ppg.sigla));
+
+    const mapa = new Map<string, typeof linhas>();
+    for (const linha of linhas) {
+      const atual = mapa.get(linha.areaTematicaId) ?? [];
+      atual.push(linha);
+      mapa.set(linha.areaTematicaId, atual);
+    }
+    return mapa;
+  }
+
+  private async ppgsPorTematica(cicloId: string) {
+    const linhas = await this.db
+      .select({
+        areaTematicaId: s.participacaoPpg.areaTematicaId,
+        ppgId: s.participacaoPpg.ppgId,
+        ppgSigla: s.ppg.sigla,
+        ppgNome: s.ppg.nome,
+        situacao: s.participacaoPpg.situacao,
+      })
+      .from(s.participacaoPpg)
+      .innerJoin(s.ppg, eq(s.ppg.id, s.participacaoPpg.ppgId))
+      .innerJoin(
+        s.areaTematica,
+        eq(s.areaTematica.id, s.participacaoPpg.areaTematicaId),
+      )
+      .innerJoin(
+        s.redeCoordenadora,
+        eq(s.redeCoordenadora.id, s.areaTematica.redeId),
+      )
+      .where(eq(s.redeCoordenadora.cicloId, cicloId))
+      .orderBy(asc(s.ppg.nome));
 
     const mapa = new Map<string, typeof linhas>();
     for (const linha of linhas) {

@@ -12,10 +12,7 @@ export type Destino = "BRASIL" | "EXTERIOR";
 export type Fluxo = "IN" | "OUT";
 export type Rubrica = "BOLSAS" | "MANUTENCAO" | "MISSOES";
 export type StatusOrcamento = "DEFINIDO" | "A_DEFINIR";
-export type StatusComposicaoAnual =
-  | "A_DEFINIR"
-  | "EM_ELABORACAO"
-  | "APROVADA";
+export type StatusComposicaoAnual = "A_DEFINIR" | "EM_ELABORACAO" | "APROVADA";
 export type OrigemValor = "CATALOGO" | "ESTIMADO" | "INDEFINIDO";
 
 export interface Me {
@@ -65,6 +62,7 @@ export interface CoordenadorTematica {
 }
 
 export interface LinhaTematica {
+  orcamentoId: string;
   areaTematicaId: string;
   codigo: string;
   nome: string;
@@ -76,6 +74,8 @@ export interface LinhaTematica {
   valorBolsas: string | null;
   valorManutencao: string | null;
   valorMissoes: string | null;
+  fonte: string | null;
+  observacoes: string | null;
   apoio: string | null;
   totalPrevisto: string | null;
   custoBolsas: string;
@@ -254,6 +254,8 @@ export interface BolsaConcedidaResumo {
   cpf: string | null;
   modalidade: string;
   destino: Destino;
+  paisOrigem: string | null;
+  instituicaoOrigem: string | null;
   paisDestino: string | null;
   instituicaoDestino: string | null;
   nivelBeneficiario:

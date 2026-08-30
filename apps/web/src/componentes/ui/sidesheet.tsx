@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
 /**
  * Painel lateral de cadastro (o "sidesheet" do protótipo, slide 4).
@@ -87,7 +94,7 @@ export function Sidesheet({
       }}
       className={`
         ml-auto mr-0 my-0 h-dvh max-h-dvh w-full rounded-none border-l
-        border-border bg-surface p-0 text-foreground shadow-2xl
+        border-border bg-surface p-0 text-left text-foreground shadow-2xl
         backdrop:bg-foreground/30 backdrop:backdrop-blur-sm
         ${largura === "larga" ? "max-w-3xl" : "max-w-xl"}
       `}
@@ -96,7 +103,10 @@ export function Sidesheet({
           pode quebrar em duas linhas sem descolar o rodapé. */}
       <div className="flex h-dvh flex-col">
         <header className="relative flex items-start justify-between gap-4 border-b border-border px-6 py-5">
-          <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-primary" />
+          <span
+            aria-hidden="true"
+            className="absolute inset-y-0 left-0 w-1 bg-primary"
+          />
           <div>
             <h2
               id={tituloId}
@@ -156,6 +166,7 @@ export function AbrirSidesheet({
 }) {
   const [aberto, setAberto] = useState(false);
   const [conteudoMontado, setConteudoMontado] = useState(false);
+  const fechar = useCallback(() => setAberto(false), []);
 
   function abrir() {
     setConteudoMontado(true);
@@ -178,7 +189,7 @@ export function AbrirSidesheet({
 
       <Sidesheet
         aberto={aberto}
-        aoFechar={() => setAberto(false)}
+        aoFechar={fechar}
         aoTerminarFechamento={() => setConteudoMontado(false)}
         titulo={titulo}
         descricao={descricao}
@@ -187,7 +198,7 @@ export function AbrirSidesheet({
         {/* Remontar a cada abertura zera o formulário: reabrir um cadastro e
             encontrar o que foi digitado antes é como se grava um dado errado
             sem perceber. */}
-        {conteudoMontado ? children(() => setAberto(false)) : null}
+        {conteudoMontado ? children(fechar) : null}
       </Sidesheet>
     </>
   );

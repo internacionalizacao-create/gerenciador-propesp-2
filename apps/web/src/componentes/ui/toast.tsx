@@ -11,6 +11,7 @@ import {
 } from "react";
 
 import type { EstadoDaAcao } from "@/lib/acao-tipos";
+import { deveNotificarAcao } from "./toast-logica";
 
 type TomDoToast = "sucesso" | "erro" | "aviso" | "info";
 
@@ -68,7 +69,9 @@ const ESTILOS: Record<
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastInterno[]>([]);
   const proximoId = useRef(0);
-  const temporizadores = useRef(new Map<number, ReturnType<typeof setTimeout>>());
+  const temporizadores = useRef(
+    new Map<number, ReturnType<typeof setTimeout>>(),
+  );
 
   const fecharToast = useCallback((id: number) => {
     const temporizador = temporizadores.current.get(id);
@@ -180,7 +183,16 @@ function Toast({
 function Icone({ tom }: { tom: TomDoToast }) {
   if (tom === "sucesso") {
     return (
-      <svg aria-hidden="true" viewBox="0 0 20 20" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 20 20"
+        className="size-4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="m5 10 3 3 7-7" />
       </svg>
     );
@@ -188,7 +200,15 @@ function Icone({ tom }: { tom: TomDoToast }) {
 
   if (tom === "erro") {
     return (
-      <svg aria-hidden="true" viewBox="0 0 20 20" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 20 20"
+        className="size-4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      >
         <path d="m6.5 6.5 7 7m0-7-7 7" />
       </svg>
     );
@@ -196,7 +216,16 @@ function Icone({ tom }: { tom: TomDoToast }) {
 
   if (tom === "aviso") {
     return (
-      <svg aria-hidden="true" viewBox="0 0 20 20" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 20 20"
+        className="size-4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M10 3 18 17H2L10 3Z" />
         <path d="M10 8v4m0 2.5v.01" />
       </svg>
@@ -204,7 +233,15 @@ function Icone({ tom }: { tom: TomDoToast }) {
   }
 
   return (
-    <svg aria-hidden="true" viewBox="0 0 20 20" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      className="size-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+    >
       <circle cx="10" cy="10" r="7" />
       <path d="M10 9v5m0-8v.01" />
     </svg>
@@ -225,14 +262,13 @@ export function useToast() {
  * Erros continuam no formulario, proximos aos campos; o toast confirma o
  * sucesso depois que o formulario e o sidesheet deixam a tela.
  */
-export function useToastDaAcao(
-  estado: EstadoDaAcao,
-  aoConcluir: () => void,
-) {
+export function useToastDaAcao(estado: EstadoDaAcao, aoConcluir: () => void) {
   const { mostrarToast } = useToast();
+  const ultimoNotificado = useRef<EstadoDaAcao | null>(null);
 
   useEffect(() => {
-    if (!estado.ok) return;
+    if (!deveNotificarAcao(estado, ultimoNotificado.current)) return;
+    ultimoNotificado.current = estado;
     mostrarToast({
       tom: "sucesso",
       titulo: "Ação concluída",

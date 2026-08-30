@@ -1,4 +1,5 @@
 import {
+  atualizarBolsaConcedidaSchema,
   classificarSituacaoProduto,
   classificarSituacaoTemporal,
 } from './bolsistas.service';
@@ -53,5 +54,17 @@ describe('alertas de bolsas e produtos', () => {
         '2027-11-01',
       ),
     ).toBe('ENTREGUE');
+  });
+});
+
+describe('validacao do periodo da bolsa', () => {
+  it('aceita 03/01/2027 a 30/07/2027 depois da conversao para ISO', () => {
+    const resultado = atualizarBolsaConcedidaSchema.safeParse({
+      dataInicio: '2027-01-03',
+      dataFim: '2027-07-30',
+      status: 'EM_ANDAMENTO',
+    });
+
+    expect(resultado.success).toBe(true);
   });
 });

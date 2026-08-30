@@ -32,7 +32,7 @@ export function NovaLinhaDePlano({
 }) {
   return (
     <AbrirSidesheet
-      rotulo="Nova linha"
+      rotulo="Cadastrar"
       titulo="Nova linha de planejamento"
       descricao="Três etapas: onde ela entra, o que é, quando e quanto."
       largura="larga"

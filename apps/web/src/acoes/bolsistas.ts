@@ -1,6 +1,13 @@
 "use server";
 
 import { enviar, texto, type EstadoDaAcao } from "@/lib/acao";
+import { dataBrParaIso } from "@/lib/formato";
+
+function dataDoFormulario(formulario: FormData, campo: string) {
+  const informada = texto(formulario, campo);
+  if (!informada) return undefined;
+  return dataBrParaIso(informada) ?? informada;
+}
 
 function corpoDaBolsa(formulario: FormData) {
   return {
@@ -9,10 +16,12 @@ function corpoDaBolsa(formulario: FormData) {
     email: texto(formulario, "email"),
     cpf: texto(formulario, "cpf"),
     nivelBeneficiario: texto(formulario, "nivelBeneficiario"),
+    paisOrigem: texto(formulario, "paisOrigem"),
+    instituicaoOrigem: texto(formulario, "instituicaoOrigem"),
     paisDestino: texto(formulario, "paisDestino"),
     instituicaoDestino: texto(formulario, "instituicaoDestino"),
-    dataInicio: texto(formulario, "dataInicio"),
-    dataFim: texto(formulario, "dataFim"),
+    dataInicio: dataDoFormulario(formulario, "dataInicio"),
+    dataFim: dataDoFormulario(formulario, "dataFim"),
     status: texto(formulario, "status") ?? "SELECIONADO",
     processo: texto(formulario, "processo"),
     observacoes: texto(formulario, "observacoes"),
@@ -58,9 +67,9 @@ function corpoDoProduto(formulario: FormData) {
     tipo: texto(formulario, "tipo"),
     titulo: texto(formulario, "titulo"),
     descricao: texto(formulario, "descricao"),
-    prazoEntrega: texto(formulario, "prazoEntrega"),
+    prazoEntrega: dataDoFormulario(formulario, "prazoEntrega"),
     status: texto(formulario, "status") ?? "PREVISTO",
-    dataEntrega: texto(formulario, "dataEntrega"),
+    dataEntrega: dataDoFormulario(formulario, "dataEntrega"),
     doi: texto(formulario, "doi"),
     link: texto(formulario, "link"),
     observacoes: texto(formulario, "observacoes"),

@@ -2,12 +2,18 @@
 
 import { useId, useState, type ReactNode } from "react";
 
+import {
+  dataBrParaIso,
+  dataIsoParaBr,
+  mascararDataBr,
+} from "@/lib/formato";
+
 /**
  * Campos de formulário.
  *
- * Não são componentes controlados: o valor mora no DOM e sai no `FormData` do
- * submit. É o que faz o multistep funcionar sem espelhar cada input em estado
- * do React — e o que mantém o formulário utilizável se o JavaScript falhar.
+ * Em geral o valor mora no DOM e sai no `FormData`, sem espelhar cada input em
+ * estado do React. `Data` e a excecao: precisa controlar o texto para garantir
+ * DD/MM/AAAA independentemente do idioma configurado no navegador.
  */
 
 const ENTRADA =
@@ -34,7 +40,7 @@ export function Campo({
     <div className="mb-4">
       <label
         htmlFor={id}
-        className="mb-1.5 block text-sm font-medium text-foreground"
+        className="mb-1.5 block text-left text-sm font-medium text-foreground"
       >
         {rotulo}
         {obrigatorio ? (
@@ -89,6 +95,64 @@ export function Texto({
           required={resto.obrigatorio}
           defaultValue={resto.padrao}
           placeholder={resto.placeholder}
+          className={ENTRADA}
+        />
+      )}
+    </Campo>
+  );
+}
+
+/** Data visivel sempre em DD/MM/AAAA; a Server Action converte para ISO. */
+export function Data({
+  rotulo,
+  nome,
+  ...resto
+}: {
+  rotulo: string;
+  nome: string;
+  dica?: ReactNode;
+  erro?: string;
+  obrigatorio?: boolean;
+  padrao?: string;
+}) {
+  const [valor, setValor] = useState(() => dataIsoParaBr(resto.padrao));
+
+  return (
+    <Campo
+      rotulo={rotulo}
+      dica={resto.dica}
+      erro={resto.erro}
+      obrigatorio={resto.obrigatorio}
+    >
+      {(id) => (
+        <input
+          id={id}
+          name={nome}
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          maxLength={10}
+          pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}"
+          required={resto.obrigatorio}
+          value={valor}
+          placeholder="DD/MM/AAAA"
+          aria-invalid={resto.erro ? true : undefined}
+          onChange={(evento) => {
+            const novaData = mascararDataBr(evento.currentTarget.value);
+            setValor(novaData);
+            evento.currentTarget.setCustomValidity(
+              novaData.length === 10 && !dataBrParaIso(novaData)
+                ? "Informe uma data válida no formato DD/MM/AAAA."
+                : "",
+            );
+          }}
+          onBlur={(evento) => {
+            evento.currentTarget.setCustomValidity(
+              valor && !dataBrParaIso(valor)
+                ? "Informe uma data válida no formato DD/MM/AAAA."
+                : "",
+            );
+          }}
           className={ENTRADA}
         />
       )}
@@ -207,7 +271,9 @@ export function Marcador({
       />
       <label htmlFor={id} className="text-sm text-foreground">
         {rotulo}
-        {dica ? <span className="block text-xs text-subtle">{dica}</span> : null}
+        {dica ? (
+          <span className="block text-xs text-subtle">{dica}</span>
+        ) : null}
       </label>
     </div>
   );

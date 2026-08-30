@@ -78,6 +78,20 @@
       "when": 1787627044214,
       "tag": "0010_atualiza_orcamento_unicamp",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1788116477281,
+      "tag": "0011_certain_venus",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1788119000000,
+      "tag": "0012_resolve_pendencia_orcamento_editavel",
+      "breakpoints": true
     }
   ]
 }

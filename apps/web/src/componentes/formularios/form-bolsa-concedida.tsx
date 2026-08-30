@@ -1,18 +1,19 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
 
 import {
   atualizarBolsaConcedida,
   criarBolsaConcedida,
 } from "@/acoes/bolsistas";
-import { AreaTexto, Grade, Selecao, Texto } from "@/componentes/ui/campos";
+import { AreaTexto, Data, Grade, Selecao, Texto } from "@/componentes/ui/campos";
+import { submeterSemLimpar } from "@/componentes/ui/formulario";
 import { Multistep, type Passo } from "@/componentes/ui/multistep";
 import { AbrirSidesheet } from "@/componentes/ui/sidesheet";
 import { useToastDaAcao } from "@/componentes/ui/toast";
-import { ESTADO_INICIAL } from "@/lib/acao-tipos";
+import { ESTADO_INICIAL, type EstadoDaAcao } from "@/lib/acao-tipos";
 import type { BolsaConcedidaDetalhe, OpcaoBolsaPlanejada } from "@/lib/dominio";
-import { meses, moeda, rotulo } from "@/lib/formato";
+import { dataBrParaIso, meses, moeda, rotulo } from "@/lib/formato";
 
 export function NovaBolsaConcedida({
   opcoes,
@@ -43,17 +44,29 @@ function FormNovaBolsa({
     ESTADO_INICIAL,
   );
   const [opcaoId, setOpcaoId] = useState("");
+  const [correcao, setCorrecao] = useState<{
+    estado: EstadoDaAcao;
+    campos: Set<string>;
+  } | null>(null);
   const opcao = opcoes.find((item) => item.id === opcaoId);
+  const formularioAlterado = correcao?.estado === estado;
+  const errosVisiveis = useMemo(() => {
+    const corrigidos = correcao?.estado === estado ? correcao.campos : null;
+    return (estado.erros ?? []).filter(
+      (erro) => !corrigidos?.has(erro.campo),
+    );
+  }, [correcao, estado]);
 
   useToastDaAcao(estado, aoConcluir);
 
   const erroDe = (campo: string) =>
-    estado.erros?.find((erro) => erro.campo === campo)?.mensagem;
+    errosVisiveis.find((erro) => erro.campo === campo)?.mensagem;
 
   const passos: Passo[] = [
     {
       id: "planejamento",
       titulo: "Planejamento",
+      campos: ["itemPlanejadoId"],
       descricao:
         "Escolha a vaga de origem. O sistema não permite consumir mais vagas do que o planejamento anual.",
       validar: (formulario) =>
@@ -82,6 +95,7 @@ function FormNovaBolsa({
     {
       id: "bolsista",
       titulo: "Bolsista",
+      campos: ["nome", "email", "cpf", "nivelBeneficiario"],
       descricao:
         "O produto será cobrado individualmente desta pessoa, não da linha agregada do plano.",
       validar: (formulario) =>
@@ -130,11 +144,23 @@ function FormNovaBolsa({
       ),
     },
     {
-      id: "destino",
-      titulo: "Destino",
+      id: "trajeto",
+      titulo: "Origem e destino",
+      campos: [
+        "paisOrigem",
+        "instituicaoOrigem",
+        "paisDestino",
+        "instituicaoDestino",
+      ],
       descricao:
-        "Registre o país e a universidade ou instituição em que a mobilidade ocorrerá.",
+        "Registre as duas pontas da mobilidade. Nenhuma instituição é presumida pelo sistema.",
       validar: (formulario) => {
+        if (!valor(formulario, "paisOrigem")) {
+          return "Informe o país de origem.";
+        }
+        if (!valor(formulario, "instituicaoOrigem")) {
+          return "Informe a universidade ou instituição de origem.";
+        }
         if (!valor(formulario, "paisDestino")) {
           return "Informe o país de destino.";
         }
@@ -145,6 +171,19 @@ function FormNovaBolsa({
       },
       conteudo: (
         <>
+          <Texto
+            rotulo="País de origem"
+            nome="paisOrigem"
+            obrigatorio
+            placeholder="País"
+            erro={erroDe("paisOrigem")}
+          />
+          <Texto
+            rotulo="Universidade ou instituição de origem"
+            nome="instituicaoOrigem"
+            obrigatorio
+            erro={erroDe("instituicaoOrigem")}
+          />
           <Texto
             rotulo="País de destino"
             nome="paisDestino"
@@ -164,29 +203,30 @@ function FormNovaBolsa({
     {
       id: "periodo",
       titulo: "Período",
+      campos: ["dataInicio", "dataFim", "status", "processo", "observacoes"],
       descricao:
         "Informe as datas exatas do termo. São elas que alimentam os alertas de início e expiração.",
       validar: (formulario) => {
-        const inicio = valor(formulario, "dataInicio");
-        const fim = valor(formulario, "dataFim");
-        if (!inicio || !fim) return "Informe as datas inicial e final.";
+        const inicio = dataBrParaIso(valor(formulario, "dataInicio"));
+        const fim = dataBrParaIso(valor(formulario, "dataFim"));
+        if (!inicio || !fim) {
+          return "Informe datas válidas no formato DD/MM/AAAA.";
+        }
         if (fim < inicio) return "A data final não pode vir antes da inicial.";
         return null;
       },
       conteudo: (
         <>
           <Grade>
-            <Texto
+            <Data
               rotulo="Data inicial"
               nome="dataInicio"
-              tipo="date"
               obrigatorio
               erro={erroDe("dataInicio")}
             />
-            <Texto
+            <Data
               rotulo="Data final"
               nome="dataFim"
-              tipo="date"
               obrigatorio
               erro={erroDe("dataFim")}
             />
@@ -214,11 +254,32 @@ function FormNovaBolsa({
   ];
 
   return (
-    <form action={executar} className="flex min-h-0 flex-1 flex-col">
+    <form
+      onSubmit={(evento) => submeterSemLimpar(evento, executar)}
+      onChange={(evento) => {
+        const alvo = evento.nativeEvent.target;
+        if (!(alvo instanceof HTMLElement)) return;
+        const campo = alvo.getAttribute("name");
+        if (!campo) return;
+        setCorrecao((atual) => {
+          const campos =
+            atual?.estado === estado
+              ? new Set(atual.campos)
+              : new Set<string>();
+          campos.add(campo);
+          return { estado, campos };
+        });
+      }}
+      className="flex min-h-0 flex-1 flex-col"
+    >
       <Multistep
         passos={passos}
         enviando={enviando}
-        erro={estado.ok ? null : (estado.mensagem ?? null)}
+        erro={
+          estado.ok || formularioAlterado ? null : (estado.mensagem ?? null)
+        }
+        erros={estado.ok ? [] : errosVisiveis}
+        errosParaNavegacao={estado.ok ? [] : (estado.erros ?? [])}
         rotuloConcluir="Cadastrar concessão"
         aoCancelar={aoConcluir}
       />
@@ -284,17 +345,15 @@ function FormEditarBolsa({
     <form action={executar} className="flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
         <Grade>
-          <Texto
+          <Data
             rotulo="Data inicial"
             nome="dataInicio"
-            tipo="date"
             obrigatorio
             padrao={bolsa.dataInicio}
           />
-          <Texto
+          <Data
             rotulo="Data final"
             nome="dataFim"
-            tipo="date"
             obrigatorio
             padrao={bolsa.dataFim}
           />

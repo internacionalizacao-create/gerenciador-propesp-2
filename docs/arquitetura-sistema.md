@@ -420,7 +420,7 @@ gerenciador/
 | Funcionalidade | Página | Ação | Controller/Service | Tabelas centrais |
 |---|---|---|---|---|
 | Plano de aplicação | `.../plano/page.tsx` | `acoes/plano.ts` | `ProgramasController` / `PlanoService` | `item_planejado`, `planejamento_anual` |
-| Orçamento e saldo | `.../orcamento/page.tsx` | leitura | `ProgramasController` / `OrcamentoService` | `orcamento_tematica` + plano |
+| Orçamento e saldo | `.../orcamento/page.tsx` | `acoes/orcamento.ts` | `ProgramasController` / `OrcamentoService` | `orcamento_tematica` + `registro_auditoria` + plano |
 | Bolsistas | `mobilidade/bolsistas/` | `acoes/bolsistas.ts` | `BolsistasController` / `BolsistasService` | `pessoa`, `bolsa_concedida` |
 | Produtos | detalhe do bolsista | `acoes/bolsistas.ts` | `BolsistasController` / `BolsistasService` | `produto_bolsa` |
 | Pendências | `pendencias/page.tsx` | ações de pendência | `PendenciasController` / `PendenciasService` | `pendencia` |
@@ -434,9 +434,10 @@ gerenciador/
 - Login/logout OIDC, sessão segura e permissões.
 - Programas, ciclos, redes, temáticas, PPGs e coordenadores.
 - Catálogo fechado de bolsas.
-- Orçamento anual, composição anual, custo, saldo e divergência.
+- Orçamento anual editável por área temática/exercício, com fonte, justificativa,
+  auditoria por campo, composição anual, custo, saldo e divergência.
 - Plano de aplicação por exercício, rede, temática e PPG.
-- Cadastro individual de bolsista com CPF, destino e datas completas.
+- Cadastro individual de bolsista com CPF, origem, destino e datas completas.
 - Alertas temporais e produtos individuais por bolsa.
 - Pendências e Comitê Gestor na interface; premissas e fontes preservadas
   internamente para rastreabilidade e futuro uso em Documentos e evidências.

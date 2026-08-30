@@ -1,8 +1,17 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { sql } from 'drizzle-orm';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { and, eq, sql } from 'drizzle-orm';
+import { z } from 'zod';
 
+import type { AuthUser } from '../auth/auth-user';
 import { consultar } from '../comum/consultar';
 import { DRIZZLE, type Database } from '../database/database.module';
+import * as s from '../database/schema';
+import type { CicloResolvido } from './contexto.service';
 
 /**
  * Orcamento, custo, saldo, utilizacao e divergencia — RN-04 a RN-09.
@@ -27,7 +36,41 @@ import { DRIZZLE, type Database } from '../database/database.module';
 export type StatusOrcamento = 'DEFINIDO' | 'A_DEFINIR';
 export type StatusComposicaoAnual = 'A_DEFINIR' | 'EM_ELABORACAO' | 'APROVADA';
 
+const dinheiroOpcional = z
+  .string()
+  .trim()
+  .regex(/^\d{1,12}(?:\.\d{1,2})?$/, 'Informe um valor monetário válido.')
+  .nullable();
+
+export const atualizarOrcamentoSchema = z
+  .object({
+    valorBolsas: dinheiroOpcional,
+    valorManutencao: dinheiroOpcional,
+    valorMissoes: dinheiroOpcional,
+    status: z.enum(['DEFINIDO', 'A_DEFINIR']),
+    statusComposicao: z.enum(['A_DEFINIR', 'EM_ELABORACAO', 'APROVADA']),
+    fonte: z.string().trim().min(3, 'Informe a fonte do orçamento.').max(200),
+    observacoes: z.string().trim().max(4000).nullish(),
+    justificativa: z
+      .string()
+      .trim()
+      .min(10, 'Informe a justificativa da alteração (mínimo 10 caracteres).')
+      .max(4000),
+  })
+  .superRefine((valor, contexto) => {
+    if (valor.status === 'DEFINIDO' && valor.valorBolsas === null) {
+      contexto.addIssue({
+        code: 'custom',
+        path: ['valorBolsas'],
+        message: 'Orçamento definido exige o valor de bolsas.',
+      });
+    }
+  });
+
+export type AtualizarOrcamento = z.infer<typeof atualizarOrcamentoSchema>;
+
 export interface LinhaTematica {
+  orcamentoId: string;
   areaTematicaId: string;
   codigo: string;
   nome: string;
@@ -39,6 +82,8 @@ export interface LinhaTematica {
   valorBolsas: string | null;
   valorManutencao: string | null;
   valorMissoes: string | null;
+  fonte: string | null;
+  observacoes: string | null;
   /** Manutencao + missoes num numero so, somado no Postgres. */
   apoio: string | null;
   /** RN-05 · bolsas + manutencao + missoes. Nulo quando o orcamento nao esta definido. */
@@ -124,6 +169,7 @@ export class OrcamentoService {
          group by area_tematica_id
       )
       select at.id                          as "areaTematicaId",
+             o.id                           as "orcamentoId",
              at.codigo                      as "codigo",
              at.nome                        as "nome",
              rc.id                          as "redeId",
@@ -134,6 +180,8 @@ export class OrcamentoService {
              o.valor_bolsas                 as "valorBolsas",
              o.valor_manutencao             as "valorManutencao",
              o.valor_missoes                as "valorMissoes",
+             o.fonte                         as "fonte",
+             o.observacoes                   as "observacoes",
              case when o.valor_manutencao is null and o.valor_missoes is null
                   then null
                   else coalesce(o.valor_manutencao, 0)
@@ -199,7 +247,9 @@ export class OrcamentoService {
       )
       select rc.id                       as "redeId",
              rc.nome                     as "rede",
-             rc.status_orcamento         as "statusOrcamento",
+             case when bool_and(o.status = 'DEFINIDO')
+                  then 'DEFINIDO' else 'A_DEFINIR'
+             end                          as "statusOrcamento",
              case
                when bool_and(o.status_composicao = 'APROVADA') then 'APROVADA'
                when bool_and(o.status_composicao = 'A_DEFINIR') then 'A_DEFINIR'
@@ -230,10 +280,110 @@ export class OrcamentoService {
         left join ppgs          p  on p.rede_id  = rc.id
        where rc.ciclo_id = ${cicloId}
          ${ano === undefined ? sql`` : sql`and o.ano = ${ano}`}
-       group by rc.id, rc.nome, rc.status_orcamento, o.ano, cb.custo, cb.bolsas, p.total
+       group by rc.id, rc.nome, o.ano, cb.custo, cb.bolsas, p.total
        order by rc.nome, o.ano
     `,
     );
+  }
+
+  /** Registra o ato orçamentário anual e preserva cada campo alterado. */
+  async atualizar(
+    ciclo: CicloResolvido,
+    id: string,
+    dto: AtualizarOrcamento,
+    usuario: AuthUser,
+  ): Promise<LinhaTematica> {
+    const [anterior] = await this.db
+      .select({
+        id: s.orcamentoTematica.id,
+        areaTematicaId: s.orcamentoTematica.areaTematicaId,
+        ano: s.orcamentoTematica.ano,
+        valorBolsas: s.orcamentoTematica.valorBolsas,
+        valorManutencao: s.orcamentoTematica.valorManutencao,
+        valorMissoes: s.orcamentoTematica.valorMissoes,
+        status: s.orcamentoTematica.status,
+        statusComposicao: s.orcamentoTematica.statusComposicao,
+        fonte: s.orcamentoTematica.fonte,
+        observacoes: s.orcamentoTematica.observacoes,
+      })
+      .from(s.orcamentoTematica)
+      .innerJoin(
+        s.areaTematica,
+        eq(s.areaTematica.id, s.orcamentoTematica.areaTematicaId),
+      )
+      .innerJoin(
+        s.redeCoordenadora,
+        eq(s.redeCoordenadora.id, s.areaTematica.redeId),
+      )
+      .where(
+        and(
+          eq(s.orcamentoTematica.id, id),
+          eq(s.redeCoordenadora.cicloId, ciclo.cicloId),
+        ),
+      )
+      .limit(1);
+
+    if (!anterior) {
+      throw new NotFoundException('Orçamento da área temática não encontrado.');
+    }
+    if (!ciclo.anos.includes(anterior.ano)) {
+      throw new BadRequestException(
+        `O exercício ${anterior.ano} não pertence ao ciclo ${ciclo.cicloNome}.`,
+      );
+    }
+
+    const novos = {
+      valorBolsas: dto.valorBolsas,
+      valorManutencao: dto.valorManutencao,
+      valorMissoes: dto.valorMissoes,
+      status: dto.status,
+      statusComposicao: dto.statusComposicao,
+      fonte: dto.fonte,
+      observacoes: dto.observacoes ?? null,
+    };
+    const alterados = Object.entries(novos)
+      .filter(
+        ([campo, valor]) =>
+          serializar(anterior[campo as keyof typeof anterior]) !==
+          serializar(valor),
+      )
+      .map(([campo, valor]) => ({
+        campo,
+        valorAnterior: serializar(anterior[campo as keyof typeof anterior]),
+        valorNovo: serializar(valor),
+      }));
+
+    if (alterados.length === 0) {
+      throw new BadRequestException('Nenhum valor do orçamento foi alterado.');
+    }
+
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(s.orcamentoTematica)
+        .set({ ...novos, atualizadoEm: new Date() })
+        .where(eq(s.orcamentoTematica.id, anterior.id));
+
+      await tx.insert(s.registroAuditoria).values(
+        alterados.map((alteracao) => ({
+          entidadeTipo: 'ORCAMENTO_TEMATICA',
+          entidadeId: anterior.id,
+          acao: 'EDICAO' as const,
+          ...alteracao,
+          usuarioId: usuario.id,
+          usuarioNome: usuario.name ?? null,
+          justificativa: dto.justificativa,
+          dataReferencia: `${anterior.ano}-01-01`,
+        })),
+      );
+    });
+
+    const atualizada = (
+      await this.porTematica(ciclo.cicloId, anterior.ano)
+    ).find((linha) => linha.orcamentoId === anterior.id);
+    if (!atualizada) {
+      throw new NotFoundException('Orçamento atualizado não encontrado.');
+    }
+    return atualizada;
   }
 
   /**
@@ -283,4 +433,18 @@ export function deCentavos(centavos: bigint): string {
   const inteiro = absoluto / 100n;
   const resto = absoluto % 100n;
   return `${negativo ? '-' : ''}${inteiro}.${resto.toString().padStart(2, '0')}`;
+}
+
+function serializar(valor: unknown): string | null {
+  if (valor === null || valor === undefined) return null;
+  if (valor instanceof Date) return valor.toISOString();
+  if (
+    typeof valor === 'string' ||
+    typeof valor === 'number' ||
+    typeof valor === 'boolean' ||
+    typeof valor === 'bigint'
+  ) {
+    return String(valor);
+  }
+  return JSON.stringify(valor);
 }

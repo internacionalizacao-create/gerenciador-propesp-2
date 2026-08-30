@@ -203,11 +203,19 @@ export const bolsaConcedida = pgTable(
       .references(() => modalidade.id),
     destino: destinoEnum('destino').notNull(),
     nivelBeneficiario: nivelBeneficiarioEnum('nivel_beneficiario').notNull(),
+    paisOrigemId: uuid('pais_origem_id').references(() => pais.id),
+    instituicaoOrigemId: uuid('instituicao_origem_id').references(
+      () => instituicao.id,
+    ),
+    /** Texto preserva origem e destino enquanto o catalogo institucional nao existe. */
+    paisOrigemNome: varchar('pais_origem_nome', { length: 120 }),
+    instituicaoOrigemNome: varchar('instituicao_origem_nome', {
+      length: 240,
+    }),
     paisDestinoId: uuid('pais_destino_id').references(() => pais.id),
     instituicaoDestinoId: uuid('instituicao_destino_id').references(
       () => instituicao.id,
     ),
-    /** Texto preserva o destino quando ainda nao ha catalogo institucional. */
     paisDestinoNome: varchar('pais_destino_nome', { length: 120 }),
     instituicaoDestinoNome: varchar('instituicao_destino_nome', {
       length: 240,
@@ -316,6 +324,10 @@ export const bolsaConcedidaRelations = relations(
     }),
     paisDestino: one(pais, {
       fields: [bolsaConcedida.paisDestinoId],
+      references: [pais.id],
+    }),
+    paisOrigem: one(pais, {
+      fields: [bolsaConcedida.paisOrigemId],
       references: [pais.id],
     }),
     produtos: many(produtoBolsa),

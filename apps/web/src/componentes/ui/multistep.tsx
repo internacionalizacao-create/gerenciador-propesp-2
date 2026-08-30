@@ -1,12 +1,20 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+
+import {
+  errosUnicos,
+  indiceDaPrimeiraEtapaComErro,
+  type ErroDeCampo,
+} from "./multistep-logica";
 
 export interface Passo {
   id: string;
   titulo: string;
   descricao?: string;
   conteudo: ReactNode;
+  /** Campos enviados por esta etapa, usados para localizar erros da API. */
+  campos?: string[];
   /**
    * Impedimento para avançar, em texto. `null` libera.
    * Roda sobre o DOM do formulário, então enxerga o que o usuário digitou sem
@@ -35,16 +43,33 @@ export function Multistep({
   rotuloConcluir = "Salvar",
   enviando = false,
   erro,
+  erros = [],
+  errosParaNavegacao = erros,
   aoCancelar,
 }: {
   passos: Passo[];
   rotuloConcluir?: string;
   enviando?: boolean;
   erro?: string | null;
+  erros?: ErroDeCampo[];
+  errosParaNavegacao?: ErroDeCampo[];
   aoCancelar?: () => void;
 }) {
   const [atual, setAtual] = useState(0);
   const [impedimento, setImpedimento] = useState<string | null>(null);
+  const errosDetalhados = errosUnicos(erros);
+  const primeiraEtapaComErro = indiceDaPrimeiraEtapaComErro(
+    passos.map((passo) => passo.campos ?? []),
+    errosParaNavegacao,
+  );
+
+  useEffect(() => {
+    if (primeiraEtapaComErro < 0) return;
+    const quadro = window.requestAnimationFrame(() => {
+      setAtual(primeiraEtapaComErro);
+    });
+    return () => window.cancelAnimationFrame(quadro);
+  }, [errosParaNavegacao, primeiraEtapaComErro]);
 
   const ultimo = atual === passos.length - 1;
 
@@ -66,10 +91,27 @@ export function Multistep({
     if (!problema) setAtual((i) => Math.min(i + 1, passos.length - 1));
   }
 
+  function concluir(evento: React.MouseEvent<HTMLButtonElement>) {
+    const formulario = evento.currentTarget.form;
+    const problema = formulario
+      ? (passos[atual].validar?.(formulario) ?? null)
+      : null;
+
+    setImpedimento(problema);
+    if (problema) evento.preventDefault();
+  }
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div
+      className="flex min-h-0 flex-1 flex-col"
+      onChange={() => setImpedimento(null)}
+    >
       <ol className="flex shrink-0 gap-2 border-b border-border bg-surface-muted/50 px-6 py-4">
         {passos.map((passo, indice) => {
+          const errosDoPasso = errosDetalhados.filter((erro) =>
+            passo.campos?.includes(erro.campo),
+          );
+          const temErro = errosDoPasso.length > 0;
           const estado =
             indice === atual
               ? "atual"
@@ -90,15 +132,24 @@ export function Multistep({
               >
                 <span
                   className={`block h-1 rounded-full ${
-                    estado === "futuro" ? "bg-border" : "bg-primary"
+                    temErro
+                      ? "bg-danger"
+                      : estado === "futuro"
+                        ? "bg-border"
+                        : "bg-primary"
                   }`}
                 />
                 <span
                   className={`mt-2 block text-xs font-medium ${
-                    estado === "atual" ? "text-foreground" : "text-subtle"
+                    temErro
+                      ? "text-danger"
+                      : estado === "atual"
+                        ? "text-foreground"
+                        : "text-subtle"
                   }`}
                 >
                   {indice + 1}. {passo.titulo}
+                  {temErro ? ` (${errosDoPasso.length})` : ""}
                 </span>
               </button>
             </li>
@@ -127,7 +178,19 @@ export function Multistep({
             {impedimento}
           </p>
         ) : null}
-        {erro ? (
+        {errosDetalhados.length > 0 ? (
+          <div
+            role="alert"
+            className="mb-3 rounded-lg bg-danger-soft px-3 py-2 text-sm text-on-danger-soft"
+          >
+            <p className="font-medium">Revise os campos indicados:</p>
+            <ul className="mt-1 list-disc space-y-0.5 pl-5">
+              {errosDetalhados.map((item) => (
+                <li key={`${item.campo}:${item.mensagem}`}>{item.mensagem}</li>
+              ))}
+            </ul>
+          </div>
+        ) : erro ? (
           <p
             role="alert"
             className="mb-3 rounded-lg bg-danger-soft px-3 py-2 text-sm text-on-danger-soft"
@@ -168,6 +231,7 @@ export function Multistep({
             {ultimo ? (
               <button
                 type="submit"
+                onClick={concluir}
                 disabled={enviando}
                 className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-on-primary shadow-sm hover:bg-primary-hover disabled:opacity-60"
               >

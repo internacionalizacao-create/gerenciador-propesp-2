@@ -182,8 +182,51 @@ export function rotulo(valor: string | null | undefined): string {
 /** Data ISO (`2026-07-29`) no formato brasileiro, sem passar por fuso. */
 export function data(iso: string | null | undefined): string {
   if (!iso) return "—";
-  const [ano, mes, dia] = iso.slice(0, 10).split("-");
+  return dataIsoParaBr(iso);
+}
+
+/** Converte a data persistida em ISO para a entrada brasileira, sem fuso. */
+export function dataIsoParaBr(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const correspondencia = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  if (!correspondencia) return iso;
+  const [, ano, mes, dia] = correspondencia;
   return `${dia}/${mes}/${ano}`;
+}
+
+/**
+ * Converte DD/MM/AAAA para o contrato ISO da API e rejeita datas impossiveis.
+ * A construcao em UTC evita que o fuso de Manaus desloque o dia.
+ */
+export function dataBrParaIso(br: string | null | undefined): string | null {
+  if (!br) return null;
+  const correspondencia = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(br.trim());
+  if (!correspondencia) return null;
+
+  const [, dia, mes, ano] = correspondencia;
+  const instante = new Date(Date.UTC(Number(ano), Number(mes) - 1, Number(dia)));
+  if (
+    instante.getUTCFullYear() !== Number(ano) ||
+    instante.getUTCMonth() + 1 !== Number(mes) ||
+    instante.getUTCDate() !== Number(dia)
+  ) {
+    return null;
+  }
+
+  return `${ano}-${mes}-${dia}`;
+}
+
+/** Mascara progressiva para digitacao e colagem no padrao DD/MM/AAAA. */
+export function mascararDataBr(valor: string): string {
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(valor);
+  if (iso) return `${iso[3]}/${iso[2]}/${iso[1]}`;
+
+  const digitos = valor.replace(/\D/g, "").slice(0, 8);
+  if (digitos.length <= 2) return digitos;
+  if (digitos.length <= 4) {
+    return `${digitos.slice(0, 2)}/${digitos.slice(2)}`;
+  }
+  return `${digitos.slice(0, 2)}/${digitos.slice(2, 4)}/${digitos.slice(4)}`;
 }
 
 /**

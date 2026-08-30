@@ -49,6 +49,12 @@ export const criarBolsaConcedidaSchema = z
       'DOCENTE',
       'MOBILIDADE_BREVE',
     ]),
+    paisOrigem: z.string().trim().min(2, 'Informe o país de origem.').max(120),
+    instituicaoOrigem: z
+      .string()
+      .trim()
+      .min(2, 'Informe a universidade ou instituição de origem.')
+      .max(240),
     paisDestino: z
       .string()
       .trim()
@@ -168,6 +174,8 @@ interface BolsaBase {
   cpf: string | null;
   modalidade: string;
   destino: 'BRASIL' | 'EXTERIOR';
+  paisOrigem: string | null;
+  instituicaoOrigem: string | null;
   paisDestino: string | null;
   instituicaoDestino: string | null;
   nivelBeneficiario:
@@ -302,6 +310,8 @@ export class BolsistasService {
              pe.cpf                        as "cpf",
              m.nome                        as "modalidade",
              bc.destino                    as "destino",
+             bc.pais_origem_nome           as "paisOrigem",
+             bc.instituicao_origem_nome    as "instituicaoOrigem",
              bc.pais_destino_nome          as "paisDestino",
              bc.instituicao_destino_nome   as "instituicaoDestino",
              bc.nivel_beneficiario         as "nivelBeneficiario",
@@ -479,6 +489,8 @@ export class BolsistasService {
           pessoaId,
           modalidadeId: item.modalidadeId,
           destino: item.destino,
+          paisOrigemNome: dto.paisOrigem,
+          instituicaoOrigemNome: dto.instituicaoOrigem,
           paisDestinoNome: dto.paisDestino,
           instituicaoDestinoNome: dto.instituicaoDestino,
           nivelBeneficiario: dto.nivelBeneficiario,

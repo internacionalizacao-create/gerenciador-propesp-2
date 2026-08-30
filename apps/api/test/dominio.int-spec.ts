@@ -172,6 +172,101 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
       expect(mapa.UNICAMP.ppgs).toBe(10);
     });
 
+    it('registra orçamento e a primeira bolsa da UNICAMP somente em 2027', async () => {
+      const linhas = await orcamento.porTematica(ciclo.cicloId);
+      const linha2027 = linhas.find(
+        (linha) => linha.codigo === 'UNICAMP-T4' && linha.ano === 2027,
+      )!;
+      const linha2028 = linhas.find(
+        (linha) => linha.codigo === 'UNICAMP-T4' && linha.ano === 2028,
+      )!;
+      const [participacao] = await ctx.db
+        .select({ ppgId: s.participacaoPpg.ppgId })
+        .from(s.participacaoPpg)
+        .where(eq(s.participacaoPpg.areaTematicaId, linha2027.areaTematicaId))
+        .limit(1);
+      const tabela = await catalogo.tabelaVigente('capes-global');
+      const item = tabela.itens.find(
+        (catalogo) => catalogo.codigo === 'CAT-053',
+      )!;
+      let itemPlanejadoId: string | null = null;
+
+      try {
+        const atualizado = await orcamento.atualizar(
+          ciclo,
+          linha2027.orcamentoId,
+          {
+            valorBolsas: '100000.00',
+            valorManutencao: null,
+            valorMissoes: null,
+            status: 'DEFINIDO',
+            statusComposicao: 'EM_ELABORACAO',
+            fonte: 'Ofício de teste do Comitê UNICAMP',
+            observacoes: 'Exemplo do fluxo anual da plataforma.',
+            justificativa: 'Registro de teste do orçamento recebido para 2027.',
+          },
+          {
+            id: 'sub-admin-teste',
+            name: 'Admin Teste',
+            roles: ['admin'],
+            permissions: ['orcamento:write'],
+          },
+        );
+        expect(atualizado.valorBolsas).toBe('100000.00');
+
+        const criada = await plano.criar(ciclo, {
+          rubrica: 'BOLSAS',
+          ppgId: participacao.ppgId,
+          areaTematicaId: linha2027.areaTematicaId,
+          destino: 'EXTERIOR',
+          modalidadeId: item.modalidadeId,
+          vigenciaMeses: 6,
+          ano: 2027,
+          quantidadeAnual: 1,
+        });
+        itemPlanejadoId = criada.id;
+
+        expect(criada.rede).toBe('UNICAMP');
+        expect(criada.quantidadeAnual).toBe(1);
+        expect(
+          (await orcamento.porTematica(ciclo.cicloId, 2028)).find(
+            (linha) => linha.codigo === 'UNICAMP-T4',
+          )?.valorBolsas,
+        ).toBe(linha2028.valorBolsas);
+
+        const auditoria = await ctx.db
+          .select()
+          .from(s.registroAuditoria)
+          .where(eq(s.registroAuditoria.entidadeId, linha2027.orcamentoId));
+        expect(auditoria).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              campo: 'valorBolsas',
+              valorNovo: '100000.00',
+              usuarioNome: 'Admin Teste',
+            }),
+          ]),
+        );
+      } finally {
+        if (itemPlanejadoId) await limparItem(itemPlanejadoId);
+        await ctx.db
+          .update(s.orcamentoTematica)
+          .set({
+            valorBolsas: linha2027.valorBolsas,
+            valorManutencao: linha2027.valorManutencao,
+            valorMissoes: linha2027.valorMissoes,
+            status: linha2027.statusOrcamento,
+            statusComposicao: linha2027.statusComposicao,
+            fonte: linha2027.fonte,
+            observacoes: linha2027.observacoes,
+          })
+          .where(eq(s.orcamentoTematica.id, linha2027.orcamentoId));
+        await ctx.db
+          .delete(s.registroAuditoria)
+          .where(eq(s.registroAuditoria.entidadeId, linha2027.orcamentoId));
+      }
+    });
+
     it('nao multiplica o orcamento pelo numero de PPGs da rede', async () => {
       // Regressao: a primeira versao da consulta juntava participacao_ppg antes
       // de agregar, e a UNESP aparecia com o orcamento multiplicado por 8.
@@ -196,7 +291,7 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
       expect(valor('ppgs')).toBe(24);
       expect(valor('bolsas-ciclo')).toBe(22);
       expect(valor('saldo-ano')).toBe('147091.05');
-      expect(valor('pendencias')).toBe(6);
+      expect(valor('pendencias')).toBe(5);
     });
 
     it('mantem o Comite Gestor fora do aporte de bolsas (RN-14)', async () => {
@@ -252,7 +347,7 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
       expect(alerta('composicoes-a-definir')?.quantidade).toBe(4);
       expect(alerta('divergencia-saldo')).toBeUndefined();
       expect(alerta('ppgs-sem-bolsa')?.quantidade).toBe(10);
-      expect(alerta('pendencias')?.quantidade).toBe(6);
+      expect(alerta('pendencias')?.quantidade).toBe(5);
       // R$ 69.751,14/ano de manutencao e missoes sem nenhum item planejado.
       expect(alerta('apoio-nao-programado')?.detalhe).toContain('69751.14');
       // Alerta que nao leva ao registro e decoracao.
@@ -548,17 +643,24 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
         email: 'bolsista.integracao@uea.edu.br',
         cpf: '52998224725',
         nivelBeneficiario: 'DOCENTE',
+        paisOrigem: 'Brasil',
+        instituicaoOrigem: 'Universidade do Estado do Amazonas',
         paisDestino: 'Portugal',
         instituicaoDestino: 'Universidade de Coimbra',
-        dataInicio: '2027-09-01',
-        dataFim: '2027-10-31',
+        dataInicio: '2027-01-03',
+        dataFim: '2027-07-30',
         status: 'SELECIONADO',
         processo: 'SEI-TESTE-001',
       });
 
       expect(criada.codigoPlanejamento).toBe('BOL-014');
       expect(criada.valorConcedido).toBe('54697.00');
-      expect(criada.dataFim).toBe('2027-10-31');
+      expect(criada.dataInicio).toBe('2027-01-03');
+      expect(criada.dataFim).toBe('2027-07-30');
+      expect(criada.paisOrigem).toBe('Brasil');
+      expect(criada.instituicaoOrigem).toBe(
+        'Universidade do Estado do Amazonas',
+      );
       expect(criada.paisDestino).toBe('Portugal');
       expect(criada.instituicaoDestino).toBe('Universidade de Coimbra');
       expect(criada.situacaoTemporal).toBeDefined();
@@ -573,6 +675,8 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
           email: 'bolsista.integracao@uea.edu.br',
           cpf: '52998224725',
           nivelBeneficiario: 'DOCENTE',
+          paisOrigem: 'Brasil',
+          instituicaoOrigem: 'Universidade do Estado do Amazonas',
           paisDestino: 'Espanha',
           instituicaoDestino: 'Universidade de Barcelona',
           dataInicio: '2027-09-01',
@@ -613,6 +717,8 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
           nome: 'Outra pessoa para a mesma vaga',
           cpf: '11144477735',
           nivelBeneficiario: 'DOCENTE',
+          paisOrigem: 'Brasil',
+          instituicaoOrigem: 'Universidade do Estado do Amazonas',
           paisDestino: 'Portugal',
           instituicaoDestino: 'Universidade do Porto',
           dataInicio: '2027-09-05',
@@ -638,7 +744,7 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
       expect(resumo.ppgs).toBe(24);
       expect(resumo.coordenadores).toBe(13);
       expect(resumo.linhasPlano).toBe(22);
-      expect(resumo.pendenciasAbertas).toBe(6);
+      expect(resumo.pendenciasAbertas).toBe(5);
       expect(resumo.aporteAnual).toBe('2315444.58');
       expect(resumo.divergencias).toBe(0);
       expect(resumo.tematicasSemOrcamento).toBe(0);

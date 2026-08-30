@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 
 import { atualizarProdutoBolsa, criarProdutoBolsa } from "@/acoes/bolsistas";
-import { AreaTexto, Grade, Selecao, Texto } from "@/componentes/ui/campos";
+import { AreaTexto, Data, Grade, Selecao, Texto } from "@/componentes/ui/campos";
 import { AbrirSidesheet } from "@/componentes/ui/sidesheet";
 import { useToastDaAcao } from "@/componentes/ui/toast";
 import { ESTADO_INICIAL } from "@/lib/acao-tipos";
@@ -112,10 +112,9 @@ function FormProduto({
           padrao={produto?.descricao ?? undefined}
         />
         <Grade>
-          <Texto
+          <Data
             rotulo="Prazo de entrega"
             nome="prazoEntrega"
-            tipo="date"
             obrigatorio
             padrao={produto?.prazoEntrega}
             erro={erroDe("prazoEntrega")}
@@ -128,10 +127,9 @@ function FormProduto({
             aoMudar={(valor) => setStatus(valor as StatusProdutoBolsa)}
           />
         </Grade>
-        <Texto
+        <Data
           rotulo="Data da entrega"
           nome="dataEntrega"
-          tipo="date"
           obrigatorio={entregue}
           padrao={produto?.dataEntrega ?? undefined}
           dica={

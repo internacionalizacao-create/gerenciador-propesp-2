@@ -288,6 +288,8 @@ const pendenciasResolvidas: Record<string, string> = {
     'A nova planilha definiu o orçamento de bolsas da UNICAMP por temática; a manutenção sem valor permanece tratada separadamente.',
   'PEND-006':
     'A equipe confirmou que o PROFSAÚDE pertence apenas à UNICAMP-T1 — Saúde, Natureza e Sociedade.',
+  'PEND-007':
+    'O orçamento passou a ser registrado por área temática e exercício, com edição restrita à gestão, justificativa e auditoria de cada campo alterado.',
   'PEND-008':
     'O remanejamento ocorre somente dentro da mesma temática e o Gerenciador apenas o registra após ocorrer na CAPES.',
   'PEN-011':

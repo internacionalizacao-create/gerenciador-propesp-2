@@ -21,7 +21,14 @@ import { inteiro } from "@/lib/formato";
 interface Resposta {
   ano: number;
   redes: (LinhaRede & {
-    areas: (LinhaTematica & { coordenadores: CoordenadorTematica[] })[];
+    areas: (LinhaTematica & {
+      coordenadores: CoordenadorTematica[];
+      ppgsContemplados: {
+        ppgId: string;
+        ppgSigla: string;
+        ppgNome: string;
+      }[];
+    })[];
   })[];
 }
 
@@ -57,11 +64,14 @@ export default async function RedesETematicas({
       descricao={`Exercício ${dados.ano}. Cada PPG participante tem seu Coordenador de Temática.`}
     >
       {divergentes.length > 0 ? (
-        <Aviso tom="perigo" titulo="Divergência entre saldo calculado e informado">
+        <Aviso
+          tom="perigo"
+          titulo="Divergência entre saldo calculado e informado"
+        >
           {divergentes.map((a) => a.codigo).join(", ")} — o saldo calculado a
           partir do plano não bate com o valor de referência registrado. As
-          linhas estão marcadas abaixo; abra a temática pelo código para conferir
-          os valores.{" "}
+          linhas estão marcadas abaixo; abra a temática pelo código para
+          conferir os valores.{" "}
           <Link href="/pendencias" className="font-medium underline">
             Registrar pendência
           </Link>
@@ -76,14 +86,14 @@ export default async function RedesETematicas({
           descricao={
             rede.statusOrcamento === "DEFINIDO" ? (
               <>
-                {inteiro(rede.tematicas)} áreas temáticas ·{" "}
-                {inteiro(rede.ppgs)} PPGs · {inteiro(rede.bolsas)} bolsas/ano
+                {inteiro(rede.tematicas)} áreas temáticas · {inteiro(rede.ppgs)}{" "}
+                PPGs · {inteiro(rede.bolsas)} bolsas/ano
               </>
             ) : (
               <>
-                {inteiro(rede.tematicas)} áreas temáticas e{" "}
-                {inteiro(rede.ppgs)} PPGs cadastrados. O orçamento ainda não foi
-                informado pela rede — os campos ficam em branco, e não em zero.
+                {inteiro(rede.tematicas)} áreas temáticas e {inteiro(rede.ppgs)}{" "}
+                PPGs cadastrados. O orçamento ainda não foi informado pela rede
+                — os campos ficam em branco, e não em zero.
               </>
             )
           }
@@ -92,12 +102,29 @@ export default async function RedesETematicas({
             colunas={[
               { chave: "codigo", texto: "Código" },
               { chave: "area", texto: "Área temática" },
+              { chave: "contemplados", texto: "PPGs contemplados" },
               { chave: "coordenacao", texto: "Coordenação temática" },
-              { chave: "ppgs", texto: "PPGs", alinhamento: "direita" },
-              { chave: "bolsas", texto: "Orçamento bolsas", alinhamento: "direita" },
-              { chave: "apoio", texto: "Manut. + missões", alinhamento: "direita" },
-              { chave: "total", texto: "Total previsto", alinhamento: "direita" },
-              { chave: "custo", texto: "Custo calculado", alinhamento: "direita" },
+              { chave: "ppgs", texto: "PPGs no tema", alinhamento: "direita" },
+              {
+                chave: "bolsas",
+                texto: "Orçamento bolsas",
+                alinhamento: "direita",
+              },
+              {
+                chave: "apoio",
+                texto: "Manut. + missões",
+                alinhamento: "direita",
+              },
+              {
+                chave: "total",
+                texto: "Total recurso",
+                alinhamento: "direita",
+              },
+              {
+                chave: "custo",
+                texto: "Custo calculado",
+                alinhamento: "direita",
+              },
               { chave: "saldo", texto: "Saldo", alinhamento: "direita" },
               { chave: "util", texto: "Utilização", alinhamento: "direita" },
             ]}
@@ -126,6 +153,26 @@ export default async function RedesETematicas({
                         <Selo tom="aviso">A definir</Selo>
                       </span>
                     ) : null}
+                  </Celula>
+                  <Celula className="max-w-xs">
+                    {area.ppgsContemplados.length > 0 ? (
+                      <ul className="space-y-1 text-muted">
+                        {area.ppgsContemplados.map((ppg) => (
+                          <li key={ppg.ppgId}>
+                            <span className="font-medium text-foreground">
+                              {ppg.ppgNome}
+                            </span>
+                            <span className="block text-xs text-subtle">
+                              {ppg.ppgSigla}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <span className="italic text-subtle">
+                        Nenhum PPG contemplado
+                      </span>
+                    )}
                   </Celula>
                   <Celula className="max-w-[14rem]">
                     {area.coordenadores.length > 0 ? (

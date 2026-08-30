@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { EditarOrcamento } from "@/componentes/formularios/form-orcamento";
 import {
   Aviso,
   Celula,
@@ -11,7 +12,7 @@ import {
   Utilizacao,
 } from "@/componentes/ui/basicos";
 import { apiFetch } from "@/lib/api";
-import type { Ciclo, LinhaRede, LinhaTematica } from "@/lib/dominio";
+import type { Ciclo, LinhaRede, LinhaTematica, Me } from "@/lib/dominio";
 import { inteiro, somarMoeda } from "@/lib/formato";
 
 interface Resposta {
@@ -30,17 +31,24 @@ interface Resposta {
  */
 export default async function Orcamento({
   params,
+  searchParams,
 }: {
   params: Promise<{ programa: string; ciclo: string }>;
+  searchParams: Promise<{ ano?: string }>;
 }) {
   const { programa, ciclo: cicloNome } = await params;
+  const { ano: anoInformado } = await searchParams;
   const base = `/programas/${programa}/${cicloNome}`;
 
-  const { ciclo, tematicas, redes } = await apiFetch<Resposta>(
-    `${base}/orcamento`,
-  );
+  const [{ ciclo, tematicas, redes }, me] = await Promise.all([
+    apiFetch<Resposta>(`${base}/orcamento`),
+    apiFetch<Me>("/me"),
+  ]);
 
   const anos = ciclo.anos;
+  const anoSolicitado = Number(anoInformado);
+  const anoSelecionado = anos.includes(anoSolicitado) ? anoSolicitado : anos[0];
+  const podeEditar = me.permissions.includes("orcamento:write");
   const codigos = [
     ...new Map(
       tematicas.map((t) => [
@@ -64,6 +72,26 @@ export default async function Orcamento({
         informou valores. UFMG e UNICAMP aparecem como “A definir”; esses campos
         não são tratados como R$ 0,00 nem entram no total conhecido.
       </Aviso>
+
+      <nav
+        aria-label="Exercício do orçamento"
+        className="mb-6 flex flex-wrap gap-2"
+      >
+        {anos.map((ano) => (
+          <Link
+            key={ano}
+            href={`${base}/orcamento?ano=${ano}`}
+            aria-current={ano === anoSelecionado ? "page" : undefined}
+            className={
+              ano === anoSelecionado
+                ? "rounded-xl bg-primary px-3 py-2 text-sm font-medium text-on-primary"
+                : "rounded-xl border border-border bg-surface px-3 py-2 text-sm font-medium text-muted hover:border-border-strong hover:text-foreground"
+            }
+          >
+            {ano}
+          </Link>
+        ))}
+      </nav>
 
       <Secao
         titulo="Consolidado por rede e exercício"
@@ -124,7 +152,10 @@ export default async function Orcamento({
                   </Celula>
                 ))}
                 <Celula direita>
-                  <Moeda valor={somarMoeda(daRede.map((r) => r.totalPrevisto))} forte />
+                  <Moeda
+                    valor={somarMoeda(daRede.map((r) => r.totalPrevisto))}
+                    forte
+                  />
                 </Celula>
               </tr>
             );
@@ -133,21 +164,34 @@ export default async function Orcamento({
       </Secao>
 
       <Secao
-        titulo={`Detalhe por área temática — exercício ${anos[0]}`}
-        descricao="Os demais exercícios repetem o valor nominal, conforme a premissa vigente."
+        titulo={`Detalhe por área temática — exercício ${anoSelecionado}`}
+        descricao="Cada exercício é independente. Alterações ficam restritas à gestão e são registradas na auditoria."
       >
         <Tabela
           colunas={[
             { chave: "codigo", texto: "Código" },
             { chave: "rede", texto: "Rede" },
-            { chave: "bolsas", texto: "Orçamento bolsas", alinhamento: "direita" },
+            {
+              chave: "bolsas",
+              texto: "Orçamento bolsas",
+              alinhamento: "direita",
+            },
             { chave: "manut", texto: "Manutenção", alinhamento: "direita" },
             { chave: "missoes", texto: "Missões", alinhamento: "direita" },
-            { chave: "total", texto: "Total previsto", alinhamento: "direita" },
-            { chave: "custo", texto: "Custo programado", alinhamento: "direita" },
-            { chave: "saldo", texto: "Saldo potencial", alinhamento: "direita" },
+            { chave: "total", texto: "Total recurso", alinhamento: "direita" },
+            {
+              chave: "custo",
+              texto: "Custo programado",
+              alinhamento: "direita",
+            },
+            {
+              chave: "saldo",
+              texto: "Saldo potencial",
+              alinhamento: "direita",
+            },
             { chave: "util", texto: "Utilização", alinhamento: "direita" },
             { chave: "situacao", texto: "Situação" },
+            ...(podeEditar ? [{ chave: "acoes", texto: "Ações" }] : []),
           ]}
           rodape={
             <tr>
@@ -156,7 +200,7 @@ export default async function Orcamento({
               <Celula direita>
                 <Moeda
                   valor={somarMoeda(
-                    doAno(tematicas, anos[0]).map((t) => t.valorBolsas),
+                    doAno(tematicas, anoSelecionado).map((t) => t.valorBolsas),
                   )}
                   forte
                 />
@@ -164,7 +208,9 @@ export default async function Orcamento({
               <Celula direita>
                 <Moeda
                   valor={somarConhecido(
-                    doAno(tematicas, anos[0]).map((t) => t.valorManutencao),
+                    doAno(tematicas, anoSelecionado).map(
+                      (t) => t.valorManutencao,
+                    ),
                   )}
                   forte
                 />
@@ -172,7 +218,7 @@ export default async function Orcamento({
               <Celula direita>
                 <Moeda
                   valor={somarConhecido(
-                    doAno(tematicas, anos[0]).map((t) => t.valorMissoes),
+                    doAno(tematicas, anoSelecionado).map((t) => t.valorMissoes),
                   )}
                   forte
                 />
@@ -180,7 +226,9 @@ export default async function Orcamento({
               <Celula direita>
                 <Moeda
                   valor={somarMoeda(
-                    doAno(tematicas, anos[0]).map((t) => t.totalPrevisto),
+                    doAno(tematicas, anoSelecionado).map(
+                      (t) => t.totalPrevisto,
+                    ),
                   )}
                   forte
                 />
@@ -188,7 +236,7 @@ export default async function Orcamento({
               <Celula direita>
                 <Moeda
                   valor={somarMoeda(
-                    doAno(tematicas, anos[0]).map((t) => t.custoBolsas),
+                    doAno(tematicas, anoSelecionado).map((t) => t.custoBolsas),
                   )}
                   forte
                 />
@@ -196,18 +244,21 @@ export default async function Orcamento({
               <Celula direita>
                 <Moeda
                   valor={somarMoeda(
-                    doAno(tematicas, anos[0]).map((t) => t.saldoPotencial),
+                    doAno(tematicas, anoSelecionado).map(
+                      (t) => t.saldoPotencial,
+                    ),
                   )}
                   forte
                 />
               </Celula>
               <Celula direita>—</Celula>
               <Celula>—</Celula>
+              {podeEditar ? <Celula>—</Celula> : null}
             </tr>
           }
         >
           {codigos.map((t) => {
-            const linha = porChave.get(`${t.codigo}|${anos[0]}`);
+            const linha = porChave.get(`${t.codigo}|${anoSelecionado}`);
             if (!linha) return null;
 
             return (
@@ -251,7 +302,10 @@ export default async function Orcamento({
                           : "aviso"
                       }
                     >
-                      Orçamento {linha.statusOrcamento === "DEFINIDO" ? "definido" : "a definir"}
+                      Orçamento{" "}
+                      {linha.statusOrcamento === "DEFINIDO"
+                        ? "definido"
+                        : "a definir"}
                     </Selo>
                     <Selo
                       tom={
@@ -262,7 +316,8 @@ export default async function Orcamento({
                             : "aviso"
                       }
                     >
-                      Composição {linha.statusComposicao === "APROVADA"
+                      Composição{" "}
+                      {linha.statusComposicao === "APROVADA"
                         ? "aprovada"
                         : linha.statusComposicao === "EM_ELABORACAO"
                           ? "em elaboração"
@@ -270,6 +325,15 @@ export default async function Orcamento({
                     </Selo>
                   </div>
                 </Celula>
+                {podeEditar ? (
+                  <Celula>
+                    <EditarOrcamento
+                      programa={programa}
+                      ciclo={cicloNome}
+                      linha={linha}
+                    />
+                  </Celula>
+                ) : null}
               </tr>
             );
           })}

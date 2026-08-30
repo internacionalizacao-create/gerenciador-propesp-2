@@ -519,7 +519,7 @@ describe('Seed — aceite da migração CAPES Global 2027–2030', () => {
 
   // ------------------------------------------------------------------ //
   describe('governança', () => {
-    it('preserva 14 pendências históricas, com 6 ainda abertas', async () => {
+    it('preserva 14 pendências históricas, com 5 ainda abertas', async () => {
       const [{ total }] = await ctx.db
         .select({ total: sql<number>`count(*)::int` })
         .from(s.pendencia);
@@ -529,7 +529,7 @@ describe('Seed — aceite da migração CAPES Global 2027–2030', () => {
         .where(sql`${s.pendencia.status} <> 'RESOLVIDA'`);
 
       expect(total).toBe(14);
-      expect(abertas).toBe(6);
+      expect(abertas).toBe(5);
     });
 
     it('registra as decisões de fluxo e mantém a composição da UNICAMP aberta', async () => {

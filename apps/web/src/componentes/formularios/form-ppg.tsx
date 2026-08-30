@@ -12,6 +12,7 @@ import {
   Texto,
 } from "@/componentes/ui/campos";
 import { Multistep, type Passo } from "@/componentes/ui/multistep";
+import { submeterSemLimpar } from "@/componentes/ui/formulario";
 import { useToastDaAcao } from "@/componentes/ui/toast";
 import { ESTADO_INICIAL } from "@/lib/acao-tipos";
 import type { PpgDetalhe } from "@/lib/dominio";
@@ -198,7 +199,10 @@ export function FormPpg({
   ];
 
   return (
-    <form action={executar} className="flex min-h-0 flex-1 flex-col">
+    <form
+      onSubmit={(evento) => submeterSemLimpar(evento, executar)}
+      className="flex min-h-0 flex-1 flex-col"
+    >
       <Multistep
         passos={passos}
         enviando={enviando}

@@ -121,6 +121,14 @@ export default async function DetalheDoBolsista({
           />
           <Dado rotulo="Modalidade" valor={bolsa.modalidade} />
           <Dado
+            rotulo="Origem"
+            valor={
+              bolsa.instituicaoOrigem
+                ? `${bolsa.instituicaoOrigem}${bolsa.paisOrigem ? ` · ${bolsa.paisOrigem}` : ""}`
+                : "Não informado"
+            }
+          />
+          <Dado
             rotulo="Destino"
             valor={
               bolsa.instituicaoDestino

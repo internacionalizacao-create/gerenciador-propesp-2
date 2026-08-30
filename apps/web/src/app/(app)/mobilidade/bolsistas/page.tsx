@@ -124,7 +124,11 @@ export default async function Bolsistas() {
                   {rotulo(bolsa.destino)}
                 </span>
                 <span className="block text-xs text-subtle">
-                  {bolsa.instituicaoDestino ?? "Instituição não informada"}
+                  {bolsa.instituicaoOrigem ?? "Origem não informada"}
+                  {bolsa.paisOrigem ? ` · ${bolsa.paisOrigem}` : ""}
+                </span>
+                <span className="block text-xs text-subtle">
+                  → {bolsa.instituicaoDestino ?? "Destino não informado"}
                   {bolsa.paisDestino ? ` · ${bolsa.paisDestino}` : ""}
                 </span>
               </Celula>
