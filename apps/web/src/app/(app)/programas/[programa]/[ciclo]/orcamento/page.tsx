@@ -67,10 +67,14 @@ export default async function Orcamento({
       titulo="Orçamento"
       descricao={`Matriz de exercícios × áreas temáticas do ciclo ${ciclo.cicloNome}.`}
     >
-      <Aviso tom="aviso" titulo="Manutenção ainda está a definir">
+      <Aviso
+        tom="aviso"
+        titulo="Manutenção da UFMG e da UNICAMP depende de cadastro"
+      >
         Todas as redes terão orçamento de manutenção, mas apenas a UNESP
-        informou valores. UFMG e UNICAMP aparecem como “A definir”; esses campos
-        não são tratados como R$ 0,00 nem entram no total conhecido.
+        informou valores. UFMG e UNICAMP seguem como “A definir” até que a
+        gestão cadastre os valores na área temática correspondente; enquanto
+        isso não são tratados como R$ 0,00 nem entram no total conhecido.
       </Aviso>
 
       <nav
