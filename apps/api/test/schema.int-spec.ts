@@ -466,6 +466,249 @@ describe('Schema — integridade', () => {
   });
 
   // -------------------------------------------------------------------------
+  describe('equipes do Comite Gestor', () => {
+    it('permite a mesma pessoa nas duas equipes', async () => {
+      await ctx.db.insert(s.membroEquipeGestao).values([
+        {
+          cicloId: base.cicloId,
+          pessoaId: base.coordenadorTematicaId,
+          tipoEquipe: 'COMITE_GESTOR',
+          funcao: 'Coordenadora',
+          dataInicio: '2027-01-01',
+        },
+        {
+          cicloId: base.cicloId,
+          pessoaId: base.coordenadorTematicaId,
+          tipoEquipe: 'ADMINISTRACAO',
+          funcao: 'Apoio',
+          dataInicio: '2027-01-01',
+        },
+      ]);
+
+      const encontrados = await ctx.db
+        .select()
+        .from(s.membroEquipeGestao)
+        .where(eq(s.membroEquipeGestao.pessoaId, base.coordenadorTematicaId));
+      expect(encontrados).toHaveLength(2);
+    });
+
+    it('recusa dois vinculos abertos na mesma equipe', async () => {
+      await ctx.db.insert(s.membroEquipeGestao).values({
+        cicloId: base.cicloId,
+        pessoaId: base.coordenadorTematicaId,
+        tipoEquipe: 'COMITE_GESTOR',
+        funcao: 'Titular',
+        dataInicio: '2027-01-01',
+      });
+
+      await esperarViolacao(
+        ctx.db.insert(s.membroEquipeGestao).values({
+          cicloId: base.cicloId,
+          pessoaId: base.coordenadorTematicaId,
+          tipoEquipe: 'COMITE_GESTOR',
+          funcao: 'Outra funcao',
+          dataInicio: '2028-01-01',
+        }),
+        'membro_equipe_gestao_ativo_uk',
+      );
+    });
+
+    it('recusa encerramento anterior ao inicio', async () => {
+      await esperarViolacao(
+        ctx.db.insert(s.membroEquipeGestao).values({
+          cicloId: base.cicloId,
+          pessoaId: base.coordenadorTematicaId,
+          tipoEquipe: 'COMITE_GESTOR',
+          funcao: 'Titular',
+          dataInicio: '2027-02-01',
+          dataFim: '2027-01-31',
+        }),
+        'membro_equipe_gestao_periodo_ck',
+      );
+    });
+
+    it('recusa a mesma rede duas vezes no vinculo da equipe', async () => {
+      const [membro] = await ctx.db
+        .insert(s.membroEquipeGestao)
+        .values({
+          cicloId: base.cicloId,
+          pessoaId: base.coordenadorTematicaId,
+          tipoEquipe: 'COMITE_GESTOR',
+          funcao: 'Titular',
+          dataInicio: '2027-01-01',
+        })
+        .returning({ id: s.membroEquipeGestao.id });
+
+      await ctx.db.insert(s.membroEquipeGestaoRede).values({
+        membroEquipeId: membro.id,
+        redeId: base.redeId,
+      });
+
+      await esperarViolacao(
+        ctx.db.insert(s.membroEquipeGestaoRede).values({
+          membroEquipeId: membro.id,
+          redeId: base.redeId,
+        }),
+        'membro_equipe_gestao_rede_uk',
+      );
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  describe('missoes do Comite Gestor', () => {
+    async function criarMissao(codigo = 'MCG-001') {
+      const [missao] = await ctx.db
+        .insert(s.missaoComite)
+        .values({
+          cicloId: base.cicloId,
+          codigo,
+          titulo: 'Missao institucional internacional',
+          objetivo: 'Articular cooperacao academica e visitar parceiros.',
+          dataInicio: '2027-05-10',
+          dataFim: '2027-05-20',
+          status: 'PLANEJADA',
+        })
+        .returning();
+      return missao;
+    }
+
+    it('persiste participantes externos e roteiro em varios paises sem dados financeiros', async () => {
+      const [externa] = await ctx.db
+        .insert(s.pessoa)
+        .values({ nome: 'Participante Externa', tipo: 'EXTERNO' })
+        .returning();
+      const paises = await ctx.db
+        .insert(s.pais)
+        .values([
+          { codigoIso2: 'FR', codigoIso3: 'FRA', nome: 'Franca' },
+          { codigoIso2: 'DE', codigoIso3: 'DEU', nome: 'Alemanha' },
+        ])
+        .returning();
+      const missao = await criarMissao();
+
+      await ctx.db.insert(s.missaoParticipante).values({
+        missaoId: missao.id,
+        pessoaId: externa.id,
+        papel: 'RESPONSAVEL',
+      });
+      await ctx.db.insert(s.atividadeMissao).values([
+        {
+          missaoId: missao.id,
+          ordem: 1,
+          tipo: 'VISITA_TECNICA',
+          titulo: 'Visita a universidade parceira',
+          paisId: paises[0].id,
+          cidade: 'Paris',
+          instituicaoNome: 'Universite de Teste',
+          dataInicio: '2027-05-11',
+          dataFim: '2027-05-12',
+          planejamento: 'Reuniao com a equipe de internacionalizacao.',
+        },
+        {
+          missaoId: missao.id,
+          ordem: 2,
+          tipo: 'EVENTO',
+          titulo: 'Congresso internacional',
+          paisId: paises[1].id,
+          cidade: 'Berlim',
+          eventoNome: 'International Cooperation Forum',
+          dataInicio: '2027-05-15',
+          dataFim: '2027-05-17',
+        },
+      ]);
+
+      const encontrada = await ctx.db.query.missaoComite.findFirst({
+        where: eq(s.missaoComite.id, missao.id),
+        with: { participantes: true, atividades: true },
+      });
+
+      expect(encontrada?.participantes).toHaveLength(1);
+      expect(encontrada?.participantes[0].membroEquipeId).toBeNull();
+      expect(
+        new Set(encontrada?.atividades.map((atividade) => atividade.paisId)),
+      ).toEqual(new Set(paises.map((pais) => pais.id)));
+      expect(encontrada).not.toHaveProperty('valor');
+      expect(encontrada).not.toHaveProperty('orcamento');
+    });
+
+    it('recusa codigo repetido no mesmo ciclo', async () => {
+      await criarMissao('MCG-010');
+
+      await esperarViolacao(
+        ctx.db.insert(s.missaoComite).values({
+          cicloId: base.cicloId,
+          codigo: 'MCG-010',
+          titulo: 'Outra missao',
+          objetivo: 'Objetivo de teste.',
+          dataInicio: '2027-08-01',
+          dataFim: '2027-08-05',
+        }),
+        'missao_comite_codigo_uk',
+      );
+    });
+
+    it('recusa periodo invertido e participante repetido', async () => {
+      await esperarViolacao(
+        ctx.db.insert(s.missaoComite).values({
+          cicloId: base.cicloId,
+          codigo: 'MCG-020',
+          titulo: 'Missao com periodo invalido',
+          objetivo: 'Objetivo de teste.',
+          dataInicio: '2027-09-10',
+          dataFim: '2027-09-01',
+        }),
+        'missao_comite_periodo_ck',
+      );
+
+      const missao = await criarMissao('MCG-021');
+      const participante = {
+        missaoId: missao.id,
+        pessoaId: base.coordenadorTematicaId,
+        papel: 'PARTICIPANTE' as const,
+      };
+      await ctx.db.insert(s.missaoParticipante).values(participante);
+      await esperarViolacao(
+        ctx.db.insert(s.missaoParticipante).values(participante),
+        'missao_participante_pessoa_uk',
+      );
+    });
+
+    it('aceita instituicao catalogada ou nome livre, mas nao os dois', async () => {
+      const [pais] = await ctx.db
+        .insert(s.pais)
+        .values({ codigoIso2: 'PT', codigoIso3: 'PRT', nome: 'Portugal' })
+        .returning();
+      const missao = await criarMissao('MCG-030');
+
+      await ctx.db.insert(s.atividadeMissao).values({
+        missaoId: missao.id,
+        ordem: 1,
+        tipo: 'ARTICULACAO',
+        titulo: 'Reuniao institucional',
+        paisId: pais.id,
+        instituicaoId: base.instituicaoId,
+        dataInicio: '2027-05-12',
+        dataFim: '2027-05-12',
+      });
+
+      await esperarViolacao(
+        ctx.db.insert(s.atividadeMissao).values({
+          missaoId: missao.id,
+          ordem: 2,
+          tipo: 'VISITA_TECNICA',
+          titulo: 'Visita ambigua',
+          paisId: pais.id,
+          instituicaoId: base.instituicaoId,
+          instituicaoNome: 'Outra universidade',
+          dataInicio: '2027-05-13',
+          dataFim: '2027-05-13',
+        }),
+        'atividade_missao_instituicao_ck',
+      );
+    });
+  });
+
+  // -------------------------------------------------------------------------
   describe('cascatas e vínculos', () => {
     it('apagar o ciclo leva junto o planejamento', async () => {
       await ctx.db.insert(s.itemPlanejado).values(bolsaValida(base));

@@ -10,3 +10,4 @@ export * from './orcamento';
 export * from './planejamento';
 export * from './execucao';
 export * from './governanca';
+export * from './comite-gestor';

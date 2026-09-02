@@ -117,6 +117,77 @@ describe('Seed — aceite da migração CAPES Global 2027–2030', () => {
       expect(new Set(unicampT1.map((c) => c.coordenador)).size).toBe(2);
     });
 
+    it('carrega a composicao formal das equipes para as tres redes', async () => {
+      const membros = await ctx.db
+        .select({
+          nome: s.pessoa.nome,
+          tipoPessoa: s.pessoa.tipo,
+          instituicao: s.instituicao.sigla,
+          tipoEquipe: s.membroEquipeGestao.tipoEquipe,
+          funcao: s.membroEquipeGestao.funcao,
+          dataInicio: s.membroEquipeGestao.dataInicio,
+        })
+        .from(s.membroEquipeGestao)
+        .innerJoin(s.pessoa, eq(s.pessoa.id, s.membroEquipeGestao.pessoaId))
+        .innerJoin(s.instituicao, eq(s.instituicao.id, s.pessoa.instituicaoId));
+
+      expect(membros).toHaveLength(10);
+      expect(
+        membros.filter((m) => m.tipoEquipe === 'COMITE_GESTOR'),
+      ).toHaveLength(2);
+      expect(
+        membros.filter((m) => m.tipoEquipe === 'ADMINISTRACAO'),
+      ).toHaveLength(8);
+      expect(new Set(membros.map((m) => m.tipoPessoa))).toEqual(
+        new Set(['SERVIDOR']),
+      );
+      expect(new Set(membros.map((m) => m.instituicao))).toEqual(
+        new Set(['UEA']),
+      );
+      expect(new Set(membros.map((m) => m.dataInicio))).toEqual(
+        new Set(['2027-01-01']),
+      );
+
+      const associacoes = await ctx.db
+        .select({
+          nome: s.pessoa.nome,
+          rede: s.redeCoordenadora.nome,
+        })
+        .from(s.membroEquipeGestaoRede)
+        .innerJoin(
+          s.membroEquipeGestao,
+          eq(s.membroEquipeGestao.id, s.membroEquipeGestaoRede.membroEquipeId),
+        )
+        .innerJoin(s.pessoa, eq(s.pessoa.id, s.membroEquipeGestao.pessoaId))
+        .innerJoin(
+          s.redeCoordenadora,
+          eq(s.redeCoordenadora.id, s.membroEquipeGestaoRede.redeId),
+        );
+
+      expect(associacoes).toHaveLength(19);
+      const redesPorPessoa = Object.fromEntries(
+        membros.map(({ nome }) => [
+          nome,
+          associacoes
+            .filter((item) => item.nome === nome)
+            .map((item) => item.rede)
+            .sort(),
+        ]),
+      );
+      expect(redesPorPessoa).toEqual({
+        'Roberto Sanches Mubarac Sobrinho': ['UFMG', 'UNESP', 'UNICAMP'],
+        'Patricia Melchionna Albuquerque': ['UFMG', 'UNESP', 'UNICAMP'],
+        'André Luiz Nunes Zogahib': ['UFMG', 'UNESP', 'UNICAMP'],
+        'Andréa Monteiro Tarragô': ['UFMG', 'UNESP', 'UNICAMP'],
+        'Jessica Mie Ferreira Koyama Takahashi': ['UFMG'],
+        'Sara do Nascimento Maia': ['UFMG'],
+        'Carlos Renato R. de Jesus': ['UNESP'],
+        'Elisa Gomes de Lima': ['UNESP', 'UNICAMP'],
+        'João Victor Verçosa': ['UNESP'],
+        'Katia de Abreu Chulata': ['UNICAMP'],
+      });
+    });
+
     it('mantém somente o CAPES Global ativo para operação', async () => {
       const programas = await ctx.db
         .select({ slug: s.programa.slug, ativo: s.programa.ativo })

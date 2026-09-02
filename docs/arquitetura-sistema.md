@@ -275,13 +275,14 @@ habilita CORS e por que `apiFetch` é `server-only`.
 ```mermaid
 sequenceDiagram
     actor U as Usuário
-    participant F as Formulário / Sidesheet
+    participant F as React Hook Form / Sidesheet
     participant S as Server Action Next.js
     participant A as API NestJS
     participant D as PostgreSQL
 
     U->>F: Preenche e confirma
-    F->>S: FormData
+    F->>F: Validação Zod no cliente
+    F->>S: Objeto tipado
     S->>A: POST/PATCH JSON + Bearer
     A->>A: Guard de permissão
     A->>A: Validação Zod
@@ -290,6 +291,7 @@ sequenceDiagram
     A-->>S: Resposta ou erro de campo
     S->>S: revalidatePath
     S-->>F: Sucesso ou validação
+    F->>F: Erros da API voltam aos campos
     F-->>U: Fecha sidesheet e mostra toast
 ```
 
@@ -299,6 +301,7 @@ sequenceDiagram
 |---|---|
 | Página e composição visual | `apps/web/src/app/(app)/.../page.tsx` |
 | Formulário | `apps/web/src/componentes/formularios/` |
+| Schema Zod do formulário | `apps/web/src/lib/formularios/` |
 | Server Action | `apps/web/src/acoes/` |
 | Cliente servidor da API | `apps/web/src/lib/api.ts` e `acao.ts` |
 | Rota HTTP | `apps/api/src/dominio/*.controller.ts` |
@@ -424,6 +427,7 @@ gerenciador/
 | Bolsistas | `mobilidade/bolsistas/` | `acoes/bolsistas.ts` | `BolsistasController` / `BolsistasService` | `pessoa`, `bolsa_concedida` |
 | Produtos | detalhe do bolsista | `acoes/bolsistas.ts` | `BolsistasController` / `BolsistasService` | `produto_bolsa` |
 | Pendências | `pendencias/page.tsx` | ações de pendência | `PendenciasController` / `PendenciasService` | `pendencia` |
+| Comitê Gestor e Administração | `.../comite-gestor/page.tsx` | `acoes/comite-gestor.ts` | `ProgramasController` / `ComiteGestorService` / `MissoesComiteService` | `orcamento_comite_gestor`, `membro_equipe_gestao`, `membro_equipe_gestao_rede`, `pessoa`, `missao_comite`, `missao_participante` e `atividade_missao` |
 
 ---
 
@@ -439,8 +443,19 @@ gerenciador/
 - Plano de aplicação por exercício, rede, temática e PPG.
 - Cadastro individual de bolsista com CPF, origem, destino e datas completas.
 - Alertas temporais e produtos individuais por bolsa.
-- Pendências e Comitê Gestor na interface; premissas e fontes preservadas
+- Pendências e Comitê Gestor na interface; a P17 cadastra pessoas, equipes
+  separadas e missões com roteiro e participantes. A composição formal das três
+  redes é carregada sem duplicar pessoas e permanece extensível pelo cadastro
+  manual. A API de missões também
+  cobre detalhe, edição, ciclo de vida e relato; a página de detalhe e as
+  prestações seguem no backlog. Premissas e fontes permanecem preservadas
   internamente para rastreabilidade e futuro uso em Documentos e evidências.
+- O escopo ampliado recebido em 2026-09-01 para aprovação, parceiros, contatos,
+  resultados, documentos e relatórios ainda está em homologação. A matriz e a
+  sequência que evitam retrabalho arquitetural estão em
+  [revisao-escopo-comite-gestor-2026-09-01.md](revisao-escopo-comite-gestor-2026-09-01.md).
+  Até CG-005–CG-009 serem concluídas, não interpretar o PDF como schema
+  aprovado nem iniciar a página de detalhe CG-045.
 - Seed real, migrations, testes unitários, integração e smoke tests.
 
 ### Próximos blocos
@@ -519,7 +534,8 @@ pnpm smoke:telas
 2. Gere e revise uma migration.
 3. Crie schema Zod e regra transacional na API.
 4. Adicione controller e permissão.
-5. Crie Server Action, formulário e sidesheet na web.
+5. Crie o schema Zod do cliente, a Server Action tipada, o formulário com React
+   Hook Form e o sidesheet na web.
 6. Revalide as páginas afetadas e mostre erro junto ao campo.
 
 ### Nova regra de cálculo

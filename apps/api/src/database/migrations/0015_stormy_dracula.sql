@@ -1,0 +1,3 @@
+ALTER TABLE "atividade_missao" ADD COLUMN "nao_prevista" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "atividade_missao" ADD COLUMN "justificativa_inclusao" text;--> statement-breakpoint
+ALTER TABLE "atividade_missao" ADD CONSTRAINT "atividade_missao_nao_prevista_ck" CHECK ("atividade_missao"."nao_prevista" is false or "atividade_missao"."justificativa_inclusao" is not null);

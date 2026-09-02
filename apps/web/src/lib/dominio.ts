@@ -467,6 +467,103 @@ export interface ComiteGestor {
   aviso: string;
 }
 
+export interface PessoaDisponivel {
+  id: string;
+  nome: string;
+  email: string | null;
+  cpf: string | null;
+  tipo: string;
+  ppg: string | null;
+  instituicao: string | null;
+}
+
+export interface MembroEquipeGestao {
+  id: string;
+  pessoaId: string;
+  nome: string;
+  email: string | null;
+  tipoPessoa: string;
+  ppg: string | null;
+  instituicao: string | null;
+  tipoEquipe: "COMITE_GESTOR" | "ADMINISTRACAO";
+  funcao: string;
+  dataInicio: string;
+  dataFim: string | null;
+  situacao: "ATIVO" | "FUTURO" | "ENCERRADO";
+  observacoes: string | null;
+  redes: string[];
+  /** Missões do ciclo de que a pessoa participou, contadas por pessoa. */
+  missoes: number;
+}
+
+export type StatusMissao =
+  | "RASCUNHO"
+  | "PLANEJADA"
+  | "CONFIRMADA"
+  | "CONCLUIDA"
+  | "CANCELADA";
+
+export type SituacaoTemporalMissao = "FUTURA" | "EM_ANDAMENTO" | "ENCERRADA";
+
+export type SituacaoPrestacao =
+  | "NAO_INICIADA"
+  | "EM_PREENCHIMENTO"
+  | "ENVIADA"
+  | "COM_PENDENCIA"
+  | "VALIDADA";
+
+export interface MissaoResumo {
+  id: string;
+  codigo: string;
+  titulo: string;
+  dataInicio: string;
+  dataFim: string;
+  status: StatusMissao;
+  situacaoTemporal: SituacaoTemporalMissao;
+  situacaoPrestacao: SituacaoPrestacao;
+  participantes: number;
+  atividades: number;
+  paises: string[];
+  /** Vazio só em missão anterior à CG-016; a lista mostra "Sem rede definida". */
+  redes: string[];
+  /** Nulo quando não há prestação; a interface nunca apresenta R$ 0,00. */
+  valorPrestado: string | null;
+}
+
+export interface ResumoMissoes {
+  total: number;
+  porStatus: Record<StatusMissao, number>;
+  porSituacaoTemporal: Record<SituacaoTemporalMissao, number>;
+  realizadas: number;
+  canceladas: number;
+}
+
+export interface PaginaMissoes {
+  itens: MissaoResumo[];
+  total: number;
+  pagina: number;
+  tamanho: number;
+  paginas: number;
+  resumo: ResumoMissoes;
+}
+
+export interface ReferenciasMissao {
+  paises: {
+    id: string;
+    nome: string;
+    codigoIso2: string;
+  }[];
+  instituicoes: {
+    id: string;
+    nome: string;
+    sigla: string | null;
+    paisId: string | null;
+    cidade: string | null;
+  }[];
+  /** Redes coordenadoras do ciclo; a missão pertence a uma ou mais (CG-016). */
+  redes: { id: string; nome: string }[];
+}
+
 export interface DetalheTematica extends LinhaTematica {
   coordenadores: CoordenadorTematica[];
   porAno: LinhaTematica[];

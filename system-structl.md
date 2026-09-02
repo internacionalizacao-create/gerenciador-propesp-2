@@ -4,13 +4,13 @@ Especificação funcional e de dados do sistema que substitui as planilhas hoje 
 pela PROPESP/UEA para gerir bolsas, orçamento e mobilidade internacional da
 pós-graduação.
 
-**Última revisão:** 2026-08-30
+**Última revisão:** 2026-08-31
 **Fontes:** `dados/levamtamento de bolsas/`, incluindo a planilha atualizada
 `Planejamento_CAPES_Global_2027_2030_Atualizado_UNICAMP_UFMG.xlsx`;
 `dados/remanejamento/Guia_Orientacoes_Remanejamento_Transformacao_CAPES_Global final (1).pdf`;
 `respostas/`; `dados/Planejamento_CAPES_Global_Consolidado_UFMG_Comite_Gestor/`;
 `dados/insights/`; `dados/sugestaov1-prototipo/`.
-**Estado da implementação:** autenticação/autorização, modelo de dados (27 tabelas),
+**Estado da implementação:** autenticação/autorização, modelo de dados (28 tabelas),
 seed com os dados reais, **serviços de cálculo (RN-01 a RN-20), telas de
 planejamento anual e cadastro individual de bolsas/produtos** estão implementados e testados.
 
@@ -332,6 +332,54 @@ modalidadesPrevistas[]? · observacoes?
 > Cada participação tem exatamente um Coordenador de Temática. Uma temática pode
 > ter vários coordenadores quando eles cuidam de PPGs diferentes, e uma pessoa
 > pode coordenar vários PPGs — é o caso de `UNICAMP-T1`.
+
+**`MembroEquipeGestao`** — composição operacional da P17, sem relação com o
+comitê temático acima.
+```
+id PK · cicloId FK · pessoaId FK
+tipoEquipe (COMITE_GESTOR | ADMINISTRACAO) · funcao
+dataInicio · dataFim? · observacoes?
+```
+> A mesma pessoa pode integrar as duas equipes e pode ser reutilizada em várias
+> missões. Vínculos encerrados não são apagados; períodos sobrepostos na mesma
+> equipe são recusados. Este vínculo é dado de negócio e não concede papel no
+> Keycloak.
+
+**`MembroEquipeGestaoRede`** — redes cujos documentos formais fundamentam o
+vínculo consolidado.
+```
+id PK · membroEquipeId FK · redeId FK
+unique(membroEquipeId, redeId)
+```
+> A composição formal de UFMG, UNESP e UNICAMP contém 19 ocorrências, mas apenas
+> 10 pessoas e 10 vínculos de equipe. A associação preserva as redes sem duplicar
+> a pessoa nem impedir membros cadastrados manualmente sem rede específica.
+
+**`MissaoComite`** — viagem institucional efetiva, separada de
+`ItemPlanejado(MISSOES)` e inicialmente sem qualquer valor financeiro.
+```
+id PK · cicloId FK · codigo · titulo · objetivo · dataInicio · dataFim
+status (RASCUNHO | PLANEJADA | CONFIRMADA | CONCLUIDA | CANCELADA)
+relatoGeral? · resultados? · observacoes?
+```
+
+**`MissaoParticipante`**
+```
+id PK · missaoId FK · pessoaId FK · membroEquipeId FK?
+papel (RESPONSAVEL | PARTICIPANTE | APOIO) · observacoes?
+```
+> A pessoa é única por missão e `membroEquipeId` é opcional, pois participantes
+> externos às duas equipes também são permitidos.
+
+**`AtividadeMissao`** — cada parada ou compromisso do roteiro.
+```
+id PK · missaoId FK · ordem · tipo (VISITA_TECNICA | EVENTO | ARTICULACAO | BANCA | OUTRO)
+titulo · paisId FK · cidade? · instituicaoId FK? ou instituicaoNome? · eventoNome?
+dataInicio · dataFim · planejamento? · relatoRealizado? · resultados?
+status (PLANEJADA | REALIZADA | NAO_REALIZADA) · observacoes?
+```
+> O país fica na atividade, não na missão, para que uma viagem registre vários
+> países, cidades, universidades e eventos sem duplicar a missão.
 
 ### 4.3 Catálogo de valores
 
@@ -1160,17 +1208,40 @@ não autoriza recriar uma rota ou item de menu para premissas sem nova decisão 
 
 ---
 
-### P17 · Comitê Gestor
+### P17 · Comitê Gestor e Administração
 **Rota** `.../comite-gestor` · **Substitui** `Comitê Gestor 2026-2029` · **MVP**
 
 Orçamento **separado** do de bolsas: R$ 381.333,00/ano, 2026–2029, para missões e
 articulação institucional.
 
-**Blocos** cartões (total anual, total do ciclo, maior aporte, redes) · tabela por rede
-e ano · distribuição percentual · síntese executiva.
+**Implementado** — abas Visão geral, Missões e Equipes;
+cartões de orçamento e equipe; tabela de origem dos aportes; cadastro separado de
+membros do Comitê Gestor e da Administração, com pessoa reutilizável, função,
+vigência, redes de origem e auditoria. A seed e a migration carregam a composição
+formal dos documentos UFMG, UNESP e UNICAMP: 10 pessoas, 10 vínculos e 19
+associações com redes, mantendo disponível o cadastro manual. A aba Missões
+lista, filtra e pagina, e o cadastro
+multietapas grava identificação, roteiro repetível e participantes sem qualquer
+valor financeiro. Nesta etapa toda a área é exclusiva de `admin`.
 
-**Regra** — um aviso fixo no topo: *"Este orçamento não integra o orçamento de bolsas
-CAPES Global."* Foi o que o PNG do painel do Comitê Gestor precisou dizer por escrito.
+**Ainda pendente** — página de detalhe, edição do relato realizado, prestação,
+passagens, diárias e PDFs, conforme
+[docs/backlog-comite-gestor.md](docs/backlog-comite-gestor.md).
+
+**Revisão de escopo em 2026-09-01** — a equipe forneceu o documento “Módulo de
+Gestão de Missões, Comitê Gestor, Parceiros e Resultados”, ampliando a visão para
+aprovação colegiada, parceiros, contatos, produtos, convênios, evidências,
+dashboards e relatórios. A comparação integral está em
+[docs/revisao-escopo-comite-gestor-2026-09-01.md](docs/revisao-escopo-comite-gestor-2026-09-01.md).
+Os detalhes novos ainda não são decisões confirmadas: CG-005 a CG-009 devem
+homologar fases, estados, redes, governança e fronteiras financeiras/documentais
+antes da evolução do schema. A construção da página de detalhe CG-045 fica
+reordenada para depois dessa fundação, evitando implementar um contrato já
+sabidamente incompleto.
+
+**Regra** — o orçamento continua separado do orçamento de bolsas em todos os
+cálculos e indicadores (RN-14), mas a tela não precisa exibir um aviso fixo sobre
+essa separação.
 
 ---
 
@@ -1298,12 +1369,15 @@ comportamento real e a migração seja verificável.
 
 | Entidade | Registros | Origem |
 |---|---|---|
+| `Pais` | 249 | catálogo ISO usado por missões e mobilidade |
 | `Instituicao` | 4 | UEA + UNESP, UFMG, UNICAMP |
 | `Programa` | 6 | CAPES Global ativo + GCUB, Erasmus+, PDSE, Move La América e PROAFRI inativos e ocultos. |
 | `Ciclo` | 2 | CAPES Global 2027–2030; Comitê Gestor 2026–2029 |
 | `RedeCoordenadora` | 3 | `Redes_Tematicas` |
 | `AreaTematica` | 12 | 4 por rede |
-| `Pessoa` (Coordenadores de Temática) | 13 | abas `Comitê *` |
+| `Pessoa` | 23 | 13 Coordenadores de Temática + 10 integrantes formalizados das equipes da P17 |
+| `MembroEquipeGestao` | 10 | composição formal UFMG, UNESP e UNICAMP recebida em PDF |
+| `MembroEquipeGestaoRede` | 19 | ocorrência de cada integrante nos três documentos formais |
 | `ParticipacaoPpg` | 24 | Cada vínculo PPG–temática aponta para seu coordenador; uma pessoa pode aparecer em vários vínculos. |
 | `Ppg` | 24 | `PPGs` |
 | `ParticipacaoPpg` | 24 | `PPGs` |

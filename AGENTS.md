@@ -4,7 +4,7 @@ Documento de referência para quem (pessoa ou LLM) vai mexer neste repositório 
 tê-lo escrito. Descreve o que existe hoje, por que está assim, e o que ainda não
 existe. **Mantenha-o atualizado quando mudar arquitetura ou convenção.**
 
-Última revisão: 2026-08-30.
+Última revisão: 2026-09-01.
 
 ---
 
@@ -21,8 +21,9 @@ dados com a seed real, serviços de cálculo (RN-01 a RN-20), telas de planejame
 anual e o cadastro individual de bolsas/produtos existem e são verificados. As planilhas
 não fornecem beneficiários, então P03 começa vazio e será alimentado pela equipe.
 No CAPES Global não há execução financeira na UEA: a CAPES paga diretamente. Falta
-o registro histórico de movimentações externas, documentos, relatórios, panorama/mapa
-de mobilidade e o escopo local por PPG/temática na autorização. Ver §9.
+o registro histórico de movimentações externas, as missões do Comitê Gestor,
+documentos, relatórios, panorama/mapa de mobilidade e o escopo local por
+PPG/temática na autorização. Ver §9.
 
 A visão de arquitetura e os fluxos de negócio/técnicos estão em
 [docs/arquitetura-sistema.md](docs/arquitetura-sistema.md). A especificação
@@ -44,6 +45,7 @@ funcional completa, com as 23 páginas previstas, está em
 | PostgreSQL | 17 | dois bancos: um do Keycloak e um com os dados de domínio da API |
 | Tailwind CSS | 4.x | tokens semânticos, ver §8 |
 | MUI X Charts | 9.x Community | visualizações; `@mui/material` e Emotion são apenas dependências de integração |
+| React Hook Form | 7.x | estado e validação dos formulários novos, integrado ao Zod 4 por `@hookform/resolvers` |
 
 ### Armadilhas de versão (leia antes de escrever código)
 
@@ -96,6 +98,8 @@ apps/
         ciclo.service.ts      P06/P07/P08/P17 e dados internos de premissas/fontes
         ppgs.service.ts       P14
         pendencias.service.ts P13
+        comite-gestor.service.ts  P17 — pessoas e equipes
+        missoes-comite.service.ts P17 — criação, consulta, edição, ciclo de vida e relato de missões
         *.controller.ts       rotas REST, uma permissão por endpoint
       config/env.ts        validação de ambiente com zod (falha no boot)
       database/            schema Drizzle, migrations e seed
@@ -333,6 +337,11 @@ menciona papel. Foi por isso que a indireção existe desde o começo.
 - **Validação com zod, em toda fronteira** — ambiente, claims de token, payload de
   cookie. A API não usa `class-validator`: quando o primeiro DTO aparecer, use zod
   também, para o projeto não carregar duas bibliotecas de validação.
+- **Formulários novos usam React Hook Form + Zod.** Defina o schema do cliente em
+  `lib/formularios/`, passe-o ao `zodResolver` e envie o objeto tipado para a
+  Server Action. A API continua sendo a fronteira autoritativa e valida novamente.
+  Formulários legados que usam `FormData` devem ser migrados quando forem alterados,
+  não numa reescrita ampla sem necessidade.
 - **Nada de `NEXT_PUBLIC_`** nas variáveis de auth. `apps/web/src/lib/env.ts` usa
   `server-only`: importá-lo de um Client Component quebra o build de propósito.
 - **A API não habilita CORS**, e isso é intencional — o browser nunca fala com ela
@@ -374,15 +383,20 @@ semânticos: `bg-surface`, `text-muted`, `border-border-strong`, `bg-danger-soft
 |---|---|---|
 | `Sidesheet` / `AbrirSidesheet` | [ui/sidesheet.tsx](apps/web/src/componentes/ui/sidesheet.tsx) | Todo cadastro entra por painel lateral. É `<dialog>` nativo — foco preso, `Esc`, fundo inerte e `::backdrop` vêm do navegador. O conteúdo permanece montado durante a animação de saída. |
 | `Multistep` | [ui/multistep.tsx](apps/web/src/componentes/ui/multistep.tsx) | Formulário longo em etapas. **Todos os passos ficam montados** e o inativo usa o atributo `hidden`: só assim o `FormData` do submit traz o formulário inteiro, e campos `required` de passo oculto não travam o envio. |
+| `Selecoes` | [ui/campos.tsx](apps/web/src/componentes/ui/campos.tsx) | Grupo de caixas de seleção que devolve uma lista (as redes de uma missão, por exemplo). É `fieldset`/`legend`, e todas as caixas compartilham o `name`: o React Hook Form junta as marcadas em array e o `FormData` as devolve em `getAll`. |
+| `Texto` / `Selecao` / `Data` / `AreaTexto` | [ui/campos.tsx](apps/web/src/componentes/ui/campos.tsx) | Campos visuais aceitam `registro={register("campo")}` do React Hook Form e mantêm os tokens e mensagens acessíveis do sistema. |
+| `useErrosDaAcao` | [ui/formulario.ts](apps/web/src/componentes/ui/formulario.ts) | Reaplica os erros de campo devolvidos pela API no React Hook Form; use um mapa apenas quando o nome da API diferir do nome visual. |
 | `Moeda` | [ui/basicos.tsx](apps/web/src/componentes/ui/basicos.tsx) | Nulo vira *A definir* em itálico, **nunca** R$ 0,00 (§9.2 da especificação). |
 | `somarMoeda` | [lib/formato.ts](apps/web/src/lib/formato.ts) | Soma em centavos com `BigInt`. Dinheiro nunca passa por `number` antes de uma conta. |
 | `ToastProvider` / `useToastDaAcao` | [ui/toast.tsx](apps/web/src/componentes/ui/toast.tsx) | Confirma ações depois que o sidesheet fecha. Erros de validação continuam junto ao formulário. |
 
 Cadastro novo: crie o formulário em `componentes/formularios/`, a Server Action
-em `acoes/`, e chame por `AbrirSidesheet` na página. Formulário curto não precisa
-de multistep — fatiar quatro campos em etapas troca rolagem por cliques. Use
-`useToastDaAcao` para o sucesso da Server Action; não leve erros de campo para o
-toast, porque eles precisam permanecer próximos do controle que deve ser corrigido.
+em `acoes/`, o schema Zod em `lib/formularios/` e chame por `AbrirSidesheet` na
+página. Use `useForm` com `zodResolver`, `useWatch` para campos condicionais e
+`useErrosDaAcao` para rejeições da API. Formulário curto não precisa de multistep
+— fatiar quatro campos em etapas troca rolagem por cliques. Use `useToastDaAcao`
+para o sucesso da Server Action; não leve erros de campo para o toast, porque
+eles precisam permanecer próximos do controle que deve ser corrigido.
 
 O menu lateral nasce recolhido no desktop e pode ser expandido pelo controle no
 rodapé. No celular ele continua como gaveta completa. Preserve esse comportamento
@@ -397,7 +411,7 @@ o ícone estiver visível.
 
 - **Autenticação/autorização**: login e logout OIDC completos, sessão renovada
   automaticamente, guards globais, catálogo de permissões, realm versionado.
-- **Modelo de dados**: 27 tabelas em 7 módulos de schema Drizzle
+- **Modelo de dados**: 31 tabelas em 8 módulos de schema Drizzle
   ([apps/api/src/database/schema/](apps/api/src/database/schema/)), com migrations.
   Segue [system-structl.md](system-structl.md) §4.
 - **Seed com os dados reais** das planilhas e respostas formais
@@ -422,6 +436,35 @@ o ícone estiver visível.
   vaga por exercício, CPF, origem e destino, datas completas, alertas temporais, regra de uma
   modalidade por CPF/ciclo e cadastro/acompanhamento de produtos por pessoa. Não há
   seed de beneficiários porque a planilha não os traz.
+- **Comitê Gestor e Administração (P17, equipes e cadastro de missões)**:
+  cadastro de vínculos por ciclo, separação entre as duas equipes, criação
+  reutilizável de pessoas, vigência, auditoria e acesso provisório exclusivo de
+  `admin`. A P17 possui as abas Visão geral, Missões e Equipes; Missões lista,
+  filtra e pagina, e o cadastro multietapas grava roteiro repetível e
+  participantes sem valores financeiros. A API cobre criação, detalhe, edição,
+  ciclo de vida e relato; a página de detalhe ainda não existe e foi reordenada
+  para depois da homologação do escopo ampliado. O
+  catálogo ISO de países é carregado por migration e seed. A composição formal
+  das redes UFMG, UNESP e UNICAMP também é carregada por migration e seed: 10
+  pessoas, 10 vínculos consolidados e 19 associações em
+  `membro_equipe_gestao_rede`, sem bloquear novos cadastros manuais. A Visão
+  geral filtra a tabela de aportes por exercício em `?ano=`, e a aba Equipes
+  mostra quantas missões do ciclo cada pessoa integrou — a contagem é por pessoa,
+  porque participante sem vínculo de equipe também conta. A missão pertence a
+  uma ou mais redes coordenadoras (`missao_rede`, mínimo uma, do mesmo ciclo):
+  a lista filtra por rede em `?redeId=`, e a missão multirrede aparece e conta
+  **uma única vez** em "todas as redes" porque filtro e leitura usam `exists` e
+  subconsulta, nunca `join`. O backlog rastreável
+  está em [docs/backlog-comite-gestor.md](docs/backlog-comite-gestor.md), e as
+  decisões que faltam homologar antes da próxima etapa estão em
+  [docs/homologacao-comite-gestor.md](docs/homologacao-comite-gestor.md).
+  Em 2026-09-01, a equipe entregou uma especificação ampliada de 40 seções para
+  aprovação, parceiros, contatos, produtos, documentos, convênios, indicadores
+  e relatórios. A auditoria integral está em
+  [docs/revisao-escopo-comite-gestor-2026-09-01.md](docs/revisao-escopo-comite-gestor-2026-09-01.md).
+  **Não iniciar a antiga CG-045:** a próxima task obrigatória é CG-005, seguida
+  de CG-006 a CG-009, para homologar fases e regras antes de alterar o contrato
+  da missão. O PDF não substitui silenciosamente as decisões confirmadas.
 
 Na P10, a leitura segue `programa → rede → temática → PPG`. A rota `.../plano`
 tem a aba **Visão geral** e uma aba por rede, persistida em `?rede=`; não crie
@@ -432,8 +475,9 @@ interface é **Coordenador de Temática**, não “membro do comitê”. Ediçã
 existente exige `plano:edit` (só `admin`), preserva código/rubrica e grava uma
 entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: somente
 2027 vem composto; 2028–2030 começam vazios e nunca copiam a quantidade automaticamente.
-- **Testes**: 35 unitários (27 API + 8 regressões na web para toast, datas e
-  erros do multistep) + 107 de integração contra Postgres real.
+- **Testes**: 51 unitários/regressões (33 API + 18 na web para toast, datas,
+  React Hook Form/Zod e erros do multistep) + 181 de integração contra
+  Postgres real.
 - Smoke de login (`pnpm smoke:login`) e de telas (`pnpm smoke:telas`) ponta a
   ponta; CI de lint/build/test.
 
@@ -449,8 +493,11 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
   execução financeira permanece no schema para outros programas, mas P11 é fora do
   escopo do CAPES Global porque os pagamentos são feitos diretamente pela CAPES.
 - Relatórios (P20), importação com adaptador por programa (P21), documentos e
-  evidências (P22), convênios e produção consolidada (P18/P19, fase 2). Produtos
-  individuais por bolsa já existem em P03.
+  evidências (P22), convênios e produção consolidada (P18/P19). O documento novo
+  do Comitê propõe trazer parte de P18–P20/P22 para o fluxo da missão, mas a fase
+  e a prioridade ainda dependem da CG-005. Produtos individuais por bolsa já
+  existem em P03 e não devem ser reutilizados como produto de missão sem a
+  modelagem da CG-056.
 - **Escopo por PPG na autorização.** `coordenador` é global, não "coordenador do
   PPGDA". Continua sendo o próximo ponto de pressão: coordenadores lançam dados
   desde o MVP ([system-structl.md](system-structl.md) §3.5), toda entidade já
@@ -459,9 +506,9 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
 - Vínculo entre o `sub` do Keycloak e um registro local de `pessoa`. A identidade
   vive só no token; o provisionamento (JIT no primeiro login é o usual) ainda
   precisa ser decidido.
-- Cobertura ampla de componentes na `web`; hoje há oito regressões em
-  `node:test` (toast, conversão/validação de datas e erros do multistep), além do
-  `pnpm smoke:telas` para as páginas.
+- Cobertura ampla de componentes na `web`; hoje há 16 regressões em
+  `node:test` (toast, conversão/validação de datas, erros do multistep e cadastro
+  de missão), além do `pnpm smoke:telas` para as páginas.
 - Upload/versionamento e política de acesso dos documentos pessoais, além do
   histórico de cancelamento, desistência, falecimento e substituição.
 - Rate limiting, auditoria abrangente fora das edições de plano/orçamento e

@@ -174,7 +174,7 @@ A mais complexa. É a "tela mais importante do sistema" segundo a própria spec.
 
 ---
 
-## 8. Comitê Gestor
+## 8. Comitê Gestor e Administração
 
 **Rota** `.../comite-gestor` · [page.tsx](../apps/web/src/app/(app)/programas/[programa]/[ciclo]/comite-gestor/page.tsx)
 
@@ -184,10 +184,20 @@ A mais complexa. É a "tela mais importante do sistema" segundo a própria spec.
   articulação institucional.
 - **Base:** substitui `Comitê Gestor 2026-2029`.
 - **Resolve:** RN-14 — esse orçamento **nunca** pode se somar ao de bolsas em
-  nenhum indicador. O aviso fixo no topo dizendo isso é regra de produto, não
-  só de UI.
+  nenhum indicador. A decisão atual remove o aviso visual fixo, sem alterar a
+  regra de cálculo; ver [backlog-comite-gestor.md](backlog-comite-gestor.md).
 - **Pontos finos:** validar que ele realmente não vaza pro Painel Executivo nem
   pro Orçamento do CAPES Global.
+- **Implementado em 2026-08-31:** três abas, origem do orçamento, equipes
+  separadas, cadastro reutilizável de pessoa, vigência e edição auditável. Acesso
+  provisório exclusivo de `admin`.
+- **Implementado em 2026-09-01:** lista, filtros, paginação e cadastro
+  multietapas de missão com roteiro repetível, participantes e criação
+  persistente de pessoa, sem campos financeiros. O detalhe da missão ainda está
+  pendente.
+- **Composição formal em 2026-09-01:** conferir 2 pessoas em Comitê Gestor, 8 em
+  Administração e as redes UFMG/UNESP/UNICAMP correspondentes aos três PDFs. O
+  botão de novo membro deve continuar disponível para o `admin`.
 
 **Observações:**
 

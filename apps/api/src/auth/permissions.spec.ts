@@ -67,6 +67,31 @@ describe('permissionsForRoles', () => {
     }
   });
 
+  it('reserva comite gestor, missoes e prestacoes ao admin nesta etapa', () => {
+    const novas = [
+      'equipe-gestao:read',
+      'equipe-gestao:write',
+      'missao:read',
+      'missao:write',
+      'missao:edit',
+      'prestacao:read',
+      'prestacao:write',
+      'prestacao:review',
+    ] as const;
+
+    for (const permissao of novas) {
+      expect(permissionsForRoles(['admin'])).toContain(permissao);
+      for (const papel of [
+        'coordenador',
+        'secretaria',
+        'docente',
+        'discente',
+      ]) {
+        expect(permissionsForRoles([papel])).not.toContain(permissao);
+      }
+    }
+  });
+
   it('todo papel mapeado enxerga o painel', () => {
     // O consolidado institucional e governanca, nao sigilo (§3.5).
     for (const papel of Object.keys(ROLE_PERMISSIONS)) {

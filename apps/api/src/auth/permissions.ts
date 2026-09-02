@@ -33,6 +33,14 @@ export const PERMISSIONS = [
   'premissa:read',
   'premissa:write',
   'relatorio:read',
+  'equipe-gestao:read',
+  'equipe-gestao:write',
+  'missao:read',
+  'missao:write',
+  'missao:edit',
+  'prestacao:read',
+  'prestacao:write',
+  'prestacao:review',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];

@@ -92,6 +92,55 @@
       "when": 1788119000000,
       "tag": "0012_resolve_pendencia_orcamento_editavel",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1788229054717,
+      "tag": "0013_smooth_moondragon",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1788230821477,
+      "tag": "0014_past_talos",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1788233795411,
+      "tag": "0015_stormy_dracula",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1788315899590,
+      "tag": "0016_carrega_paises_iso",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1788316584959,
+      "tag": "0017_membros_comites_formalizados",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1788316602567,
+      "tag": "0018_carrega_membros_comites",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1788320493570,
+      "tag": "0019_flippant_roulette",
+      "breakpoints": true
     }
   ]
 }

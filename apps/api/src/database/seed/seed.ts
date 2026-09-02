@@ -7,6 +7,8 @@ import {
   fontesDocumentais,
   outrosProgramas,
 } from './dados-capes-global';
+import { composicoesComiteGestor } from './membros-comite-gestor';
+import { paisesIso } from './paises';
 
 /**
  * Carga inicial: reproduz no banco o estado atual das planilhas.
@@ -36,12 +38,14 @@ function chave(texto: string): string {
 }
 
 export interface ResultadoSeed {
+  paises: number;
   instituicoes: number;
   programas: number;
   modalidades: number;
   itensCatalogo: number;
   ppgs: number;
   pessoas: number;
+  membrosEquipeGestao: number;
   redes: number;
   areasTematicas: number;
   coordenadoresTematica: number;
@@ -60,6 +64,14 @@ export async function executarSeed(
 ): Promise<ResultadoSeed> {
   const d = dadosCapesGlobal;
 
+  // --- Paises -------------------------------------------------------------
+  await db.insert(s.pais).values(paisesIso).onConflictDoNothing();
+  const paises = await db
+    .select({ id: s.pais.id, codigoIso2: s.pais.codigoIso2 })
+    .from(s.pais);
+  const brasil = paises.find((pais) => pais.codigoIso2 === 'BR');
+  if (!brasil) throw new Error('Catalogo ISO sem o Brasil.');
+
   // --- Instituições -------------------------------------------------------
   const [uea] = await db
     .insert(s.instituicao)
@@ -67,6 +79,7 @@ export async function executarSeed(
       nome: 'Universidade do Estado do Amazonas',
       sigla: 'UEA',
       tipo: 'PROPRIA',
+      paisId: brasil.id,
     })
     .returning();
 
@@ -203,7 +216,7 @@ export async function executarSeed(
 
   // --- Pessoas (Coordenadores de Tematica) --------------------------------
   const nomesMembros = [...new Set(d.tematicas.flatMap((t) => t.membros))];
-  const pessoas = await db
+  const pessoasTematicas = await db
     .insert(s.pessoa)
     .values(
       nomesMembros.map((nome) => ({
@@ -213,6 +226,22 @@ export async function executarSeed(
       })),
     )
     .returning();
+  const pessoasComiteUnicas = [
+    ...new Map(
+      composicoesComiteGestor.map((membro) => [chave(membro.nome), membro]),
+    ).values(),
+  ];
+  const pessoasComite = await db
+    .insert(s.pessoa)
+    .values(
+      pessoasComiteUnicas.map((membro) => ({
+        nome: membro.nome,
+        tipo: 'SERVIDOR' as const,
+        instituicaoId: uea.id,
+      })),
+    )
+    .returning();
+  const pessoas = [...pessoasTematicas, ...pessoasComite];
   const pessoaPorNome = new Map(pessoas.map((p) => [chave(p.nome), p.id]));
 
   // --- Redes e áreas temáticas --------------------------------------------
@@ -236,6 +265,76 @@ export async function executarSeed(
     )
     .returning();
   const redePorNome = new Map(redes.map((r) => [r.nome, r.id]));
+
+  // --- Equipes do Comite Gestor e da Administracao ----------------------
+  const composicoesPorVinculo = new Map<
+    string,
+    {
+      nome: string;
+      tipoEquipe: 'COMITE_GESTOR' | 'ADMINISTRACAO';
+      funcao: string;
+      redes: Set<string>;
+      fontes: Set<string>;
+    }
+  >();
+  for (const composicao of composicoesComiteGestor) {
+    const id = `${chave(composicao.nome)}|${composicao.tipoEquipe}`;
+    const atual = composicoesPorVinculo.get(id) ?? {
+      nome: composicao.nome,
+      tipoEquipe: composicao.tipoEquipe,
+      funcao: composicao.funcao,
+      redes: new Set<string>(),
+      fontes: new Set<string>(),
+    };
+    atual.redes.add(composicao.rede);
+    atual.fontes.add(composicao.fonte);
+    composicoesPorVinculo.set(id, atual);
+  }
+
+  const vinculosFonte = [...composicoesPorVinculo.values()];
+  const membrosEquipeGestao = await db
+    .insert(s.membroEquipeGestao)
+    .values(
+      vinculosFonte.map((membro) => ({
+        cicloId: ciclo.id,
+        pessoaId: exigir(
+          pessoaPorNome.get(chave(membro.nome)),
+          `membro da equipe ${membro.nome}`,
+        ),
+        tipoEquipe: membro.tipoEquipe,
+        funcao: membro.funcao,
+        dataInicio: `${CICLO_ANOS[0]}-01-01`,
+        observacoes: `Composição formal das redes ${[...membro.redes].sort().join(', ')}. Fontes: ${[...membro.fontes].sort().join(', ')}.`,
+      })),
+    )
+    .returning({
+      id: s.membroEquipeGestao.id,
+      pessoaId: s.membroEquipeGestao.pessoaId,
+      tipoEquipe: s.membroEquipeGestao.tipoEquipe,
+    });
+  const membroPorPessoaEquipe = new Map(
+    membrosEquipeGestao.map((membro) => [
+      `${membro.pessoaId}|${membro.tipoEquipe}`,
+      membro.id,
+    ]),
+  );
+
+  await db.insert(s.membroEquipeGestaoRede).values(
+    vinculosFonte.flatMap((membro) => {
+      const pessoaId = exigir(
+        pessoaPorNome.get(chave(membro.nome)),
+        `membro da equipe ${membro.nome}`,
+      );
+      const membroEquipeId = exigir(
+        membroPorPessoaEquipe.get(`${pessoaId}|${membro.tipoEquipe}`),
+        `vínculo da equipe ${membro.nome}`,
+      );
+      return [...membro.redes].map((rede) => ({
+        membroEquipeId,
+        redeId: exigir(redePorNome.get(rede), `rede ${rede}`),
+      }));
+    }),
+  );
 
   const areas = await db
     .insert(s.areaTematica)
@@ -432,12 +531,14 @@ export async function executarSeed(
     .returning();
 
   return {
+    paises: paises.length,
     instituicoes: 1 + instituicoesRede.length,
     programas: 1 + outrosProgramas.length,
     modalidades: modalidades.length,
     itensCatalogo: itensCatalogo.length,
     ppgs: ppgs.length,
     pessoas: pessoas.length,
+    membrosEquipeGestao: membrosEquipeGestao.length,
     redes: redes.length,
     areasTematicas: areas.length,
     coordenadoresTematica: new Set(

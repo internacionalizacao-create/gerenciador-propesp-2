@@ -276,9 +276,9 @@ export function EstadoVazio({
 /**
  * Aviso fixo de tela.
  *
- * Usado onde um número precisa vir com o contexto colado nele — o caso claro é
- * o Comitê Gestor (RN-14), cujo painel original teve que dizer por escrito que
- * aquele orçamento não se soma ao de bolsas.
+ * Usado onde um número precisa vir com o contexto colado nele. O conteúdo deve
+ * explicar uma ação ou risco atual, não repetir uma regra já resolvida no
+ * domínio.
  */
 export function Aviso({
   tom = "info",

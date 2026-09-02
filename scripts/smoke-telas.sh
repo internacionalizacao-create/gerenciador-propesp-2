@@ -63,8 +63,28 @@ if [[ "$USUARIO" == "admin" ]]; then
   testar "/programas/capes-global/2027-2030/orcamento?ano=2027" "Editar"
   testar "/programas/capes-global/2027-2030/plano?rede=unesp" "Editar"
   testar "/programas/capes-global/2027-2030/plano?rede=unesp" "Histórico"
+  testar "/programas/capes-global/2027-2030/comite-gestor" "381.333,00"
+  # O recorte por exercicio fica na URL e vale para a tabela de aportes.
+  testar "/programas/capes-global/2027-2030/comite-gestor?ano=2027" "Aporte de 2027"
+  testar "/programas/capes-global/2027-2030/comite-gestor?ano=2027" "381.333,00"
+  # Exercicio fora do ciclo e ignorado, e nao quebra a pagina.
+  testar "/programas/capes-global/2027-2030/comite-gestor?ano=1999" "Total anual"
+  testar "/programas/capes-global/2027-2030/comite-gestor?aba=equipes" "Adicionar membro"
+  # Ancora no cabecalho da coluna, e nao no rotulo "Missões" da aba: so o
+  # cabecalho e alinhado a direita.
+  testar "/programas/capes-global/2027-2030/comite-gestor?aba=equipes" 'text-right">Missões</th>'
+  testar "/programas/capes-global/2027-2030/comite-gestor?aba=missoes" "Missões no recorte"
+  testar "/programas/capes-global/2027-2030/comite-gestor?aba=missoes" "Nova missão"
+  # CG-016: a missao pertence a uma ou mais redes, e o recorte por rede fica na URL.
+  testar "/programas/capes-global/2027-2030/comite-gestor?aba=missoes" "Todas as redes"
+  testar "/programas/capes-global/2027-2030/comite-gestor?aba=missoes" "UNICAMP"
+  # Os dois vazios sao diferentes: sem nenhuma missao o que falta e o cadastro;
+  # com um filtro de escopo que nao casa, o que falta e ampliar o recorte.
+  testar "/programas/capes-global/2027-2030/comite-gestor?aba=missoes" "Nenhuma missão cadastrada"
+  testar "/programas/capes-global/2027-2030/comite-gestor?aba=missoes&busca=inexistente" "Nenhuma missão para este filtro"
+else
+  testar "/programas/capes-global/2027-2030/comite-gestor" "Acesso restrito"
 fi
-testar "/programas/capes-global/2027-2030/comite-gestor"     "381.333,00"
 testar "/mobilidade/bolsistas"                              "Bolsistas e bolsas concedidas"
 testar "/ppgs"                                               "PPG CLIAMB"
 testar "/pendencias"                                         "PEND-001"

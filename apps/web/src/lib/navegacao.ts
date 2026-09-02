@@ -20,7 +20,11 @@ export interface GrupoMenu {
   itens: ItemMenu[];
 }
 
-export function menu(programaSlug: string, cicloNome: string): GrupoMenu[] {
+export function menu(
+  programaSlug: string,
+  cicloNome: string,
+  permissoes: readonly string[] = [],
+): GrupoMenu[] {
   const ciclo = `/programas/${programaSlug}/${cicloNome}`;
 
   return [
@@ -58,11 +62,15 @@ export function menu(programaSlug: string, cicloNome: string): GrupoMenu[] {
           href: `${ciclo}/plano`,
           disponivel: true,
         },
-        {
-          rotulo: "Comitê Gestor",
-          href: `${ciclo}/comite-gestor`,
-          disponivel: true,
-        },
+        ...(permissoes.includes("equipe-gestao:read")
+          ? [
+              {
+                rotulo: "Comitê Gestor e Administração",
+                href: `${ciclo}/comite-gestor`,
+                disponivel: true,
+              },
+            ]
+          : []),
       ],
     },
     {

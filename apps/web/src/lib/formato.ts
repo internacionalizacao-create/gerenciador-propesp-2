@@ -158,7 +158,11 @@ const ROTULOS: Record<string, string> = {
   PUBLICACAO: "Publicação",
   // nivel do beneficiario e produtos da bolsa
   POS_DOC: "Pós-doutorado",
+  SERVIDOR: "Servidor",
   DOCENTE: "Docente",
+  DISCENTE: "Discente",
+  PESQUISADOR: "Pesquisador",
+  EXTERNO: "Externo",
   MOBILIDADE_BREVE: "Mobilidade breve",
   ARTIGO: "Artigo",
   TRABALHO: "Trabalho",

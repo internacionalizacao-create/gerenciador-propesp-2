@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState, type ReactNode } from "react";
+import type { UseFormRegisterReturn } from "react-hook-form";
 
 import {
   dataBrParaIso,
@@ -76,6 +77,7 @@ export function Texto({
   passo?: string;
   minimo?: string;
   maximo?: string;
+  registro?: UseFormRegisterReturn;
 }) {
   return (
     <Campo
@@ -87,7 +89,10 @@ export function Texto({
       {(id) => (
         <input
           id={id}
-          name={nome}
+          name={resto.registro?.name ?? nome}
+          ref={resto.registro?.ref}
+          onBlur={resto.registro?.onBlur}
+          onChange={resto.registro?.onChange}
           type={resto.tipo ?? "text"}
           step={resto.passo}
           min={resto.minimo}
@@ -95,6 +100,7 @@ export function Texto({
           required={resto.obrigatorio}
           defaultValue={resto.padrao}
           placeholder={resto.placeholder}
+          aria-invalid={resto.erro ? true : undefined}
           className={ENTRADA}
         />
       )}
@@ -114,6 +120,7 @@ export function Data({
   erro?: string;
   obrigatorio?: boolean;
   padrao?: string;
+  registro?: UseFormRegisterReturn;
 }) {
   const [valor, setValor] = useState(() => dataIsoParaBr(resto.padrao));
 
@@ -127,7 +134,8 @@ export function Data({
       {(id) => (
         <input
           id={id}
-          name={nome}
+          name={resto.registro?.name ?? nome}
+          ref={resto.registro?.ref}
           type="text"
           inputMode="numeric"
           autoComplete="off"
@@ -140,6 +148,9 @@ export function Data({
           onChange={(evento) => {
             const novaData = mascararDataBr(evento.currentTarget.value);
             setValor(novaData);
+            // O RHF precisa receber o mesmo texto mascarado que ficou visivel.
+            evento.currentTarget.value = novaData;
+            void resto.registro?.onChange(evento);
             evento.currentTarget.setCustomValidity(
               novaData.length === 10 && !dataBrParaIso(novaData)
                 ? "Informe uma data válida no formato DD/MM/AAAA."
@@ -147,6 +158,7 @@ export function Data({
             );
           }}
           onBlur={(evento) => {
+            void resto.registro?.onBlur(evento);
             evento.currentTarget.setCustomValidity(
               valor && !dataBrParaIso(valor)
                 ? "Informe uma data válida no formato DD/MM/AAAA."
@@ -174,6 +186,7 @@ export function AreaTexto({
   obrigatorio?: boolean;
   padrao?: string;
   placeholder?: string;
+  registro?: UseFormRegisterReturn;
 }) {
   return (
     <Campo
@@ -185,11 +198,15 @@ export function AreaTexto({
       {(id) => (
         <textarea
           id={id}
-          name={nome}
+          name={resto.registro?.name ?? nome}
+          ref={resto.registro?.ref}
+          onBlur={resto.registro?.onBlur}
+          onChange={resto.registro?.onChange}
           rows={linhas}
           required={resto.obrigatorio}
           defaultValue={resto.padrao}
           placeholder={resto.placeholder}
+          aria-invalid={resto.erro ? true : undefined}
           className={ENTRADA}
         />
       )}
@@ -212,6 +229,7 @@ export function Selecao({
   padrao?: string;
   vazio?: string;
   aoMudar?: (valor: string) => void;
+  registro?: UseFormRegisterReturn;
 }) {
   return (
     <Campo
@@ -223,10 +241,16 @@ export function Selecao({
       {(id) => (
         <select
           id={id}
-          name={nome}
+          name={resto.registro?.name ?? nome}
+          ref={resto.registro?.ref}
+          onBlur={resto.registro?.onBlur}
           required={resto.obrigatorio}
           defaultValue={resto.padrao ?? ""}
-          onChange={(e) => resto.aoMudar?.(e.target.value)}
+          onChange={(evento) => {
+            void resto.registro?.onChange(evento);
+            resto.aoMudar?.(evento.target.value);
+          }}
+          aria-invalid={resto.erro ? true : undefined}
           className={ENTRADA}
         >
           {resto.vazio !== undefined ? (
@@ -240,6 +264,77 @@ export function Selecao({
         </select>
       )}
     </Campo>
+  );
+}
+
+/**
+ * Grupo de caixas de seleção que devolve uma lista.
+ *
+ * É um `fieldset` com `legend`, e não um `label` único: o rótulo descreve o
+ * conjunto, e cada caixa tem o próprio rótulo. Todas compartilham o `name` e
+ * têm `value` próprio, então o React Hook Form junta as marcadas em um array e
+ * o `FormData` as devolve em `getAll(nome)` — sem serializar JSON no caminho.
+ *
+ * Diferente do `Marcador`, aqui não existe campo oculto de apoio: lista vazia
+ * é ausência mesmo, e é o schema que decide se isso é erro.
+ */
+export function Selecoes({
+  rotulo,
+  nome,
+  opcoes,
+  ...resto
+}: {
+  rotulo: string;
+  nome: string;
+  opcoes: { valor: string; texto: string }[];
+  dica?: ReactNode;
+  erro?: string;
+  obrigatorio?: boolean;
+  padrao?: string[];
+  registro?: UseFormRegisterReturn;
+}) {
+  const nomeDoCampo = resto.registro?.name ?? nome;
+
+  return (
+    <fieldset className="mb-4">
+      <legend className="mb-1.5 text-left text-sm font-medium text-foreground">
+        {rotulo}
+        {resto.obrigatorio ? (
+          <span className="ml-1 text-danger" aria-hidden>
+            *
+          </span>
+        ) : null}
+      </legend>
+      <div className="flex flex-wrap gap-x-5 gap-y-2.5">
+        {opcoes.map((opcao) => (
+          <label
+            key={opcao.valor}
+            className="flex items-center gap-2 text-sm text-foreground"
+          >
+            <input
+              type="checkbox"
+              name={nomeDoCampo}
+              value={opcao.valor}
+              ref={resto.registro?.ref}
+              onBlur={resto.registro?.onBlur}
+              onChange={(evento) => void resto.registro?.onChange(evento)}
+              defaultChecked={resto.padrao?.includes(opcao.valor)}
+              aria-invalid={resto.erro ? true : undefined}
+              className="size-4 rounded border-border-strong accent-[var(--primary)]"
+            />
+            {opcao.texto}
+          </label>
+        ))}
+      </div>
+      {resto.dica ? (
+        <p className="mt-1.5 text-xs text-subtle">{resto.dica}</p>
+      ) : null}
+      {resto.erro ? (
+        <p role="alert" className="mt-1.5 text-xs text-danger">
+          {resto.erro}
+        </p>
+      ) : null}
+    </fieldset>
   );
 }
 

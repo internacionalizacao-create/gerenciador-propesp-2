@@ -42,7 +42,7 @@ export default async function LayoutDoApp({
   return (
     <ToastProvider>
     <div className="flex min-h-dvh">
-      <MenuLateral grupos={menu(ciclo.programa, ciclo.nome)} />
+      <MenuLateral grupos={menu(ciclo.programa, ciclo.nome, me.permissions)} />
 
       <div className="flex min-w-0 flex-1 flex-col bg-[radial-gradient(circle_at_90%_5%,var(--primary-soft),transparent_22rem)]">
         <header className="sticky top-0 z-20 flex min-h-[4.5rem] flex-wrap items-center justify-between gap-3 border-b border-border bg-surface/85 px-5 py-3 backdrop-blur-xl sm:px-7">

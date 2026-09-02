@@ -48,6 +48,7 @@ export const situacaoPpgEnum = pgEnum('situacao_ppg', [
 ]);
 
 export const tipoPessoaEnum = pgEnum('tipo_pessoa', [
+  'SERVIDOR',
   'DOCENTE',
   'DISCENTE',
   'PESQUISADOR',

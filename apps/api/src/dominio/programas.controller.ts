@@ -19,7 +19,29 @@ import { consultar } from '../comum/consultar';
 import { DRIZZLE, type Database } from '../database/database.module';
 import * as s from '../database/schema';
 import { CicloService } from './ciclo.service';
+import {
+  atualizarMembroEquipeSchema,
+  ComiteGestorService,
+  criarMembroEquipeSchema,
+  type AtualizarMembroEquipe,
+  type CriarMembroEquipe,
+} from './comite-gestor.service';
 import { ContextoService } from './contexto.service';
+import {
+  atualizarMissaoComiteSchema,
+  criarMissaoComiteSchema,
+  filtroMissoesSchema,
+  MissoesComiteService,
+  reaberturaMissaoSchema,
+  relatarMissaoSchema,
+  transicaoMissaoSchema,
+  type AtualizarMissaoComite,
+  type CriarMissaoComite,
+  type FiltroMissoes,
+  type ReaberturaMissao,
+  type RelatarMissao,
+  type TransicaoMissao,
+} from './missoes-comite.service';
 import {
   atualizarOrcamentoSchema,
   OrcamentoService,
@@ -62,6 +84,8 @@ export class ProgramasController {
     private readonly orcamento: OrcamentoService,
     private readonly plano: PlanoService,
     private readonly pendencias: PendenciasService,
+    private readonly gestaoComite: ComiteGestorService,
+    private readonly missoesComite: MissoesComiteService,
   ) {}
 
   /** P05 · lista somente os programas ativos para operacao. */
@@ -312,14 +336,151 @@ export class ProgramasController {
     return { ok: true };
   }
 
-  /** P17 · Comite Gestor (orcamento paralelo, RN-14). */
+  /** P17 · leitura da area renovada, provisoriamente exclusiva do admin. */
   @Get(':programa/:ciclo/comite-gestor')
-  @RequirePermission('orcamento:read')
+  @RequirePermission('equipe-gestao:read')
   async comiteGestor(
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
   ) {
     return this.ciclos.comiteGestor(await this.contexto.resolver(slug, nome));
+  }
+
+  @Get(':programa/:ciclo/comite-gestor/equipes')
+  @RequirePermission('equipe-gestao:read')
+  async listarEquipes(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.gestaoComite.listarEquipes(ciclo.cicloId);
+  }
+
+  @Post(':programa/:ciclo/comite-gestor/equipes')
+  @RequirePermission('equipe-gestao:write')
+  async criarMembroEquipe(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @CurrentUser() usuario: AuthUser,
+    @Body(new ZodValidationPipe(criarMembroEquipeSchema))
+    dto: CriarMembroEquipe,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.gestaoComite.criarMembro(ciclo.cicloId, dto, usuario);
+  }
+
+  @Patch(':programa/:ciclo/comite-gestor/equipes/:id')
+  @RequirePermission('equipe-gestao:write')
+  async atualizarMembroEquipe(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('id') id: string,
+    @CurrentUser() usuario: AuthUser,
+    @Body(new ZodValidationPipe(atualizarMembroEquipeSchema))
+    dto: AtualizarMembroEquipe,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.gestaoComite.atualizarMembro(ciclo.cicloId, id, dto, usuario);
+  }
+
+  @Get(':programa/:ciclo/comite-gestor/missoes')
+  @RequirePermission('missao:read')
+  async listarMissoesComite(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Query(new ZodValidationPipe(filtroMissoesSchema)) filtro: FiltroMissoes,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.missoesComite.listar(ciclo.cicloId, filtro);
+  }
+
+  @Get(':programa/:ciclo/comite-gestor/referencias-missao')
+  @RequirePermission('missao:read')
+  async referenciasMissaoComite(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.missoesComite.referencias(ciclo.cicloId);
+  }
+
+  @Get(':programa/:ciclo/comite-gestor/missoes/:id')
+  @RequirePermission('missao:read')
+  async detalharMissaoComite(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('id') id: string,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.missoesComite.detalhe(ciclo.cicloId, id);
+  }
+
+  @Post(':programa/:ciclo/comite-gestor/missoes')
+  @RequirePermission('missao:write')
+  async criarMissaoComite(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @CurrentUser() usuario: AuthUser,
+    @Body(new ZodValidationPipe(criarMissaoComiteSchema))
+    dto: CriarMissaoComite,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.missoesComite.criar(ciclo.cicloId, dto, usuario);
+  }
+
+  @Patch(':programa/:ciclo/comite-gestor/missoes/:id')
+  @RequirePermission('missao:edit')
+  async atualizarMissaoComite(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('id') id: string,
+    @CurrentUser() usuario: AuthUser,
+    @Body(new ZodValidationPipe(atualizarMissaoComiteSchema))
+    dto: AtualizarMissaoComite,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.missoesComite.atualizar(ciclo.cicloId, id, dto, usuario);
+  }
+
+  /** Relato do que aconteceu; nao alcanca nenhum campo de planejamento. */
+  @Patch(':programa/:ciclo/comite-gestor/missoes/:id/relato')
+  @RequirePermission('missao:write')
+  async relatarMissaoComite(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('id') id: string,
+    @CurrentUser() usuario: AuthUser,
+    @Body(new ZodValidationPipe(relatarMissaoSchema)) dto: RelatarMissao,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.missoesComite.relatar(ciclo.cicloId, id, dto, usuario);
+  }
+
+  @Post(':programa/:ciclo/comite-gestor/missoes/:id/situacao')
+  @RequirePermission('missao:write')
+  async transicionarMissaoComite(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('id') id: string,
+    @CurrentUser() usuario: AuthUser,
+    @Body(new ZodValidationPipe(transicaoMissaoSchema)) dto: TransicaoMissao,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.missoesComite.transicionar(ciclo.cicloId, id, dto, usuario);
+  }
+
+  /** Reabertura e operacao administrativa, nao parte do fluxo normal. */
+  @Post(':programa/:ciclo/comite-gestor/missoes/:id/reabertura')
+  @RequirePermission('missao:edit')
+  async reabrirMissaoComite(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('id') id: string,
+    @CurrentUser() usuario: AuthUser,
+    @Body(new ZodValidationPipe(reaberturaMissaoSchema)) dto: ReaberturaMissao,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.missoesComite.reabrir(ciclo.cicloId, id, dto, usuario);
   }
 
   /** P16 · premissas e fontes documentais. */
