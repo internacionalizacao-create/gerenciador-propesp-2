@@ -1,0 +1,4 @@
+ALTER TABLE "instituicao" ADD COLUMN "substituida_por_id" uuid;--> statement-breakpoint
+ALTER TABLE "instituicao" ADD CONSTRAINT "instituicao_substituida_por_id_instituicao_id_fk" FOREIGN KEY ("substituida_por_id") REFERENCES "public"."instituicao"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "instituicao_substituida_por_idx" ON "instituicao" USING btree ("substituida_por_id");--> statement-breakpoint
+ALTER TABLE "instituicao" ADD CONSTRAINT "instituicao_substituida_inativa_ck" CHECK ("instituicao"."substituida_por_id" is null or ("instituicao"."ativo" is false and "instituicao"."substituida_por_id" <> "instituicao"."id"));

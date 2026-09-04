@@ -159,6 +159,40 @@ export const statusExecucaoEnum = pgEnum('status_execucao', [
   'CANCELADO',
 ]);
 
+/**
+ * Estados de uma prestacao de contas de missao (CG-013).
+ *
+ * `NAO_INICIADA` nao esta aqui de proposito: a ausencia de prestacao e a
+ * ausencia da linha, nao um estado guardado. Ver `prestacao.ts`.
+ */
+export const statusPrestacaoMissaoEnum = pgEnum('status_prestacao_missao', [
+  'EM_PREENCHIMENTO',
+  'ENVIADA',
+  'COM_PENDENCIA',
+  'VALIDADA',
+]);
+
+/**
+ * Tipos de despesa da missao, homologados na CG-009.
+ *
+ * A lista e a do documento da equipe de orcamento (secao 24): hospedagem,
+ * transporte, inscricao em evento, seguro e outros. Passagem e diaria vem antes
+ * porque sao as unicas com tabela de especializacao — as demais se descrevem
+ * com os campos comuns da despesa.
+ *
+ * `OUTRA` permanece como escape legitimo do proprio documento ("Outros"), nao
+ * como deposito do que faltava decidir.
+ */
+export const tipoDespesaMissaoEnum = pgEnum('tipo_despesa_missao', [
+  'PASSAGEM',
+  'DIARIA',
+  'HOSPEDAGEM',
+  'TRANSPORTE',
+  'INSCRICAO_EVENTO',
+  'SEGURO',
+  'OUTRA',
+]);
+
 export const statusRemanejamentoEnum = pgEnum('status_remanejamento', [
   'PROPOSTO',
   'AUTORIZADO',

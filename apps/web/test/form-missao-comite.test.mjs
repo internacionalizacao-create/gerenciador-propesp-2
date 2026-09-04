@@ -76,6 +76,31 @@ test("exige pelo menos uma rede", () => {
   assert.equal(formularioMissaoComiteSchema.safeParse(semRede).success, false);
 });
 
+test("exige exatamente uma pessoa responsável", () => {
+  const semResponsavel = missaoValida();
+  semResponsavel.participantes[0].papel = "PARTICIPANTE";
+  assert.equal(
+    formularioMissaoComiteSchema.safeParse(semResponsavel).success,
+    false,
+  );
+
+  const doisResponsaveis = missaoValida();
+  doisResponsaveis.participantes.push({
+    ...doisResponsaveis.participantes[0],
+    pessoaId: "55555555-5555-4555-8555-555555555555",
+  });
+  assert.equal(
+    formularioMissaoComiteSchema.safeParse(doisResponsaveis).success,
+    false,
+  );
+});
+
+test("exige nome na atividade de evento", () => {
+  const dados = missaoValida();
+  dados.atividades[0].tipo = "EVENTO";
+  assert.equal(formularioMissaoComiteSchema.safeParse(dados).success, false);
+});
+
 test("a missão multirrede leva todas as redes para o payload", () => {
   const outra = "44444444-4444-4444-8444-444444444444";
   const dados = missaoValida();

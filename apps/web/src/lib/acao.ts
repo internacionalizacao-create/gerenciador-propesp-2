@@ -3,7 +3,7 @@ import "server-only";
 import { revalidatePath } from "next/cache";
 
 import { ApiError, apiFetch } from "./api";
-import type { EstadoDaAcao } from "./acao-tipos";
+import type { CandidatoDuplicidade, EstadoDaAcao } from "./acao-tipos";
 
 export type { EstadoDaAcao } from "./acao-tipos";
 
@@ -66,7 +66,11 @@ export function traduzirErro(erro: unknown): EstadoDaAcao {
   }
 
   const corpo = erro.body as
-    | { message?: string; erros?: { campo: string; mensagem: string }[] }
+    | {
+        message?: string;
+        erros?: { campo: string; mensagem: string }[];
+        candidatos?: CandidatoDuplicidade[];
+      }
     | undefined;
 
   return {
@@ -76,6 +80,9 @@ export function traduzirErro(erro: unknown): EstadoDaAcao {
         ? corpo.message
         : "Não foi possível salvar.",
     erros: corpo?.erros,
+    // Repassado inteiro: o 409 de duplicidade so e util se a tela puder
+    // mostrar QUAIS cadastros a API considerou equivalentes.
+    candidatos: corpo?.candidatos,
   };
 }
 

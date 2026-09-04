@@ -18,6 +18,7 @@ Monorepo do sistema **gerenciador**, orquestrado com [pnpm workspaces](https://p
 - Node **24.13.0** (veja [.nvmrc](.nvmrc) — rode `nvm use`)
 - pnpm **11.x** (`corepack enable` ou instalação global)
 - Docker + Docker Compose (para a infra do Keycloak/Postgres)
+- ngrok CLI autenticado (somente para compartilhar o ambiente local)
 
 ## Primeiros passos
 
@@ -67,6 +68,7 @@ projeto para quem vai alterar o código ficam em **[AGENTS.md](AGENTS.md)**.
 | `pnpm lint` | Linta todos os apps |
 | `pnpm test` | Roda testes |
 | `pnpm smoke:login` | Percorre o fluxo de login inteiro sem browser |
+| `pnpm ngrok:demo` | Sobe o demo em portas próprias e publica uma URL HTTPS pelo ngrok |
 | `pnpm kc:import` | Reimporta o realm em um Keycloak já rodando |
 | `pnpm infra:up` / `infra:down` | Sobe / derruba a infra Docker |
 | `pnpm infra:logs` | Acompanha os logs da infra |
@@ -79,6 +81,31 @@ Filtrar por app: `pnpm --filter api <script>` ou `pnpm --filter web <script>`.
 > **Nota:** para um app entrar no `pnpm dev`, ele precisa ter um script chamado **`dev`** no seu
 > `package.json` — o `turbo run dev` ignora silenciosamente quem não tiver, sem erro nenhum.
 
+### Compartilhar o ambiente para testes
+
+Com o ambiente local configurado, o CLI autenticado (`ngrok config check`) e
+qualquer `pnpm dev` anterior encerrado, rode:
+
+```bash
+pnpm ngrok:demo
+```
+
+O comando sobe a API em `3333`, a web em `3334`, o Keycloak em `8888` e usa
+`3335` como gateway local do túnel. Ele aplica as migrations e imprime uma única
+URL HTTPS. Essa URL atende tanto a aplicação quanto o login hospedado no
+Keycloak; API e bancos não são publicados. Os mesmos usuários, papéis e dados do
+ambiente local são usados — para acesso total ao app, use o usuário de teste
+`admin`. Mantenha o terminal aberto e pressione `Ctrl+C` para derrubar o túnel e
+restaurar o Keycloak local na porta `8080`.
+
+Se sua conta tiver mais de um domínio, é possível escolher o endpoint:
+
+```bash
+NGROK_URL=https://seu-dominio.ngrok-free.app pnpm ngrok:demo
+```
+
+Não use esse comando como hospedagem de produção: ele publica o banco de
+desenvolvimento por meio da aplicação e os usuários de teste continuam válidos.
 
 ### Users for development
 

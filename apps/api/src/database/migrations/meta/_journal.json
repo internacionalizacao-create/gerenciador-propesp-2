@@ -141,6 +141,55 @@
       "when": 1788320493570,
       "tag": "0019_flippant_roulette",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1788380683526,
+      "tag": "0020_parceiros_contatos",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1788381577315,
+      "tag": "0021_amplia_missao_evento_participante",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1788382675940,
+      "tag": "0022_parceiros_conciliacao",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1788384872648,
+      "tag": "0023_contatos_parceiros_identidade",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1788392897382,
+      "tag": "0024_prestacao_contas_missao",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1788401398456,
+      "tag": "0025_despesas_homologadas_cg009",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1788401409825,
+      "tag": "0026_passagem_origem_destino",
+      "breakpoints": true
     }
   ]
 }

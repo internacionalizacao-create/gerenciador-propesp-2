@@ -15,6 +15,13 @@ import { and, asc, eq, sql } from 'drizzle-orm';
 import { CurrentUser, RequirePermission } from '../auth/auth.decorators';
 import type { AuthUser } from '../auth/auth-user';
 import { ZodValidationPipe } from '../comum/zod-validation.pipe';
+import {
+  atualizarPrestacaoSchema,
+  criarDespesaSchema,
+  PrestacaoService,
+  type AtualizarPrestacao,
+  type CriarDespesa,
+} from './prestacao.service';
 import { consultar } from '../comum/consultar';
 import { DRIZZLE, type Database } from '../database/database.module';
 import * as s from '../database/schema';
@@ -86,6 +93,7 @@ export class ProgramasController {
     private readonly pendencias: PendenciasService,
     private readonly gestaoComite: ComiteGestorService,
     private readonly missoesComite: MissoesComiteService,
+    private readonly prestacao: PrestacaoService,
   ) {}
 
   /** P05 · lista somente os programas ativos para operacao. */
@@ -413,6 +421,95 @@ export class ProgramasController {
   ) {
     const ciclo = await this.contexto.resolver(slug, nome);
     return this.missoesComite.detalhe(ciclo.cicloId, id);
+  }
+
+  /* Prestacao de contas da missao (CG-050). Envio e validacao sao a CG-054. */
+
+  @Get(':programa/:ciclo/comite-gestor/missoes/:id/prestacao')
+  @RequirePermission('prestacao:read')
+  async prestacaoDaMissao(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('id') id: string,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.prestacao.detalhe(ciclo.cicloId, id);
+  }
+
+  @Post(':programa/:ciclo/comite-gestor/missoes/:id/prestacao')
+  @RequirePermission('prestacao:write')
+  async iniciarPrestacao(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('id') id: string,
+    @CurrentUser() usuario: AuthUser,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.prestacao.criar(ciclo.cicloId, id, usuario);
+  }
+
+  @Patch(':programa/:ciclo/comite-gestor/missoes/:id/prestacao')
+  @RequirePermission('prestacao:write')
+  async atualizarPrestacao(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('id') id: string,
+    @CurrentUser() usuario: AuthUser,
+    @Body(new ZodValidationPipe(atualizarPrestacaoSchema))
+    dto: AtualizarPrestacao,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.prestacao.atualizar(ciclo.cicloId, id, dto, usuario);
+  }
+
+  @Post(':programa/:ciclo/comite-gestor/missoes/:id/prestacao/despesas')
+  @RequirePermission('prestacao:write')
+  async criarDespesa(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('id') id: string,
+    @CurrentUser() usuario: AuthUser,
+    @Body(new ZodValidationPipe(criarDespesaSchema)) dto: CriarDespesa,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.prestacao.criarDespesa(ciclo.cicloId, id, dto, usuario);
+  }
+
+  @Patch(
+    ':programa/:ciclo/comite-gestor/missoes/:id/prestacao/despesas/:despesaId',
+  )
+  @RequirePermission('prestacao:write')
+  async atualizarDespesa(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('id') id: string,
+    @Param('despesaId') despesaId: string,
+    @CurrentUser() usuario: AuthUser,
+    @Body(new ZodValidationPipe(criarDespesaSchema)) dto: CriarDespesa,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.prestacao.atualizarDespesa(
+      ciclo.cicloId,
+      id,
+      despesaId,
+      dto,
+      usuario,
+    );
+  }
+
+  @Delete(
+    ':programa/:ciclo/comite-gestor/missoes/:id/prestacao/despesas/:despesaId',
+  )
+  @RequirePermission('prestacao:write')
+  async removerDespesa(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('id') id: string,
+    @Param('despesaId') despesaId: string,
+    @CurrentUser() usuario: AuthUser,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.prestacao.removerDespesa(ciclo.cicloId, id, despesaId, usuario);
   }
 
   @Post(':programa/:ciclo/comite-gestor/missoes')

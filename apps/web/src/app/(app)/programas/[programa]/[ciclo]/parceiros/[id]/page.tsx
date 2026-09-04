@@ -1,0 +1,461 @@
+import Link from "next/link";
+
+import {
+  EditarContato,
+  NovoContato,
+} from "@/componentes/formularios/form-contato-parceiro";
+import { EditarParceiro } from "@/componentes/formularios/form-parceiro";
+import {
+  AcoesDoContato,
+  ConciliarParceiroBotao,
+  InativarParceiroBotao,
+} from "@/componentes/formularios/acoes-parceiro";
+import {
+  Cartao,
+  Cartoes,
+  Celula,
+  EstadoVazio,
+  Pagina,
+  Secao,
+  Selo,
+  Tabela,
+} from "@/componentes/ui/basicos";
+import { apiFetch } from "@/lib/api";
+import type {
+  HistoricoParceiro,
+  Me,
+  Parceiro,
+  ReferenciasMissao,
+} from "@/lib/dominio";
+import { data, inteiro, rotulo } from "@/lib/formato";
+
+/**
+ * CG-049 · Histórico do parceiro.
+ *
+ * Toda a página vem de `GET /parceiros/:id/historico` (CG-027), que já entrega
+ * a linha histórica sem duplicar missão multirrede. A tela não recalcula nem
+ * agrega nada — se um número aqui divergir da API, o erro é da API.
+ */
+export default async function ParceiroDetalhe({
+  params,
+}: {
+  params: Promise<{ programa: string; ciclo: string; id: string }>;
+}) {
+  const { programa, ciclo, id } = await params;
+  const me = await apiFetch<Me>("/me");
+
+  if (!me.permissions.includes("parceiro:read")) {
+    return (
+      <Pagina titulo="Parceiro" descricao="Histórico da instituição parceira.">
+        <EstadoVazio
+          titulo="Acesso restrito"
+          descricao="Nesta etapa, somente o perfil administrador pode consultar parceiros e seus contatos."
+        />
+      </Pagina>
+    );
+  }
+
+  const [historico, referencias, ativos] = await Promise.all([
+    apiFetch<HistoricoParceiro>(`/parceiros/${id}/historico`),
+    apiFetch<ReferenciasMissao>(
+      `/programas/${programa}/${ciclo}/comite-gestor/referencias-missao`,
+    ),
+    // Destinos possiveis da conciliacao. A API exige destino ativo, entao a
+    // lista padrao (so ativos) ja e o conjunto certo.
+    apiFetch<Parceiro[]>("/parceiros"),
+  ]);
+
+  const { parceiro, contatos, missoes, eventos, documentos } = historico;
+  const podeEscrever = me.permissions.includes("parceiro:write");
+  const base = `/programas/${programa}/${ciclo}/parceiros`;
+
+  return (
+    <Pagina
+      titulo={parceiro.nome}
+      descricao={
+        [parceiro.sigla, parceiro.tipoOrganizacao, parceiro.pais]
+          .filter(Boolean)
+          .join(" · ") || "Instituição parceira internacional."
+      }
+      acoes={
+        podeEscrever && parceiro.ativo ? (
+          <div className="flex flex-wrap gap-2">
+            <EditarParceiro
+              parceiro={parceiro}
+              redes={referencias.redes}
+              paises={referencias.paises}
+            />
+            <ConciliarParceiroBotao
+              parceiro={parceiro}
+              candidatos={ativos.filter((item) => item.id !== parceiro.id)}
+            />
+            <InativarParceiroBotao parceiro={parceiro} />
+          </div>
+        ) : undefined
+      }
+    >
+      <p className="mb-6">
+        <Link href={base} className="text-sm text-primary hover:underline">
+          ← Voltar para parceiros
+        </Link>
+      </p>
+
+      {parceiro.ativo ? null : (
+        <div
+          role="status"
+          className="mb-6 rounded-2xl border-l-4 border-warning bg-warning-soft px-4 py-3.5 text-sm text-on-warning-soft"
+        >
+          <p className="font-semibold">
+            {parceiro.substituidaPorId
+              ? "Cadastro conciliado"
+              : "Cadastro inativo"}
+          </p>
+          <div className="mt-1">
+            {parceiro.substituidaPorId ? (
+              <>
+                Este cadastro foi conciliado em{" "}
+                <Link
+                  href={`${base}/${parceiro.substituidaPorId}`}
+                  className="font-medium underline"
+                >
+                  outro parceiro
+                </Link>
+                . O histórico permanece aqui: a conciliação não apaga a origem.
+              </>
+            ) : (
+              "O cadastro não aceita edição enquanto estiver inativo, e as missões que o citam continuam intactas."
+            )}
+          </div>
+        </div>
+      )}
+
+      <Cartoes>
+        <Cartao titulo="Missões" valor={inteiro(missoes.length)} />
+        <Cartao titulo="Eventos" valor={inteiro(eventos.length)} />
+        <Cartao
+          titulo="Contatos ativos"
+          valor={inteiro(contatos.filter((c) => c.ativo).length)}
+        />
+        <Cartao titulo="Documentos" valor={inteiro(documentos.length)} />
+      </Cartoes>
+
+      <div className="mt-10" />
+
+      <Secao titulo="Dados institucionais">
+        <dl className="grid gap-x-8 gap-y-4 rounded-2xl border border-border bg-surface px-5 py-5 sm:grid-cols-2 lg:grid-cols-3">
+          <Dado rotuloTexto="Sigla" valor={parceiro.sigla} />
+          <Dado rotuloTexto="Tipo de organização" valor={parceiro.tipoOrganizacao} />
+          <Dado
+            rotuloTexto="Faculdade ou departamento"
+            valor={parceiro.faculdadeDepartamento}
+          />
+          <Dado
+            rotuloTexto="Local"
+            valor={
+              [parceiro.cidade, parceiro.estadoRegiao, parceiro.pais]
+                .filter(Boolean)
+                .join(", ") || null
+            }
+          />
+          <Dado rotuloTexto="Site" valor={parceiro.site} ehLink />
+          <Dado
+            rotuloTexto="E-mail institucional"
+            valor={parceiro.emailInstitucional}
+          />
+          <Dado rotuloTexto="Telefone" valor={parceiro.telefone} />
+          <Dado rotuloTexto="Endereço" valor={parceiro.endereco} />
+          <Dado
+            rotuloTexto="Redes"
+            valor={
+              parceiro.redes.length > 0
+                ? parceiro.redes.map((rede) => rede.nome).join(", ")
+                : null
+            }
+          />
+        </dl>
+        {parceiro.observacoes ? (
+          <p className="mt-4 rounded-xl border border-border bg-surface-muted px-4 py-3 text-sm text-muted">
+            {parceiro.observacoes}
+          </p>
+        ) : null}
+      </Secao>
+
+      <Secao
+        titulo="Contatos"
+        descricao="O contato pertence à instituição e é referenciado pelas missões — nunca copiado para dentro delas. Por isso não há exclusão: a saída é inativar."
+        acoes={
+          podeEscrever && parceiro.ativo ? (
+            <NovoContato
+              instituicaoId={parceiro.id}
+              paises={referencias.paises}
+            />
+          ) : undefined
+        }
+      >
+        {contatos.length === 0 ? (
+          <EstadoVazio
+            titulo="Nenhum contato cadastrado"
+            descricao="Cadastre a pessoa de referência da instituição para poder indicá-la nas atividades da missão."
+          />
+        ) : (
+          <Tabela
+            rotulo="Contatos do parceiro"
+            colunas={[
+              { chave: "nome", texto: "Contato" },
+              { chave: "cargo", texto: "Cargo e departamento" },
+              { chave: "contato", texto: "E-mail e telefone" },
+              {
+                chave: "acoes",
+                // Cabecalho vazio deixa a coluna sem nome para quem navega por
+                // celula; o rotulo existe, so nao ocupa espaco.
+                texto: <span className="sr-only">Ações</span>,
+                alinhamento: "direita",
+              },
+            ]}
+          >
+            {contatos.map((contato) => (
+              <tr key={contato.id}>
+                <Celula>
+                  <span className="font-medium text-foreground">
+                    {contato.nome}
+                  </span>
+                  <span className="mt-1 block space-x-1">
+                    {contato.principal ? (
+                      <Selo tom="primario" titulo="Contato principal da instituição">
+                        principal
+                      </Selo>
+                    ) : null}
+                    {contato.ativo ? null : <Selo tom="neutro">inativo</Selo>}
+                  </span>
+                </Celula>
+                <Celula className="text-muted">
+                  {[contato.cargo, contato.departamento]
+                    .filter(Boolean)
+                    .join(" · ") || "—"}
+                </Celula>
+                <Celula className="text-muted">
+                  {contato.email ?? "—"}
+                  <span className="block text-xs text-subtle">
+                    {contato.telefone ?? "sem telefone"}
+                  </span>
+                </Celula>
+                <Celula direita>
+                  {podeEscrever ? (
+                    <span className="flex justify-end gap-2">
+                      {contato.ativo ? (
+                        <EditarContato
+                          contato={contato}
+                          instituicaoId={parceiro.id}
+                          paises={referencias.paises}
+                        />
+                      ) : null}
+                      <AcoesDoContato
+                        contato={contato}
+                        instituicaoId={parceiro.id}
+                      />
+                    </span>
+                  ) : null}
+                </Celula>
+              </tr>
+            ))}
+          </Tabela>
+        )}
+      </Secao>
+
+      <Secao
+        titulo="Missões"
+        descricao="Uma linha por missão, mesmo quando ela pertence a mais de uma rede ou visita este parceiro em mais de uma parada do roteiro."
+      >
+        {missoes.length === 0 ? (
+          <EstadoVazio
+            titulo="Nenhuma missão registrada"
+            descricao="As missões aparecem aqui quando uma atividade do roteiro apontar para este parceiro."
+          />
+        ) : (
+          <ul className="space-y-4">
+            {missoes.map((missao) => (
+              <li
+                key={missao.id}
+                className="rounded-2xl border border-border bg-surface px-5 py-4"
+              >
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <p className="font-medium text-foreground">
+                    <span className="text-subtle">{missao.codigo}</span>{" "}
+                    {missao.titulo}
+                  </p>
+                  <Selo tom="info">{rotulo(missao.status)}</Selo>
+                </div>
+                <p className="mt-1 text-xs text-subtle">
+                  {data(missao.dataInicio)} a {data(missao.dataFim)} ·{" "}
+                  {missao.ciclo} ·{" "}
+                  {missao.redes.map((rede) => rede.nome).join(", ") ||
+                    "sem rede"}
+                </p>
+                <ul className="mt-3 space-y-2">
+                  {missao.atividades.map((atividade) => (
+                    <li
+                      key={atividade.id}
+                      className="rounded-xl bg-surface-muted px-3 py-2 text-sm"
+                    >
+                      <span className="font-medium text-foreground">
+                        {atividade.titulo}
+                      </span>
+                      <span className="block text-xs text-muted">
+                        {data(atividade.dataInicio)} a{" "}
+                        {data(atividade.dataFim)}
+                        {atividade.cidade ? ` · ${atividade.cidade}` : ""}
+                        {atividade.pais ? ` · ${atividade.pais}` : ""}
+                        {atividade.contatoNome
+                          ? ` · contato: ${atividade.contatoNome}`
+                          : ""}
+                      </span>
+                      {atividade.objetivoRelacionamento ? (
+                        <span className="mt-1 block text-xs text-subtle">
+                          {atividade.objetivoRelacionamento}
+                        </span>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Secao>
+
+      {eventos.length > 0 ? (
+        <Secao
+          titulo="Eventos"
+          descricao="Projeção das atividades que nomeiam um evento; o evento ainda não é entidade própria (decisão D-10)."
+        >
+          <Tabela
+            rotulo="Eventos do parceiro"
+            colunas={[
+              { chave: "evento", texto: "Evento" },
+              { chave: "missao", texto: "Missão" },
+              { chave: "periodo", texto: "Período" },
+            ]}
+          >
+            {eventos.map((evento) => (
+              <tr key={evento.atividadeId}>
+                <Celula>
+                  <span className="font-medium text-foreground">
+                    {evento.nome}
+                  </span>
+                  <span className="block text-xs text-subtle">
+                    {evento.tipo ?? "tipo não informado"}
+                  </span>
+                </Celula>
+                <Celula className="text-muted">{evento.missaoCodigo}</Celula>
+                <Celula className="text-muted">
+                  {data(evento.dataInicio)} a {data(evento.dataFim)}
+                </Celula>
+              </tr>
+            ))}
+          </Tabela>
+        </Secao>
+      ) : null}
+
+      {documentos.length > 0 ? (
+        <Secao
+          titulo="Documentos"
+          descricao="Metadados dos arquivos já vinculados à instituição. O download seguro e a política de acesso entram na CG-051."
+        >
+          <Tabela
+            rotulo="Documentos do parceiro"
+            colunas={[
+              { chave: "nome", texto: "Arquivo" },
+              { chave: "envio", texto: "Envio" },
+            ]}
+          >
+            {documentos.map((documento) => (
+              <tr key={documento.id}>
+                <Celula>
+                  <span className="font-medium text-foreground">
+                    {documento.nome}
+                  </span>
+                  <span className="block text-xs text-subtle">
+                    {documento.mimeType}
+                  </span>
+                </Celula>
+                <Celula className="text-muted">
+                  {data(documento.enviadoEm)}
+                  <span className="block text-xs text-subtle">
+                    {documento.enviadoPor ?? "autoria não registrada"}
+                  </span>
+                </Celula>
+              </tr>
+            ))}
+          </Tabela>
+        </Secao>
+      ) : null}
+
+      <ModulosPendentes historico={historico} />
+    </Pagina>
+  );
+}
+
+/**
+ * Produtos e convênios não são mostrados como "0".
+ *
+ * Zero afirmaria que a missão não gerou nada; a verdade é que ainda não existe
+ * onde registrar. A API devolve os módulos nomeados justamente para a tela
+ * poder dizer isso (CG-027).
+ */
+function ModulosPendentes({ historico }: { historico: HistoricoParceiro }) {
+  if (historico.modulosPendentes.length === 0) return null;
+
+  const nomes: Record<string, string> = {
+    PRODUTOS: "Produtos",
+    CONVENIOS: "Convênios",
+  };
+
+  return (
+    <p className="mt-4 rounded-2xl border border-dashed border-border-strong px-5 py-4 text-sm text-muted">
+      <span className="font-medium text-foreground">
+        Ainda sem registro no sistema:
+      </span>{" "}
+      {historico.modulosPendentes
+        .map((item) => `${nomes[item.modulo] ?? item.modulo} (${item.task})`)
+        .join(" · ")}
+      . Não são zero — é que o módulo ainda não existe, e mostrar zero afirmaria
+      que nada aconteceu.
+    </p>
+  );
+}
+
+function Dado({
+  rotuloTexto,
+  valor,
+  ehLink,
+}: {
+  rotuloTexto: string;
+  valor: string | null;
+  ehLink?: boolean;
+}) {
+  return (
+    <div>
+      <dt className="text-xs font-medium uppercase tracking-wide text-subtle">
+        {rotuloTexto}
+      </dt>
+      <dd className="mt-1 text-sm text-foreground">
+        {valor ? (
+          ehLink ? (
+            <a
+              href={valor}
+              target="_blank"
+              rel="noreferrer"
+              className="text-primary hover:underline"
+            >
+              {valor}
+            </a>
+          ) : (
+            valor
+          )
+        ) : (
+          <span className="text-subtle">—</span>
+        )}
+      </dd>
+    </div>
+  );
+}

@@ -1,0 +1,11 @@
+services:
+  keycloak:
+    # O issuer precisa ser a mesma URL HTTPS vista pelo navegador. Este override
+    # so e usado por `pnpm ngrok:demo`; o compose normal continua local.
+    command:
+      - start-dev
+      - --import-realm
+      - --hostname=${GERENCIADOR_PUBLIC_URL:?GERENCIADOR_PUBLIC_URL nao definida}
+      - --proxy-headers=xforwarded
+    ports: !override
+      - "127.0.0.1:8888:8080"

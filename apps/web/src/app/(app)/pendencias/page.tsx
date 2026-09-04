@@ -116,7 +116,7 @@ function TabelaDePendencias({ linhas }: { linhas: Pendencia[] }) {
         { chave: "responsavel", texto: "Responsável" },
         { chave: "prazo", texto: "Prazo" },
         { chave: "status", texto: "Status" },
-        { chave: "acoes", texto: "" },
+        { chave: "acoes", texto: <span className="sr-only">Ações</span> },
       ]}
     >
       {linhas.map((p) => (

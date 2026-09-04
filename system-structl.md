@@ -10,13 +10,14 @@ pós-graduação.
 `dados/remanejamento/Guia_Orientacoes_Remanejamento_Transformacao_CAPES_Global final (1).pdf`;
 `respostas/`; `dados/Planejamento_CAPES_Global_Consolidado_UFMG_Comite_Gestor/`;
 `dados/insights/`; `dados/sugestaov1-prototipo/`.
-**Estado da implementação:** autenticação/autorização, modelo de dados (28 tabelas),
+**Estado da implementação:** autenticação/autorização, modelo de dados (40 tabelas),
 seed com os dados reais, **serviços de cálculo (RN-01 a RN-20), telas de
 planejamento anual e cadastro individual de bolsas/produtos** estão implementados e testados.
 
 | Página | Situação |
 |---|---|
 | P01, P05, P06, P07, P08, P09, P10, P13, P14, P15, P17, P23 | **implementadas** |
+| P24 (parceiros) | **implementada em parte**: lista, busca, cadastro, contatos, histórico e conciliação; falta a seleção dentro da missão, a paginação e o escopo por rede |
 | P16 | **retirada da interface**: premissas, fontes e decisões permanecem na documentação interna e no backend para rastreabilidade |
 | P03 | **recorte inicial implementado**: concessão planejada, CPF, destino, datas, alertas e produtos individuais; anexos ainda pendentes |
 | P02, P04 | dependem das bolsas concedidas que a equipe ainda cadastrará; o dado não existe nas planilhas |
@@ -258,9 +259,30 @@ Notação: `PK` chave primária, `FK` chave estrangeira, `?` opcional, `[]` list
 
 **`Instituicao`** — UEA, e também as instituições parceiras/coordenadoras.
 ```
-id PK · nome · sigla · tipo (PROPRIA | REDE_COORDENADORA | PARCEIRA_INTERNACIONAL)
-paisId FK? · cidade? · site? · ativo
+id PK · nome · nomeNormalizado UK · sigla
+tipo (PROPRIA | REDE_COORDENADORA | PARCEIRA_INTERNACIONAL)
+paisId FK? · cidade? · estadoRegiao? · tipoOrganizacao?
+faculdadeDepartamento? · site? · emailInstitucional? · telefone? · endereco?
+observacoes? · cadastroProvisorio · ativo · criadoEm · atualizadoEm
 ```
+
+**`InstituicaoRede`** — associação N:N entre parceiro e redes coordenadoras.
+```
+id PK · instituicaoId FK · redeId FK · criadoEm · atualizadoEm
+UK (instituicaoId, redeId)
+```
+
+**`ContatoInstituicao`** — contatos reutilizáveis da instituição parceira.
+```
+id PK · instituicaoId FK · nome · nomeNormalizado
+cargo? · departamento? · area? · email? · telefone? · paisId FK?
+idiomaComunicacao? · principal · observacoes? · ativo · criadoEm · atualizadoEm
+```
+
+Há no máximo um contato principal ativo por instituição. A chave normalizada de
+instituição elimina diferenças inequívocas de caixa, acento, pontuação e espaço;
+siglas e traduções exigem conciliação humana. Contatos são entidades centrais:
+missões futuras os referenciam por id, sem copiar seus dados pessoais.
 
 **`Pais`** — catálogo ISO.
 ```
@@ -358,7 +380,8 @@ unique(membroEquipeId, redeId)
 **`MissaoComite`** — viagem institucional efetiva, separada de
 `ItemPlanejado(MISSOES)` e inicialmente sem qualquer valor financeiro.
 ```
-id PK · cicloId FK · codigo · titulo · objetivo · dataInicio · dataFim
+id PK · cicloId FK · codigo · tipo? · unidadeDepartamento? · titulo · objetivo
+dataInicio · dataFim
 status (RASCUNHO | PLANEJADA | CONFIRMADA | CONCLUIDA | CANCELADA)
 relatoGeral? · resultados? · observacoes?
 ```
@@ -366,20 +389,29 @@ relatoGeral? · resultados? · observacoes?
 **`MissaoParticipante`**
 ```
 id PK · missaoId FK · pessoaId FK · membroEquipeId FK?
-papel (RESPONSAVEL | PARTICIPANTE | APOIO) · observacoes?
+papel (RESPONSAVEL | PARTICIPANTE | APOIO) · cargo? · area?
+dataInicio · dataFim · observacoes?
 ```
 > A pessoa é única por missão e `membroEquipeId` é opcional, pois participantes
-> externos às duas equipes também são permitidos.
+> externos às duas equipes também são permitidos. A API exige exatamente um
+> responsável e o banco impede dois responsáveis na mesma missão.
 
 **`AtividadeMissao`** — cada parada ou compromisso do roteiro.
 ```
 id PK · missaoId FK · ordem · tipo (VISITA_TECNICA | EVENTO | ARTICULACAO | BANCA | OUTRO)
-titulo · paisId FK · cidade? · instituicaoId FK? ou instituicaoNome? · eventoNome?
+titulo · paisId FK · cidade? · estadoRegiao? · local? · endereco?
+instituicaoId FK? ou instituicaoNome? · contatoInstituicaoId FK?
+tipoRelacionamento? · objetivoRelacionamento?
+eventoNome? · eventoTipo? · eventoSite? · objetivoParticipacao?
+relacaoInternacionalizacao?
 dataInicio · dataFim · planejamento? · relatoRealizado? · resultados?
 status (PLANEJADA | REALIZADA | NAO_REALIZADA) · observacoes?
 ```
 > O país fica na atividade, não na missão, para que uma viagem registre vários
 > países, cidades, universidades e eventos sem duplicar a missão.
+> No MVP, evento permanece uma atividade: instituição, datas e redes não são
+> duplicadas em campos concorrentes. O número de dias de missão, atividade e
+> participação é inclusivo e calculado em UTC, nunca persistido.
 
 ### 4.3 Catálogo de valores
 
@@ -790,7 +822,9 @@ Programas                 /programas
           ├─ Orçamento           .../orcamento
           ├─ Plano de aplicação  .../plano
           ├─ Movimentações       .../remanejamentos
-          └─ Comitê Gestor       .../comite-gestor
+          ├─ Comitê Gestor       .../comite-gestor
+          └─ Parceiros           .../parceiros
+              └─ Detalhe            .../parceiros/[id]
 PPGs                      /ppgs
   ├─ Detalhe                 /ppgs/[id]
   └─ Cadastro                /ppgs/novo
@@ -1223,6 +1257,16 @@ associações com redes, mantendo disponível o cadastro manual. A aba Missões
 lista, filtra e pagina, e o cadastro
 multietapas grava identificação, roteiro repetível e participantes sem qualquer
 valor financeiro. Nesta etapa toda a área é exclusiva de `admin`.
+Também está implementada a fundação de parceiros da CG-017: instituição com
+dados completos e indicação provisória, associação N:N com redes e contatos
+reutilizáveis com um único principal ativo. A CG-025 acrescentou a API de
+instituições, candidatos a duplicidade e conciliação auditada; a origem não é
+apagada e aponta para o cadastro canônico. A CG-026 fez o mesmo para os
+contatos, e a CG-049 levou tudo isso à interface — ver **P24** abaixo.
+A CG-018 ampliou o contrato de identificação, destino, evento, relacionamento
+com parceiro e período individual de participante. A API já aceita e devolve os
+campos, garante um responsável e calcula dias inclusivos; a interface visual
+ainda será ampliada junto do formulário/detalhe.
 
 **Ainda pendente** — página de detalhe, edição do relato realizado, prestação,
 passagens, diárias e PDFs, conforme
@@ -1233,11 +1277,11 @@ Gestão de Missões, Comitê Gestor, Parceiros e Resultados”, ampliando a vis�
 aprovação colegiada, parceiros, contatos, produtos, convênios, evidências,
 dashboards e relatórios. A comparação integral está em
 [docs/revisao-escopo-comite-gestor-2026-09-01.md](docs/revisao-escopo-comite-gestor-2026-09-01.md).
-Os detalhes novos ainda não são decisões confirmadas: CG-005 a CG-009 devem
-homologar fases, estados, redes, governança e fronteiras financeiras/documentais
-antes da evolução do schema. A construção da página de detalhe CG-045 fica
-reordenada para depois dessa fundação, evitando implementar um contrato já
-sabidamente incompleto.
+As decisões estruturais de rede sustentaram CG-016 a CG-018. Os demais detalhes
+novos ainda não são decisões confirmadas: CG-005 a CG-009 devem homologar fases,
+estados, governança e fronteiras financeiras/documentais. A construção da página
+de detalhe CG-045 fica reordenada para depois dessa fundação, evitando
+implementar um contrato já sabidamente incompleto.
 
 **Regra** — o orçamento continua separado do orçamento de bolsas em todos os
 cálculos e indicadores (RN-14), mas a tela não precisa exibir um aviso fixo sobre
@@ -1357,6 +1401,47 @@ e eventos. O Gerenciador não solicita nem acompanha protocolo na plataforma CAP
 Instituições (redes e parceiras internacionais) · países · tipos de acordo · meses de
 implementação · e configurações gerais (ciclo padrão, formato de exportação, identidade
 visual). A tela de modalidades do CAPES Global é somente leitura, por ser catálogo fechado.
+
+---
+
+### P24 · Parceiros institucionais
+**Rotas** `.../parceiros`, `.../parceiros/[id]` · **Origem** CG-049, escopo ampliado de
+2026-09-01 · **Implementado (parcial)**
+
+Instituições parceiras internacionais reutilizáveis por várias redes e missões. A página
+**não existia na especificação original**: nasceu do documento de escopo do Comitê Gestor
+e por isso vem depois de P23 na numeração.
+
+A rota fica sob o ciclo porque o vínculo com rede é do ciclo (`rede_coordenadora` tem
+`cicloId`); a instituição em si é global, e o detalhe mostra o histórico inteiro dela.
+
+**Lista** — busca por nome, sigla, cidade ou domínio; filtro por rede; inclusão opcional
+de inativos e conciliados. A busca vem antes do cadastro na hierarquia da tela porque o
+problema que a deduplicação resolve é justamente o cadastro repetido.
+
+**Detalhe** — dados institucionais, contatos, missões com suas atividades, eventos e
+documentos, tudo vindo de `GET /parceiros/:id/historico`. Uma linha por missão, mesmo
+quando ela pertence a mais de uma rede ou visita o parceiro em mais de uma parada.
+
+**Cadastro e edição** — em sidesheet. Quando a API aponta duplicidade, os candidatos
+aparecem **dentro do formulário**, não em diálogo por cima: a confirmação não pode custar
+o que já foi digitado. Duplicidade possível oferece "cadastrar assim mesmo"; duplicidade
+inequívoca não oferece botão, porque a API recusa mesmo confirmada.
+
+**Contatos** — cadastro, edição, troca de contato principal, inativação e reativação. O
+contato pertence à instituição e é referenciado pelas missões, nunca copiado para dentro
+delas.
+
+**Regra** — não existe exclusão de parceiro nem de contato em lugar nenhum da interface.
+A atividade da missão referencia o `id` central, então apagar romperia o histórico; a
+saída de operação é inativar, sempre com justificativa. A conciliação de duplicados
+transfere relacionamentos e mantém a origem acessível, apontando para o cadastro que
+permaneceu.
+
+**Ainda pendente** — seleção/reutilização do parceiro **dentro** da missão, que depende
+da página de detalhe da missão (CG-045); paginação da lista, hoje limitada a 200 com
+aviso na tela quando o limite é atingido; e visibilidade por rede (CG-028). Nesta etapa
+a página inteira, incluindo os dados pessoais dos contatos, é exclusiva de `admin`.
 
 ---
 

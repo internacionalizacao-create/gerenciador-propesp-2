@@ -4,7 +4,7 @@ Documento de referência para quem (pessoa ou LLM) vai mexer neste repositório 
 tê-lo escrito. Descreve o que existe hoje, por que está assim, e o que ainda não
 existe. **Mantenha-o atualizado quando mudar arquitetura ou convenção.**
 
-Última revisão: 2026-09-01.
+Última revisão: 2026-09-02.
 
 ---
 
@@ -21,13 +21,14 @@ dados com a seed real, serviços de cálculo (RN-01 a RN-20), telas de planejame
 anual e o cadastro individual de bolsas/produtos existem e são verificados. As planilhas
 não fornecem beneficiários, então P03 começa vazio e será alimentado pela equipe.
 No CAPES Global não há execução financeira na UEA: a CAPES paga diretamente. Falta
-o registro histórico de movimentações externas, as missões do Comitê Gestor,
-documentos, relatórios, panorama/mapa de mobilidade e o escopo local por
+o registro histórico de movimentações externas, concluir a interface e a
+prestação das missões do Comitê Gestor, documentos, relatórios, panorama/mapa de mobilidade e o escopo local por
 PPG/temática na autorização. Ver §9.
 
 A visão de arquitetura e os fluxos de negócio/técnicos estão em
 [docs/arquitetura-sistema.md](docs/arquitetura-sistema.md). A especificação
-funcional completa, com as 23 páginas previstas, está em
+funcional completa — 23 páginas previstas na origem, mais a P24 de parceiros,
+vinda do escopo ampliado do Comitê Gestor — está em
 [system-structl.md](system-structl.md).
 
 ---
@@ -44,7 +45,10 @@ funcional completa, com as 23 páginas previstas, está em
 | Keycloak | 26.7.0 | container Docker, modo `start-dev` |
 | PostgreSQL | 17 | dois bancos: um do Keycloak e um com os dados de domínio da API |
 | Tailwind CSS | 4.x | tokens semânticos, ver §8 |
-| MUI X Charts | 9.x Community | visualizações; `@mui/material` e Emotion são apenas dependências de integração |
+| Recharts | 3.x | visualizações; substituiu o MUI X Charts, que saiu junto com `@mui/material` e Emotion |
+| TanStack Query | 5.x | busca no browser, só depois da primeira pintura; ver §8 |
+| shadcn/ui | por cópia | não é dependência: os componentes entram no repositório e são traduzidos para os tokens daqui |
+| Radix UI / cmdk | 1.x | primitivos por baixo do popover e do combobox |
 | React Hook Form | 7.x | estado e validação dos formulários novos, integrado ao Zod 4 por `@hookform/resolvers` |
 
 ### Armadilhas de versão (leia antes de escrever código)
@@ -115,6 +119,8 @@ apps/
         api.ts             apiFetch — chama a API com o Bearer
         acao.ts            `server-only`: enviar/traduzirErro das Server Actions
         acao-tipos.ts      contrato das ações, importável do cliente
+        bff.ts             cliente HTTP do browser, só fala com /api/bff
+        utils.ts           `cn` (clsx + tailwind-merge)
         dominio.ts         espelho dos tipos da API
         formato.ts         moeda, percentual, rótulos de enum, somarMoeda
         navegacao.ts       menu, incluindo o que ainda não existe
@@ -126,7 +132,15 @@ apps/
         ui/campos.tsx      inputs, chips, marcadores
         ui/basicos.tsx     Página, Seção, Cartão, Tabela, Moeda, Selo, Aviso
         ui/toast.tsx       feedback global de ações, com provider e hook
+        ui/botao.tsx       variantes de botão com CVA
+        ui/popover.tsx     Radix Popover vestido com os tokens daqui
+        ui/comando.tsx     lista filtrável por teclado (cmdk)
+        ui/combobox.tsx    seleção única com busca
+        ui/grafico.tsx     base dos gráficos Recharts
         formularios/       cadastros que vão dentro do sidesheet
+        graficos/          um arquivo por gráfico, Client Components
+        consultas/         provider do TanStack Query e telas que consultam
+                           do browser
       app/
         (app)/             tudo que exige login — o shell mora no layout
           page.tsx                    P01 painel executivo
@@ -173,6 +187,9 @@ cp apps/web/.env.example apps/web/.env.local
 #   openssl rand -base64 32 | tr '+/' '-_' | tr -d '='
 
 pnpm dev                       # web:3000  api:3001
+
+# compartilhar temporariamente web + login com a equipe (exige ngrok autenticado)
+pnpm ngrok:demo                # api:3333 web:3334 keycloak:8888; Ctrl+C restaura
 ```
 
 O realm `gerenciador` é importado sozinho no primeiro boot do Keycloak. Para
@@ -368,14 +385,70 @@ semânticos: `bg-surface`, `text-muted`, `border-border-strong`, `bg-danger-soft
 - `ThemeSynchronizer`, montado no layout raiz, acompanha mudanças do tema do
   sistema operacional quando a preferência salva é `system`; esse listener não
   deve ficar condicionado à presença visual do seletor.
-- **MUI fica restrito aos gráficos.** `@mui/x-charts` Community está instalado
-  com todos os tipos de gráfico dessa edição. `@mui/material`, Emotion e
-  `@mui/material-nextjs` existem porque são dependências da integração, não para
-  substituir os componentes e tokens próprios do sistema.
-- O `AppRouterCacheProvider` do adaptador para Next 16 fica no layout raiz com a
-  camada CSS `mui` abaixo de `components` e `utilities`. Ao criar um gráfico,
-  importe pelo subpath específico (por exemplo, `@mui/x-charts/BarChart`) e use
-  as variáveis semânticas de `globals.css` para cores, inclusive no tema escuro.
+- **Gráficos são Recharts.** O MUI saiu inteiro (`@mui/material`,
+  `@mui/x-charts`, `@mui/material-nextjs` e os três pacotes do Emotion): estava
+  instalado desde o começo e nunca desenhou um gráfico — o único import em todo
+  o `src` era o `AppRouterCacheProvider`. Com ele foi embora a camada CSS `mui`
+  do `globals.css` e o segundo sistema de estilo.
+- A base fica em [ui/grafico.tsx](apps/web/src/componentes/ui/grafico.tsx), e
+  cada gráfico em `componentes/graficos/`. **Passe a cor como `var(--token)`
+  direto no SVG**, nunca resolvida em JavaScript: assim a troca de tema repinta
+  sozinha, enquanto um `getComputedStyle` na montagem congelaria a cor do tema
+  que estava ativo. Rede usa `CORES_REDE` (`network-1..3`, os mesmos tons das
+  abas da P10); o resto usa `CORES_SERIE`.
+- **Valor nulo não vira barra zerada.** `null` chega ao Recharts como `null` e
+  desenha um vazio — é a mesma regra do componente `Moeda` (§9.2 da
+  especificação), e num gráfico ela importa mais, porque barra rente ao eixo é
+  indistinguível de orçamento zerado. A `DicaMoeda` escreve *A definir*.
+- O gráfico acompanha a tabela, não a substitui: ele mostra a forma, a tabela
+  mostra o número. Só a tabela é precisa para quem usa leitor de tela.
+
+### shadcn/ui: cópia adaptada, não dependência
+
+O shadcn entra por cópia de código, e **os tokens dele colidem com os daqui**.
+No shadcn, `muted` é fundo e o texto é `muted-foreground`; neste sistema
+`--muted` **é cor de texto**. Colar um componente sem traduzir produz texto
+cinza sobre fundo cinza. Traduza sempre:
+
+| shadcn | aqui |
+|---|---|
+| `bg-background` / `text-foreground` | iguais, pode manter |
+| `bg-card`, `bg-popover` | `bg-surface` |
+| `bg-muted`, `bg-accent` | `bg-surface-muted` |
+| `text-muted-foreground` | `text-muted` (ou `text-subtle`, se for secundário) |
+| `border-input` | `border-border-strong` |
+| `text-destructive`, `bg-destructive` | `text-danger`, `bg-danger` |
+| `bg-primary text-primary-foreground` | `bg-primary text-on-primary` |
+| `ring-ring` | `ring-ring` (o token existe) |
+
+O `components.json` existe para o `npx shadcn add <x>` saber onde escrever, mas
+**o componente gerado nunca entra como veio**: traduza as classes pela tabela e
+troque `rounded-md` pelos raios daqui (`rounded-xl` em campo, `rounded-2xl` em
+contêiner). A única peça adotada como infraestrutura é o `cn`
+([lib/utils.ts](apps/web/src/lib/utils.ts)).
+
+Nada de migrar o que já existe: `basicos.tsx`, `campos.tsx` e o `Sidesheet`
+ficam como estão. O `<dialog>` nativo continua sendo a decisão — foco preso,
+`Esc` e fundo inerte vindos do navegador valem mais que a uniformidade.
+
+### TanStack Query: só depois da primeira pintura
+
+- **Não use para o carregamento inicial de uma tela.** Dado que o Server
+  Component pode buscar continua sendo buscado lá, com `apiFetch`, sem salto
+  HTTP extra nem estado de carregamento. O Query serve à interação depois:
+  busca conforme se digita, filtro que não vale uma navegação.
+- O cliente do browser é [lib/bff.ts](apps/web/src/lib/bff.ts) e fala só com
+  `/api/bff/*` — o token nunca chega ao JavaScript da página. **`apiFetch`
+  continua `server-only`;** os dois não se misturam.
+- O `QueryClient` nasce dentro de `useState`, nunca em módulo: em módulo seria
+  singleton do processo do servidor e o cache de um usuário logado poderia ser
+  servido ao próximo.
+- O padrão está em
+  [consultas/lista-parceiros.tsx](apps/web/src/componentes/consultas/lista-parceiros.tsx):
+  `initialData` recebe o que o servidor já buscou, `keepPreviousData` evita a
+  tabela piscar em branco a cada tecla, e a URL continua refletindo o filtro por
+  `window.history.replaceState` — sem isso, quem manda o link de uma busca
+  mandaria a lista inteira. Retry não insiste em 4xx: 401/403 não melhoram.
 
 ### Peças de interface que valem conhecer antes de criar outras
 
@@ -386,8 +459,12 @@ semânticos: `bg-surface`, `text-muted`, `border-border-strong`, `bg-danger-soft
 | `Selecoes` | [ui/campos.tsx](apps/web/src/componentes/ui/campos.tsx) | Grupo de caixas de seleção que devolve uma lista (as redes de uma missão, por exemplo). É `fieldset`/`legend`, e todas as caixas compartilham o `name`: o React Hook Form junta as marcadas em array e o `FormData` as devolve em `getAll`. |
 | `Texto` / `Selecao` / `Data` / `AreaTexto` | [ui/campos.tsx](apps/web/src/componentes/ui/campos.tsx) | Campos visuais aceitam `registro={register("campo")}` do React Hook Form e mantêm os tokens e mensagens acessíveis do sistema. |
 | `useErrosDaAcao` | [ui/formulario.ts](apps/web/src/componentes/ui/formulario.ts) | Reaplica os erros de campo devolvidos pela API no React Hook Form; use um mapa apenas quando o nome da API diferir do nome visual. |
+| `RolagemHorizontal` | [ui/rolagem.tsx](apps/web/src/componentes/ui/rolagem.tsx) | Envolve conteúdo que rola na horizontal — a `Tabela` já usa. Dá `tabIndex` ao contêiner **só quando ele transborda de verdade**, medido no cliente: fixo criaria parada de tabulação morta em cada tabela numa tela larga, e ausente deixa as colunas escondidas inalcançáveis pelo teclado. |
+| `Combobox` / `CampoCombobox` | [ui/combobox.tsx](apps/web/src/componentes/ui/combobox.tsx) | Seleção única **com busca**, para lista longa (as 200+ instituições da CG-045). Lista curta continua no `Selecao` nativo, que já vem acessível e não carrega JavaScript. O valor sai num `<input type="hidden">`, então o `FormData` do `Multistep` continua trazendo o campo; no React Hook Form vai por `Controller`, não por `register`. |
+| `Grafico` / `DicaMoeda` | [ui/grafico.tsx](apps/web/src/componentes/ui/grafico.tsx) | Moldura responsiva do Recharts com `<figure>`/`<figcaption>`: o SVG é uma árvore de `<path>` sem texto útil, e sem a legenda amarrada o gráfico some para quem usa leitor de tela. |
+| `Botao` | [ui/botao.tsx](apps/web/src/componentes/ui/botao.tsx) | Variantes com CVA (`primario`, `contorno`, `suave`, `fantasma`, `perigo`). `comoFilho` renderiza num `<Link>` em vez de `<button>`. |
 | `Moeda` | [ui/basicos.tsx](apps/web/src/componentes/ui/basicos.tsx) | Nulo vira *A definir* em itálico, **nunca** R$ 0,00 (§9.2 da especificação). |
-| `somarMoeda` | [lib/formato.ts](apps/web/src/lib/formato.ts) | Soma em centavos com `BigInt`. Dinheiro nunca passa por `number` antes de uma conta. |
+| `somarMoeda` | [lib/formato.ts](apps/web/src/lib/formato.ts) | Soma em centavos com `BigInt`. Dinheiro nunca passa por `number` antes de uma conta. Cada parcela é truncada para centavos **antes** da soma, e a ordem importa: mil parcelas de 8,615 dão 8.610,00 aqui e 8.615,00 numa soma em `number` — está fixado em `test/dinheiro.test.mjs`. Se **tudo** for nulo o resultado é nulo, nunca zero. |
 | `ToastProvider` / `useToastDaAcao` | [ui/toast.tsx](apps/web/src/componentes/ui/toast.tsx) | Confirma ações depois que o sidesheet fecha. Erros de validação continuam junto ao formulário. |
 
 Cadastro novo: crie o formulário em `componentes/formularios/`, a Server Action
@@ -397,6 +474,14 @@ página. Use `useForm` com `zodResolver`, `useWatch` para campos condicionais e
 — fatiar quatro campos em etapas troca rolagem por cliques. Use `useToastDaAcao`
 para o sucesso da Server Action; não leve erros de campo para o toast, porque
 eles precisam permanecer próximos do controle que deve ser corrigido.
+
+**Acessibilidade que já está resolvida e não deve regredir** (CG-064): o
+sidesheet é `<dialog>` nativo, então foco preso, `Esc` e fundo inerte vêm do
+navegador — não reimplemente isso; `Campo` amarra dica e erro ao controle por
+`aria-describedby`, e só o `role="alert"` não basta, porque quem volta ao campo
+depois não ouviria nada; coluna de ações precisa de rótulo `sr-only`, nunca
+`<th>` vazio; e tabela larga rola dentro de `RolagemHorizontal`, que a torna
+alcançável pelo teclado.
 
 O menu lateral nasce recolhido no desktop e pode ser expandido pelo controle no
 rodapé. No celular ele continua como gaveta completa. Preserve esse comportamento
@@ -411,7 +496,7 @@ o ícone estiver visível.
 
 - **Autenticação/autorização**: login e logout OIDC completos, sessão renovada
   automaticamente, guards globais, catálogo de permissões, realm versionado.
-- **Modelo de dados**: 31 tabelas em 8 módulos de schema Drizzle
+- **Modelo de dados**: 40 tabelas em 10 módulos de schema Drizzle
   ([apps/api/src/database/schema/](apps/api/src/database/schema/)), com migrations.
   Segue [system-structl.md](system-structl.md) §4.
 - **Seed com os dados reais** das planilhas e respostas formais
@@ -424,7 +509,7 @@ o ícone estiver visível.
   plano, bolsas concedidas e produtos individuais, comitê gestor, premissas,
   PPGs, pendências e catálogo.
 - **Telas de planejamento**: P01, P05, P06, P07, P08, P09, P10, P13, P14, P15,
-  P17 e as configurações da conta. Cadastro de PPG e de linha de plano em
+  P17, Parceiros e as configurações da conta. Cadastro de PPG e de linha de plano em
   sidesheet com formulário em etapas; pendência em sidesheet simples.
 - **Edição anual de orçamento**: P09 permite ao `admin` alterar as três rubricas
   de uma área temática em um exercício, registrar fonte, situação, justificativa
@@ -462,9 +547,50 @@ o ícone estiver visível.
   aprovação, parceiros, contatos, produtos, documentos, convênios, indicadores
   e relatórios. A auditoria integral está em
   [docs/revisao-escopo-comite-gestor-2026-09-01.md](docs/revisao-escopo-comite-gestor-2026-09-01.md).
-  **Não iniciar a antiga CG-045:** a próxima task obrigatória é CG-005, seguida
-  de CG-006 a CG-009, para homologar fases e regras antes de alterar o contrato
-  da missão. O PDF não substitui silenciosamente as decisões confirmadas.
+  A CG-017 já criou a fundação de parceiros: dados institucionais completos,
+  `instituicao_rede` N:N e contatos reutilizáveis. A CG-025 acrescentou API de
+  instituições, candidatos a duplicidade, confirmação explícita e conciliação
+  auditada sem apagar a origem. A CG-026 fez o mesmo para os contatos, no escopo
+  de cada instituição: e-mail (ou nome mais telefone) repetido é bloqueio,
+  homônimo apenas exige confirmação, o contato principal troca dentro de uma
+  transação e não há exclusão — só inativação, porque a missão referencia o `id`
+  central. A auditoria desses registros guarda quais campos mudaram, nunca os
+  valores pessoais. A CG-027 fecha a leitura: `GET /parceiros/:id/historico`
+  devolve redes, contatos, missões com atividades, eventos e documentos em uma
+  linha por missão. Ela usa `exists` mais `selectDistinct` sobre a missão, nunca
+  `join` com atividade ou rede — senão a missão de duas redes, ou a que visita o
+  mesmo parceiro em duas paradas, apareceria repetida. Produtos e convênios não
+  vão zerados: `modulosPendentes` os nomeia apontando para a CG-056. A CG-049
+  levou isso à interface em `/programas/[programa]/[ciclo]/parceiros`: lista com
+  busca e filtro por rede, cadastro e edição em sidesheet, contatos com troca de
+  principal e inativação/reativação, e o detalhe histórico. **O alerta de
+  duplicidade fica dentro do formulário, nunca em diálogo por cima** — é assim
+  que ele não apaga o que já foi digitado; `EstadoDaAcao.candidatos` carrega o
+  409 até a tela. `POSSIVEL` oferece "cadastrar assim mesmo"; `INEQUIVOCA` não
+  oferece botão, porque a API recusa mesmo confirmada. Não há ação de excluir em
+  lugar nenhum: a saída é inativar. A conciliação também tem interface — a
+  origem vira o cadastro inativo e o escolhido permanece, com justificativa
+  obrigatória e aviso do que será transferido. A lista avisa quando bate no
+  limite de 200 do serviço, em vez de cortar em silêncio; paginação de verdade
+  exigiria mudar o contrato da API. A seleção de parceiro dentro da missão
+  continua na CG-045. A CG-018 ampliou missão, atividade e participante:
+  responsável único por papel, destino/evento completos, contato central,
+  período individual e dias inclusivos derivados. A API cobre esses campos; a
+  interface ainda não.
+
+  **Regras financeiras homologadas na CG-009** (documento da equipe de
+  orçamento): o sistema trabalha **somente em BRL** — não existe moeda de origem
+  nem cotação, e a conversão acontece antes do lançamento; **prestação
+  `VALIDADA` abate o aporte anual** do Comitê Gestor (implementação na CG-055),
+  e nada abate antes disso; os requisitos de encerramento são **agnósticos ao
+  tipo de missão**; os tipos de despesa são passagem, diária, hospedagem,
+  transporte, inscrição em evento, seguro e outros; os formatos de documento
+  aceitos são PDF, JPG, PNG, DOC/DOCX e XLS/XLSX; e a prestação abre
+  **automaticamente** quando a viagem é marcada como realizada.
+
+  **Não iniciar a antiga CG-045:** obter o aceite
+  institucional de CG-005 a CG-009 antes de alterar novamente o contrato da
+  missão. O PDF não substitui silenciosamente as decisões confirmadas.
 
 Na P10, a leitura segue `programa → rede → temática → PPG`. A rota `.../plano`
 tem a aba **Visão geral** e uma aba por rede, persistida em `?rede=`; não crie
@@ -475,9 +601,17 @@ interface é **Coordenador de Temática**, não “membro do comitê”. Ediçã
 existente exige `plano:edit` (só `admin`), preserva código/rubrica e grava uma
 entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: somente
 2027 vem composto; 2028–2030 começam vazios e nunca copiam a quantidade automaticamente.
-- **Testes**: 51 unitários/regressões (33 API + 18 na web para toast, datas,
-  React Hook Form/Zod e erros do multistep) + 181 de integração contra
-  Postgres real.
+- **Testes**: 111 unitários/regressões (48 API + 63 na web para toast, datas,
+  React Hook Form/Zod, erros do multistep, formulários de parceiro,
+  acessibilidade, cálculos monetários, montagem de série do gráfico e caminhos
+  do BFF) + 227 de integração contra Postgres
+  real. As duas garantias de não duplicação da linha
+  histórica do parceiro foram verificadas por mutação: trocar o `exists` +
+  `selectDistinct` por um `join` faz ambas falharem.
+- **Base de interface para o que vem**: `Recharts` com o primeiro gráfico na P09
+  (total previsto por rede e exercício), `Combobox` com busca para as listas
+  longas da CG-045, e TanStack Query sobre `/api/bff` com a lista de parceiros
+  como referência. O MUI e o Emotion saíram — ver §8.
 - Smoke de login (`pnpm smoke:login`) e de telas (`pnpm smoke:telas`) ponta a
   ponta; CI de lint/build/test.
 
@@ -492,12 +626,25 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
   auditoria. O Gerenciador não propõe, autoriza ou executa. A estrutura genérica de
   execução financeira permanece no schema para outros programas, mas P11 é fora do
   escopo do CAPES Global porque os pagamentos são feitos diretamente pela CAPES.
+- **Envio, revisão e interface da prestação.** A CG-013 criou as cinco tabelas
+  e a CG-050 a API de CRUD e cálculos (`.../missoes/:id/prestacao`): nenhum
+  total é persistido, todos saem de `sum` em `numeric`, e prestação sem despesa
+  tem total **nulo**, não zero. Enviar e validar é a CG-054 — até lá a prestação
+  fica em `EM_PREENCHIMENTO` e recusa alteração depois disso. A interface é a
+  CG-053. Ausência de prestação é ausência de linha, não o estado
+  `NAO_INICIADA`; a lista de missões ainda devolve `'NAO_INICIADA'::text` fixo e
+  deve passar a um `left join` quando a CG-053 precisar do selo real.
 - Relatórios (P20), importação com adaptador por programa (P21), documentos e
   evidências (P22), convênios e produção consolidada (P18/P19). O documento novo
   do Comitê propõe trazer parte de P18–P20/P22 para o fluxo da missão, mas a fase
   e a prioridade ainda dependem da CG-005. Produtos individuais por bolsa já
   existem em P03 e não devem ser reutilizados como produto de missão sem a
   modelagem da CG-056.
+- Seleção de parceiro **dentro da missão**, conciliação pela interface e
+  paginação da lista de parceiros. A CG-049 entregou o lado do parceiro
+  (lista, busca, cadastro, edição, contatos e histórico); o que falta dela
+  depende da CG-045, ainda bloqueada. A visibilidade por rede é a CG-028 —
+  hoje parceiros e contatos são exclusivos do `admin`.
 - **Escopo por PPG na autorização.** `coordenador` é global, não "coordenador do
   PPGDA". Continua sendo o próximo ponto de pressão: coordenadores lançam dados
   desde o MVP ([system-structl.md](system-structl.md) §3.5), toda entidade já
@@ -506,9 +653,13 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
 - Vínculo entre o `sub` do Keycloak e um registro local de `pessoa`. A identidade
   vive só no token; o provisionamento (JIT no primeiro login é o usual) ainda
   precisa ser decidido.
-- Cobertura ampla de componentes na `web`; hoje há 16 regressões em
-  `node:test` (toast, conversão/validação de datas, erros do multistep e cadastro
-  de missão), além do `pnpm smoke:telas` para as páginas.
+- Cobertura ampla de componentes na `web`. O `node --test` carrega TypeScript em
+  modo strip-only: não lê `.tsx` e recusa *parameter property*
+  (`constructor(readonly x: number)`). Por isso a lógica testável mora em `.ts`
+  ao lado do componente (`multistep-logica.ts`, `toast-logica.ts`,
+  `orcamento-por-rede-serie.ts`) e o resto depende do `pnpm smoke:telas`. É a
+  ferramenta ditando a estrutura, e some com um runner que renderize componente
+  (Vitest + Testing Library).
 - Upload/versionamento e política de acesso dos documentos pessoais, além do
   histórico de cancelamento, desistência, falecimento e substituição.
 - Rate limiting, auditoria abrangente fora das edições de plano/orçamento e
@@ -533,6 +684,12 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
   limite defensivo é 8 fatias.
 - Comandos que sobem servidor (`pnpm dev`) são persistentes; não os encadeie em
   scripts que precisam terminar.
+- **`pnpm ngrok:demo` publica os dados de desenvolvimento.** Ele usa API `3333`,
+  web `3334`, Keycloak `8888` e gateway `3335`, com uma URL HTTPS única para web
+  e autenticação. Mantém API/Postgres fora do túnel e altera temporariamente
+  hostname/redirects do client OIDC. Encerre com `Ctrl+C` para restaurar o issuer
+  e a porta local `8080`; após encerramento forçado, rode `pnpm infra:up` antes de
+  voltar ao `pnpm dev`.
 - **`apps/web/src/lib/acao.ts` é `server-only`.** Client Component que precisar do
   contrato das Server Actions importa de `acao-tipos.ts`. Importar `acao.ts` do
   cliente quebra o build de propósito — foi o que impediu `apiFetch` de vazar

@@ -28,6 +28,7 @@ construído.
 | 9 | Pendências | `/pendencias` | Baixa-média | [ ] |
 | 10 | Catálogo de bolsas | `/catalogos/bolsas` | Baixa | [ ] |
 | 11 | Modalidades e Configurações | `/catalogos/modalidades`, `/configuracoes` | Baixa | [ ] |
+| 12 | Parceiros (lista + histórico) | `.../parceiros`, `.../parceiros/[id]` | Média | [ ] |
 
 ---
 
@@ -253,5 +254,40 @@ A mais complexa. É a "tela mais importante do sistema" segundo a própria spec.
 - **Base:** parte da P23 da spec (`/catalogos/modalidades` e `/configuracoes`).
 - **Resolve:** suporte às outras telas (não tem processo de negócio próprio) —
   mais fácil de validar porque é essencialmente estática.
+
+**Observações:**
+
+---
+
+## 12. Parceiros (lista + histórico)
+
+**Rotas** `.../parceiros` · [page.tsx](../apps/web/src/app/(app)/programas/[programa]/[ciclo]/parceiros/page.tsx) — e `.../parceiros/[id]` · [page.tsx](../apps/web/src/app/(app)/programas/[programa]/[ciclo]/parceiros/[id]/page.tsx)
+
+**Status da validação:** [ ] Validado
+
+- **Objetivo:** manter uma instituição parceira **uma única vez** e reutilizá-la
+  em várias redes e missões, com o histórico do que já aconteceu com ela.
+- **Base:** não vem de planilha nenhuma. Nasceu do documento de escopo do Comitê
+  Gestor de 2026-09-01 (P24 da spec), então não há número prévio para conferir —
+  aqui se valida comportamento, não valor.
+- **Resolve:** o mesmo parceiro cadastrado três vezes com grafias diferentes, que
+  é justamente o que a conciliação depois teria de desfazer.
+- **Pontos finos, na ordem em que vale testar:**
+  1. **O alerta de duplicidade não pode apagar o formulário.** Preencha um
+     cadastro inteiro, use um nome que já existe e confirme que nada do que foi
+     digitado se perde quando os candidatos aparecem.
+  2. **Nome idêntico bloqueia; parecido apenas avisa.** O primeiro caso não
+     oferece botão de seguir adiante — a API recusa mesmo confirmada. O segundo
+     oferece, e é o caminho legítimo para instituições homônimas.
+  3. **Uma linha por missão.** Uma missão de duas redes, ou que visita o parceiro
+     em duas paradas do roteiro, tem que aparecer **uma vez só** no histórico.
+  4. **Conciliação transfere e não apaga.** Depois de conciliar, a origem fica
+     inativa apontando para o destino, some da lista padrão, reaparece com o selo
+     `conciliado` em "incluir inativos" e continua abrindo.
+  5. **Não existe excluir** — nem parceiro, nem contato, em lugar nenhum da tela.
+  6. **Produtos e convênios aparecem nomeados como pendentes, nunca como zero.**
+- **Cuidado ao validar:** a página inteira, inclusive os dados pessoais dos
+  contatos, é exclusiva de `admin` nesta etapa. Com `coord.teste` o esperado é
+  "Acesso restrito" — e nenhum nome de parceiro ou de contato no HTML.
 
 **Observações:**

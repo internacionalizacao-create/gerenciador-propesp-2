@@ -45,6 +45,7 @@ export function Sidesheet({
 }) {
   const dialogo = useRef<HTMLDialogElement>(null);
   const tituloId = useId();
+  const descricaoId = `${tituloId}-descricao`;
 
   useEffect(() => {
     const elemento = dialogo.current;
@@ -75,6 +76,10 @@ export function Sidesheet({
       ref={dialogo}
       data-sidesheet="true"
       aria-labelledby={tituloId}
+      // A descricao explica a consequencia da acao ("o cadastro fica inativo",
+      // "substitui o principal atual"). Sem o vinculo, ela e texto visual que o
+      // leitor de tela so alcanca depois, se procurar.
+      aria-describedby={descricao ? descricaoId : undefined}
       // `close` cobre tanto o Esc quanto o `close()` programático, então o
       // estado do pai nunca fica dessincronizado do que está na tela.
       onClose={() => {
@@ -115,7 +120,9 @@ export function Sidesheet({
               {titulo}
             </h2>
             {descricao ? (
-              <p className="mt-1 text-sm text-muted">{descricao}</p>
+              <p id={descricaoId} className="mt-1 text-sm text-muted">
+                {descricao}
+              </p>
             ) : null}
           </div>
           {/* `type="button"` e não submit: o conteúdo abaixo tem o próprio

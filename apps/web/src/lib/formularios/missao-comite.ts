@@ -89,11 +89,7 @@ const participanteSchema = z
 const atividadeSchema = z
   .object({
     tipo: z.enum(["VISITA_TECNICA", "EVENTO", "ARTICULACAO", "BANCA", "OUTRO"]),
-    titulo: z
-      .string()
-      .trim()
-      .min(3, "Informe o título da atividade.")
-      .max(300),
+    titulo: z.string().trim().min(3, "Informe o título da atividade.").max(300),
     paisId: z.uuid("Selecione o país."),
     cidade: z.string().trim().max(120),
     modoInstituicao: z.enum(["nenhuma", "catalogo", "livre"]),
@@ -127,25 +123,26 @@ const atividadeSchema = z
       });
     }
 
-    if (
-      valor.modoInstituicao === "livre" &&
-      valor.instituicaoNome.length < 2
-    ) {
+    if (valor.modoInstituicao === "livre" && valor.instituicaoNome.length < 2) {
       contexto.addIssue({
         code: "custom",
         path: ["instituicaoNome"],
         message: "Informe o nome da instituição.",
       });
     }
+
+    if (valor.tipo === "EVENTO" && valor.eventoNome.trim().length < 2) {
+      contexto.addIssue({
+        code: "custom",
+        path: ["eventoNome"],
+        message: "Informe o nome do evento.",
+      });
+    }
   });
 
 export const formularioMissaoComiteSchema = z
   .object({
-    titulo: z
-      .string()
-      .trim()
-      .min(3, "Informe o título da missão.")
-      .max(300),
+    titulo: z.string().trim().min(3, "Informe o título da missão.").max(300),
     objetivo: z
       .string()
       .trim()
@@ -156,10 +153,7 @@ export const formularioMissaoComiteSchema = z
     status: z.enum(["RASCUNHO", "PLANEJADA"]),
     observacoes: z.string().trim().max(2000),
     // Caixas de seleção, então o modelo visual já é a lista de ids marcados.
-    redes: z
-      .array(z.uuid())
-      .min(1, "Selecione pelo menos uma rede.")
-      .max(10),
+    redes: z.array(z.uuid()).min(1, "Selecione pelo menos uma rede.").max(10),
     atividades: z
       .array(atividadeSchema)
       .min(1, "Inclua pelo menos uma atividade no roteiro.")
@@ -189,6 +183,18 @@ export const formularioMissaoComiteSchema = z
         code: "custom",
         path: ["participantes"],
         message: "A mesma pessoa não pode aparecer duas vezes na missão.",
+      });
+    }
+
+    if (
+      valor.participantes.filter(
+        (participante) => participante.papel === "RESPONSAVEL",
+      ).length !== 1
+    ) {
+      contexto.addIssue({
+        code: "custom",
+        path: ["participantes"],
+        message: "A missão deve possuir exatamente uma pessoa responsável.",
       });
     }
 
@@ -343,7 +349,9 @@ function dataParaIso(valor: string): string | null {
   if (!correspondencia) return null;
 
   const [, dia, mes, ano] = correspondencia;
-  const instante = new Date(Date.UTC(Number(ano), Number(mes) - 1, Number(dia)));
+  const instante = new Date(
+    Date.UTC(Number(ano), Number(mes) - 1, Number(dia)),
+  );
   if (
     instante.getUTCFullYear() !== Number(ano) ||
     instante.getUTCMonth() + 1 !== Number(mes) ||

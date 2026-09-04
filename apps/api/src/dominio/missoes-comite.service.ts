@@ -10,6 +10,7 @@ import { z } from 'zod';
 
 import type { AuthUser } from '../auth/auth-user';
 import { consultar } from '../comum/consultar';
+import { calcularDiasInclusivos } from '../comum/datas';
 import { DRIZZLE, type Database } from '../database/database.module';
 import * as s from '../database/schema';
 import { pessoaRapidaSchema, type PessoaRapida } from './comite-gestor.service';
@@ -26,6 +27,10 @@ const participanteBase = z.object({
   papel: z
     .enum(['RESPONSAVEL', 'PARTICIPANTE', 'APOIO'])
     .default('PARTICIPANTE'),
+  cargo: z.string().trim().max(160).nullish(),
+  area: z.string().trim().max(160).nullish(),
+  dataInicio: dataCompleta.nullish(),
+  dataFim: dataCompleta.nullish(),
   observacoes: z.string().trim().max(2000).nullish(),
 });
 
@@ -49,6 +54,20 @@ function refinarParticipante(
         message: 'Pessoa nova ainda nao possui vinculo de equipe.',
       });
     }
+    if (Boolean(valor.dataInicio) !== Boolean(valor.dataFim)) {
+      contexto.addIssue({
+        code: 'custom',
+        path: [valor.dataInicio ? 'dataFim' : 'dataInicio'],
+        message: 'Informe o inicio e o fim da participacao.',
+      });
+    }
+    if (valor.dataInicio && valor.dataFim && valor.dataFim < valor.dataInicio) {
+      contexto.addIssue({
+        code: 'custom',
+        path: ['dataFim'],
+        message: 'O fim da participacao nao pode ser anterior ao inicio.',
+      });
+    }
   }
 }
 
@@ -59,9 +78,31 @@ const atividadeBase = z.object({
   titulo: z.string().trim().min(3, 'Informe o titulo da atividade.').max(300),
   paisId: z.uuid(),
   cidade: z.string().trim().max(120).nullish(),
+  estadoRegiao: z.string().trim().max(120).nullish(),
+  local: z.string().trim().max(240).nullish(),
+  endereco: z.string().trim().max(1000).nullish(),
   instituicaoId: z.uuid().nullish(),
   instituicaoNome: z.string().trim().min(2).max(240).nullish(),
+  contatoInstituicaoId: z.uuid().nullish(),
+  tipoRelacionamento: z
+    .enum([
+      'REUNIAO_INSTITUCIONAL',
+      'COOPERACAO_ACADEMICA',
+      'PESQUISA',
+      'MOBILIDADE',
+      'CONVENIO',
+      'PROJETO',
+      'EVENTO',
+      'VISITA_TECNICA',
+      'OUTRO',
+    ])
+    .nullish(),
+  objetivoRelacionamento: z.string().trim().max(5000).nullish(),
   eventoNome: z.string().trim().min(2).max(300).nullish(),
+  eventoTipo: z.string().trim().max(160).nullish(),
+  eventoSite: z.url('Informe uma URL valida.').max(500).nullish(),
+  objetivoParticipacao: z.string().trim().max(5000).nullish(),
+  relacaoInternacionalizacao: z.string().trim().max(5000).nullish(),
   dataInicio: dataCompleta,
   dataFim: dataCompleta,
   planejamento: z.string().trim().max(5000).nullish(),
@@ -88,6 +129,20 @@ function refinarAtividade(
         message: 'Escolha a instituicao do catalogo ou informe o nome livre.',
       });
     }
+    if (valor.contatoInstituicaoId && !valor.instituicaoId) {
+      contexto.addIssue({
+        code: 'custom',
+        path: ['contatoInstituicaoId'],
+        message: 'Selecione a instituicao cadastrada desse contato.',
+      });
+    }
+    if (valor.tipo === 'EVENTO' && !valor.eventoNome) {
+      contexto.addIssue({
+        code: 'custom',
+        path: ['eventoNome'],
+        message: 'Informe o nome do evento.',
+      });
+    }
   }
 }
 
@@ -103,7 +158,12 @@ function refinarMissao(
   valor: {
     dataInicio: string;
     dataFim: string;
-    participantes: { pessoaId?: string | null }[];
+    participantes: {
+      pessoaId?: string | null;
+      papel?: (typeof papeisMissao)[number];
+      dataInicio?: string | null;
+      dataFim?: string | null;
+    }[];
     atividades: { dataInicio: string; dataFim: string }[];
   },
   contexto: z.RefinementCtx,
@@ -126,6 +186,33 @@ function refinarMissao(
       message: 'A mesma pessoa nao pode aparecer duas vezes na missao.',
     });
   }
+
+  if (
+    valor.participantes.filter(
+      (participante) => participante.papel === 'RESPONSAVEL',
+    ).length !== 1
+  ) {
+    contexto.addIssue({
+      code: 'custom',
+      path: ['participantes'],
+      message: 'A missao deve possuir exatamente uma pessoa responsavel.',
+    });
+  }
+
+  valor.participantes.forEach((participante, indice) => {
+    if (
+      participante.dataInicio &&
+      participante.dataFim &&
+      (participante.dataInicio < valor.dataInicio ||
+        participante.dataFim > valor.dataFim)
+    ) {
+      contexto.addIssue({
+        code: 'custom',
+        path: ['participantes', indice, 'dataInicio'],
+        message: 'A participacao precisa estar dentro do periodo da missao.',
+      });
+    }
+  });
 
   valor.atividades.forEach((atividade, indice) => {
     if (
@@ -160,6 +247,10 @@ const redesSchema = z
 
 export const criarMissaoComiteSchema = z
   .object({
+    tipo: z
+      .enum(['VISITA_TECNICA', 'EVENTO', 'ARTICULACAO', 'BANCA', 'OUTRO'])
+      .nullish(),
+    unidadeDepartamento: z.string().trim().max(240).nullish(),
     titulo: z.string().trim().min(3, 'Informe o titulo da missao.').max(300),
     objetivo: z
       .string()
@@ -196,6 +287,10 @@ export type CriarMissaoComite = z.infer<typeof criarMissaoComiteSchema>;
  */
 export const atualizarMissaoComiteSchema = z
   .object({
+    tipo: z
+      .enum(['VISITA_TECNICA', 'EVENTO', 'ARTICULACAO', 'BANCA', 'OUTRO'])
+      .nullish(),
+    unidadeDepartamento: z.string().trim().max(240).nullish(),
     titulo: z.string().trim().min(3, 'Informe o titulo da missao.').max(300),
     objetivo: z
       .string()
@@ -350,22 +445,26 @@ const DESLOCAMENTO_ORDEM = 1000;
 
 const papeisMissao = ['RESPONSAVEL', 'PARTICIPANTE', 'APOIO'] as const;
 
-const statusMissao = [
-  'RASCUNHO',
-  'PLANEJADA',
-  'CONFIRMADA',
-  'CONCLUIDA',
-  'CANCELADA',
-] as const;
+/**
+ * Os estados vem do enum do banco, nao de uma copia (CG-010).
+ *
+ * Repetir a lista aqui criava duas fontes para a mesma verdade: acrescentar um
+ * estado na migration e esquecer deste arquivo passaria no build e so falharia
+ * no filtro, em producao, com um valor que o banco aceita e a API recusa.
+ */
+const statusMissao = s.statusMissaoComiteEnum.enumValues;
 
+/** Derivada da consulta, nao gravada: nao ha enum no banco para ela. */
 const situacoesTemporais = ['FUTURA', 'EM_ANDAMENTO', 'ENCERRADA'] as const;
 
+/**
+ * `NAO_INICIADA` nao existe no enum do banco de proposito — e a ausencia da
+ * linha de prestacao (CG-013). Por isso ela entra aqui na frente dos estados
+ * gravados, em vez de a tabela guardar um estado que significa "nao existe".
+ */
 const situacoesPrestacao = [
   'NAO_INICIADA',
-  'EM_PREENCHIMENTO',
-  'ENVIADA',
-  'COM_PENDENCIA',
-  'VALIDADA',
+  ...s.statusPrestacaoMissaoEnum.enumValues,
 ] as const;
 
 const ordenacoes = {
@@ -457,6 +556,11 @@ export interface ParticipanteMissao {
   membroEquipeId: string | null;
   tipoEquipe: 'COMITE_GESTOR' | 'ADMINISTRACAO' | null;
   funcaoEquipe: string | null;
+  cargo: string | null;
+  area: string | null;
+  dataInicio: string;
+  dataFim: string;
+  numeroDias: number;
   observacoes: string | null;
 }
 
@@ -468,13 +572,25 @@ export interface AtividadeMissaoDetalhe {
   paisId: string;
   pais: string;
   cidade: string | null;
+  estadoRegiao: string | null;
+  local: string | null;
+  endereco: string | null;
   instituicaoId: string | null;
   /** Nome exibivel, venha do catalogo ou do texto livre da atividade. */
   instituicao: string | null;
   instituicaoDoCatalogo: boolean;
+  contatoInstituicaoId: string | null;
+  contatoInstituicao: string | null;
+  tipoRelacionamento: string | null;
+  objetivoRelacionamento: string | null;
   eventoNome: string | null;
+  eventoTipo: string | null;
+  eventoSite: string | null;
+  objetivoParticipacao: string | null;
+  relacaoInternacionalizacao: string | null;
   dataInicio: string;
   dataFim: string;
+  numeroDias: number;
   planejamento: string | null;
   relatoRealizado: string | null;
   resultados: string | null;
@@ -513,10 +629,13 @@ export interface TotaisMissao {
 export interface MissaoDetalhe {
   id: string;
   codigo: string;
+  tipo: string | null;
+  unidadeDepartamento: string | null;
   titulo: string;
   objetivo: string;
   dataInicio: string;
   dataFim: string;
+  numeroDias: number;
   status: (typeof statusMissao)[number];
   situacaoTemporal: (typeof situacoesTemporais)[number];
   relatoGeral: string | null;
@@ -590,6 +709,8 @@ export class MissoesComiteService {
         .values({
           cicloId,
           codigo,
+          tipo: dto.tipo ?? null,
+          unidadeDepartamento: dto.unidadeDepartamento ?? null,
           titulo: dto.titulo,
           objetivo: dto.objetivo,
           dataInicio: dto.dataInicio,
@@ -627,6 +748,10 @@ export class MissoesComiteService {
           pessoaId,
           membroEquipeId: participante.membroEquipeId ?? null,
           papel: participante.papel,
+          cargo: participante.cargo ?? null,
+          area: participante.area ?? null,
+          dataInicio: participante.dataInicio ?? dto.dataInicio,
+          dataFim: participante.dataFim ?? dto.dataFim,
           observacoes: participante.observacoes ?? null,
         });
       }
@@ -646,9 +771,20 @@ export class MissoesComiteService {
           titulo: atividade.titulo,
           paisId: atividade.paisId,
           cidade: atividade.cidade ?? null,
+          estadoRegiao: atividade.estadoRegiao ?? null,
+          local: atividade.local ?? null,
+          endereco: atividade.endereco ?? null,
           instituicaoId: atividade.instituicaoId ?? null,
           instituicaoNome: atividade.instituicaoNome ?? null,
+          contatoInstituicaoId: atividade.contatoInstituicaoId ?? null,
+          tipoRelacionamento: atividade.tipoRelacionamento ?? null,
+          objetivoRelacionamento: atividade.objetivoRelacionamento ?? null,
           eventoNome: atividade.eventoNome ?? null,
+          eventoTipo: atividade.eventoTipo ?? null,
+          eventoSite: atividade.eventoSite ?? null,
+          objetivoParticipacao: atividade.objetivoParticipacao ?? null,
+          relacaoInternacionalizacao:
+            atividade.relacaoInternacionalizacao ?? null,
           dataInicio: atividade.dataInicio,
           dataFim: atividade.dataFim,
           planejamento: atividade.planejamento ?? null,
@@ -924,7 +1060,9 @@ export class MissoesComiteService {
             membroEquipe: true,
           },
         },
-        atividades: { with: { pais: true, instituicao: true } },
+        atividades: {
+          with: { pais: true, instituicao: true, contatoInstituicao: true },
+        },
         redes: { with: { rede: true } },
       },
     });
@@ -960,12 +1098,27 @@ export class MissoesComiteService {
         paisId: atividade.paisId,
         pais: atividade.pais.nome,
         cidade: atividade.cidade,
+        estadoRegiao: atividade.estadoRegiao,
+        local: atividade.local,
+        endereco: atividade.endereco,
         instituicaoId: atividade.instituicaoId,
         instituicao: atividade.instituicao?.nome ?? atividade.instituicaoNome,
         instituicaoDoCatalogo: atividade.instituicaoId !== null,
+        contatoInstituicaoId: atividade.contatoInstituicaoId,
+        contatoInstituicao: atividade.contatoInstituicao?.nome ?? null,
+        tipoRelacionamento: atividade.tipoRelacionamento,
+        objetivoRelacionamento: atividade.objetivoRelacionamento,
         eventoNome: atividade.eventoNome,
+        eventoTipo: atividade.eventoTipo,
+        eventoSite: atividade.eventoSite,
+        objetivoParticipacao: atividade.objetivoParticipacao,
+        relacaoInternacionalizacao: atividade.relacaoInternacionalizacao,
         dataInicio: atividade.dataInicio,
         dataFim: atividade.dataFim,
+        numeroDias: calcularDiasInclusivos(
+          atividade.dataInicio,
+          atividade.dataFim,
+        ),
         planejamento: atividade.planejamento,
         relatoRealizado: atividade.relatoRealizado,
         resultados: atividade.resultados,
@@ -978,10 +1131,13 @@ export class MissoesComiteService {
     return {
       id: missao.id,
       codigo: missao.codigo,
+      tipo: missao.tipo,
+      unidadeDepartamento: missao.unidadeDepartamento,
       titulo: missao.titulo,
       objetivo: missao.objetivo,
       dataInicio: missao.dataInicio,
       dataFim: missao.dataFim,
+      numeroDias: calcularDiasInclusivos(missao.dataInicio, missao.dataFim),
       status: missao.status,
       situacaoTemporal: situacaoTemporalDe(missao.dataInicio, missao.dataFim),
       relatoGeral: missao.relatoGeral,
@@ -1005,6 +1161,14 @@ export class MissoesComiteService {
           membroEquipeId: participante.membroEquipeId,
           tipoEquipe: participante.membroEquipe?.tipoEquipe ?? null,
           funcaoEquipe: participante.membroEquipe?.funcao ?? null,
+          cargo: participante.cargo,
+          area: participante.area,
+          dataInicio: participante.dataInicio,
+          dataFim: participante.dataFim,
+          numeroDias: calcularDiasInclusivos(
+            participante.dataInicio,
+            participante.dataFim,
+          ),
           observacoes: participante.observacoes,
         }))
         // Responsavel primeiro; o resto em ordem alfabetica.
@@ -1076,6 +1240,8 @@ export class MissoesComiteService {
       };
 
       const basicos = {
+        tipo: dto.tipo ?? null,
+        unidadeDepartamento: dto.unidadeDepartamento ?? null,
         titulo: dto.titulo,
         objetivo: dto.objetivo,
         dataInicio: dto.dataInicio,
@@ -1181,6 +1347,10 @@ export class MissoesComiteService {
       pessoaId: string;
       papel: (typeof papeisMissao)[number];
       membroEquipeId: string | null;
+      cargo: string | null;
+      area: string | null;
+      dataInicio: string;
+      dataFim: string;
       observacoes: string | null;
       nome: string;
     }[] = [];
@@ -1207,6 +1377,10 @@ export class MissoesComiteService {
         pessoaId,
         papel: participante.papel,
         membroEquipeId: participante.membroEquipeId ?? null,
+        cargo: participante.cargo ?? null,
+        area: participante.area ?? null,
+        dataInicio: participante.dataInicio ?? dto.dataInicio,
+        dataFim: participante.dataFim ?? dto.dataFim,
         observacoes: participante.observacoes ?? null,
         nome: pessoa.nome,
       });
@@ -1219,6 +1393,24 @@ export class MissoesComiteService {
       ]),
     );
 
+    // Libera o indice unico antes de transferir a responsabilidade. A
+    // transacao garante que a missao nunca fique sem responsavel ao final.
+    const responsavelAtual = anterior.participantes.find(
+      (participante) => participante.papel === 'RESPONSAVEL',
+    );
+    const responsavelDesejado = desejados.find(
+      (participante) => participante.papel === 'RESPONSAVEL',
+    );
+    if (
+      responsavelAtual &&
+      responsavelAtual.pessoaId !== responsavelDesejado?.pessoaId
+    ) {
+      await tx
+        .update(s.missaoParticipante)
+        .set({ papel: 'PARTICIPANTE' })
+        .where(eq(s.missaoParticipante.id, responsavelAtual.id));
+    }
+
     for (const desejado of desejados) {
       const atual = atuais.get(desejado.pessoaId);
       if (!atual) {
@@ -1227,6 +1419,10 @@ export class MissoesComiteService {
           pessoaId: desejado.pessoaId,
           membroEquipeId: desejado.membroEquipeId,
           papel: desejado.papel,
+          cargo: desejado.cargo,
+          area: desejado.area,
+          dataInicio: desejado.dataInicio,
+          dataFim: desejado.dataFim,
           observacoes: desejado.observacoes,
         });
         registrar('participantes', null, desejado.nome);
@@ -1236,6 +1432,10 @@ export class MissoesComiteService {
       if (
         atual.papel !== desejado.papel ||
         atual.membroEquipeId !== desejado.membroEquipeId ||
+        atual.cargo !== desejado.cargo ||
+        atual.area !== desejado.area ||
+        atual.dataInicio !== desejado.dataInicio ||
+        atual.dataFim !== desejado.dataFim ||
         atual.observacoes !== desejado.observacoes
       ) {
         await tx
@@ -1243,6 +1443,10 @@ export class MissoesComiteService {
           .set({
             papel: desejado.papel,
             membroEquipeId: desejado.membroEquipeId,
+            cargo: desejado.cargo,
+            area: desejado.area,
+            dataInicio: desejado.dataInicio,
+            dataFim: desejado.dataFim,
             observacoes: desejado.observacoes,
             atualizadoEm: new Date(),
           })
@@ -1339,9 +1543,20 @@ export class MissoesComiteService {
         titulo: atividade.titulo,
         paisId: atividade.paisId,
         cidade: atividade.cidade ?? null,
+        estadoRegiao: atividade.estadoRegiao ?? null,
+        local: atividade.local ?? null,
+        endereco: atividade.endereco ?? null,
         instituicaoId: atividade.instituicaoId ?? null,
         instituicaoNome: atividade.instituicaoNome ?? null,
+        contatoInstituicaoId: atividade.contatoInstituicaoId ?? null,
+        tipoRelacionamento: atividade.tipoRelacionamento ?? null,
+        objetivoRelacionamento: atividade.objetivoRelacionamento ?? null,
         eventoNome: atividade.eventoNome ?? null,
+        eventoTipo: atividade.eventoTipo ?? null,
+        eventoSite: atividade.eventoSite ?? null,
+        objetivoParticipacao: atividade.objetivoParticipacao ?? null,
+        relacaoInternacionalizacao:
+          atividade.relacaoInternacionalizacao ?? null,
         dataInicio: atividade.dataInicio,
         dataFim: atividade.dataFim,
         planejamento: atividade.planejamento ?? null,
@@ -1362,8 +1577,21 @@ export class MissoesComiteService {
         atual.titulo !== valores.titulo ||
         atual.paisId !== valores.paisId ||
         atual.cidade !== valores.cidade ||
+        atual.estadoRegiao !== valores.estadoRegiao ||
+        atual.local !== valores.local ||
+        atual.endereco !== valores.endereco ||
         atual.instituicaoId !== valores.instituicaoId ||
+        (!atual.instituicaoDoCatalogo ? atual.instituicao : null) !==
+          valores.instituicaoNome ||
+        atual.contatoInstituicaoId !== valores.contatoInstituicaoId ||
+        atual.tipoRelacionamento !== valores.tipoRelacionamento ||
+        atual.objetivoRelacionamento !== valores.objetivoRelacionamento ||
         atual.eventoNome !== valores.eventoNome ||
+        atual.eventoTipo !== valores.eventoTipo ||
+        atual.eventoSite !== valores.eventoSite ||
+        atual.objetivoParticipacao !== valores.objetivoParticipacao ||
+        atual.relacaoInternacionalizacao !==
+          valores.relacaoInternacionalizacao ||
         atual.dataInicio !== valores.dataInicio ||
         atual.dataFim !== valores.dataFim ||
         atual.planejamento !== valores.planejamento ||
@@ -1610,9 +1838,20 @@ export class MissoesComiteService {
           titulo: atividade.titulo,
           paisId: atividade.paisId,
           cidade: atividade.cidade ?? null,
+          estadoRegiao: atividade.estadoRegiao ?? null,
+          local: atividade.local ?? null,
+          endereco: atividade.endereco ?? null,
           instituicaoId: atividade.instituicaoId ?? null,
           instituicaoNome: atividade.instituicaoNome ?? null,
+          contatoInstituicaoId: atividade.contatoInstituicaoId ?? null,
+          tipoRelacionamento: atividade.tipoRelacionamento ?? null,
+          objetivoRelacionamento: atividade.objetivoRelacionamento ?? null,
           eventoNome: atividade.eventoNome ?? null,
+          eventoTipo: atividade.eventoTipo ?? null,
+          eventoSite: atividade.eventoSite ?? null,
+          objetivoParticipacao: atividade.objetivoParticipacao ?? null,
+          relacaoInternacionalizacao:
+            atividade.relacaoInternacionalizacao ?? null,
           dataInicio: atividade.dataInicio,
           dataFim: atividade.dataFim,
           // Nao previsto nao tem planejamento: preencher aqui apagaria a
@@ -1871,13 +2110,54 @@ export class MissoesComiteService {
           .filter((id): id is string => Boolean(id)),
       ),
     ];
-    if (instituicoes.length === 0) return;
-    const instituicoesExistentes = await db
-      .select({ id: s.instituicao.id })
-      .from(s.instituicao)
-      .where(inArray(s.instituicao.id, instituicoes));
-    if (instituicoesExistentes.length !== instituicoes.length) {
-      throw new NotFoundException('Instituicao do roteiro nao encontrada.');
+    if (instituicoes.length > 0) {
+      const instituicoesExistentes = await db
+        .select({ id: s.instituicao.id })
+        .from(s.instituicao)
+        .where(inArray(s.instituicao.id, instituicoes));
+      if (instituicoesExistentes.length !== instituicoes.length) {
+        throw new NotFoundException('Instituicao do roteiro nao encontrada.');
+      }
+    }
+
+    const contatos = [
+      ...new Set(
+        atividades
+          .map((atividade) => atividade.contatoInstituicaoId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    if (contatos.length === 0) return;
+
+    const contatosExistentes = await db
+      .select({
+        id: s.contatoInstituicao.id,
+        instituicaoId: s.contatoInstituicao.instituicaoId,
+      })
+      .from(s.contatoInstituicao)
+      .where(
+        and(
+          inArray(s.contatoInstituicao.id, contatos),
+          eq(s.contatoInstituicao.ativo, true),
+        ),
+      );
+    if (contatosExistentes.length !== contatos.length) {
+      throw new NotFoundException('Contato do roteiro nao encontrado.');
+    }
+
+    const instituicaoDoContato = new Map(
+      contatosExistentes.map((contato) => [contato.id, contato.instituicaoId]),
+    );
+    for (const atividade of atividades) {
+      if (
+        atividade.contatoInstituicaoId &&
+        instituicaoDoContato.get(atividade.contatoInstituicaoId) !==
+          atividade.instituicaoId
+      ) {
+        throw new BadRequestException(
+          'O contato informado nao pertence a instituicao da atividade.',
+        );
+      }
     }
   }
 }

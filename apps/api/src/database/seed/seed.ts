@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 
+import { normalizarNomeInstituicao } from '../normalizacao';
 import * as s from '../schema';
 import {
   dadosCapesGlobal,
@@ -77,6 +78,9 @@ export async function executarSeed(
     .insert(s.instituicao)
     .values({
       nome: 'Universidade do Estado do Amazonas',
+      nomeNormalizado: normalizarNomeInstituicao(
+        'Universidade do Estado do Amazonas',
+      ),
       sigla: 'UEA',
       tipo: 'PROPRIA',
       paisId: brasil.id,
@@ -89,6 +93,7 @@ export async function executarSeed(
     .values(
       nomesRedes.map((nome) => ({
         nome,
+        nomeNormalizado: normalizarNomeInstituicao(nome),
         sigla: nome,
         tipo: 'REDE_COORDENADORA' as const,
       })),

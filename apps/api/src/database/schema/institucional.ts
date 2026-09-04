@@ -76,17 +76,42 @@ export const instituicao = pgTable(
   {
     id: id(),
     nome: varchar('nome', { length: 240 }).notNull(),
+    /** Chave canonica usada para bloquear variacoes inequivocamente iguais. */
+    nomeNormalizado: varchar('nome_normalizado', { length: 240 }).notNull(),
     sigla: varchar('sigla', { length: 40 }),
     tipo: tipoInstituicaoEnum('tipo').notNull(),
     paisId: uuid('pais_id').references(() => pais.id),
     cidade: varchar('cidade', { length: 120 }),
+    estadoRegiao: varchar('estado_regiao', { length: 120 }),
+    tipoOrganizacao: varchar('tipo_organizacao', { length: 120 }),
+    faculdadeDepartamento: varchar('faculdade_departamento', { length: 240 }),
     site: varchar('site', { length: 240 }),
+    emailInstitucional: varchar('email_institucional', { length: 240 }),
+    telefone: varchar('telefone', { length: 80 }),
+    endereco: text('endereco'),
+    observacoes: text('observacoes'),
+    /** Referencia temporaria que ainda deve ser conciliada por um admin. */
+    cadastroProvisorio: boolean('cadastro_provisorio').notNull().default(false),
     ativo: boolean('ativo').notNull().default(true),
+    /** Instituicao canonica que substituiu este cadastro apos conciliacao. */
+    substituidaPorId: uuid('substituida_por_id').references(
+      (): AnyPgColumn => instituicao.id,
+    ),
     ...timestamps,
   },
   (t) => [
     uniqueIndex('instituicao_nome_uk').on(t.nome),
+    uniqueIndex('instituicao_nome_normalizado_uk').on(t.nomeNormalizado),
     index('instituicao_tipo_idx').on(t.tipo),
+    index('instituicao_substituida_por_idx').on(t.substituidaPorId),
+    check(
+      'instituicao_nome_normalizado_ck',
+      sql`length(trim(${t.nomeNormalizado})) > 0`,
+    ),
+    check(
+      'instituicao_substituida_inativa_ck',
+      sql`${t.substituidaPorId} is null or (${t.ativo} is false and ${t.substituidaPorId} <> ${t.id})`,
+    ),
   ],
 );
 
@@ -181,6 +206,12 @@ export const paisRelations = relations(pais, ({ many }) => ({
 
 export const instituicaoRelations = relations(instituicao, ({ one, many }) => ({
   pais: one(pais, { fields: [instituicao.paisId], references: [pais.id] }),
+  substituidaPor: one(instituicao, {
+    fields: [instituicao.substituidaPorId],
+    references: [instituicao.id],
+    relationName: 'instituicaoSubstituida',
+  }),
+  substituidas: many(instituicao, { relationName: 'instituicaoSubstituida' }),
   pessoas: many(pessoa),
 }));
 

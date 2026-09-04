@@ -30,12 +30,24 @@ export function Campo({
   obrigatorio,
 }: {
   rotulo: string;
-  children: (id: string) => ReactNode;
+  /**
+   * Recebe o `id` do controle e a lista de `aria-describedby` que ele deve
+   * expor — dica e erro, quando existirem.
+   */
+  children: (id: string, descritoPor?: string) => ReactNode;
   dica?: ReactNode;
   erro?: string;
   obrigatorio?: boolean;
 }) {
   const id = useId();
+  const idDica = `${id}-dica`;
+  const idErro = `${id}-erro`;
+  // O `role="alert"` anuncia o erro no instante em que ele aparece, mas quem
+  // volta ao campo depois — tabulando ou navegando por formulario — nao ouviria
+  // nada. O `aria-describedby` e o que amarra a mensagem ao controle.
+  const descritoPor =
+    [dica ? idDica : null, erro ? idErro : null].filter(Boolean).join(" ") ||
+    undefined;
 
   return (
     <div className="mb-4">
@@ -50,10 +62,14 @@ export function Campo({
           </span>
         ) : null}
       </label>
-      {children(id)}
-      {dica ? <p className="mt-1.5 text-xs text-subtle">{dica}</p> : null}
+      {children(id, descritoPor)}
+      {dica ? (
+        <p id={idDica} className="mt-1.5 text-xs text-subtle">
+          {dica}
+        </p>
+      ) : null}
       {erro ? (
-        <p role="alert" className="mt-1.5 text-xs text-danger">
+        <p id={idErro} role="alert" className="mt-1.5 text-xs text-danger">
           {erro}
         </p>
       ) : null}
@@ -86,9 +102,10 @@ export function Texto({
       erro={resto.erro}
       obrigatorio={resto.obrigatorio}
     >
-      {(id) => (
+      {(id, descritoPor) => (
         <input
           id={id}
+          aria-describedby={descritoPor}
           name={resto.registro?.name ?? nome}
           ref={resto.registro?.ref}
           onBlur={resto.registro?.onBlur}
@@ -131,9 +148,10 @@ export function Data({
       erro={resto.erro}
       obrigatorio={resto.obrigatorio}
     >
-      {(id) => (
+      {(id, descritoPor) => (
         <input
           id={id}
+          aria-describedby={descritoPor}
           name={resto.registro?.name ?? nome}
           ref={resto.registro?.ref}
           type="text"
@@ -195,9 +213,10 @@ export function AreaTexto({
       erro={resto.erro}
       obrigatorio={resto.obrigatorio}
     >
-      {(id) => (
+      {(id, descritoPor) => (
         <textarea
           id={id}
+          aria-describedby={descritoPor}
           name={resto.registro?.name ?? nome}
           ref={resto.registro?.ref}
           onBlur={resto.registro?.onBlur}
@@ -238,9 +257,10 @@ export function Selecao({
       erro={resto.erro}
       obrigatorio={resto.obrigatorio}
     >
-      {(id) => (
+      {(id, descritoPor) => (
         <select
           id={id}
+          aria-describedby={descritoPor}
           name={resto.registro?.name ?? nome}
           ref={resto.registro?.ref}
           onBlur={resto.registro?.onBlur}
@@ -343,25 +363,29 @@ export function Marcador({
   nome,
   padrao,
   dica,
+  registro,
 }: {
   rotulo: string;
   nome: string;
   padrao?: boolean;
   dica?: string;
+  registro?: UseFormRegisterReturn;
 }) {
   const id = useId();
 
   return (
     <div className="mb-4 flex items-start gap-2.5">
       {/* O hidden garante que o campo apareça no FormData mesmo desmarcado —
-          sem ele, "false" viraria "ausente", que o zod lê diferente. */}
-      <input type="hidden" name={nome} value="false" />
+          sem ele, "false" viraria "ausente", que o zod lê diferente. Com o
+          React Hook Form ele não entra: o RHF lê o checkbox como booleano
+          direto, e um segundo campo de mesmo nome viraria array. */}
+      {registro ? null : <input type="hidden" name={nome} value="false" />}
       <input
         id={id}
-        name={nome}
         type="checkbox"
-        value="true"
-        defaultChecked={padrao}
+        {...(registro
+          ? registro
+          : { name: nome, value: "true", defaultChecked: padrao })}
         className="mt-0.5 size-4 rounded border-border-strong accent-[var(--primary)]"
       />
       <label htmlFor={id} className="text-sm text-foreground">
@@ -418,6 +442,7 @@ export function Chips({
       <div className="flex gap-2">
         <input
           id={id}
+          aria-describedby={dica ? `${id}-dica` : undefined}
           type="text"
           value={rascunho}
           placeholder={placeholder}
@@ -441,7 +466,11 @@ export function Chips({
         </button>
       </div>
 
-      {dica ? <p className="mt-1.5 text-xs text-subtle">{dica}</p> : null}
+      {dica ? (
+        <p id={`${id}-dica`} className="mt-1.5 text-xs text-subtle">
+          {dica}
+        </p>
+      ) : null}
 
       {itens.length > 0 ? (
         <ul className="mt-3 flex flex-wrap gap-2">

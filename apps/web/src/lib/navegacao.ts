@@ -71,6 +71,17 @@ export function menu(
               },
             ]
           : []),
+        // Sob o ciclo porque o vínculo com rede é do ciclo; a instituição em si
+        // é global e o detalhe mostra o histórico inteiro dela.
+        ...(permissoes.includes("parceiro:read")
+          ? [
+              {
+                rotulo: "Parceiros",
+                href: `${ciclo}/parceiros`,
+                disponivel: true,
+              },
+            ]
+          : []),
       ],
     },
     {

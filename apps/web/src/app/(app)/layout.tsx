@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { ProvedorDeConsultas } from "@/componentes/consultas/provedor";
 import { MenuLateral } from "@/componentes/layout/menu-lateral";
 import { ThemeToggle } from "@/componentes/layout/theme-toggle";
 import { ToastProvider } from "@/componentes/ui/toast";
@@ -40,6 +41,7 @@ export default async function LayoutDoApp({
     .toUpperCase();
 
   return (
+    <ProvedorDeConsultas>
     <ToastProvider>
     <div className="flex min-h-dvh">
       <MenuLateral grupos={menu(ciclo.programa, ciclo.nome, me.permissions)} />
@@ -81,6 +83,7 @@ export default async function LayoutDoApp({
       </div>
     </div>
     </ToastProvider>
+    </ProvedorDeConsultas>
   );
 }
 

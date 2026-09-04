@@ -15,6 +15,7 @@ import {
 
 import { id, timestamps } from './comum';
 import { instituicao, pais, pessoa } from './institucional';
+import { contatoInstituicao } from './parceiros';
 import { tipoMissaoEnum } from './planejamento';
 import { ciclo, redeCoordenadora } from './programa';
 
@@ -43,6 +44,21 @@ export const statusAtividadeMissaoEnum = pgEnum('status_atividade_missao', [
   'REALIZADA',
   'NAO_REALIZADA',
 ]);
+
+export const tipoRelacionamentoMissaoEnum = pgEnum(
+  'tipo_relacionamento_missao',
+  [
+    'REUNIAO_INSTITUCIONAL',
+    'COOPERACAO_ACADEMICA',
+    'PESQUISA',
+    'MOBILIDADE',
+    'CONVENIO',
+    'PROJETO',
+    'EVENTO',
+    'VISITA_TECNICA',
+    'OUTRO',
+  ],
+);
 
 export const membroEquipeGestao = pgTable(
   'membro_equipe_gestao',
@@ -111,6 +127,9 @@ export const missaoComite = pgTable(
       .notNull()
       .references(() => ciclo.id, { onDelete: 'cascade' }),
     codigo: varchar('codigo', { length: 20 }).notNull(),
+    /** Tipo geral; o roteiro pode conter atividades de tipos diferentes. */
+    tipo: tipoMissaoEnum('tipo'),
+    unidadeDepartamento: varchar('unidade_departamento', { length: 240 }),
     titulo: varchar('titulo', { length: 300 }).notNull(),
     objetivo: text('objetivo').notNull(),
     dataInicio: date('data_inicio').notNull(),
@@ -138,8 +157,8 @@ export const missaoComite = pgTable(
  *
  * Nao ha coluna de "rede principal": nenhuma regra atual precisa eleger uma, e
  * a contagem oficial ja resolve o duplo pertencimento contando a missao uma
- * unica vez em "todas as redes". Se a governanca passar a exigir um responsavel
- * unico, ele entra aqui como coluna nova, sem remodelar a associacao.
+ * unica vez em "todas as redes". A pessoa responsavel vive na participacao da
+ * missao, sem eleger uma rede principal nem duplicar o vinculo com pessoa.
  *
  * A rede pertence a um ciclo, entao o servico exige que rede e missao sejam do
  * mesmo ciclo; o banco sozinho nao consegue afirmar isso.
@@ -185,6 +204,10 @@ export const missaoParticipante = pgTable(
       { onDelete: 'set null' },
     ),
     papel: papelMissaoEnum('papel').notNull().default('PARTICIPANTE'),
+    cargo: varchar('cargo', { length: 160 }),
+    area: varchar('area', { length: 160 }),
+    dataInicio: date('data_inicio').notNull(),
+    dataFim: date('data_fim').notNull(),
     observacoes: text('observacoes'),
     ...timestamps,
   },
@@ -193,6 +216,13 @@ export const missaoParticipante = pgTable(
     index('missao_participante_missao_idx').on(t.missaoId),
     index('missao_participante_pessoa_idx').on(t.pessoaId),
     index('missao_participante_equipe_idx').on(t.membroEquipeId),
+    uniqueIndex('missao_participante_responsavel_uk')
+      .on(t.missaoId)
+      .where(sql`${t.papel} = 'RESPONSAVEL'`),
+    check(
+      'missao_participante_periodo_ck',
+      sql`${t.dataFim} >= ${t.dataInicio}`,
+    ),
   ],
 );
 
@@ -211,9 +241,21 @@ export const atividadeMissao = pgTable(
       .notNull()
       .references(() => pais.id),
     cidade: varchar('cidade', { length: 120 }),
+    estadoRegiao: varchar('estado_regiao', { length: 120 }),
+    local: varchar('local', { length: 240 }),
+    endereco: text('endereco'),
     instituicaoId: uuid('instituicao_id').references(() => instituicao.id),
     instituicaoNome: varchar('instituicao_nome', { length: 240 }),
+    contatoInstituicaoId: uuid('contato_instituicao_id').references(
+      () => contatoInstituicao.id,
+    ),
+    tipoRelacionamento: tipoRelacionamentoMissaoEnum('tipo_relacionamento'),
+    objetivoRelacionamento: text('objetivo_relacionamento'),
     eventoNome: varchar('evento_nome', { length: 300 }),
+    eventoTipo: varchar('evento_tipo', { length: 160 }),
+    eventoSite: varchar('evento_site', { length: 500 }),
+    objetivoParticipacao: text('objetivo_participacao'),
+    relacaoInternacionalizacao: text('relacao_internacionalizacao'),
     dataInicio: date('data_inicio').notNull(),
     dataFim: date('data_fim').notNull(),
     planejamento: text('planejamento'),
@@ -237,12 +279,18 @@ export const atividadeMissao = pgTable(
     index('atividade_missao_missao_idx').on(t.missaoId),
     index('atividade_missao_pais_idx').on(t.paisId),
     index('atividade_missao_instituicao_idx').on(t.instituicaoId),
+    index('atividade_missao_contato_idx').on(t.contatoInstituicaoId),
     check('atividade_missao_ordem_ck', sql`${t.ordem} >= 0`),
     check('atividade_missao_periodo_ck', sql`${t.dataFim} >= ${t.dataInicio}`),
     // Evita que catalogo e texto livre disputem qual instituicao e a correta.
     check(
       'atividade_missao_instituicao_ck',
       sql`num_nonnulls(${t.instituicaoId}, ${t.instituicaoNome}) <= 1`,
+    ),
+    // Contato central sempre pertence a uma instituicao central, nao a texto.
+    check(
+      'atividade_missao_contato_instituicao_ck',
+      sql`${t.contatoInstituicaoId} is null or ${t.instituicaoId} is not null`,
     ),
     // Incluir no relato o que nao estava previsto exige dizer por que.
     check(
@@ -338,6 +386,10 @@ export const atividadeMissaoRelations = relations(
     instituicao: one(instituicao, {
       fields: [atividadeMissao.instituicaoId],
       references: [instituicao.id],
+    }),
+    contatoInstituicao: one(contatoInstituicao, {
+      fields: [atividadeMissao.contatoInstituicaoId],
+      references: [contatoInstituicao.id],
     }),
   }),
 );

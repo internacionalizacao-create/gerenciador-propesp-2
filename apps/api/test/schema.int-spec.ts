@@ -1,5 +1,6 @@
 import { eq, sql } from 'drizzle-orm';
 
+import { normalizarNomeInstituicao } from '../src/database/normalizacao';
 import * as s from '../src/database/schema';
 import {
   criarContextoTeste,
@@ -555,6 +556,157 @@ describe('Schema — integridade', () => {
   });
 
   // -------------------------------------------------------------------------
+  describe('parceiros internacionais', () => {
+    async function criarParceira(nome = 'Universite Paris-Saclay') {
+      const [franca] = await ctx.db
+        .insert(s.pais)
+        .values({ codigoIso2: 'FR', codigoIso3: 'FRA', nome: 'Franca' })
+        .onConflictDoNothing()
+        .returning();
+      const paisFranca =
+        franca ??
+        (
+          await ctx.db.select().from(s.pais).where(eq(s.pais.codigoIso2, 'FR'))
+        )[0];
+
+      const [parceira] = await ctx.db
+        .insert(s.instituicao)
+        .values({
+          nome,
+          nomeNormalizado: normalizarNomeInstituicao(nome),
+          sigla: 'UPS',
+          tipo: 'PARCEIRA_INTERNACIONAL',
+          paisId: paisFranca.id,
+          cidade: 'Paris',
+          estadoRegiao: 'Ile-de-France',
+          tipoOrganizacao: 'Universidade',
+          faculdadeDepartamento: 'Relacoes Internacionais',
+          site: 'https://www.universite-paris-saclay.fr',
+          emailInstitucional: 'international@example.fr',
+          telefone: '+33 1 00 00 00 00',
+          endereco: '3 rue de Teste, Paris',
+          observacoes: 'Parceira academica para mobilidade.',
+        })
+        .returning();
+
+      return { parceira, paisFranca };
+    }
+
+    it('reutiliza uma instituicao em varias redes e preserva seus contatos', async () => {
+      const { parceira, paisFranca } = await criarParceira();
+      const [outraRede] = await ctx.db
+        .insert(s.redeCoordenadora)
+        .values({
+          cicloId: base.cicloId,
+          instituicaoId: base.instituicaoId,
+          nome: 'OUTRA-REDE',
+        })
+        .returning();
+
+      await ctx.db.insert(s.instituicaoRede).values([
+        { instituicaoId: parceira.id, redeId: base.redeId },
+        { instituicaoId: parceira.id, redeId: outraRede.id },
+      ]);
+      await ctx.db.insert(s.contatoInstituicao).values([
+        {
+          instituicaoId: parceira.id,
+          nome: 'Marie Dupont',
+          nomeNormalizado: 'marie dupont',
+          cargo: 'Diretora',
+          departamento: 'Relacoes Internacionais',
+          area: 'Cooperacao academica',
+          email: 'marie.dupont@example.fr',
+          emailNormalizado: 'marie.dupont@example.fr',
+          telefone: '+33 1 00 00 00 01',
+          paisId: paisFranca.id,
+          idiomaComunicacao: 'Frances',
+          principal: true,
+        },
+        {
+          instituicaoId: parceira.id,
+          nome: 'Jean Martin',
+          nomeNormalizado: 'jean martin',
+          cargo: 'Professor',
+        },
+      ]);
+
+      const redes = await ctx.db
+        .select()
+        .from(s.instituicaoRede)
+        .where(eq(s.instituicaoRede.instituicaoId, parceira.id));
+      const contatos = await ctx.db
+        .select()
+        .from(s.contatoInstituicao)
+        .where(eq(s.contatoInstituicao.instituicaoId, parceira.id));
+
+      expect(redes).toHaveLength(2);
+      expect(contatos).toHaveLength(2);
+      expect(contatos.filter((contato) => contato.principal)).toHaveLength(1);
+      expect(parceira.cadastroProvisorio).toBe(false);
+    });
+
+    it('recusa a mesma instituicao escrita com caixa, acento e pontuacao diferentes', async () => {
+      await criarParceira('Université Paris-Saclay');
+
+      await esperarViolacao(
+        ctx.db.insert(s.instituicao).values({
+          nome: 'UNIVERSITE  PARIS SACLAY',
+          nomeNormalizado: normalizarNomeInstituicao(
+            'UNIVERSITE  PARIS SACLAY',
+          ),
+          tipo: 'PARCEIRA_INTERNACIONAL',
+        }),
+        'instituicao_nome_normalizado_uk',
+      );
+    });
+
+    it('recusa associacao repetida entre instituicao e rede', async () => {
+      const { parceira } = await criarParceira();
+      const associacao = {
+        instituicaoId: parceira.id,
+        redeId: base.redeId,
+      };
+      await ctx.db.insert(s.instituicaoRede).values(associacao);
+
+      await esperarViolacao(
+        ctx.db.insert(s.instituicaoRede).values(associacao),
+        'instituicao_rede_uk',
+      );
+    });
+
+    it('mantem no maximo um contato principal ativo por instituicao', async () => {
+      const { parceira } = await criarParceira();
+      await ctx.db.insert(s.contatoInstituicao).values({
+        instituicaoId: parceira.id,
+        nome: 'Contato Principal',
+        nomeNormalizado: 'contato principal',
+        principal: true,
+      });
+
+      await esperarViolacao(
+        ctx.db.insert(s.contatoInstituicao).values({
+          instituicaoId: parceira.id,
+          nome: 'Outro Contato Principal',
+          nomeNormalizado: 'outro contato principal',
+          principal: true,
+        }),
+        'contato_instituicao_principal_ativo_uk',
+      );
+
+      await esperarViolacao(
+        ctx.db.insert(s.contatoInstituicao).values({
+          instituicaoId: parceira.id,
+          nome: 'Contato Inativo',
+          nomeNormalizado: 'contato inativo',
+          principal: true,
+          ativo: false,
+        }),
+        'contato_instituicao_principal_ativo_ck',
+      );
+    });
+  });
+
+  // -------------------------------------------------------------------------
   describe('missoes do Comite Gestor', () => {
     async function criarMissao(codigo = 'MCG-001') {
       const [missao] = await ctx.db
@@ -590,6 +742,8 @@ describe('Schema — integridade', () => {
         missaoId: missao.id,
         pessoaId: externa.id,
         papel: 'RESPONSAVEL',
+        dataInicio: missao.dataInicio,
+        dataFim: missao.dataFim,
       });
       await ctx.db.insert(s.atividadeMissao).values([
         {
@@ -665,11 +819,53 @@ describe('Schema — integridade', () => {
         missaoId: missao.id,
         pessoaId: base.coordenadorTematicaId,
         papel: 'PARTICIPANTE' as const,
+        dataInicio: missao.dataInicio,
+        dataFim: missao.dataFim,
       };
       await ctx.db.insert(s.missaoParticipante).values(participante);
       await esperarViolacao(
         ctx.db.insert(s.missaoParticipante).values(participante),
         'missao_participante_pessoa_uk',
+      );
+    });
+
+    it('garante um unico responsavel e periodo valido por participante', async () => {
+      const missao = await criarMissao('MCG-022');
+      const pessoas = await ctx.db
+        .insert(s.pessoa)
+        .values([
+          { nome: 'Primeira Responsavel', tipo: 'DOCENTE' },
+          { nome: 'Segunda Responsavel', tipo: 'DOCENTE' },
+        ])
+        .returning({ id: s.pessoa.id });
+
+      await ctx.db.insert(s.missaoParticipante).values({
+        missaoId: missao.id,
+        pessoaId: pessoas[0].id,
+        papel: 'RESPONSAVEL',
+        dataInicio: '2027-05-10',
+        dataFim: '2027-05-20',
+      });
+      await esperarViolacao(
+        ctx.db.insert(s.missaoParticipante).values({
+          missaoId: missao.id,
+          pessoaId: pessoas[1].id,
+          papel: 'RESPONSAVEL',
+          dataInicio: '2027-05-10',
+          dataFim: '2027-05-20',
+        }),
+        'missao_participante_responsavel_uk',
+      );
+
+      await esperarViolacao(
+        ctx.db.insert(s.missaoParticipante).values({
+          missaoId: missao.id,
+          pessoaId: pessoas[1].id,
+          papel: 'PARTICIPANTE',
+          dataInicio: '2027-05-20',
+          dataFim: '2027-05-10',
+        }),
+        'missao_participante_periodo_ck',
       );
     });
 
@@ -704,6 +900,36 @@ describe('Schema — integridade', () => {
           dataFim: '2027-05-13',
         }),
         'atividade_missao_instituicao_ck',
+      );
+    });
+
+    it('nao aceita contato central sem a instituicao central correspondente', async () => {
+      const [pais] = await ctx.db
+        .insert(s.pais)
+        .values({ codigoIso2: 'ES', codigoIso3: 'ESP', nome: 'Espanha' })
+        .returning();
+      const [contato] = await ctx.db
+        .insert(s.contatoInstituicao)
+        .values({
+          instituicaoId: base.instituicaoId,
+          nome: 'Contato de Teste',
+          nomeNormalizado: 'contato de teste',
+        })
+        .returning();
+      const missao = await criarMissao('MCG-031');
+
+      await esperarViolacao(
+        ctx.db.insert(s.atividadeMissao).values({
+          missaoId: missao.id,
+          ordem: 1,
+          tipo: 'VISITA_TECNICA',
+          titulo: 'Visita com contato sem instituicao',
+          paisId: pais.id,
+          contatoInstituicaoId: contato.id,
+          dataInicio: '2027-05-13',
+          dataFim: '2027-05-13',
+        }),
+        'atividade_missao_contato_instituicao_ck',
       );
     });
   });
@@ -839,6 +1065,306 @@ describe('Schema — integridade', () => {
           status: 'ENTREGUE',
         }),
         'produto_bolsa_entrega_ck',
+      );
+    });
+  });
+  describe('Prestação de contas da missão (CG-013)', () => {
+    async function criarMissao(codigo = 'MCG-800') {
+      const [missao] = await ctx.db
+        .insert(s.missaoComite)
+        .values({
+          cicloId: base.cicloId,
+          codigo,
+          titulo: 'Missão para prestação',
+          objetivo: 'Testar a prestação de contas',
+          dataInicio: '2027-03-01',
+          dataFim: '2027-03-10',
+        })
+        .returning({ id: s.missaoComite.id });
+      return missao.id;
+    }
+
+    async function criarPrestacao(missaoId: string) {
+      const [prestacao] = await ctx.db
+        .insert(s.prestacaoContasMissao)
+        .values({ missaoId })
+        .returning({ id: s.prestacaoContasMissao.id });
+      return prestacao.id;
+    }
+
+    it('aceita missao sem prestacao nenhuma', async () => {
+      // "Nao iniciada" e a ausencia da linha, nao um estado guardado. Se fosse
+      // estado, toda missao precisaria de uma prestacao vazia so para dizer que
+      // ninguem comecou.
+      const missaoId = await criarMissao();
+      const prestacoes = await ctx.db
+        .select()
+        .from(s.prestacaoContasMissao)
+        .where(eq(s.prestacaoContasMissao.missaoId, missaoId));
+      expect(prestacoes).toEqual([]);
+    });
+
+    it('permite no maximo uma prestacao por missao', async () => {
+      const missaoId = await criarMissao();
+      await criarPrestacao(missaoId);
+      await esperarViolacao(
+        ctx.db.insert(s.prestacaoContasMissao).values({ missaoId }),
+        'prestacao_missao_uk',
+      );
+    });
+
+    it('nao deixa a prestacao sair de preenchimento sem data de envio', async () => {
+      // Estado e evidencia andam juntos: "enviada" sem data de envio deixaria o
+      // historico contando uma coisa e o estado outra.
+      const missaoId = await criarMissao();
+      await esperarViolacao(
+        ctx.db
+          .insert(s.prestacaoContasMissao)
+          .values({ missaoId, status: 'ENVIADA' }),
+        'prestacao_envio_ck',
+      );
+    });
+
+    it('nao valida prestacao sem data de validacao', async () => {
+      const missaoId = await criarMissao();
+      await esperarViolacao(
+        ctx.db.insert(s.prestacaoContasMissao).values({
+          missaoId,
+          status: 'VALIDADA',
+          enviadaEm: '2027-04-01',
+        }),
+        'prestacao_validacao_ck',
+      );
+    });
+
+    it('exige exercicio em toda despesa', async () => {
+      const prestacaoId = await criarPrestacao(await criarMissao());
+      await esperarViolacao(
+        ctx.db.insert(s.despesaMissao).values({
+          prestacaoId,
+          tipo: 'OUTRA',
+          valorTotal: '100.00',
+          descricao: 'Despesa sem exercicio',
+        } as never),
+        'exercicio',
+      );
+    });
+
+    it('recusa valor negativo', async () => {
+      const prestacaoId = await criarPrestacao(await criarMissao());
+      await esperarViolacao(
+        ctx.db.insert(s.despesaMissao).values({
+          prestacaoId,
+          tipo: 'OUTRA',
+          exercicio: 2027,
+          valorTotal: '-1.00',
+          descricao: 'Estorno indevido',
+        }),
+        'despesa_valor_total_ck',
+      );
+    });
+
+    it('exige coerencia entre quantidade, unitario e total', async () => {
+      const prestacaoId = await criarPrestacao(await criarMissao());
+      await esperarViolacao(
+        ctx.db.insert(s.despesaMissao).values({
+          prestacaoId,
+          tipo: 'DIARIA',
+          exercicio: 2027,
+          quantidade: '3.00',
+          valorUnitario: '400.00',
+          valorTotal: '1000.00',
+          descricao: 'Tres diarias que nao somam',
+        }),
+        'despesa_produto_ck',
+      );
+
+      // Coerente passa.
+      const [ok] = await ctx.db
+        .insert(s.despesaMissao)
+        .values({
+          prestacaoId,
+          tipo: 'DIARIA',
+          exercicio: 2027,
+          quantidade: '3.00',
+          valorUnitario: '400.00',
+          valorTotal: '1200.00',
+          descricao: 'Tres diarias',
+        })
+        .returning({ valorTotal: s.despesaMissao.valorTotal });
+      expect(ok.valorTotal).toBe('1200.00');
+    });
+
+    it('aceita despesa avulsa que informa so o total', async () => {
+      // Nota fiscal com taxa nao cabe numa multiplicacao; exigir quantidade e
+      // unitario obrigaria a inventar numeros para fechar a conta.
+      const prestacaoId = await criarPrestacao(await criarMissao());
+      const [avulsa] = await ctx.db
+        .insert(s.despesaMissao)
+        .values({
+          prestacaoId,
+          tipo: 'OUTRA',
+          exercicio: 2027,
+          valorTotal: '137.45',
+          descricao: 'Taxa de inscricao com encargo',
+        })
+        .returning({ id: s.despesaMissao.id });
+      expect(avulsa.id).toBeTruthy();
+    });
+
+    it('guarda passagem, cotacoes e diaria em tabelas proprias', async () => {
+      const prestacaoId = await criarPrestacao(await criarMissao());
+      const [passagem] = await ctx.db
+        .insert(s.despesaMissao)
+        .values({
+          prestacaoId,
+          tipo: 'PASSAGEM',
+          exercicio: 2027,
+          valorTotal: '4200.00',
+          descricao: 'Manaus - Montreal',
+        })
+        .returning({ id: s.despesaMissao.id });
+      await ctx.db.insert(s.despesaPassagem).values({
+        despesaId: passagem.id,
+        empresa: 'Air Canada',
+        origem: 'Manaus',
+        destino: 'Montreal',
+        numeroVoo: 'AC1234',
+        dataVoo: '2027-03-02',
+        compradaEm: '2027-01-15',
+        formaPagamento: 'Cartão corporativo',
+      });
+      await ctx.db.insert(s.cotacaoPassagem).values([
+        { despesaId: passagem.id, empresa: 'Air Canada', valor: '4200.00' },
+        { despesaId: passagem.id, empresa: 'LATAM', valor: '4890.00' },
+      ]);
+
+      const [diaria] = await ctx.db
+        .insert(s.despesaMissao)
+        .values({
+          prestacaoId,
+          tipo: 'DIARIA',
+          exercicio: 2027,
+          quantidade: '5.00',
+          valorUnitario: '600.00',
+          valorTotal: '3000.00',
+          descricao: 'Diarias em Montreal',
+        })
+        .returning({ id: s.despesaMissao.id });
+      await ctx.db.insert(s.despesaDiaria).values({
+        despesaId: diaria.id,
+        dataInicio: '2027-03-02',
+        dataFim: '2027-03-06',
+        cidade: 'Montreal',
+      });
+
+      const cotacoes = await ctx.db
+        .select()
+        .from(s.cotacaoPassagem)
+        .where(eq(s.cotacaoPassagem.despesaId, passagem.id));
+      expect(cotacoes).toHaveLength(2);
+
+      // O total da prestacao e derivado, nunca guardado: some no proprio
+      // Postgres, em numeric, sem passar por ponto flutuante.
+      const [{ total }] = await ctx.db
+        .select({ total: sql<string>`sum(${s.despesaMissao.valorTotal})` })
+        .from(s.despesaMissao)
+        .where(eq(s.despesaMissao.prestacaoId, prestacaoId));
+      expect(total).toBe('7200.00');
+    });
+
+    it('recusa periodo invertido na diaria', async () => {
+      const prestacaoId = await criarPrestacao(await criarMissao());
+      const [despesa] = await ctx.db
+        .insert(s.despesaMissao)
+        .values({
+          prestacaoId,
+          tipo: 'DIARIA',
+          exercicio: 2027,
+          valorTotal: '600.00',
+          descricao: 'Diaria invertida',
+        })
+        .returning({ id: s.despesaMissao.id });
+      await esperarViolacao(
+        ctx.db.insert(s.despesaDiaria).values({
+          despesaId: despesa.id,
+          dataInicio: '2027-03-06',
+          dataFim: '2027-03-02',
+        }),
+        'diaria_periodo_ck',
+      );
+    });
+
+    it('apagar a prestacao leva junto despesas e especializacoes', async () => {
+      const prestacaoId = await criarPrestacao(await criarMissao());
+      const [despesa] = await ctx.db
+        .insert(s.despesaMissao)
+        .values({
+          prestacaoId,
+          tipo: 'PASSAGEM',
+          exercicio: 2027,
+          valorTotal: '1000.00',
+          descricao: 'Passagem',
+        })
+        .returning({ id: s.despesaMissao.id });
+      await ctx.db
+        .insert(s.despesaPassagem)
+        .values({ despesaId: despesa.id, empresa: 'LATAM' });
+      await ctx.db
+        .insert(s.cotacaoPassagem)
+        .values({ despesaId: despesa.id, empresa: 'LATAM', valor: '1000.00' });
+
+      await ctx.db
+        .delete(s.prestacaoContasMissao)
+        .where(eq(s.prestacaoContasMissao.id, prestacaoId));
+
+      expect(
+        await ctx.db
+          .select()
+          .from(s.despesaMissao)
+          .where(eq(s.despesaMissao.id, despesa.id)),
+      ).toEqual([]);
+      expect(
+        await ctx.db
+          .select()
+          .from(s.cotacaoPassagem)
+          .where(eq(s.cotacaoPassagem.despesaId, despesa.id)),
+      ).toEqual([]);
+    });
+
+    it('nao apaga participante que ja tem despesa lancada', async () => {
+      // Remover o participante apagaria dinheiro ja prestado; a remocao tem de
+      // passar pela despesa primeiro.
+      const missaoId = await criarMissao();
+      const prestacaoId = await criarPrestacao(missaoId);
+      const [pessoa] = await ctx.db
+        .insert(s.pessoa)
+        .values({ nome: 'Participante com despesa', tipo: 'SERVIDOR' })
+        .returning({ id: s.pessoa.id });
+      const [participante] = await ctx.db
+        .insert(s.missaoParticipante)
+        .values({
+          missaoId,
+          pessoaId: pessoa.id,
+          papel: 'RESPONSAVEL',
+          dataInicio: '2027-03-01',
+          dataFim: '2027-03-10',
+        })
+        .returning({ id: s.missaoParticipante.id });
+      await ctx.db.insert(s.despesaMissao).values({
+        prestacaoId,
+        tipo: 'DIARIA',
+        participanteId: participante.id,
+        exercicio: 2027,
+        valorTotal: '600.00',
+        descricao: 'Diaria do responsavel',
+      });
+
+      await esperarViolacao(
+        ctx.db
+          .delete(s.missaoParticipante)
+          .where(eq(s.missaoParticipante.id, participante.id)),
+        'despesa_missao_participante_id_missao_participante_id_fk',
       );
     });
   });

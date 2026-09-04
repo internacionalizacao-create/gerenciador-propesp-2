@@ -476,6 +476,32 @@ describe('MissoesComiteService — criacao transacional', () => {
     expect(auditoria[0].acao).toBe('CRIACAO');
   });
 
+  it('recusa contato que nao pertence a instituicao da atividade', async () => {
+    const [outraInstituicao] = await ctx.db
+      .insert(s.instituicao)
+      .values({
+        nome: 'Outra Universidade',
+        nomeNormalizado: 'outra universidade',
+        tipo: 'PARCEIRA_INTERNACIONAL',
+      })
+      .returning();
+    const [contato] = await ctx.db
+      .insert(s.contatoInstituicao)
+      .values({
+        instituicaoId: outraInstituicao.id,
+        nome: 'Contato de Outra Universidade',
+        nomeNormalizado: 'contato de outra universidade',
+      })
+      .returning();
+    const dto = missaoValida();
+    dto.atividades[0].contatoInstituicaoId = contato.id;
+
+    await expect(
+      service.criar(base.cicloId, dto, adminMissoes),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(await ctx.db.select().from(s.missaoComite)).toHaveLength(0);
+  });
+
   it('gera codigos sequenciais por ciclo', async () => {
     await service.criar(base.cicloId, missaoValida(), adminMissoes);
     const segunda = await service.criar(
@@ -580,11 +606,17 @@ describe('criarMissaoComiteSchema', () => {
     dataInicio: '2027-03-01',
     dataFim: '2027-03-10',
     redes: ['44444444-4444-4444-8444-444444444444'],
-    participantes: [{ pessoaId: '11111111-1111-4111-8111-111111111111' }],
+    participantes: [
+      {
+        pessoaId: '11111111-1111-4111-8111-111111111111',
+        papel: 'RESPONSAVEL',
+      },
+    ],
     atividades: [
       {
         tipo: 'EVENTO',
         titulo: 'Evento de teste',
+        eventoNome: 'Evento de Teste',
         paisId: '22222222-2222-4222-8222-222222222222',
         dataInicio: '2027-03-02',
         dataFim: '2027-03-05',
@@ -602,6 +634,44 @@ describe('criarMissaoComiteSchema', () => {
     const analise = criarMissaoComiteSchema.safeParse({
       ...valido,
       participantes: [],
+    });
+    expect(analise.success).toBe(false);
+  });
+
+  it('exige exatamente um participante responsavel', () => {
+    expect(
+      criarMissaoComiteSchema.safeParse({
+        ...valido,
+        participantes: valido.participantes.map((participante) => ({
+          ...participante,
+          papel: 'PARTICIPANTE',
+        })),
+      }).success,
+    ).toBe(false);
+    expect(
+      criarMissaoComiteSchema.safeParse({
+        ...valido,
+        participantes: [
+          ...valido.participantes,
+          {
+            pessoaId: '55555555-5555-4555-8555-555555555555',
+            papel: 'RESPONSAVEL',
+          },
+        ],
+      }).success,
+    ).toBe(false);
+  });
+
+  it('recusa participacao fora do periodo da missao', () => {
+    const analise = criarMissaoComiteSchema.safeParse({
+      ...valido,
+      participantes: [
+        {
+          ...valido.participantes[0],
+          dataInicio: '2027-02-28',
+          dataFim: '2027-03-05',
+        },
+      ],
     });
     expect(analise.success).toBe(false);
   });
@@ -640,6 +710,14 @@ describe('criarMissaoComiteSchema', () => {
           instituicaoNome: 'Universidade Livre',
         },
       ],
+    });
+    expect(analise.success).toBe(false);
+  });
+
+  it('exige nome quando a atividade e evento', () => {
+    const analise = criarMissaoComiteSchema.safeParse({
+      ...valido,
+      atividades: [{ ...valido.atividades[0], eventoNome: null }],
     });
     expect(analise.success).toBe(false);
   });
@@ -1053,10 +1131,21 @@ describe('MissoesComiteService — detalhe', () => {
       .insert(s.pessoa)
       .values({ nome: 'Adriana Externa', tipo: 'EXTERNO' })
       .returning({ id: s.pessoa.id });
+    const [contato] = await ctx.db
+      .insert(s.contatoInstituicao)
+      .values({
+        instituicaoId: base.instituicaoId,
+        nome: 'Marie Dupont',
+        nomeNormalizado: 'marie dupont',
+        principal: true,
+      })
+      .returning({ id: s.contatoInstituicao.id });
 
     return service.criar(
       base.cicloId,
       {
+        tipo: 'ARTICULACAO',
+        unidadeDepartamento: 'Assessoria de Relacoes Internacionais',
         titulo: 'Missao completa',
         objetivo: 'Cobrir todos os campos do detalhe da missao.',
         dataInicio: '2027-05-01',
@@ -1070,6 +1159,10 @@ describe('MissoesComiteService — detalhe', () => {
             novaPessoa: null,
             membroEquipeId: null,
             papel: 'PARTICIPANTE',
+            cargo: 'Pesquisadora visitante',
+            area: 'Cooperacao academica',
+            dataInicio: '2027-05-03',
+            dataFim: '2027-05-12',
             observacoes: null,
           },
           {
@@ -1077,6 +1170,10 @@ describe('MissoesComiteService — detalhe', () => {
             novaPessoa: null,
             membroEquipeId: membro.id,
             papel: 'RESPONSAVEL',
+            cargo: 'Coordenadora',
+            area: 'Internacionalizacao',
+            dataInicio: '2027-05-01',
+            dataFim: '2027-05-20',
             observacoes: 'Assina os acordos.',
           },
         ],
@@ -1086,8 +1183,14 @@ describe('MissoesComiteService — detalhe', () => {
             titulo: 'Visita ao laboratorio parceiro',
             paisId: paises[0].id,
             cidade: 'Paris',
+            estadoRegiao: 'Ile-de-France',
+            local: 'Campus Central',
+            endereco: '3 rue de Teste, Paris',
             instituicaoId: base.instituicaoId,
             instituicaoNome: null,
+            contatoInstituicaoId: contato.id,
+            tipoRelacionamento: 'COOPERACAO_ACADEMICA',
+            objetivoRelacionamento: 'Preparar acordo de cotutela.',
             eventoNome: null,
             dataInicio: '2027-05-02',
             dataFim: '2027-05-06',
@@ -1102,6 +1205,11 @@ describe('MissoesComiteService — detalhe', () => {
             instituicaoId: null,
             instituicaoNome: 'Universidade Nova de Lisboa',
             eventoNome: 'Semana da Cooperacao',
+            eventoTipo: 'Congresso',
+            eventoSite: 'https://evento.example.org',
+            objetivoParticipacao: 'Apresentar o programa CAPES Global.',
+            relacaoInternacionalizacao:
+              'Prospeccao de novas mobilidades academicas.',
             dataInicio: '2027-05-10',
             dataFim: '2027-05-18',
             planejamento: null,
@@ -1119,8 +1227,11 @@ describe('MissoesComiteService — detalhe', () => {
 
     expect(detalhe).toMatchObject({
       codigo: 'MCG-001',
+      tipo: 'ARTICULACAO',
+      unidadeDepartamento: 'Assessoria de Relacoes Internacionais',
       titulo: 'Missao completa',
       status: 'PLANEJADA',
+      numeroDias: 20,
       observacoes: 'Observacao geral da missao.',
     });
     expect(detalhe.paises).toEqual(['Franca', 'Portugal']);
@@ -1131,12 +1242,24 @@ describe('MissoesComiteService — detalhe', () => {
       pais: 'Franca',
       instituicao: 'Universidade de Teste',
       instituicaoDoCatalogo: true,
+      estadoRegiao: 'Ile-de-France',
+      local: 'Campus Central',
+      endereco: '3 rue de Teste, Paris',
+      contatoInstituicao: 'Marie Dupont',
+      tipoRelacionamento: 'COOPERACAO_ACADEMICA',
+      objetivoRelacionamento: 'Preparar acordo de cotutela.',
+      numeroDias: 5,
     });
     expect(detalhe.atividades[1]).toMatchObject({
       pais: 'Portugal',
       instituicao: 'Universidade Nova de Lisboa',
       instituicaoDoCatalogo: false,
       eventoNome: 'Semana da Cooperacao',
+      eventoTipo: 'Congresso',
+      eventoSite: 'https://evento.example.org',
+      objetivoParticipacao: 'Apresentar o programa CAPES Global.',
+      relacaoInternacionalizacao: 'Prospeccao de novas mobilidades academicas.',
+      numeroDias: 9,
     });
 
     // Responsavel primeiro, e o vinculo de equipe so aparece quando informado.
@@ -1147,11 +1270,19 @@ describe('MissoesComiteService — detalhe', () => {
     expect(detalhe.participantes[0]).toMatchObject({
       tipoEquipe: 'COMITE_GESTOR',
       funcaoEquipe: 'Coordenadora executiva',
+      cargo: 'Coordenadora',
+      area: 'Internacionalizacao',
+      numeroDias: 20,
     });
     expect(detalhe.participantes[1]).toMatchObject({
       nome: 'Adriana Externa',
       tipoEquipe: null,
       funcaoEquipe: null,
+      cargo: 'Pesquisadora visitante',
+      area: 'Cooperacao academica',
+      dataInicio: '2027-05-03',
+      dataFim: '2027-05-12',
+      numeroDias: 10,
     });
 
     expect(detalhe.historico).toHaveLength(1);
@@ -1281,6 +1412,8 @@ describe('MissoesComiteService — edicao com auditoria', () => {
   /** Payload de edicao que reproduz exatamente o estado atual da missao. */
   function payloadDe(detalhe: Awaited<ReturnType<typeof criar>>) {
     return atualizarMissaoComiteSchema.parse({
+      tipo: detalhe.tipo,
+      unidadeDepartamento: detalhe.unidadeDepartamento,
       titulo: detalhe.titulo,
       objetivo: detalhe.objetivo,
       dataInicio: detalhe.dataInicio,
@@ -1292,6 +1425,10 @@ describe('MissoesComiteService — edicao com auditoria', () => {
         pessoaId: participante.pessoaId,
         membroEquipeId: participante.membroEquipeId,
         papel: participante.papel,
+        cargo: participante.cargo,
+        area: participante.area,
+        dataInicio: participante.dataInicio,
+        dataFim: participante.dataFim,
         observacoes: participante.observacoes,
       })),
       atividades: detalhe.atividades.map((atividade) => ({
@@ -1300,11 +1437,21 @@ describe('MissoesComiteService — edicao com auditoria', () => {
         titulo: atividade.titulo,
         paisId: atividade.paisId,
         cidade: atividade.cidade,
+        estadoRegiao: atividade.estadoRegiao,
+        local: atividade.local,
+        endereco: atividade.endereco,
         instituicaoId: atividade.instituicaoId,
         instituicaoNome: atividade.instituicaoDoCatalogo
           ? null
           : atividade.instituicao,
+        contatoInstituicaoId: atividade.contatoInstituicaoId,
+        tipoRelacionamento: atividade.tipoRelacionamento,
+        objetivoRelacionamento: atividade.objetivoRelacionamento,
         eventoNome: atividade.eventoNome,
+        eventoTipo: atividade.eventoTipo,
+        eventoSite: atividade.eventoSite,
+        objetivoParticipacao: atividade.objetivoParticipacao,
+        relacaoInternacionalizacao: atividade.relacaoInternacionalizacao,
         dataInicio: atividade.dataInicio,
         dataFim: atividade.dataFim,
         planejamento: atividade.planejamento,
@@ -1397,6 +1544,53 @@ describe('MissoesComiteService — edicao com auditoria', () => {
         valorNovo: 'Nova Participante',
       }),
     );
+  });
+
+  it('transfere a responsabilidade sem colidir no indice unico', async () => {
+    const missao = await criar();
+    const [nova] = await ctx.db
+      .insert(s.pessoa)
+      .values({ nome: 'Nova Responsavel', tipo: 'DOCENTE' })
+      .returning({ id: s.pessoa.id });
+    const comDuas = await service.atualizar(
+      base.cicloId,
+      missao.id,
+      {
+        ...payloadDe(missao),
+        participantes: [
+          ...payloadDe(missao).participantes,
+          {
+            pessoaId: nova.id,
+            papel: 'PARTICIPANTE',
+            dataInicio: missao.dataInicio,
+            dataFim: missao.dataFim,
+          },
+        ],
+      },
+      adminMissoes,
+    );
+
+    const transferida = await service.atualizar(
+      base.cicloId,
+      missao.id,
+      {
+        ...payloadDe(comDuas),
+        participantes: payloadDe(comDuas).participantes.map((participante) => ({
+          ...participante,
+          papel:
+            participante.pessoaId === nova.id
+              ? ('RESPONSAVEL' as const)
+              : ('PARTICIPANTE' as const),
+        })),
+      },
+      adminMissoes,
+    );
+
+    expect(
+      transferida.participantes.filter(
+        (participante) => participante.papel === 'RESPONSAVEL',
+      ),
+    ).toEqual([expect.objectContaining({ pessoaId: nova.id })]);
   });
 
   it('audita remocao de participante', async () => {
@@ -1533,7 +1727,7 @@ describe('MissoesComiteService — edicao com auditoria', () => {
             cidade: 'Lisboa',
             instituicaoId: null,
             instituicaoNome: null,
-            eventoNome: null,
+            eventoNome: 'Encontro de Cooperacao',
             dataInicio: '2027-05-10',
             dataFim: '2027-05-15',
             planejamento: null,
@@ -1700,11 +1894,17 @@ describe('MissoesComiteService — edicao com auditoria', () => {
       dataInicio: '2027-05-01',
       dataFim: '2027-05-20',
       redes: ['44444444-4444-4444-8444-444444444444'],
-      participantes: [{ pessoaId: '11111111-1111-4111-8111-111111111111' }],
+      participantes: [
+        {
+          pessoaId: '11111111-1111-4111-8111-111111111111',
+          papel: 'RESPONSAVEL',
+        },
+      ],
       atividades: [
         {
           tipo: 'EVENTO',
           titulo: 'Evento',
+          eventoNome: 'Evento de Teste',
           paisId: '22222222-2222-4222-8222-222222222222',
           dataInicio: '2027-05-02',
           dataFim: '2027-05-05',

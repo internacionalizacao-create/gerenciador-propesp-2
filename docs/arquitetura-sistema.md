@@ -427,7 +427,7 @@ gerenciador/
 | Bolsistas | `mobilidade/bolsistas/` | `acoes/bolsistas.ts` | `BolsistasController` / `BolsistasService` | `pessoa`, `bolsa_concedida` |
 | Produtos | detalhe do bolsista | `acoes/bolsistas.ts` | `BolsistasController` / `BolsistasService` | `produto_bolsa` |
 | Pendências | `pendencias/page.tsx` | ações de pendência | `PendenciasController` / `PendenciasService` | `pendencia` |
-| Comitê Gestor e Administração | `.../comite-gestor/page.tsx` | `acoes/comite-gestor.ts` | `ProgramasController` / `ComiteGestorService` / `MissoesComiteService` | `orcamento_comite_gestor`, `membro_equipe_gestao`, `membro_equipe_gestao_rede`, `pessoa`, `missao_comite`, `missao_participante` e `atividade_missao` |
+| Comitê Gestor e Administração | `.../comite-gestor/page.tsx` | `acoes/comite-gestor.ts` | `ProgramasController` / `ComiteGestorService` / `MissoesComiteService` / `ParceirosController` / `ParceirosService` | `orcamento_comite_gestor`, equipes, `pessoa`, `missao_comite`, `missao_rede`, participantes, atividades, `instituicao_rede` e `contato_instituicao` |
 
 ---
 
@@ -450,12 +450,32 @@ gerenciador/
   cobre detalhe, edição, ciclo de vida e relato; a página de detalhe e as
   prestações seguem no backlog. Premissas e fontes permanecem preservadas
   internamente para rastreabilidade e futuro uso em Documentos e evidências.
+- A fundação CG-017 modela parceiros multirrede e contatos reutilizáveis, com
+  chave normalizada e um único contato principal ativo. A CG-025 expõe a API de
+  instituições parceiras, busca candidatos e permite conciliação transacional
+  sem apagar a origem. A CG-026 completa a API de contatos: deduplicação por
+  instituição (inequívoca bloqueia, possível exige confirmação, para não vetar
+  homônimo), troca atômica do principal, inativação em vez de exclusão e
+  auditoria que registra os nomes dos campos alterados, nunca os valores
+  pessoais. A CG-027 acrescenta o histórico consolidado do parceiro, lido na
+  hora e sem agregado persistido, com uma linha por missão mesmo quando ela é
+  multirrede ou visita o parceiro em várias paradas. A CG-049 construiu a
+  interface do parceiro — lista, busca, cadastro, contatos e histórico — com o
+  alerta de duplicidade dentro do próprio formulário, para que a confirmação
+  não custe o que já foi digitado, e com a conciliação disponível no detalhe do
+  parceiro. A seleção dentro da missão depende da CG-045 e o escopo definitivo,
+  da CG-028.
+- A CG-018 ampliou `missao_comite`, `missao_participante` e `atividade_missao`.
+  Responsável é papel único da participação; eventos permanecem atividades e
+  herdam as redes da missão; instituição, contato e períodos são referenciados
+  sem cópias concorrentes. Dias são derivados em UTC no serviço.
 - O escopo ampliado recebido em 2026-09-01 para aprovação, parceiros, contatos,
   resultados, documentos e relatórios ainda está em homologação. A matriz e a
   sequência que evitam retrabalho arquitetural estão em
   [revisao-escopo-comite-gestor-2026-09-01.md](revisao-escopo-comite-gestor-2026-09-01.md).
-  Até CG-005–CG-009 serem concluídas, não interpretar o PDF como schema
-  aprovado nem iniciar a página de detalhe CG-045.
+  As fundações estruturais CG-016–CG-018 foram autorizadas separadamente. Até
+  CG-005–CG-009 serem concluídas, não aplicar as decisões institucionais
+  restantes nem iniciar a página de detalhe CG-045.
 - Seed real, migrations, testes unitários, integração e smoke tests.
 
 ### Próximos blocos

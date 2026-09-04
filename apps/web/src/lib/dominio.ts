@@ -580,3 +580,127 @@ export interface DetalheTematica extends LinhaTematica {
   custoTotal: string;
   plano: LinhaPlano[];
 }
+
+/* Parceiros institucionais e contatos (CG-025 a CG-027). */
+
+export interface RedeDoParceiro {
+  id: string;
+  nome: string;
+}
+
+export interface Parceiro {
+  id: string;
+  nome: string;
+  sigla: string | null;
+  paisId: string | null;
+  pais: string | null;
+  codigoPais: string | null;
+  cidade: string | null;
+  estadoRegiao: string | null;
+  tipoOrganizacao: string | null;
+  faculdadeDepartamento: string | null;
+  site: string | null;
+  emailInstitucional: string | null;
+  telefone: string | null;
+  endereco: string | null;
+  observacoes: string | null;
+  /** Cadastro aberto durante uma missão, ainda sem conferência institucional. */
+  cadastroProvisorio: boolean;
+  ativo: boolean;
+  /** Preenchido quando o cadastro foi conciliado em outro (CG-025). */
+  substituidaPorId: string | null;
+  redes: RedeDoParceiro[];
+  quantidadeContatos: number;
+  quantidadeMissoes: number;
+}
+
+export interface ContatoParceiro {
+  id: string;
+  instituicaoId: string;
+  instituicao: string;
+  nome: string;
+  cargo: string | null;
+  departamento: string | null;
+  area: string | null;
+  email: string | null;
+  telefone: string | null;
+  paisId: string | null;
+  pais: string | null;
+  idiomaComunicacao: string | null;
+  principal: boolean;
+  observacoes: string | null;
+  ativo: boolean;
+}
+
+export interface AtividadeDoHistorico {
+  id: string;
+  ordem: number;
+  titulo: string;
+  tipo: string;
+  dataInicio: string;
+  dataFim: string;
+  cidade: string | null;
+  estadoRegiao: string | null;
+  local: string | null;
+  pais: string | null;
+  tipoRelacionamento: string | null;
+  objetivoRelacionamento: string | null;
+  contatoId: string | null;
+  contatoNome: string | null;
+  status: string;
+}
+
+export interface MissaoDoHistorico {
+  id: string;
+  codigo: string;
+  titulo: string;
+  tipo: string | null;
+  dataInicio: string;
+  dataFim: string;
+  status: StatusMissao;
+  cicloId: string;
+  ciclo: string;
+  programaSlug: string;
+  redes: RedeDoParceiro[];
+  atividades: AtividadeDoHistorico[];
+}
+
+export interface EventoDoHistorico {
+  atividadeId: string;
+  missaoId: string;
+  missaoCodigo: string;
+  nome: string;
+  tipo: string | null;
+  site: string | null;
+  dataInicio: string;
+  dataFim: string;
+  objetivoParticipacao: string | null;
+  relacaoInternacionalizacao: string | null;
+}
+
+export interface DocumentoDoHistorico {
+  id: string;
+  nome: string;
+  mimeType: string;
+  tamanho: number;
+  enviadoPor: string | null;
+  enviadoEm: string;
+}
+
+/**
+ * Módulo previsto pelo escopo cujo modelo ainda não existe. Vem nomeado da API
+ * em vez de zerado: total zero afirmaria que nada aconteceu (CG-027).
+ */
+export interface ModuloPendente {
+  modulo: "PRODUTOS" | "CONVENIOS";
+  task: string;
+}
+
+export interface HistoricoParceiro {
+  parceiro: Parceiro;
+  contatos: ContatoParceiro[];
+  missoes: MissaoDoHistorico[];
+  eventos: EventoDoHistorico[];
+  documentos: DocumentoDoHistorico[];
+  modulosPendentes: ModuloPendente[];
+}

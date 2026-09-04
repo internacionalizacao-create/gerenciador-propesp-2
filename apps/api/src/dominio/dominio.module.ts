@@ -6,10 +6,15 @@ import { BolsistasService } from './bolsistas.service';
 import { CicloService } from './ciclo.service';
 import { PessoasController } from './comite-gestor.controller';
 import { ComiteGestorService } from './comite-gestor.service';
+import { ContatosParceirosController } from './contatos-parceiros.controller';
+import { ContatosParceirosService } from './contatos-parceiros.service';
 import { ContextoService } from './contexto.service';
 import { MissoesComiteService } from './missoes-comite.service';
 import { OrcamentoService } from './orcamento.service';
 import { PainelService } from './painel.service';
+import { ParceirosController } from './parceiros.controller';
+import { PrestacaoService } from './prestacao.service';
+import { ParceirosService } from './parceiros.service';
 import { PendenciasService } from './pendencias.service';
 import { PlanoService } from './plano.service';
 import { PpgsService } from './ppgs.service';
@@ -35,6 +40,8 @@ import { CatalogoController, PpgsController } from './ppgs.controller';
     CatalogoController,
     BolsistasController,
     PessoasController,
+    ParceirosController,
+    ContatosParceirosController,
   ],
   providers: [
     ContextoService,
@@ -48,6 +55,9 @@ import { CatalogoController, PpgsController } from './ppgs.controller';
     BolsistasService,
     ComiteGestorService,
     MissoesComiteService,
+    ParceirosService,
+    PrestacaoService,
+    ContatosParceirosService,
   ],
   exports: [ContextoService, OrcamentoService, PainelService, CatalogoService],
 })

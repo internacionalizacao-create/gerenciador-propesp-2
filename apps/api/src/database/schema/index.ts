@@ -11,3 +11,5 @@ export * from './planejamento';
 export * from './execucao';
 export * from './governanca';
 export * from './comite-gestor';
+export * from './parceiros';
+export * from './prestacao';

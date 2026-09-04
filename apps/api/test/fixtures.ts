@@ -1,4 +1,5 @@
 import * as s from '../src/database/schema';
+import { normalizarNomeInstituicao } from '../src/database/normalizacao';
 import type { TestDatabase } from './db-teste';
 
 /**
@@ -26,6 +27,7 @@ export async function criarBase(db: TestDatabase): Promise<BaseFixture> {
     .insert(s.instituicao)
     .values({
       nome: 'Universidade de Teste',
+      nomeNormalizado: normalizarNomeInstituicao('Universidade de Teste'),
       sigla: 'UTESTE',
       tipo: 'REDE_COORDENADORA',
     })

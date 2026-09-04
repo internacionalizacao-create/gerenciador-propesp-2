@@ -11,10 +11,34 @@
  * abaixo é a correção, e o `server-only` continua sendo a rede.
  */
 
+/**
+ * Cadastro que a API apontou como possivelmente o mesmo (CG-025/CG-026).
+ *
+ * `INEQUIVOCA` a API recusa sempre; `POSSIVEL` ela devolve para a pessoa
+ * decidir entre reutilizar o cadastro existente ou confirmar que são de fato
+ * diferentes — homônimo dentro da mesma instituição é caso real.
+ */
+export interface CandidatoDuplicidade {
+  id: string;
+  nome: string;
+  sigla?: string | null;
+  email?: string | null;
+  telefone?: string | null;
+  ativo: boolean;
+  classificacao: "INEQUIVOCA" | "POSSIVEL";
+  motivos: string[];
+}
+
 export interface EstadoDaAcao {
   ok: boolean;
   mensagem?: string;
   erros?: { campo: string; mensagem: string }[];
+  /**
+   * Só vem no 409 de duplicidade. Fica fora de `erros` porque não pertence a um
+   * campo: é uma decisão sobre o cadastro inteiro, e a tela precisa mostrá-la
+   * sem descartar o que a pessoa já digitou.
+   */
+  candidatos?: CandidatoDuplicidade[];
 }
 
 export const ESTADO_INICIAL: EstadoDaAcao = { ok: false };

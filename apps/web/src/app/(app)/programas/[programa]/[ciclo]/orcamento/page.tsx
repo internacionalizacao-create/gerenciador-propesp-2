@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { EditarOrcamento } from "@/componentes/formularios/form-orcamento";
+import { OrcamentoPorRede } from "@/componentes/graficos/orcamento-por-rede";
 import {
   Aviso,
   Celula,
@@ -101,6 +102,10 @@ export default async function Orcamento({
         titulo="Consolidado por rede e exercício"
         descricao="Rede sem orçamento definido aparece em branco, e não entra em nenhuma soma."
       >
+        <div className="mb-6">
+          <OrcamentoPorRede redes={redes} anos={anos} />
+        </div>
+
         <Tabela
           colunas={[
             { chave: "rede", texto: "Rede" },

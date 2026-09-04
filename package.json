@@ -13,6 +13,7 @@
     "test": "turbo run test",
     "smoke:login": "./scripts/smoke-login.sh",
     "smoke:telas": "./scripts/smoke-telas.sh",
+    "ngrok:demo": "node ./scripts/compartilhar.mjs",
     "infra:up": "docker compose -f infra/docker-compose.yml --env-file infra/.env up -d",
     "infra:down": "docker compose -f infra/docker-compose.yml --env-file infra/.env down",
     "infra:logs": "docker compose -f infra/docker-compose.yml logs -f",

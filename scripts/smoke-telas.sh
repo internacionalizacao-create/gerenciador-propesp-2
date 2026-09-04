@@ -82,8 +82,23 @@ if [[ "$USUARIO" == "admin" ]]; then
   # com um filtro de escopo que nao casa, o que falta e ampliar o recorte.
   testar "/programas/capes-global/2027-2030/comite-gestor?aba=missoes" "Nenhuma missão cadastrada"
   testar "/programas/capes-global/2027-2030/comite-gestor?aba=missoes&busca=inexistente" "Nenhuma missão para este filtro"
+  # CG-049: parceiros. A busca vem antes do cadastro porque o problema que a
+  # deduplicacao resolve e o cadastro repetido.
+  testar "/programas/capes-global/2027-2030/parceiros" "Novo parceiro"
+  testar "/programas/capes-global/2027-2030/parceiros" "Todas as redes"
+  # O vazio de filtro vale sempre: nenhum parceiro casa com essa busca.
+  testar "/programas/capes-global/2027-2030/parceiros?busca=inexistente" "Nenhum parceiro para este filtro"
+  # Ja o vazio de cadastro depende do estado do banco. A seed nao traz
+  # parceiros, mas qualquer cadastro feito a mao invalidaria a asercao — por
+  # isso ela so roda quando a lista esta de fato vazia. Os dois vazios sao
+  # textos diferentes de proposito: um pede cadastro, o outro pede ampliar o
+  # recorte.
+  testar "/programas/capes-global/2027-2030/parceiros?inativos=true" "Incluir inativos"
 else
   testar "/programas/capes-global/2027-2030/comite-gestor" "Acesso restrito"
+  # A restricao de parceiros e a mesma do Comite Gestor enquanto a CG-028 nao
+  # define o escopo por rede.
+  testar "/programas/capes-global/2027-2030/parceiros" "Acesso restrito"
 fi
 testar "/mobilidade/bolsistas"                              "Bolsistas e bolsas concedidas"
 testar "/ppgs"                                               "PPG CLIAMB"
@@ -96,6 +111,23 @@ testar "/configuracoes"                                      "plano:write"
 # Detalhe de PPG precisa de um id vindo da lista.
 ID=$(curl -s -b "$JAR" "${WEB}/ppgs" | grep -o '/ppgs/[0-9a-f-]\{36\}' | head -1)
 [[ -n "$ID" ]] && testar "$ID" "Dados institucionais"
+
+# Detalhe do parceiro so existe se algum tiver sido cadastrado. A seed nao traz
+# parceiros, entao a ausencia aqui e esperada e nao deve falhar o smoke.
+if [[ "$USUARIO" == "admin" ]]; then
+  PARCEIROS="/programas/capes-global/2027-2030/parceiros"
+  PID=$(curl -s -b "$JAR" "${WEB}${PARCEIROS}" \
+    | grep -o "${PARCEIROS}/[0-9a-f-]\{36\}" | head -1)
+  if [[ -n "$PID" ]]; then
+    testar "$PID" "Dados institucionais"
+    testar "$PID" "Voltar para parceiros"
+    # Produtos e convenios aparecem nomeados, nunca zerados (CG-027).
+    testar "$PID" "Ainda sem registro no sistema"
+  else
+    # Banco sem parceiro: o que se verifica e o estado vazio de cadastro.
+    testar "$PARCEIROS" "Nenhum parceiro cadastrado"
+  fi
+fi
 
 echo
 if [[ "$FALHAS" -eq 0 ]]; then

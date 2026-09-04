@@ -74,6 +74,8 @@ describe('permissionsForRoles', () => {
       'missao:read',
       'missao:write',
       'missao:edit',
+      'parceiro:read',
+      'parceiro:write',
       'prestacao:read',
       'prestacao:write',
       'prestacao:review',

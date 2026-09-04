@@ -1,6 +1,6 @@
 # Backlog — Comitê Gestor e Administração
 
-Última atualização: 2026-09-01.
+Última atualização: 2026-09-02.
 
 Documento de continuidade para a evolução da atual P17. O objetivo é permitir
 que outra pessoa ou agente retome o trabalho sem depender do histórico da
@@ -19,8 +19,10 @@ O material que torna CG-005 a CG-009 decidíveis está em
 [homologacao-comite-gestor.md](homologacao-comite-gestor.md): classificação das
 40 seções, modelo de estados com migração, matrizes de rede e escopo, governança
 da aprovação, tabela requisito–momento–obrigatoriedade–efeito financeiro e a
-folha de aprovação. **São propostas, não decisões.** Nada dali entra em código
-antes do aceite da equipe.
+folha de aprovação. **São propostas, não decisões.** Por orientação explícita do
+responsável pelo projeto, somente as fundações estruturais CG-016 a CG-018
+avançaram antes do aceite formal; decisões de aprovação, documentos e acesso
+continuam bloqueadas.
 
 Orientação obrigatória para continuidade:
 
@@ -100,6 +102,12 @@ Pessoa/equipe
   sem data final até que a Administração registre o encerramento.
 - [x] A carga formal não fecha o cadastro: o `admin` continua podendo inserir
   novas pessoas e novos vínculos pela aba Equipes.
+- [x] Na fase provisória, os dados pessoais dos contatos de parceiros são
+  acessíveis somente ao `admin`. Missões expõem apenas id e nome do contato;
+  listagens de parceiros expõem apenas a contagem. Auditoria registra o campo
+  alterado, mas não copia os valores pessoais. Contato referenciado não é
+  apagado: fica inativo e retido para preservar o histórico até existir uma
+  política institucional de descarte.
 
 ## Separações de domínio que devem ser preservadas
 
@@ -142,9 +150,11 @@ Pessoa/equipe
   despesas e PDFs.
 - [x] O novo documento de expectativas foi auditado contra as 40 seções e o
   resultado foi documentado sem alterar regras de negócio ainda não homologadas.
-- [ ] Aprovação do Comitê, parceiros, contatos, escopo por rede, produtos,
-  convênios, evidências, dashboards estratégicos e relatórios foram incluídos
-  como novas tasks, mas ainda não foram implementados.
+- [~] A fundação de dados de parceiros e contatos foi implementada na CG-017.
+  A API de instituições parceiras, incluindo deduplicação e conciliação, foi
+  concluída na CG-025 e a API restrita de contatos na CG-026. Interface,
+  aprovação do Comitê, escopo por rede, produtos, convênios, evidências,
+  dashboards e relatórios continuam pendentes.
 - [~] O pacote que torna CG-005 a CG-009 decidíveis foi produzido em
   [homologacao-comite-gestor.md](homologacao-comite-gestor.md). As cinco tasks
   passaram a `[~]`: a parte técnica está pronta, o aceite institucional não.
@@ -153,9 +163,53 @@ Pessoa/equipe
 - [x] CG-016 foi concluída em 2026-09-01: a missão pertence a uma ou mais redes
   (`missao_rede`), com filtro, coluna, auditoria por rede e a garantia de que a
   missão multirrede aparece e conta uma única vez.
-- [x] Após a revisão, o backlog possui 70 tasks rastreáveis: 23 concluídas, 10
-  em andamento e 37 pendentes. Esses números são retrato de 2026-09-01 e devem
-  ser atualizados quando um checkbox mudar.
+- [x] CG-017 foi concluída em 2026-09-02: instituição canônica e provisória,
+  dados institucionais completos, relação N:N com redes e contatos reutilizáveis
+  com um único principal ativo.
+- [x] CG-018 foi concluída em 2026-09-02: identificação ampliada, responsável
+  único, destino/evento completos, relacionamento com parceiros, período
+  individual de participantes e número de dias calculado.
+- [x] CG-025 foi concluída em 2026-09-02: API de parceiros com busca, cadastro,
+  edição, inativação, candidatos a duplicidade e conciliação transacional.
+- [x] CG-026 foi concluída em 2026-09-02: API privada de contatos com busca,
+  deduplicação, principal único, inativação, reativação e auditoria minimizada.
+- [x] CG-027 foi concluída em 2026-09-02: histórico consolidado do parceiro em
+  uma linha única por missão, com produtos e convênios nomeados como pendentes
+  em vez de zerados.
+- [~] CG-049 avançou em 2026-09-02: lista, busca, cadastro, edição, contatos,
+  detalhe histórico e conciliação de parceiros na interface, com alerta de
+  duplicidade que preserva o formulário. A seleção dentro da missão continua
+  esperando a CG-045.
+- [~] CG-063 avançou em 2026-09-02: o smoke passou a percorrer as telas de
+  parceiro nos dois perfis, com o detalhe verificado quando há cadastro e o
+  estado vazio quando não há.
+- [~] CG-029 avançou em 2026-09-02: cobertura integrada completa de parceiros e
+  contatos, incluindo a não duplicação de missão após conciliação. Só falta o
+  isolamento horizontal, que depende da CG-028 existir.
+- [~] CG-064 teve a primeira passagem em 2026-09-02: rolagem de tabela
+  alcançável pelo teclado, erro de campo vinculado ao controle, descrição do
+  sidesheet anunciada e colunas de ação nomeadas.
+- [~] CG-065 teve uma passagem em 2026-09-02: a especificação funcional ganhou a
+  P24 de parceiros e perdeu a afirmação — já falsa — de que nenhum contato
+  pessoal era exposto pela aplicação.
+- [~] CG-062 avançou em 2026-09-02: os cálculos monetários ganharam regressão,
+  incluindo a ordem entre truncar e somar, verificada por mutação.
+- [x] CG-013 foi concluída em 2026-09-02: schema da prestação de contas com
+  especializações de passagem, cotação e diária, totais derivados e ausência de
+  prestação representada pela ausência da linha.
+- [x] CG-010 foi concluída em 2026-09-02: os seis vocabulários do módulo
+  existem, e as cópias literais no serviço passaram a derivar do enum do banco.
+- [x] CG-015 foi concluída em 2026-09-02: 25 migrations verificadas em banco
+  vazio e sobre a seed, com os indicadores idênticos nos dois caminhos.
+- [x] CG-050 foi concluída em 2026-09-02: CRUD de despesas da missão com
+  passagem, cotações e diária, e todos os totais derivados em `numeric`.
+- [x] CG-009 foi concluída em 2026-09-02: o documento da equipe respondeu tipos
+  de despesa, formatos, abertura da prestação e a natureza da estimativa; o
+  responsável decidiu BRL único, abatimento do aporte por prestação validada e
+  requisitos agnósticos ao tipo de missão.
+- [x] O backlog possui 70 tasks rastreáveis: 33 concluídas, 11 em andamento e
+  26 pendentes. Esses números são retrato de 2026-09-02 e devem ser atualizados
+  quando um checkbox mudar.
 
 Próxima ação obrigatória: **obter o aceite da folha de aprovação** de
 [homologacao-comite-gestor.md](homologacao-comite-gestor.md), que fecha CG-005 a
@@ -168,7 +222,8 @@ exercício).
 
 Em seguida, ainda em 2026-09-01 e por decisão registrada do responsável pelo
 projeto, as decisões **estruturais** do pacote (CG-006 e CG-007) passaram a ser
-tratadas como aceitas para desbloquear a **CG-016**, que foi concluída. As
+tratadas como aceitas para desbloquear as **CG-016 a CG-018**, que foram
+concluídas. As
 decisões **institucionais** continuam pendentes e nada que dependa delas foi
 implementado: modelo B de aprovação (CG-008), formatos/retenção de documentos
 (CG-009/D-08), perfil Participante (D-12) e a matriz definitiva de acesso
@@ -397,7 +452,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   prévios, rodadas, reabertura e conteúdo do parecer. Falta o aceite e a
   resposta à pergunta institucional sobre como o Comitê delibera.
 
-- [~] **CG-009 — Reconciliar orçamento, despesas, documentos e encerramento**
+- [x] **CG-009 — Reconciliar orçamento, despesas, documentos e encerramento**
 
   Resolver as diferenças entre as decisões anteriores e o documento novo:
 
@@ -424,9 +479,66 @@ Essa situação é calculada a partir das datas e não é persistida.
   preservada em todas as alternativas. Falta o aceite e as respostas
   institucionais sobre exercício, retenção e formatos Office.
 
+  **Concluída em 2026-09-02.** A auditoria do documento da equipe de orçamento
+  (*Módulo de Gestão de Missões, Comitê Gestor, Parceiros e Resultados*, 28
+  páginas) respondeu quatro dos sete itens, e o responsável pelo projeto
+  decidiu os três restantes.
+
+  Respondido pelo documento:
+
+  - **tipos de despesa** (§24): hospedagem, transporte, inscrição em evento,
+    seguro e outros, além de passagem e diária;
+  - **formatos de arquivo** (§15): PDF, JPG, PNG, DOC/DOCX, XLS/XLSX;
+  - **abertura da prestação** (§20): o sistema abre a etapa automaticamente
+    quando a viagem é marcada como realizada — não é ação manual;
+  - **estimativa antes da aprovação** (§15): o "Orçamento" é um **documento
+    anexado**, não entidade estruturada. Some assim a concorrência com a
+    despesa efetiva: não há dois números disputando o mesmo papel.
+
+  Decidido pelo responsável, porque o documento é silente:
+
+  - **moeda**: o sistema trabalha **somente em BRL**. Não há moeda de origem,
+    cotação nem valor convertido; a conversão acontece antes do lançamento e o
+    que se registra é o valor em real;
+  - **efeito financeiro**: prestação **`VALIDADA` abate o aporte anual** do
+    Comitê Gestor. Confirma a regra que já vinha sendo preservada;
+  - **obrigatoriedade**: os requisitos são **agnósticos ao tipo de missão** —
+    a mesma lista vale para todas e é apresentada ao usuário, em vez de variar
+    por tipo.
+
+  Tabela requisito–momento–obrigatoriedade–efeito financeiro:
+
+  | Requisito | Momento | Obrigatoriedade | Efeito financeiro |
+  |---|---|---|---|
+  | Projeto, convite, programação, justificativa, orçamento | Antes da aprovação | Agnóstico | Nenhum |
+  | Aprovação do Comitê registrada | Antes da realização | Obrigatório | Nenhum |
+  | Viagem realizada | Fim do período | Automático | **Abre a prestação** |
+  | Passagens e comprovantes | Prestação | Se houve passagem | Compõe o total |
+  | Cotações | Prestação | Se houve passagem | Nenhum (evidência) |
+  | Diárias e comprovante | Prestação | Se houve diária | Compõe o total |
+  | Outras despesas (5 tipos) | Prestação | Se houve | Compõe o total |
+  | Relatório final | Encerramento | Obrigatório | Nenhum |
+  | Produtos informados (sim/não) | Encerramento | Obrigatório | Nenhum |
+  | Convênio | Encerramento | Condicional | Nenhum |
+  | Fotos e evidências | Encerramento | Obrigatório | Nenhum |
+  | Prestação `VALIDADA` | Encerramento | Obrigatório | **Abate o aporte anual** |
+
+  Reflexo imediato nas tasks, no mesmo dia: a **CG-013** teve o enum de despesa
+  tipado (migration `0025_despesas_homologadas_cg009.sql`) e a passagem passou a
+  guardar **origem e destino separados**, data do voo e forma de pagamento
+  conforme a §21 (`0026_passagem_origem_destino.sql`) — trecho em texto livre
+  obrigaria a interpretar string para responder "quanto foi gasto por país", que
+  é pergunta do dashboard (§33). A **CG-050** acompanhou o contrato. A decisão
+  de BRL único está registrada no schema, para que ninguém acrescente coluna de
+  câmbio por conta própria. **CG-014** e **CG-051** herdam a lista de formatos;
+  **CG-055** herda o abatimento; **CG-058** herda o checklist agnóstico.
+
+  Resultado: **48 unitários da API, 63 regressões da web e 227 integrações
+  aprovados**.
+
 ### Épico 1 — Fundação do domínio
 
-- [~] **CG-010 — Criar enums do módulo**
+- [x] **CG-010 — Criar enums do módulo**
 
   Criar ou reaproveitar, sem duplicação semântica:
 
@@ -449,6 +561,31 @@ Essa situação é calculada a partir das datas e não é persistida.
   Impacto registrado em 2026-09-01: o documento novo exige estados de análise,
   ajustes, aprovação e reprovação. Não alterar os enums antes da definição das
   dimensões e da migração dos estados atuais na CG-006.
+
+  Concluída em 2026-09-02, quando a CG-013 fechou o que faltava. Os seis
+  vocabulários da lista existem, estão exportados pelo schema e cobertos por
+  migration: `tipo_equipe_gestao`, `papel_missao`, `status_missao_comite`,
+  `tipo_missao` + `status_atividade_missao`, `status_prestacao_missao` e
+  `tipo_despesa_missao`.
+
+  **A duplicação semântica que existia foi eliminada.** `missoes-comite.service.ts`
+  mantinha cópias literais dos estados da missão e da prestação; agora ambas
+  derivam de `enumValues`. A cópia era o tipo de erro que passa no build e só
+  aparece em produção: acrescentar um estado na migration e esquecer do arquivo
+  produziria um valor que o banco aceita e a API recusa. `situacoesTemporais`
+  continua literal, e corretamente — é derivada da consulta, não existe enum
+  para ela no banco.
+
+  Cobertura: 4 unitários em `database/enums.spec.ts`, incluindo a garantia de
+  que `NAO_INICIADA` **não** entre em `status_prestacao_missao` e de que
+  `tipo_despesa` (execução genérica, P11) não seja fundido com
+  `tipo_despesa_missao` só porque o nome se parece. Resultado: **48 unitários da
+  API, 54 regressões da web e 215 integrações aprovados**.
+
+  A ressalva de 2026-09-01 continua valendo e **não é pendência desta task**: se
+  a CG-006 redefinir os estados da missão, ela altera `status_missao_comite` com
+  a migração dos estados atuais; e os estados de análise/aprovação pertencem ao
+  schema da CG-019, não a este.
 
 - [x] **CG-011 — Criar schema das equipes**
 
@@ -510,7 +647,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   participante, duas atividades em países diferentes e instituição catalogada
   ou livre, sem criar qualquer dado financeiro.
 
-- [ ] **CG-013 — Criar schema da prestação de contas**
+- [x] **CG-013 — Criar schema da prestação de contas**
 
   Criar `prestacao_contas_missao`, no máximo uma por missão, com status, envio,
   validação, parecer e observações.
@@ -551,6 +688,63 @@ Essa situação é calculada a partir das datas e não é persistida.
   ser registradas separadamente por beneficiário e exercício, e seus totais são
   derivados sem `number`.
 
+  Concluída em 2026-09-02 em
+  [database/schema/prestacao.ts](../apps/api/src/database/schema/prestacao.ts),
+  migration `0024_prestacao_contas_missao.sql`. Cinco tabelas: prestação,
+  despesa e as especializações de passagem, cotação e diária.
+
+  **`NAO_INICIADA` não virou estado do enum.** A ausência de prestação é a
+  ausência da linha. Guardá-la obrigaria a criar uma prestação vazia para toda
+  missão cadastrada, e a lista teria de distinguir a vazia da que ninguém
+  começou — a mesma coisa dita duas vezes. O vocabulário que a API e a interface
+  já usavam (`NAO_INICIADA`, `EM_PREENCHIMENTO`, `ENVIADA`, `COM_PENDENCIA`,
+  `VALIDADA`) foi preservado; só os quatro últimos são valores gravados.
+
+  **As especializações são tabelas 1:1, não colunas nulas.** `despesa_passagem` e
+  `despesa_diaria` têm o próprio `despesa_id` como chave primária — chave nova
+  criaria um segundo jeito de endereçar a mesma linha. `cotacao_passagem` é N por
+  passagem.
+
+  **Beneficiário e quantidade não se repetem na diária.** O beneficiário é o
+  `participante_id` da despesa e a quantidade é a `quantidade` dela; `quantidade`
+  e `valor_unitario` são genéricos justamente para servir a "5 diárias × R$ 600"
+  e a "1 passagem × R$ 4.200". Repetir criaria campos concorrentes — o erro que a
+  CG-018 evitou em missão, atividade e participante.
+
+  **`valor_total` é gravado e é o autoritativo**, não o produto: nota fiscal
+  arredonda e taxa entra fora da multiplicação. A coerência é exigida por `check`
+  apenas quando quantidade e unitário existem, então despesa avulsa continua
+  válida informando só o total. O que **não** é persistido é o total da
+  prestação: ele é somado em `numeric` no próprio Postgres, sem passar por
+  ponto flutuante.
+
+  Outras garantias no banco: exercício obrigatório e entre 2000 e 2100; valores
+  não negativos; período da diária não invertido; estado e evidência coerentes
+  (não há "enviada" sem data de envio, nem "validada" sem data de validação);
+  uma prestação por missão; apagar a prestação leva despesas e especializações
+  junto; e **participante com despesa lançada não pode ser apagado** (`restrict`),
+  porque isso apagaria dinheiro já prestado.
+
+  A estimativa anterior à aprovação **não** entra em `despesa_missao`: ela
+  pertence ao fluxo de aprovação e misturá-las faria o total contar dinheiro que
+  ninguém gastou.
+
+  Fora de escopo aqui, de propósito: os tipos de despesa além de passagem e
+  diária ficam em `OUTRA` com descrição até a **CG-009** homologar a lista —
+  inventar agora os que "provavelmente" serão aprovados criaria valores de enum
+  que a homologação teria de desfazer. O documento da cotação usa a tabela
+  genérica `anexo`; o modelo documental com categoria, hash e versão é a
+  **CG-014**. Reduzir saldo oficial de orçamento é a **CG-055**.
+
+  A migration foi aplicada sobre a base de desenvolvimento já semeada e os
+  aportes da P17 permaneceram intactos (R$ 1.525.332,00). Cobertura: 12
+  integrações novas em `schema.int-spec.ts`; resultado geral **44 unitários da
+  API, 54 regressões da web e 215 integrações aprovados**.
+
+  A primeira coisa que a CG-050 deve fazer é trocar o
+  `'NAO_INICIADA'::text` fixo de `missoes-comite.service.ts` por um `left join`
+  nesta tabela — o contrato da lista já foi desenhado para não mudar de formato.
+
 - [ ] **CG-014 — Definir o modelo documental e o armazenamento**
 
   Avaliar a evolução da tabela genérica `anexo` para suportar:
@@ -574,7 +768,7 @@ Essa situação é calculada a partir das datas e não é persistida.
 
   Critério de aceite: decisão documentada antes de implementar upload.
 
-- [~] **CG-015 — Gerar e verificar migrations**
+- [x] **CG-015 — Gerar e verificar migrations**
 
   - gerar migration Drizzle;
   - aplicar em banco vazio;
@@ -602,6 +796,48 @@ Essa situação é calculada a partir das datas e não é persistida.
   idempotente `0018_carrega_membros_comites.sql` atualiza uma base existente.
   Ambas passaram em banco vazio e na suíte com 173 testes. A prestação da
   CG-013 continua sendo o item que impede concluir a task inteira.
+
+  Em 2026-09-02, `0020_parceiros_contatos.sql` evoluiu instituições e criou a
+  fundação N:N de parceiros, redes e contatos. Foi aplicada sobre a seed atual,
+  com backfill das quatro instituições existentes, e validada pela suíte com
+  185 integrações. A prestação da CG-013 continua sendo o item pendente.
+
+  Ainda em 2026-09-02, `0021_amplia_missao_evento_participante.sql` ampliou o
+  contrato da missão e fez backfill do período dos participantes com as datas
+  integrais da missão — a única semântica que o modelo anterior representava.
+  Foi aplicada sobre o banco atual e validada pela suíte com 192 integrações.
+  A prestação da CG-013 continua sendo o item pendente.
+
+  A migration `0022_parceiros_conciliacao.sql` acrescentou a referência da
+  instituição substituída para sua canônica, foi aplicada sobre o banco atual e
+  validada com 196 integrações. A prestação da CG-013 continua sendo o item
+  pendente para concluir esta task.
+
+  A migration `0023_contatos_parceiros_identidade.sql` acrescentou a identidade
+  normalizada de e-mail. O backfill escolhe somente um canônico em cada grupo
+  legado e deixa duplicados anteriores para conciliação humana, sem apagar ou
+  unir contatos silenciosamente. Foi aplicada sobre o banco atual e validada
+  com 200 integrações. A prestação da CG-013 continua pendente.
+
+  Concluída em 2026-09-02, com a `0024_prestacao_contas_missao.sql` — o item que
+  faltava. Os cinco pontos do checklist foram verificados:
+
+  - **gerar migration Drizzle**: 25 migrations no repositório;
+  - **aplicar sobre a seed atual**: aplicada no banco de desenvolvimento já
+    carregado, sem perda;
+  - **aportes da P17 não mudaram**: R$ 1.525.332,00 antes e depois;
+  - **aplicar em banco vazio**: este era o único ainda não comprovado. A suíte
+    de integração roda contra um banco persistente, então ela prova aplicação
+    **incremental**, não do zero. Foi criado um banco limpo, as 25 migrations
+    rodaram desde o nada (40 tabelas) e a seed foi carregada nele. Os
+    indicadores saíram idênticos aos do banco de desenvolvimento — aportes,
+    24 PPGs, 60 itens de catálogo, 23 linhas de plano e 48 orçamentos. O banco
+    temporário foi removido em seguida;
+  - **rollback lógico por migration corretiva**: não foi necessário, nenhuma
+    migration precisou ser corrigida.
+
+  Critério de aceite atendido nas duas pontas: `seed-aceite.int-spec.ts` continua
+  aprovado dentro das **215 integrações**.
 
 - [x] **CG-016 — Associar missões às redes**
 
@@ -663,7 +899,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   ponta a ponta com uma missão UFMG+UNICAMP real: uma linha na lista, “UFMG ·
   UNICAMP” na coluna, `Missões · 1` no recorte e vazio correto ao filtrar UNESP.
 
-- [ ] **CG-017 — Modelar parceiros, redes e contatos**
+- [x] **CG-017 — Modelar parceiros, redes e contatos**
 
   Evoluir `instituicao` e criar associações para suportar:
 
@@ -683,7 +919,37 @@ Essa situação é calculada a partir das datas e não é persistida.
   Critério de aceite: instituição canônica pode servir a várias redes e seus
   contatos são reutilizados por missões sem cópia de dados.
 
-- [ ] **CG-018 — Ampliar identificação, destino, evento e participantes**
+  Concluída em 2026-09-02. A migration `0020_parceiros_contatos.sql`:
+
+  - ampliou `instituicao` com estado/região, tipo de organização,
+    faculdade/departamento, e-mail institucional, telefone, endereço,
+    observações e marcador de cadastro provisório;
+  - criou `instituicao_rede` N:N, com unicidade da associação;
+  - criou `contato_instituicao` como fonte reutilizável, com cargo,
+    departamento, área, e-mail, telefone, país, idioma, situação e observações;
+  - garante no banco no máximo um contato principal ativo por instituição;
+  - adicionou `nome_normalizado` às instituições e aos contatos. A função
+    compartilhada elimina apenas variações inequívocas de caixa, acento,
+    pontuação e espaços. A instituição tem chave única; siglas, traduções e
+    homônimos de contatos continuam candidatos à conciliação humana nas
+    CG-025/CG-026;
+  - preserva metadados de criação/atualização. A trilha de eventos de criação,
+    edição, inativação e fusão de instituições entra na API CG-025; a gestão
+    individual dos contatos e sua auditoria minimizada entram na CG-026.
+
+  A migration foi aplicada com sucesso no banco de desenvolvimento já semeado:
+  UEA, UFMG, UNESP e UNICAMP receberam as chaves normalizadas. Cobertura: 3
+  testes unitários da normalização e 4 integrações de multirrede, deduplicação,
+  associação única e contato principal; resultado geral **36 unitários da API
+  e 185 integrações aprovados**. A API posterior da CG-026 expõe dados pessoais
+  somente ao `admin`; a missão continua referenciando o `id` central em vez de
+  copiar seus dados.
+
+  Arquivos: `database/schema/institucional.ts`,
+  `database/schema/parceiros.ts`, `database/normalizacao.ts`, migration
+  `0020_parceiros_contatos.sql`, seed e testes de schema.
+
+- [x] **CG-018 — Ampliar identificação, destino, evento e participantes**
 
   Acrescentar ao modelo, conforme homologação:
 
@@ -701,6 +967,46 @@ Essa situação é calculada a partir das datas e não é persistida.
 
   Critério de aceite: o cadastro representa as seções 10 a 14 do documento sem
   duplicar período, instituição ou rede em campos concorrentes.
+
+  Concluída em 2026-09-02. Decisões implementadas:
+
+  - o responsável continua em `missao_participante`, com papel `RESPONSAVEL`;
+    a API exige exatamente um e o banco impede mais de um. Não existe uma
+    segunda FK concorrente em `missao_comite`;
+  - `missao_comite` recebeu tipo geral e unidade/departamento. Permanecem
+    opcionais para que missões anteriores e o formulário do escopo antigo
+    continuem válidos; o contrato da API já aceita e devolve ambos;
+  - participante recebeu cargo, área e período individual. Quando o cliente
+    antigo omite o período, a API grava saída e retorno da missão, explicitando
+    a semântica anterior de participação integral;
+  - atividade recebeu estado/região, local e endereço. Datas continuam sendo
+    as da própria atividade, sem criar um segundo período de “destino”;
+  - evento permanece atividade no MVP (D-10). Nome, tipo, site, objetivo da
+    participação e relação com a internacionalização foram acrescentados;
+    instituição organizadora reutiliza `instituicaoId|instituicaoNome`, datas
+    reutilizam o período da atividade e redes são herdadas da missão;
+  - a relação com parceiro usa a instituição central da atividade, contato por
+    id, tipo de relacionamento e objetivo. A API confirma que o contato está
+    ativo e pertence à instituição, sem copiar dados pessoais;
+  - número de dias é calculado de forma inclusiva e em UTC para missão,
+    atividade e participante; nenhuma coluna derivada foi persistida.
+
+  A migration `0021_amplia_missao_evento_participante.sql` foi aplicada na base
+  atual. O backfill atribui aos participantes antigos o período completo da
+  missão, sem inferir períodos parciais. Cobertura nova: 3 testes unitários de
+  dias civis, regras de schema/API para responsável, evento e período, duas
+  regressões de formulário e integrações de constraints, contrato completo,
+  contato–instituição e transferência transacional do responsável. Resultado:
+  **39 unitários da API, 21 regressões da web e 192 integrações aprovados**.
+
+  A interface de cadastro ainda não exibe os novos campos; ela continua
+  funcional pelo fallback de compatibilidade. A inclusão visual deve ocorrer
+  junto da evolução do formulário/detalhe, depois das decisões institucionais,
+  sem alterar novamente o modelo desta task.
+
+  Arquivos: `database/schema/comite-gestor.ts`, migration
+  `0021_amplia_missao_evento_participante.sql`, `comum/datas.ts`,
+  `dominio/missoes-comite.service.ts`, schemas de formulário e testes.
 
 - [ ] **CG-019 — Criar schema de submissão e decisões do Comitê**
 
@@ -822,7 +1128,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   118 testes de integração aprovados após a inclusão do schema de missões; a
   web também cobre a preservação dos campos em erros de validação.
 
-- [ ] **CG-025 — Implementar cadastro e deduplicação de parceiros**
+- [x] **CG-025 — Implementar cadastro e deduplicação de parceiros**
 
   Criar API para listar, buscar, cadastrar, editar e inativar instituições
   parceiras, incluindo associações com redes. A criação deve:
@@ -838,7 +1144,30 @@ Essa situação é calculada a partir das datas e não é persistida.
   Critério de aceite: a mesma instituição é reutilizada por várias missões e
   redes, e uma conciliação preserva histórico, contatos e documentos.
 
-- [ ] **CG-026 — Implementar contatos dos parceiros**
+  Concluída em 2026-09-02. A API `/parceiros` lista, pesquisa e filtra por rede,
+  detalha, cadastra, edita e inativa sem apagar referências. A consulta de
+  candidatos e a própria criação comparam nome normalizado, sigla, domínio do
+  site, domínio do e-mail institucional e nomes semelhantes. Nome normalizado
+  igual é bloqueio inequívoco; candidato apenas possível exige confirmação
+  explícita do `admin`.
+
+  A conciliação é transacional: a origem fica inativa e aponta por
+  `substituida_por_id` para o cadastro canônico; redes, contatos, atividades de
+  missão, pessoas e documentos institucionais são transferidos. Quando os dois
+  cadastros têm contato principal, o principal do destino prevalece para não
+  violar a regra de unicidade. Nenhum registro de origem ou auditoria é apagado.
+  Criação, edição, redes, inativação e fusão possuem trilha em
+  `registro_auditoria`.
+
+  As permissões `parceiro:read|write` foram acrescentadas somente ao `admin`,
+  preservando a matriz provisória. A migration
+  `0022_parceiros_conciliacao.sql` foi aplicada sobre a base existente. Cobertura:
+  2 testes unitários dos schemas e 4 fluxos integrados de busca, deduplicação,
+  edição/inativação e fusão; resultado geral **41 unitários da API, 21
+  regressões da web e 196 integrações aprovados**. A interface permanece na
+  CG-049 e os dados pessoais dos contatos não foram expostos.
+
+- [x] **CG-026 — Implementar contatos dos parceiros**
 
   Criar API para listar, cadastrar, editar e inativar contatos, definir o
   contato principal e pesquisar por nome, instituição ou e-mail.
@@ -855,7 +1184,52 @@ Essa situação é calculada a partir das datas e não é persistida.
   Critério de aceite: contato pode ser selecionado em várias missões sem copiar
   seus dados para cada uma.
 
-- [ ] **CG-027 — Construir histórico consolidado do parceiro**
+  Concluída em 2026-09-02. A API `/contatos-parceiros` lista com busca por nome,
+  e-mail e instituição, filtra por parceiro e por situação, detalha, cadastra,
+  edita, define o principal, inativa e reativa. Não existe endpoint de exclusão:
+  a atividade de missão referencia o `id` central, então a saída de operação é a
+  inativação, e o teste comprova que a missão continua enxergando o contato
+  inativado.
+
+  A deduplicação é por instituição, não global — a mesma pessoa pode ser contato
+  de mais de um parceiro. E-mail normalizado igual, ou nome normalizado e
+  telefone iguais, é duplicidade **inequívoca** e resulta em `409`. Nome, e-mail
+  ou telefone coincidindo isoladamente é apenas **possível**: a resposta devolve
+  os candidatos com o motivo e exige `confirmarPossivelDuplicidade`, porque
+  homônimo dentro de uma mesma instituição é real e não pode ser bloqueado. O
+  índice único parcial `contato_instituicao_email_uk` fecha a corrida entre duas
+  requisições simultâneas, e o erro do banco é traduzido para a mesma mensagem
+  de conflito.
+
+  A troca do contato principal é atômica: `desmarcarPrincipal` roda na mesma
+  transação da promoção, de modo que o índice
+  `contato_instituicao_principal_ativo_uk` nunca vê dois principais. Inativar o
+  principal também o despromove, e reativar nunca devolve a condição de
+  principal automaticamente — assim como reativar contato de parceiro inativo é
+  recusado.
+
+  **A auditoria é minimizada de propósito.** Nenhuma trilha guarda nome, e-mail,
+  telefone ou qualquer valor pessoal: a criação grava apenas a instituição, o
+  atributo `principal` e a lista de *nomes* dos campos informados; a edição
+  grava a lista de campos alterados com `valorAnterior`/`valorNovo` nulos. Só
+  atributos não sensíveis (`ativo`, `principal`) registram valores de fato. É a
+  diferença em relação à auditoria por campo do plano e do orçamento, e é
+  deliberada: `registro_auditoria` não é lugar de dado pessoal.
+
+  As permissões reutilizam `parceiro:read|write`, exclusivas do `admin` na
+  matriz provisória. A migration `0023_contatos_parceiros_identidade.sql`
+  acrescenta `email_normalizado`, seu `check` de coerência e o índice único; ela
+  elege um registro canônico por grupo de e-mails repetidos e **não funde nem
+  apaga** os demais, deixando a conciliação para decisão humana. Foi aplicada na
+  base de desenvolvimento já semeada.
+
+  Cobertura: 3 testes unitários dos schemas e 4 fluxos integrados de
+  cadastro/busca/edição, identidade inequívoca contra homônimo, principal único
+  e inativação/reativação sem romper a missão; resultado geral **44 unitários da
+  API, 21 regressões da web e 200 integrações aprovados**. A interface dos
+  contatos permanece na CG-049 e a visibilidade por rede, na CG-028.
+
+- [x] **CG-027 — Construir histórico consolidado do parceiro**
 
   Consultar, sem agregados persistidos:
 
@@ -872,6 +1246,39 @@ Essa situação é calculada a partir das datas e não é persistida.
 
   Critério de aceite: abrir um parceiro apresenta uma linha histórica única,
   sem duplicar missão multirrede.
+
+  Concluída em 2026-09-02 no `GET /parceiros/:id/historico`. Nasceu parcial, como
+  a própria task autoriza: entrega parceiro com suas redes, contatos, missões
+  com atividades, eventos e documentos. Nada é persistido — cada seção é lida na
+  hora do que os outros módulos gravaram.
+
+  **A não duplicação tem dois caminhos, e ambos estão cobertos.** A missão entra
+  por `exists` sobre `atividade_missao` e é resolvida com `selectDistinct` sobre
+  a própria missão, nunca por `join` com atividade ou com `missao_rede`: sem
+  isso, a missão de duas redes apareceria duas vezes, e a missão que visita o
+  mesmo parceiro em duas paradas do roteiro também. Redes e atividades voltam em
+  consultas próprias e são agrupadas em memória. O teste monta exatamente esse
+  caso — missão de duas redes com duas atividades no mesmo parceiro — e exige
+  uma única linha.
+
+  Produtos e convênios **não** aparecem como total zero: `modulosPendentes` os
+  nomeia apontando para a CG-056, porque zero afirmaria que nada aconteceu
+  quando a verdade é que ainda não existe onde registrar. Quando a CG-056 e a
+  CG-057 chegarem, acrescentam sua seção e saem dessa lista, sem quebrar o
+  contrato.
+
+  Evento continua sendo projeção das atividades que nomeiam um (D-10), não uma
+  entidade separada. Documentos leem `anexo` em `INSTITUICAO`/`PARCEIRO`, o
+  mesmo par que a conciliação da CG-025 transfere; a filtragem por permissão de
+  documento ainda não existe, e hoje o endpoint inteiro é `parceiro:read`, ou
+  seja, exclusivo do `admin` — a visibilidade por rede é a CG-028, e a política
+  de documentos, a CG-009.
+
+  Cobertura: 2 integrações — linha histórica de missão multirrede com duas
+  paradas, e isolamento entre parceiros vizinhos (missão e documento de um não
+  vazam para o outro); resultado geral **44 unitários da API, 21 regressões da
+  web e 202 integrações aprovados**. Não houve migration: o histórico é
+  leitura. A interface permanece na CG-049.
 
 - [ ] **CG-028 — Aplicar autorização com escopo por rede e missão**
 
@@ -891,7 +1298,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   Critério de aceite: testes provam ausência de leitura e escrita entre redes,
   inclusive por ID adulterado.
 
-- [ ] **CG-029 — Testar parceiros, contatos e escopo**
+- [~] **CG-029 — Testar parceiros, contatos e escopo**
 
   Cobrir deduplicação, conciliação, inativação, contato principal, histórico,
   missão multirrede e isolamento entre perfis/redes.
@@ -900,6 +1307,33 @@ Essa situação é calculada a partir das datas e não é persistida.
 
   Critério de aceite: integração usa PostgreSQL real e inclui tentativas de
   acesso horizontal indevido.
+
+  Situação em 2026-09-02: **tudo o que não depende da CG-028 está coberto**, em
+  PostgreSQL real. Deduplicação (instituição e contato), conciliação,
+  inativação/reativação, contato principal único e a troca atômica, histórico e
+  missão multirrede vieram junto com as CG-025 a CG-027 — 11 fluxos integrados
+  nos dois `int-spec`. O `permissions.spec.ts` já prova que `parceiro:read` e
+  `parceiro:write` pertencem só ao `admin` e a nenhum dos outros quatro papéis,
+  que é o acesso **vertical**.
+
+  A lacuna que a conciliação criava sozinha foi fechada aqui: origem e destino
+  atuando na **mesma** missão, cada um com sua atividade. Depois de conciliar, o
+  destino fica com duas atividades naquela missão, e a linha histórica tem que
+  continuar sendo uma só. O teste também garante que a origem permanece
+  consultável depois de conciliada — a interface linka para ela a partir do
+  aviso de cadastro conciliado; o que ela perde é o vínculo, não o acesso.
+
+  Os dois testes de não duplicação foram verificados por mutação: trocando o
+  `exists` + `selectDistinct` por um `join` com atividade, ambos falham. Não
+  passam por acidente.
+
+  **Falta apenas o isolamento horizontal** — leitura e escrita entre redes,
+  inclusive por ID adulterado. Isso não é adiamento: o escopo por rede não
+  existe (CG-028), e hoje todo o módulo é exclusivo do `admin`, então não há
+  fronteira horizontal para violar. O teste nasce junto com a regra.
+
+  Resultado geral: **44 unitários da API, 35 regressões da web e 203
+  integrações aprovados**.
 
 ### Épico 3 — Missões na API
 
@@ -1346,7 +1780,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   Critério de aceite: decisão confirmada aparece no histórico e uma falha não
   limpa o parecer digitado.
 
-- [ ] **CG-049 — Construir cadastro e histórico de parceiros**
+- [~] **CG-049 — Construir cadastro e histórico de parceiros**
 
   Criar lista, busca, cadastro, edição, contatos e detalhe histórico da
   instituição, com seleção/reutilização dentro da missão.
@@ -1356,9 +1790,74 @@ Essa situação é calculada a partir das datas e não é persistida.
   Critério de aceite: usuário encontra e reutiliza parceiro existente; alerta
   de possível duplicidade não apaga o formulário.
 
+  Parcialmente entregue em 2026-09-02. **A seleção de parceiro dentro da missão
+  não foi feita** — é a única parte que depende de fato da CG-045, que segue
+  bloqueada pelo aceite institucional. Todo o lado do parceiro está de pé em
+  `/programas/[programa]/[ciclo]/parceiros`:
+
+  - lista com busca por nome, sigla, cidade ou domínio, filtro por rede,
+    inclusão opcional de inativos/conciliados e estados vazios distintos para
+    "nada cadastrado" e "nada para este filtro". Os filtros são
+    `<form method="get">`: o recorte fica na URL e pode ser compartilhado;
+  - cadastro e edição em sidesheet com React Hook Form e Zod, incluindo redes
+    (`Selecoes`), país e cadastro provisório;
+  - detalhe com o histórico da CG-027 — dados institucionais, contatos,
+    missões com suas atividades, eventos e documentos;
+  - contatos com cadastro, edição, troca de principal, inativação e
+    reativação, todas com justificativa.
+
+  **O alerta de duplicidade cumpre o critério de aceite por construção.** Ele é
+  renderizado dentro do próprio `<form>`, acima dos campos, e não em um diálogo
+  por cima: como o formulário nunca é desmontado, o React Hook Form preserva
+  tudo o que já foi digitado. O 409 da API traz os candidatos, e para isso
+  `EstadoDaAcao` ganhou o campo `candidatos`, repassado por `traduzirErro` — sem
+  ele a tela diria apenas "não foi possível salvar", escondendo justamente
+  *quais* cadastros a API considerou equivalentes. Duplicidade `POSSIVEL`
+  oferece o botão "cadastrar assim mesmo", que reenvia o formulário com
+  `confirmarPossivelDuplicidade`; duplicidade `INEQUIVOCA` não oferece botão
+  nenhum, porque a API recusa mesmo confirmada e o botão prometeria algo que
+  não acontece.
+
+  Não existe ação de excluir parceiro ou contato, em nenhum lugar da interface:
+  a atividade da missão referencia o `id` central, e a saída é inativar.
+
+  A rota fica sob o ciclo porque o vínculo com rede é do ciclo
+  (`rede_coordenadora` tem `cicloId`); a instituição em si é global, e o
+  detalhe mostra o histórico inteiro dela. O item de menu só aparece para quem
+  tem `parceiro:read` — hoje, só o `admin`; o escopo por rede é a CG-028.
+
+  Produtos e convênios aparecem nomeados como pendentes, nunca como zero,
+  refletindo o `modulosPendentes` da CG-027.
+
+  Cobertura: 11 regressões novas na web (schemas, `null` versus `undefined` no
+  PATCH, payload do contato sem cópia dos dados da instituição, e o contrato do
+  alerta de duplicidade), além de verificação manual com sessão real — criação,
+  409 inequívoco, 409 possível, homônimo confirmado, lista, detalhe e o 403 de
+  `coord.teste` sem vazamento de dado pessoal. Resultado geral: **44 unitários
+  da API, 32 regressões da web e 202 integrações aprovados**.
+
+  Ainda em 2026-09-02, a **conciliação ganhou interface**: no detalhe do
+  parceiro, "Conciliar" escolhe o cadastro que permanece e exige justificativa.
+  A escolha é assimétrica de propósito — este cadastro é a origem e vira o
+  inativo — e a tela diz isso antes de confirmar, porque a operação transfere
+  redes, contatos, atividades, pessoas e documentos. O botão não aparece quando
+  não há candidato ativo, já que a API exige destino ativo e um painel com
+  select vazio prometeria uma ação impossível. Depois da conciliação, a origem
+  mostra o aviso "Cadastro conciliado" com link para o cadastro que permaneceu,
+  e sai da lista padrão com o selo `conciliado` quando se pedem os inativos.
+
+  A **paginação continua não existindo**, mas a lista deixou de mentir: quando
+  o serviço devolve os 200 do limite, a tela avisa que o resultado pode estar
+  cortado e pede refino. Sumir com parceiro em silêncio é pior do que admitir o
+  limite. A paginação de fato exige mudar o contrato da API da CG-025 e não foi
+  feita aqui.
+
+  Falta apenas a seleção/reutilização de parceiro **dentro da missão**, que
+  depende da CG-045.
+
 ### Épico 5 — Prestação de contas e documentos
 
-- [ ] **CG-050 — Implementar CRUD e cálculos de despesas**
+- [x] **CG-050 — Implementar CRUD e cálculos de despesas**
 
   - passagens, cotações, diárias e tipos homologados de outras despesas;
   - participante associado;
@@ -1373,6 +1872,46 @@ Essa situação é calculada a partir das datas e não é persistida.
 
   Critério de aceite: totais reproduzíveis a partir das despesas, sem agregado
   persistido.
+
+  Concluída em 2026-09-02 em
+  [dominio/prestacao.service.ts](../apps/api/src/dominio/prestacao.service.ts),
+  sob `.../comite-gestor/missoes/:id/prestacao`. Inicia a prestação, edita
+  observações e faz o CRUD de despesas com passagem, cotações e diária.
+
+  **Nenhum total é persistido.** `total`, `totalPorTipo`, `totalPorExercicio` e
+  `totalPorPessoa` saem de `sum(...)` em `numeric` no próprio Postgres e chegam
+  como `string`; converter para `number` no limite do banco reintroduziria o
+  erro de centavo que o `numeric` evita. Validado com um centavo solto em outro
+  exercício: R$ 4.200,00 + R$ 3.000,00 + R$ 0,07 = **R$ 7.200,07**, e o centavo
+  não se perde em nenhum dos recortes.
+
+  Prestação sem despesa tem `total` **nulo**, não zero — a mesma regra de
+  `somarMoeda` na web: zero afirmaria que a missão não gastou.
+
+  **Editar despesa substitui a especialização inteira.** Editar campo a campo
+  obrigaria a decidir o que fazer quando o tipo muda, e uma passagem que vira
+  diária deixaria a tabela de passagem órfã. Apagar e regravar na mesma
+  transação elimina esse estado intermediário; há teste que troca o tipo e
+  confirma que nenhuma linha órfã sobrou.
+
+  Outras recusas, todas verificadas contra a aplicação rodando: total que não
+  corresponde a quantidade × unitário (com a mensagem no campo certo, e não a do
+  `check` do banco); valor negativo; exercício fora de 2000–2100; passagem
+  recebendo dados de diária e vice-versa; segunda prestação na mesma missão; e
+  **participante de outra missão**, que apontaria a despesa para alguém que
+  nunca viajou nela. `prestacao:read|write` barra `coord.teste` com 403 nas duas
+  pontas.
+
+  Fora de escopo aqui, de propósito: **enviar e validar** a prestação é a
+  CG-054. O serviço mantém a prestação em `EM_PREENCHIMENTO` e recusa alteração
+  depois que ela sai desse estado — quem já enviou não corrige a despesa por
+  baixo do pano. Os tipos além de passagem e diária seguem em `OUTRA` até a
+  CG-009.
+
+  Cobertura: 11 integrações em `prestacao.int-spec.ts`; resultado geral **48
+  unitários da API, 54 regressões da web e 226 integrações aprovados**. Os dados
+  de teste criados na base de desenvolvimento foram removidos e os aportes da
+  P17 conferidos depois (R$ 1.525.332,00).
 
 - [ ] **CG-051 — Implementar upload e download seguro de documentos**
 
@@ -1539,6 +2078,26 @@ Essa situação é calculada a partir das datas e não é persistida.
   tradução de erros aninhados e ausência de campos financeiros no payload.
   Detalhe, relato, cálculos e estados da prestação permanecem pendentes.
 
+  Em 2026-09-02 entraram os **cálculos monetários**, que não tinham regressão
+  nenhuma apesar de sustentarem duas regras centrais: dinheiro nunca passa por
+  `number` antes de uma conta, e ausência de valor não é zero — a segunda é o
+  que derrubava a média do painel por causa da UNICAMP. São 11 casos em
+  `apps/web/test/dinheiro.test.mjs`, cobrindo `somarMoeda`, `moeda`, `inteiro`,
+  `percentual` e as fronteiras do semáforo da RN-07.
+
+  **Um teste foi reescrito por exagerar na afirmação.** A primeira versão dizia
+  que somar em `number` exibiria 69,99 em vez de 70,00; ao verificar por
+  mutação, a soma em `number` com arredondamento final continuava passando —
+  `toFixed` esconde o erro acumulado nessa magnitude. O que de fato separa as
+  duas implementações é a **ordem entre truncar e somar**: mil parcelas de
+  8,615 dão 8.610,00 truncando parcela a parcela e 8.615,00 somando em float,
+  cinco reais de diferença. O teste passou a fixar isso, e a mutação agora é
+  detectada por dois casos. A afirmação anterior era plausível e falsa — o tipo
+  de comentário que faz um teste parecer mais forte do que é.
+
+  Continuam pendentes os cálculos e estados da prestação, que dependem de
+  CG-050 a CG-055 existirem.
+
 - [~] **CG-063 — Ampliar o smoke de telas**
 
   Percorrer login, equipes, criação de pessoa, parceiro, missão, submissão,
@@ -1561,20 +2120,96 @@ Essa situação é calculada a partir das datas e não é persistida.
   `text-right">Missões</th>`, e não no texto "Missões": o rótulo da aba tem a
   mesma palavra, e a asserção passaria mesmo sem a coluna.
 
-- [ ] **CG-064 — Revisar acessibilidade e responsividade**
+  Em 2026-09-02 entraram as telas de parceiro (CG-049): lista, filtro sem
+  resultado e inclusão de inativos para o `admin`, e "Acesso restrito" para
+  `coord.teste`. O detalhe do parceiro é verificado **condicionalmente** — o id
+  vem da própria lista, e só quando existe algum cadastro. A asserção do estado
+  vazio de cadastro roda no caso oposto, e não incondicionalmente: a seed não
+  traz parceiros, mas qualquer cadastro feito à mão invalidaria a asserção e
+  transformaria o smoke em fonte de falso alarme.
+
+- [~] **CG-064 — Revisar acessibilidade e responsividade**
 
   Verificar teclado, foco dos sidesheets, rótulos, anúncios de erro/sucesso,
   tabelas no celular e contraste dos estados.
 
   Dependência: interface concluída.
 
-- [ ] **CG-065 — Atualizar a documentação do projeto**
+  Primeira passagem em 2026-09-02, sobre a interface que existe. O que já
+  estava certo e foi apenas confirmado: o sidesheet é `<dialog>` nativo com
+  `showModal()`, então foco presa, `Esc` e fundo inerte vêm do navegador; o
+  toast separa `alert`/`assertive` de `status`/`polite`; campo com erro já
+  marcava `aria-invalid`; a página nunca rola na horizontal.
+
+  Quatro defeitos reais foram corrigidos:
+
+  - **Tabela larga era inalcançável pelo teclado.** As 37 tabelas do sistema
+    têm `min-w-[48rem]` dentro de `overflow-x-auto`: no celular elas rolam, e
+    quem usa só teclado não chegava nas colunas escondidas, porque não há
+    elemento focável ali dentro. Entrou
+    [ui/rolagem.tsx](../apps/web/src/componentes/ui/rolagem.tsx), que dá
+    `tabIndex` ao contêiner **apenas quando ele de fato transborda** — medido no
+    cliente e reavaliado no redimensionamento. Fixo, criaria uma parada de
+    tabulação morta em cada tabela numa tela larga; ausente, deixa conteúdo
+    inacessível. O `role="region"` só entra junto com o nome.
+  - **Erro de campo não era vinculado ao controle.** O `role="alert"` anuncia no
+    instante em que o erro aparece, mas quem volta ao campo depois não ouvia
+    nada. `Campo` passou a gerar `aria-describedby` para dica e erro, e os
+    quatro controles do sistema o expõem.
+  - **A descrição do sidesheet era texto solto.** É ela que explica a
+    consequência ("o cadastro fica inativo", "substitui o principal atual") —
+    agora vai em `aria-describedby` do próprio diálogo.
+  - **Duas colunas de ações tinham `<th>` vazio**, deixando a coluna anônima
+    para quem navega célula a célula. Receberam rótulo `sr-only`.
+
+  Verificado no HTML renderizado com sessão real: nenhum `<th>` vazio,
+  `aria-labelledby`/`aria-describedby` presentes no diálogo e `aria-label` no
+  botão de fechar. Cobertura: 8 regressões novas em
+  `apps/web/test/acessibilidade.test.mjs`; resultado geral **44 unitários da
+  API, 43 regressões da web e 203 integrações aprovados**.
+
+  Continua pendente, porque depende de tela que ainda não existe: revisão das
+  telas de prestação, aprovação e dashboards. Contraste dos estados não foi
+  medido com ferramenta — os tokens semânticos foram herdados e não auditados
+  em número de razão de contraste.
+
+- [~] **CG-065 — Atualizar a documentação do projeto**
 
   Atualizar `AGENTS.md`, `system-structl.md`, arquitetura, catálogo de
   permissões, regras financeiras, parceiros, aprovação, armazenamento e backup
   de documentos.
 
   Dependência: comportamento implementado e validado.
+
+  Passagem em 2026-09-02. `AGENTS.md`, a arquitetura e a revisão de escopo vinham
+  sendo atualizados a cada entrega; o que estava para trás era a
+  [especificação funcional](../system-structl.md).
+
+  **A correção mais importante foi uma afirmação que virou falsa.** A P17 ainda
+  dizia: *"Ainda não há API de contatos nem interface, portanto nenhum contato
+  pessoal novo é exposto pela aplicação."* Isso deixou de valer com a CG-026 e a
+  CG-049. Uma frase dessas envelhecendo em silêncio é pior do que documentação
+  ausente: ela afirma uma propriedade de privacidade que o sistema não tem mais.
+
+  Também entraram: a **P24 · Parceiros institucionais** — página que não existia
+  na especificação original, veio do escopo ampliado e por isso é numerada depois
+  da P23 —, a rota de parceiros no mapa de navegação, a linha da P24 na tabela de
+  situação e a contagem de tabelas, que estava em 28 e hoje é 35 (conferida no
+  schema, não copiada). O `docs/validacao-telas.md` ganhou o item 12, com os seis
+  pontos que valem teste manual e o aviso de que a tela é exclusiva de `admin`.
+
+  Duas correções de rota durante a revisão: "9 módulos de schema" parecia errado
+  (há 10 arquivos), mas está certo — `comum.ts` só tem helpers, não tabelas; e o
+  `README.md` não precisou de nada, porque trata de instalação e não carrega
+  afirmação de estado que envelheça.
+
+  **Não coberto, por não haver o que documentar:** aprovação do Comitê
+  (CG-008), armazenamento e backup de documentos (CG-009/CG-014). Não são
+  decisões implementadas ainda; escrever sobre elas agora seria registrar
+  intenção como se fosse comportamento. Regras financeiras não mudaram nesta
+  frente. O catálogo de permissões continua vivendo em
+  `apps/api/src/auth/permissions.ts`, com o processo de extensão descrito no
+  `AGENTS.md` §6 — `parceiro:read|write` já estão lá e cobertos por teste.
 
 ### Épico 8 — Dashboards, relatórios e exportações
 

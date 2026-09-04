@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 
 import { A_DEFINIR, faixaDeUtilizacao, moeda, percentual } from "@/lib/formato";
 
+import { RolagemHorizontal } from "./rolagem";
+
 /** Peças de leitura usadas por todas as telas. Server Components. */
 
 export function Pagina({
@@ -197,15 +199,21 @@ export function Tabela({
   colunas,
   children,
   rodape,
+  rotulo,
 }: {
   colunas: { chave: string; texto: ReactNode; alinhamento?: "direita" }[];
   children: ReactNode;
   rodape?: ReactNode;
+  /** Nome da região de rolagem quando a tabela não cabe na tela. */
+  rotulo?: string;
 }) {
   return (
     // Tabela larga rola dentro do próprio contêiner; a página nunca rola na
-    // horizontal.
-    <div className="overflow-x-auto rounded-2xl border border-border bg-surface shadow-[0_12px_30px_-28px_var(--border-strong)]">
+    // horizontal. O `min-w` abaixo garante que, no celular, isso de fato
+    // acontece — e por isso a rolagem precisa ser alcançável pelo teclado.
+    <RolagemHorizontal
+      rotulo={rotulo ? `${rotulo} (role para os lados)` : undefined}
+      className="overflow-x-auto rounded-2xl border border-border bg-surface shadow-[0_12px_30px_-28px_var(--border-strong)]">
       <table className="w-full min-w-[48rem] border-collapse text-sm">
         <thead className="bg-surface-muted">
           <tr>
@@ -231,7 +239,7 @@ export function Tabela({
           </tfoot>
         ) : null}
       </table>
-    </div>
+    </RolagemHorizontal>
   );
 }
 
