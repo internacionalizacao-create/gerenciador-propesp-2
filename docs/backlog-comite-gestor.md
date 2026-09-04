@@ -203,12 +203,18 @@ Pessoa/equipe
   vazio e sobre a seed, com os indicadores idênticos nos dois caminhos.
 - [x] CG-050 foi concluída em 2026-09-02: CRUD de despesas da missão com
   passagem, cotações e diária, e todos os totais derivados em `numeric`.
+- [x] CG-051 foi concluída em 2026-09-02: upload e download seguros, com tipo
+  decidido pelo conteúdo, chave opaca, versionamento sem perda e permissão
+  herdada da entidade de destino.
+- [x] CG-014 foi concluída em 2026-09-02: modelo documental decidido e
+  registrado em [modelo-documental.md](modelo-documental.md), com três pontos
+  institucionais propostos e ainda por confirmar.
 - [x] CG-009 foi concluída em 2026-09-02: o documento da equipe respondeu tipos
   de despesa, formatos, abertura da prestação e a natureza da estimativa; o
   responsável decidiu BRL único, abatimento do aporte por prestação validada e
   requisitos agnósticos ao tipo de missão.
-- [x] O backlog possui 70 tasks rastreáveis: 33 concluídas, 11 em andamento e
-  26 pendentes. Esses números são retrato de 2026-09-02 e devem ser atualizados
+- [x] O backlog possui 70 tasks rastreáveis: 35 concluídas, 11 em andamento e
+  24 pendentes. Esses números são retrato de 2026-09-02 e devem ser atualizados
   quando um checkbox mudar.
 
 Próxima ação obrigatória: **obter o aceite da folha de aprovação** de
@@ -745,7 +751,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   `'NAO_INICIADA'::text` fixo de `missoes-comite.service.ts` por um `left join`
   nesta tabela — o contrato da lista já foi desenhado para não mudar de formato.
 
-- [ ] **CG-014 — Definir o modelo documental e o armazenamento**
+- [x] **CG-014 — Definir o modelo documental e o armazenamento**
 
   Avaliar a evolução da tabela genérica `anexo` para suportar:
 
@@ -767,6 +773,42 @@ Essa situação é calculada a partir das datas e não é persistida.
   Dependências: CG-004 e CG-009.
 
   Critério de aceite: decisão documentada antes de implementar upload.
+
+  Concluída em 2026-09-02: a decisão está em
+  [modelo-documental.md](modelo-documental.md), escrita **antes** de qualquer
+  linha de upload, como o critério exige.
+
+  As escolhas que valem registro aqui:
+
+  - **`anexo` evolui, não nasce uma segunda tabela.** Uma tabela paralela
+    obrigaria toda consulta a perguntar em dois lugares e a conciliação de
+    parceiros (CG-025) a transferir as duas. O custo aceito é `entidade_id` sem
+    chave estrangeira — preço do polimorfismo, mitigado com `entidade_tipo`
+    fechado e verificação no serviço;
+  - **as categorias vêm do documento da equipe** (§15, §27, §28) em uma coluna
+    só. Três colunas exigiriam saber de antemão qual ler, e o que distingue foto
+    de evidência já é a própria categoria;
+  - **"documentos analisados" (§19) é tabela de ligação, não vínculo direto.** Se
+    o documento apontasse para a decisão, anexar um arquivo novo depois mudaria
+    retroativamente o que o parecer diz ter analisado;
+  - **substituir cria versão nova e preserva a anterior.** O §19 proíbe apagar
+    do histórico, e a CG-057 exige preservar a versão anterior: se o arquivo que
+    o Comitê analisou pudesse ser sobrescrito, o parecer citaria um documento que
+    ninguém mais vê. Não há exclusão, só inativação;
+  - **nada é servido por URL estática.** Todo download passa por endpoint
+    autenticado, e a chave de armazenamento é opaca — nome de arquivo enviado
+    pelo usuário vira caminho previsível e vaza nome de bolsista ou número de
+    processo. Validação por **conteúdo**, não por extensão;
+  - **formatos** conforme a §15 homologada na CG-009; **25 MB** por arquivo, que
+    acomoda PDF digitalizado e foto de celular sem virar depósito de vídeo.
+
+  Três pontos ficaram **propostos e não decididos**, por serem institucionais e
+  não técnicos: retenção após o encerramento (proposta: guarda permanente
+  enquanto o ciclo existir), política de backup (depende da infraestrutura da
+  UEA) e classificação de visibilidade (proposta: `INTERNA` e `RESTRITA`, sem a
+  qual a exigência da CG-057 de "não expor arquivo privado" não tem como ser
+  cumprida). A CG-051 implementa a proposta e o campo fica pronto para a regra
+  definitiva.
 
 - [x] **CG-015 — Gerar e verificar migrations**
 
@@ -1913,7 +1955,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   de teste criados na base de desenvolvimento foram removidos e os aportes da
   P17 conferidos depois (R$ 1.525.332,00).
 
-- [ ] **CG-051 — Implementar upload e download seguro de documentos**
+- [x] **CG-051 — Implementar upload e download seguro de documentos**
 
   - aceitar apenas os formatos homologados na CG-009;
   - limite configurável de tamanho;
@@ -1932,6 +1974,53 @@ Essa situação é calculada a partir das datas e não é persistida.
   Dependências: CG-009 e CG-014.
 
   Critério de aceite: arquivos inválidos e acessos sem permissão são recusados.
+
+  Concluída em 2026-09-02, sobre o modelo decidido na CG-014. A tabela `anexo`
+  evoluiu (migration `0027_modelo_documental.sql`) e a API vive em `/anexos`.
+
+  **O tipo é decidido pelo conteúdo, não pela extensão.** Extensão e
+  `Content-Type` vêm do cliente e mentem juntos: renomear `virus.exe` para
+  `nota.pdf` muda os dois e não muda um byte do arquivo. A verificação lê a
+  assinatura dos primeiros bytes **e** exige que a extensão declarada combine —
+  um `.pdf` cujo conteúdo é ZIP é recusado, mesmo ZIP sendo assinatura legítima
+  de `.docx`. Verificado por mutação: trocar a checagem por "confia na extensão"
+  quebra 4 testes.
+
+  **O caminho interno nunca sai.** A chave é opaca (`<ano>/<uuid>`), gerada pelo
+  sistema e nunca derivada do nome enviado — nome vira caminho previsível e vaza
+  dado (nome de bolsista, número de processo). O download passa por endpoint
+  autenticado; sem sessão, `401`. Há também guarda contra chave que escape da
+  raiz de armazenamento: hoje ela nunca dispara, porque a chave é sempre gerada
+  internamente, mas o dia em que alguém aceitar chave vinda de fora a checagem
+  já está no lugar certo.
+
+  **A permissão é a da entidade de destino**, e por isso o controller não tem
+  `@RequirePermission`: anexar à prestação exige `prestacao:write`, ao parceiro
+  `parceiro:write`, à missão `missao:edit`. Um decorador fixo teria de escolher
+  a permissão mais fraca. A tabela de política é explícita — um `default`
+  permissivo faria um `entidade_tipo` novo nascer sem dono. Validado com sessão
+  real: cada recusa nomeia a permissão da entidade alvo.
+
+  Outras garantias: existência da entidade de destino conferida no serviço (o
+  `entidade_id` não tem chave estrangeira, então sem isso o upload criaria órfão
+  no ato); limite de 25 MB configurável por `ANEXO_TAMANHO_MAXIMO`; SHA-256
+  gravado e conferido contra o arquivo original; substituição criando versão
+  nova com a anterior preservada e ainda baixável pelo `id`; histórico da cadeia
+  de versões; e inativação com justificativa e trilha, sem exclusão.
+
+  `PRODUTO_MISSAO`, `CONVENIO`, `SUBMISSAO_MISSAO` e `DECISAO_COMITE` **não**
+  entraram no enum de destino porque suas tabelas ainda não existem (CG-056 e
+  CG-019) — aceitar upload apontando para tabela inexistente seria criar órfão
+  no ato. Entram junto com as tasks delas.
+
+  **Antivírus/quarentena não foi implementado.** O item dizia "quando exigido",
+  não há scanner disponível no ambiente e a exigência não foi homologada;
+  declarar suporte a antivírus sem um seria pior do que a ausência. O ponto de
+  inserção é único: `validarArquivo` em `anexos.service.ts`, antes de
+  `armazenamento.guardar`.
+
+  Cobertura: 7 unitários dos formatos e 11 integrações; resultado geral **55
+  unitários da API, 63 regressões da web e 238 integrações aprovados**.
 
 - [ ] **CG-052 — Associar documentos às despesas**
 

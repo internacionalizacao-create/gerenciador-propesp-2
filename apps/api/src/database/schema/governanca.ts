@@ -1,5 +1,8 @@
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import {
+  boolean,
+  char,
+  check,
   date,
   index,
   integer,
@@ -10,15 +13,19 @@ import {
   uniqueIndex,
   uuid,
   varchar,
+  type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 
 import {
+  categoriaAnexoEnum,
+  entidadeAnexoEnum,
   escopoPendenciaEnum,
   id,
   nivelImpactoEnum,
   origemPendenciaEnum,
   statusPendenciaEnum,
   timestamps,
+  visibilidadeAnexoEnum,
 } from './comum';
 import { ciclo } from './programa';
 
@@ -71,23 +78,61 @@ export const pendencia = pgTable(
   ],
 );
 
+/**
+ * Documento anexado a qualquer entidade do dominio (CG-014/CG-051).
+ *
+ * Ver [docs/modelo-documental.md](../../../../../docs/modelo-documental.md)
+ * para a decisao completa. O essencial:
+ *
+ * - `caminho` guarda uma **chave opaca**, nunca o nome enviado pelo usuario.
+ *   Nome de arquivo vira caminho previsivel e vaza dado (nome de bolsista,
+ *   numero de processo). Ela nunca sai para o browser;
+ * - substituir cria **linha nova** apontando para a anterior por
+ *   `substitui_id`; a anterior fica. O parecer do Comite cita documentos, e um
+ *   arquivo sobrescrito faria o parecer citar algo que ninguem mais ve;
+ * - nao ha exclusao, so `ativo = false`.
+ */
 export const anexo = pgTable(
   'anexo',
   {
     id: id(),
+    /** Nome original, so para exibir e para o `Content-Disposition`. */
     nome: varchar('nome', { length: 300 }).notNull(),
     mimeType: varchar('mime_type', { length: 120 }).notNull(),
     tamanho: integer('tamanho').notNull(),
+    /** Chave opaca no armazenamento. Nunca devolvida ao cliente. */
     caminho: varchar('caminho', { length: 500 }).notNull(),
-    entidadeTipo: varchar('entidade_tipo', { length: 80 }).notNull(),
+    /** SHA-256 do conteudo: integridade e deteccao de duplicata exata. */
+    hashSha256: char('hash_sha256', { length: 64 }),
+    categoria: categoriaAnexoEnum('categoria').notNull().default('OUTRO'),
+    visibilidade: visibilidadeAnexoEnum('visibilidade')
+      .notNull()
+      .default('INTERNA'),
+    entidadeTipo: entidadeAnexoEnum('entidade_tipo').notNull(),
     entidadeId: uuid('entidade_id').notNull(),
+    /** Versao dentro da cadeia de substituicoes; comeca em 1. */
+    versao: integer('versao').notNull().default(1),
+    substituiId: uuid('substitui_id').references((): AnyPgColumn => anexo.id),
+    ativo: boolean('ativo').notNull().default(true),
+    /** `sub` do Keycloak — nome muda, identificador nao. */
+    enviadoPorId: varchar('enviado_por_id', { length: 200 }),
     enviadoPor: varchar('enviado_por', { length: 200 }),
     enviadoEm: timestamp('enviado_em', { withTimezone: true })
       .notNull()
       .defaultNow(),
+    /* Campos da galeria (secao 27); nulos fora dela. */
+    legenda: varchar('legenda', { length: 300 }),
+    dataEvidencia: date('data_evidencia'),
+    localEvidencia: varchar('local_evidencia', { length: 240 }),
     ...timestamps,
   },
-  (t) => [index('anexo_entidade_idx').on(t.entidadeTipo, t.entidadeId)],
+  (t) => [
+    index('anexo_entidade_idx').on(t.entidadeTipo, t.entidadeId),
+    index('anexo_categoria_idx').on(t.categoria),
+    uniqueIndex('anexo_caminho_uk').on(t.caminho),
+    check('anexo_versao_ck', sql`${t.versao} >= 1`),
+    check('anexo_tamanho_ck', sql`${t.tamanho} > 0`),
+  ],
 );
 
 export const registroAuditoria = pgTable(

@@ -588,6 +588,23 @@ o ícone estiver visível.
   aceitos são PDF, JPG, PNG, DOC/DOCX e XLS/XLSX; e a prestação abre
   **automaticamente** quando a viagem é marcada como realizada.
 
+  **Modelo documental decidido na CG-014**, antes de qualquer upload:
+  [docs/modelo-documental.md](docs/modelo-documental.md). Em resumo — a tabela
+  genérica `anexo` **evolui** em vez de ganhar uma irmã; substituir um arquivo
+  cria versão nova e preserva a anterior (não há exclusão); nada é servido por
+  URL estática, todo download passa por endpoint autenticado com chave de
+  armazenamento opaca; e o tipo do arquivo é validado pelo **conteúdo**, não
+  pela extensão. Os "documentos analisados" de um parecer são tabela de ligação,
+  nunca vínculo direto — senão anexar um arquivo depois mudaria retroativamente
+  o que o Comitê diz ter analisado.
+
+  **Upload de documentos (CG-051)** vive em `/anexos` e segue o modelo acima. O
+  controller **não** tem `@RequirePermission`: a permissão é a da entidade de
+  destino (`missao:edit`, `prestacao:write`, `parceiro:write`) e só se sabe
+  depois de ler o corpo — um decorador fixo teria de escolher a mais fraca.
+  Antivírus não existe; o ponto de inserção é `validarArquivo`, antes de
+  `armazenamento.guardar`.
+
   **Não iniciar a antiga CG-045:** obter o aceite
   institucional de CG-005 a CG-009 antes de alterar novamente o contrato da
   missão. O PDF não substitui silenciosamente as decisões confirmadas.
@@ -601,10 +618,10 @@ interface é **Coordenador de Temática**, não “membro do comitê”. Ediçã
 existente exige `plano:edit` (só `admin`), preserva código/rubrica e grava uma
 entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: somente
 2027 vem composto; 2028–2030 começam vazios e nunca copiam a quantidade automaticamente.
-- **Testes**: 111 unitários/regressões (48 API + 63 na web para toast, datas,
+- **Testes**: 118 unitários/regressões (55 API + 63 na web para toast, datas,
   React Hook Form/Zod, erros do multistep, formulários de parceiro,
   acessibilidade, cálculos monetários, montagem de série do gráfico e caminhos
-  do BFF) + 227 de integração contra Postgres
+  do BFF) + 238 de integração contra Postgres
   real. As duas garantias de não duplicação da linha
   histórica do parceiro foram verificadas por mutação: trocar o `exists` +
   `selectDistinct` por um `join` faz ambas falharem.

@@ -12,6 +12,9 @@ import { ContextoService } from './contexto.service';
 import { MissoesComiteService } from './missoes-comite.service';
 import { OrcamentoService } from './orcamento.service';
 import { PainelService } from './painel.service';
+import { AnexosController } from './anexos.controller';
+import { AnexosService } from './anexos.service';
+import { ArmazenamentoService } from '../arquivos/armazenamento.service';
 import { ParceirosController } from './parceiros.controller';
 import { PrestacaoService } from './prestacao.service';
 import { ParceirosService } from './parceiros.service';
@@ -41,6 +44,7 @@ import { CatalogoController, PpgsController } from './ppgs.controller';
     BolsistasController,
     PessoasController,
     ParceirosController,
+    AnexosController,
     ContatosParceirosController,
   ],
   providers: [
@@ -57,6 +61,8 @@ import { CatalogoController, PpgsController } from './ppgs.controller';
     MissoesComiteService,
     ParceirosService,
     PrestacaoService,
+    AnexosService,
+    ArmazenamentoService,
     ContatosParceirosService,
   ],
   exports: [ContextoService, OrcamentoService, PainelService, CatalogoService],

@@ -193,6 +193,81 @@ export const tipoDespesaMissaoEnum = pgEnum('tipo_despesa_missao', [
   'OUTRA',
 ]);
 
+/**
+ * Categorias de documento (CG-014), vindas do documento da equipe de orcamento:
+ * secao 15 (documentos da missao), 21-24 (comprovantes da prestacao), 27
+ * (fotos) e 28 (evidencias documentais).
+ *
+ * Uma coluna so, e nao tres. O que distingue foto de evidencia ja e a propria
+ * categoria; um segundo campo dizendo "isto e foto" repetiria a informacao e
+ * criaria a chance de os dois discordarem.
+ */
+export const categoriaAnexoEnum = pgEnum('categoria_anexo', [
+  // Secao 15 — antes da aprovacao
+  'PROJETO',
+  'CONVITE',
+  'PROGRAMACAO',
+  'JUSTIFICATIVA',
+  'ORCAMENTO',
+  // Secoes 21 a 24 — prestacao de contas
+  'PASSAGEM',
+  'BILHETE',
+  'COMPROVANTE',
+  'NOTA_FISCAL',
+  'COMPROVANTE_DIARIAS',
+  'COTACAO',
+  // Secao 27 — galeria
+  'FOTO_REUNIAO',
+  'FOTO_EVENTO',
+  'FOTO_VISITA',
+  'FOTO_ASSINATURA',
+  'FOTO_INSTITUICAO',
+  'FOTO_PARTICIPANTES',
+  // Secao 28 — evidencias documentais
+  'CERTIFICADO',
+  'ATA',
+  'NOTICIA',
+  'PUBLICACAO',
+  'APRESENTACAO',
+  'LISTA_PRESENCA',
+  'DECLARACAO',
+  'OUTRO',
+]);
+
+/**
+ * Visibilidade do documento (CG-014, proposta pendente de confirmacao).
+ *
+ * `RESTRITA` existe porque a CG-057 exige que a galeria nao exponha arquivo
+ * privado — sem algum eixo de visibilidade essa exigencia nao tem como ser
+ * cumprida.
+ */
+export const visibilidadeAnexoEnum = pgEnum('visibilidade_anexo', [
+  'INTERNA',
+  'RESTRITA',
+]);
+
+/**
+ * A que um documento pode se prender.
+ *
+ * Fechado de proposito: `entidade_id` nao tem chave estrangeira (e o preco do
+ * vinculo polimorfico), entao o vocabulario fechado mais a checagem de
+ * existencia no servico sao o que impede um `entidade_tipo` escrito errado de
+ * esconder o arquivo para sempre.
+ *
+ * `PRODUTO_MISSAO`, `CONVENIO`, `SUBMISSAO_MISSAO` e `DECISAO_COMITE` **nao**
+ * estao aqui porque suas tabelas ainda nao existem (CG-056 e CG-019). Aceitar
+ * upload apontando para tabela inexistente seria criar orfao no ato.
+ */
+export const entidadeAnexoEnum = pgEnum('entidade_anexo', [
+  'MISSAO_COMITE',
+  'ATIVIDADE_MISSAO',
+  'PRESTACAO_CONTAS_MISSAO',
+  'DESPESA_MISSAO',
+  'COTACAO_PASSAGEM',
+  'INSTITUICAO',
+  'PARCEIRO',
+]);
+
 export const statusRemanejamentoEnum = pgEnum('status_remanejamento', [
   'PROPOSTO',
   'AUTORIZADO',
