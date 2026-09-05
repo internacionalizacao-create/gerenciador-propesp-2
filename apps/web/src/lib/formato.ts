@@ -215,6 +215,26 @@ export function data(iso: string | null | undefined): string {
   return dataIsoParaBr(iso);
 }
 
+/**
+ * Instante (`timestamptz`) no fuso institucional, para o histórico.
+ *
+ * `America/Manaus` e não o fuso de quem abre a tela: o registro é da UEA, e um
+ * parecer emitido às 17h em Manaus não deve aparecer como 18h para quem lê de
+ * Brasília. Difere de `data()`, que trata data pura e por isso **não** passa
+ * por fuso nenhum — converter `2027-08-03` deslocaria o dia.
+ */
+export function dataHora(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const instante = new Date(iso);
+  if (Number.isNaN(instante.getTime())) return iso;
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Manaus",
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(instante);
+}
+
 /** Converte a data persistida em ISO para a entrada brasileira, sem fuso. */
 export function dataIsoParaBr(iso: string | null | undefined): string {
   if (!iso) return "";

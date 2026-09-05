@@ -168,6 +168,12 @@ if [[ "$USUARIO" == "admin" ]]; then
     # "aprovada" ser lido como "realizada".
     testar "$MID" "Situação perante o Comitê Gestor"
     testar "$MID" "Situação de execução da missão"
+    # CG-045 fatia 2: aba de analise. O numero da rodada nao e procuravel como
+    # "1a rodada" porque o React quebra `{numero}ª rodada` em dois nos de texto;
+    # a ancora e o sufixo, que sobrevive a isso.
+    testar "${MID}?aba=analise" "Situação da análise"
+    testar "${MID}?aba=analise" "Documentos exigidos"
+    testar "${MID}?aba=analise" "Histórico"
   fi
 fi
 

@@ -647,6 +647,55 @@ export interface MissaoDetalhe {
   historico: RegistroHistoricoMissao[];
 }
 
+/** Uma decisão do Comitê sobre uma rodada (CG-038). */
+export interface DecisaoComite {
+  id: string;
+  acao: "APROVAR" | "SOLICITAR_AJUSTES" | "REPROVAR";
+  parecer: string;
+  /** Data da reunião que deliberou; nula em `SOLICITAR_AJUSTES`. */
+  reuniaoData: string | null;
+  observacoes: string | null;
+  decididoPor: string | null;
+  decididoEm: string;
+  /** Fotografia do que existia no instante da decisão, com nome e versão. */
+  documentosAnalisados: {
+    anexoId: string;
+    versao: number;
+    nome: string;
+    categoria: string;
+  }[];
+}
+
+/**
+ * Uma passagem da missão pela análise (CG-019).
+ *
+ * `decisao` é nula enquanto a rodada está aberta — é o que distingue "aguarda
+ * o Comitê" de "já decidida", sem precisar de um campo de estado à parte.
+ */
+export interface RodadaAnalise {
+  id: string;
+  numero: number;
+  origem: "SUBMISSAO" | "REABERTURA";
+  /** Preenchida só na reabertura, onde é obrigatória. */
+  justificativa: string | null;
+  submetidoPor: string | null;
+  submetidoEm: string;
+  encerradaEm: string | null;
+  decisao: DecisaoComite | null;
+}
+
+/** Checklist de submissão (CG-037), lido de `requisito_submissao`. */
+export interface AvaliacaoSubmissao {
+  podeSubmeter: boolean;
+  requisitos: {
+    categoria: string;
+    obrigatorio: boolean;
+    descricao: string | null;
+    atendido: boolean;
+  }[];
+  pendencias: string[];
+}
+
 export interface ResumoMissoes {
   total: number;
   porStatus: Record<StatusMissao, number>;

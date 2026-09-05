@@ -641,7 +641,11 @@ o ícone estiver visível.
   nunca vínculo direto — senão anexar um arquivo depois mudaria retroativamente
   o que o Comitê diz ter analisado.
 
-  **Upload de documentos (CG-051)** vive em `/anexos` e segue o modelo acima. O
+  **Upload de documentos (CG-051)** vive em `/anexos` e segue o modelo acima.
+  O disco de desenvolvimento é `ARQUIVOS_DIR`, que por padrão resolve para
+  `apps/api/arquivos/` — ignorado pelo git desde 2026-09-05, porque o primeiro
+  upload criava o diretório dentro do repositório e nada ali pode ser
+  versionado. O
   controller **não** tem `@RequirePermission`: a permissão é a da entidade de
   destino (`missao:edit`, `prestacao:write`, `parceiro:write`) e só se sabe
   depois de ler o corpo — um decorador fixo teria de escolher a mais fraca.
@@ -703,6 +707,14 @@ o ícone estiver visível.
   analisados são **fotografados** no instante da decisão, com nome e versão:
   sem isso um upload posterior reescreveria o que o Comitê diz ter lido. Não há
   designação de relator, nem quórum, nem notificação.
+
+  **A tela da missão (CG-045)** está em
+  `/programas/[programa]/[ciclo]/comite-gestor/missoes/[id]`, com aba `Resumo`
+  (padrão, sem `?aba=`) e `Análise` (`?aba=analise`). As duas dimensões da
+  CG-006 aparecem sempre juntas e rotuladas — mostrar só uma faria "aprovada"
+  ser lido como "realizada". A aba de análise traz checklist, histórico de
+  rodadas e as ações de enviar, decidir e reabrir. Documentos e prestação são a
+  fatia seguinte.
 
   Os papéis `gestor-rede` e `comite-gestor` existem no realm e em
   `ROLE_PERMISSIONS`, mas **não devem ser atribuídos ainda**: missões e

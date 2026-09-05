@@ -39,6 +39,14 @@ export interface EstadoDaAcao {
    * sem descartar o que a pessoa já digitou.
    */
   candidatos?: CandidatoDuplicidade[];
+  /**
+   * Só vem no 422 da submissão (CG-037): os documentos obrigatórios que
+   * faltam. Fica fora de `erros` pelo mesmo motivo de `candidatos` — não
+   * pertence a campo nenhum do formulário, e sim ao estado da missão. Trocar
+   * a lista por "não foi possível enviar" apagaria justamente o que diz à
+   * pessoa o que fazer a seguir.
+   */
+  pendencias?: string[];
 }
 
 export const ESTADO_INICIAL: EstadoDaAcao = { ok: false };

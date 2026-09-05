@@ -70,6 +70,7 @@ export function traduzirErro(erro: unknown): EstadoDaAcao {
         message?: string;
         erros?: { campo: string; mensagem: string }[];
         candidatos?: CandidatoDuplicidade[];
+        pendencias?: string[];
       }
     | undefined;
 
@@ -83,6 +84,9 @@ export function traduzirErro(erro: unknown): EstadoDaAcao {
     // Repassado inteiro: o 409 de duplicidade so e util se a tela puder
     // mostrar QUAIS cadastros a API considerou equivalentes.
     candidatos: corpo?.candidatos,
+    // Mesmo motivo no 422 da submissao: sem a lista, "nao foi possivel
+    // enviar" nao diz qual documento anexar.
+    pendencias: corpo?.pendencias,
   };
 }
 

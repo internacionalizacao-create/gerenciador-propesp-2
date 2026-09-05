@@ -28,3 +28,10 @@ Thumbs.db
 # planilhas e anexos originais (a extracao versionada esta em
 # apps/api/src/database/seed/planilha/)
 dados
+
+# Armazenamento local dos anexos (CG-051). O padrao de `ARQUIVOS_DIR` e
+# `./arquivos` relativo a apps/api, entao o primeiro upload em desenvolvimento
+# criaria o diretorio dentro do repositorio. Sao documentos institucionais —
+# projeto, justificativa, comprovante financeiro — e nenhum deles pode ser
+# versionado, nem por engano.
+arquivos/

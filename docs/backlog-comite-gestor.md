@@ -1941,9 +1941,34 @@ Essa situação é calculada a partir das datas e não é persistida.
   A tela não soma nem deriva nada: dias inclusivos, situação temporal e totais
   chegam calculados da API.
 
-  Faltam as fatias 2 (análise: rodadas, pareceres, ações de enviar e decidir) e
-  3 (documentos e prestação), além da navegação por abas — que só faz sentido
-  quando houver mais de uma.
+  **Fatia 2 (2026-09-05): análise.** Aba `?aba=analise` com situação, checklist
+  de documentos, histórico de rodadas e as três ações —
+  [acoes/analise.ts](../apps/web/src/acoes/analise.ts) e
+  [acoes-analise.tsx](../apps/web/src/componentes/formularios/acoes-analise.tsx).
+  A navegação por abas nasceu aqui, com a segunda: uma aba sozinha é decoração.
+
+  O 422 da CG-037 precisou de um canal próprio até a tela. `EstadoDaAcao` ganhou
+  `pendencias`, pelo mesmo motivo de `candidatos`: a lista não pertence a campo
+  nenhum do formulário, e trocá-la por "não foi possível enviar" apagaria
+  justamente o que diz o que anexar. **O botão de enviar não é desabilitado
+  quando falta documento** — quem decide é a API, e desabilitar esconderia o
+  motivo.
+
+  O campo da data da reunião aparece só em aprovar e reprovar. A API já recusa
+  a combinação errada; esconder o campo evita que a pessoa a construa.
+
+  `dataHora` entrou em `formato.ts` fixando `America/Manaus` — a terceira
+  repetição do fuso no repositório virou função. É o oposto de `data()`, que
+  trata data pura e por isso **não** passa por fuso: converter `2027-08-03`
+  deslocaria o dia.
+
+  Verificado contra a aplicação real, e não só por teste: 422 com as duas
+  pendências, upload dos dois PDFs, envio, **recusa de edição com 409 durante a
+  análise**, solicitação de ajustes, reenvio criando a rodada 2, aprovação e
+  reabertura criando a rodada 3 — com as três rodadas e as duas decisões
+  visíveis no histórico, cada uma com seus 2 documentos fotografados.
+
+  Falta a fatia 3 (documentos e prestação).
 
   **Um achado sério durante a verificação desta fatia**, sem relação com a
   interface: o `/me` respondia **500** e derrubava a aplicação inteira. O realm
