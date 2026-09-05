@@ -481,7 +481,8 @@ gerenciador/
 ### Próximos blocos
 
 - Escopo real de autorização por PPG/temática.
-- Upload/versionamento de documentos pessoais e evidências.
+- Interface para documentos pessoais e evidências; upload, download,
+  versionamento e associação a despesas/cotações já existem na API.
 - Registro de eventos e movimentações externas da CAPES.
 - Panorama e mapa de mobilidade.
 - Relatórios e exportações.

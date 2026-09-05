@@ -1,6 +1,6 @@
 # Backlog — Comitê Gestor e Administração
 
-Última atualização: 2026-09-02.
+Última atualização: 2026-09-05.
 
 Documento de continuidade para a evolução da atual P17. O objetivo é permitir
 que outra pessoa ou agente retome o trabalho sem depender do histórico da
@@ -146,8 +146,9 @@ Pessoa/equipe
   vida e relato do realizado (CG-030 a CG-036). Aprovação, redes e parceiros são
   evoluções novas e não anulam essa entrega histórica.
 - [~] A lista e o cadastro de missões estão implementados. Falta o detalhe e o
-  relato na interface (CG-045 e CG-046), além de todo o Épico 5 — prestação,
-  despesas e PDFs.
+  relato na interface (CG-045 e CG-046). No Épico 5, schema, CRUD de despesas,
+  upload seguro e associação de documentos estão entregues (CG-013/014 e
+  CG-050 a CG-052); faltam interface, envio, revisão e indicadores.
 - [x] O novo documento de expectativas foi auditado contra as 40 seções e o
   resultado foi documentado sem alterar regras de negócio ainda não homologadas.
 - [~] A fundação de dados de parceiros e contatos foi implementada na CG-017.
@@ -206,6 +207,9 @@ Pessoa/equipe
 - [x] CG-051 foi concluída em 2026-09-02: upload e download seguros, com tipo
   decidido pelo conteúdo, chave opaca, versionamento sem perda e permissão
   herdada da entidade de destino.
+- [x] CG-052 foi concluída em 2026-09-05: documentos de passagem, diária e
+  cotações têm categoria compatível com o alvo, preservam autoria, data e
+  versões, e despesas documentadas não podem deixar anexos órfãos.
 - [x] CG-014 foi concluída em 2026-09-02: modelo documental decidido e
   registrado em [modelo-documental.md](modelo-documental.md), com três pontos
   institucionais propostos e ainda por confirmar.
@@ -213,8 +217,8 @@ Pessoa/equipe
   de despesa, formatos, abertura da prestação e a natureza da estimativa; o
   responsável decidiu BRL único, abatimento do aporte por prestação validada e
   requisitos agnósticos ao tipo de missão.
-- [x] O backlog possui 70 tasks rastreáveis: 35 concluídas, 11 em andamento e
-  24 pendentes. Esses números são retrato de 2026-09-02 e devem ser atualizados
+- [x] O backlog possui 70 tasks rastreáveis: 36 concluídas, 11 em andamento e
+  23 pendentes. Esses números são retrato de 2026-09-05 e devem ser atualizados
   quando um checkbox mudar.
 
 Próxima ação obrigatória: **obter o aceite da folha de aprovação** de
@@ -2022,7 +2026,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   Cobertura: 7 unitários dos formatos e 11 integrações; resultado geral **55
   unitários da API, 63 regressões da web e 238 integrações aprovados**.
 
-- [ ] **CG-052 — Associar documentos às despesas**
+- [x] **CG-052 — Associar documentos às despesas**
 
   - documento de passagem;
   - comprovante ou memória de cálculo de diária;
@@ -2032,6 +2036,27 @@ Essa situação é calculada a partir das datas e não é persistida.
   - substituição versionada, sem apagar silenciosamente a versão anterior.
 
   Dependências: CG-050 e CG-051.
+
+  Concluída em 2026-09-05. A API genérica de anexos ganhou a validação de
+  domínio que faltava: passagem aceita passagem, bilhete, comprovante e nota;
+  diária aceita comprovante próprio; outras despesas aceitam comprovante e
+  nota; e documento ligado diretamente a `COTACAO_PASSAGEM` exige a categoria
+  `COTACAO`. `OUTRO` permanece disponível na despesa como escape homologado.
+
+  Vários documentos podem apontar para a mesma despesa, enquanto cada cotação
+  mantém a própria coleção pelo seu `id`. A autoria (`sub` e nome), o instante
+  do envio e a substituição versionada continuam vindo da CG-051, sem criar
+  uma segunda tabela documental.
+
+  O vínculo polimórfico não possui chave estrangeira, então a proteção também
+  cobre o caminho inverso: remover uma despesa documentada é recusado, e editar
+  uma passagem não pode apagar silenciosamente uma cotação que já possui
+  documento. Trocar o tipo da despesa também é recusado quando tornaria uma
+  categoria existente incompatível.
+
+  Não houve migration. Cobertura: quatro fluxos integrados novos em
+  `anexos.int-spec.ts` e dois em `prestacao.int-spec.ts`, além dos testes já
+  existentes de armazenamento, permissão e versão.
 
 - [ ] **CG-053 — Construir interface da prestação**
 

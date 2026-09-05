@@ -18,6 +18,7 @@ import {
 } from '../arquivos/tipos-permitidos';
 import { DRIZZLE, type Database } from '../database/database.module';
 import * as s from '../database/schema';
+import { categoriaPermitidaParaDespesa } from './documentos-prestacao';
 
 /**
  * Upload e download de documentos (CG-051), sobre o modelo decidido na CG-014.
@@ -190,6 +191,7 @@ export class AnexosService {
     const politica = POLITICA[dto.entidadeTipo];
     this.exigir(usuario, politica.escrever);
     await this.exigirEntidade(dto.entidadeTipo, dto.entidadeId);
+    await this.validarAssociacaoPrestacao(dto);
 
     const tipo = this.validarArquivo(arquivo);
     const { chave, hash } = await this.armazenamento.guardar(arquivo.buffer);
@@ -368,6 +370,36 @@ export class AnexosService {
     if (!existe) {
       throw new BadRequestException(
         'A entidade de destino do documento nao existe.',
+      );
+    }
+  }
+
+  /**
+   * O alvo existir nao basta para documentos financeiros: a categoria precisa
+   * corresponder ao tipo da despesa, e cotacao tem documento proprio.
+   */
+  private async validarAssociacaoPrestacao(dto: EnviarAnexo): Promise<void> {
+    if (dto.entidadeTipo === 'COTACAO_PASSAGEM') {
+      if (dto.categoria !== 'COTACAO') {
+        throw new BadRequestException(
+          'Documento de cotacao deve usar a categoria COTACAO.',
+        );
+      }
+      return;
+    }
+    if (dto.entidadeTipo !== 'DESPESA_MISSAO') return;
+
+    const [despesa] = await this.db
+      .select({ tipo: s.despesaMissao.tipo })
+      .from(s.despesaMissao)
+      .where(eq(s.despesaMissao.id, dto.entidadeId))
+      .limit(1);
+    if (
+      !despesa ||
+      !categoriaPermitidaParaDespesa(despesa.tipo, dto.categoria)
+    ) {
+      throw new BadRequestException(
+        `A categoria ${dto.categoria} nao e compativel com despesa ${despesa?.tipo ?? 'desconhecida'}.`,
       );
     }
   }

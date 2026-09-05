@@ -4,12 +4,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 import type { AuthUser } from '../auth/auth-user';
 import { DRIZZLE, type Database } from '../database/database.module';
 import * as s from '../database/schema';
+import { categoriaPermitidaParaDespesa } from './documentos-prestacao';
 
 /**
  * Prestação de contas da missão — CRUD e cálculos (CG-050).
@@ -353,6 +354,7 @@ export class PrestacaoService {
       );
       const atual = await this.obterDespesa(prestacao.id, despesaId, tx);
       await this.validarReferencias(missaoId, dto, tx);
+      await this.validarDocumentosNaEdicao(atual, dto, tx);
 
       await tx
         .delete(s.despesaPassagem)
@@ -412,6 +414,7 @@ export class PrestacaoService {
         tx,
       );
       const atual = await this.obterDespesa(prestacao.id, despesaId, tx);
+      await this.exigirDespesaSemDocumentos(atual.id, tx);
       await tx.delete(s.despesaMissao).where(eq(s.despesaMissao.id, atual.id));
       await tx.insert(s.registroAuditoria).values({
         entidadeTipo: 'DESPESA_MISSAO',
@@ -700,6 +703,96 @@ export class PrestacaoService {
         .where(eq(s.pais.id, dto.diaria.paisId))
         .limit(1);
       if (!pais) throw new BadRequestException('Pais nao encontrado.');
+    }
+  }
+
+  /**
+   * Editar nao pode mudar o significado de um documento ja anexado nem apagar
+   * uma cotacao que possui arquivo historico. O anexo e polimorfico e nao tem
+   * FK; sem estas travas a alteracao deixaria uma referencia orfa em silencio.
+   */
+  private async validarDocumentosNaEdicao(
+    atual: typeof s.despesaMissao.$inferSelect,
+    dto: CriarDespesa,
+    db: DbOperacoes,
+  ): Promise<void> {
+    const documentos = await db
+      .select({ categoria: s.anexo.categoria })
+      .from(s.anexo)
+      .where(
+        and(
+          eq(s.anexo.entidadeTipo, 'DESPESA_MISSAO'),
+          eq(s.anexo.entidadeId, atual.id),
+        ),
+      );
+    if (
+      documentos.some(
+        ({ categoria }) => !categoriaPermitidaParaDespesa(dto.tipo, categoria),
+      )
+    ) {
+      throw new BadRequestException(
+        'O novo tipo da despesa nao e compativel com os documentos anexados.',
+      );
+    }
+
+    if (atual.tipo !== 'PASSAGEM') return;
+    const cotacoes = await db
+      .select({ id: s.cotacaoPassagem.id })
+      .from(s.cotacaoPassagem)
+      .where(eq(s.cotacaoPassagem.despesaId, atual.id));
+    if (!cotacoes.length) return;
+    const [documento] = await db
+      .select({ id: s.anexo.id })
+      .from(s.anexo)
+      .where(
+        and(
+          eq(s.anexo.entidadeTipo, 'COTACAO_PASSAGEM'),
+          inArray(
+            s.anexo.entidadeId,
+            cotacoes.map(({ id }) => id),
+          ),
+        ),
+      )
+      .limit(1);
+    if (documento) {
+      throw new BadRequestException(
+        'A passagem possui cotacao com documento e nao pode substituir suas cotacoes.',
+      );
+    }
+  }
+
+  private async exigirDespesaSemDocumentos(
+    despesaId: string,
+    db: DbOperacoes,
+  ): Promise<void> {
+    const cotacoes = await db
+      .select({ id: s.cotacaoPassagem.id })
+      .from(s.cotacaoPassagem)
+      .where(eq(s.cotacaoPassagem.despesaId, despesaId));
+    const cotacoesIds = cotacoes.map(({ id }) => id);
+    const alvoCotacao = cotacoesIds.length
+      ? and(
+          eq(s.anexo.entidadeTipo, 'COTACAO_PASSAGEM'),
+          inArray(s.anexo.entidadeId, cotacoesIds),
+        )
+      : undefined;
+    const [documento] = await db
+      .select({ id: s.anexo.id })
+      .from(s.anexo)
+      .where(
+        or(
+          and(
+            eq(s.anexo.entidadeTipo, 'DESPESA_MISSAO'),
+            eq(s.anexo.entidadeId, despesaId),
+          ),
+          alvoCotacao,
+        ),
+      )
+      .limit(1);
+    if (documento) {
+      throw new BadRequestException(
+        'A despesa possui documentos e deve ser preservada no historico.',
+      );
     }
   }
 

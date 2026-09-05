@@ -54,6 +54,9 @@ describe('AnexosService (CG-051)', () => {
   let raiz: string;
   let missaoId: string;
   let parceiroId: string;
+  let passagemId: string;
+  let diariaId: string;
+  let cotacoesIds: string[];
 
   beforeAll(async () => {
     ctx = await criarContextoTeste();
@@ -81,6 +84,49 @@ describe('AnexosService (CG-051)', () => {
       })
       .returning({ id: s.missaoComite.id });
     missaoId = missao.id;
+
+    const [prestacao] = await ctx.db
+      .insert(s.prestacaoContasMissao)
+      .values({ missaoId })
+      .returning({ id: s.prestacaoContasMissao.id });
+    const [passagem] = await ctx.db
+      .insert(s.despesaMissao)
+      .values({
+        prestacaoId: prestacao.id,
+        tipo: 'PASSAGEM',
+        exercicio: 2027,
+        valorTotal: '4200.00',
+        descricao: 'Passagem internacional',
+      })
+      .returning({ id: s.despesaMissao.id });
+    passagemId = passagem.id;
+    await ctx.db.insert(s.despesaPassagem).values({ despesaId: passagem.id });
+    cotacoesIds = (
+      await ctx.db
+        .insert(s.cotacaoPassagem)
+        .values([
+          { despesaId: passagem.id, empresa: 'Empresa A', valor: '4200.00' },
+          { despesaId: passagem.id, empresa: 'Empresa B', valor: '4500.00' },
+        ])
+        .returning({ id: s.cotacaoPassagem.id })
+    ).map(({ id }) => id);
+
+    const [diaria] = await ctx.db
+      .insert(s.despesaMissao)
+      .values({
+        prestacaoId: prestacao.id,
+        tipo: 'DIARIA',
+        exercicio: 2027,
+        valorTotal: '3000.00',
+        descricao: 'Diarias da missao',
+      })
+      .returning({ id: s.despesaMissao.id });
+    diariaId = diaria.id;
+    await ctx.db.insert(s.despesaDiaria).values({
+      despesaId: diaria.id,
+      dataInicio: '2027-03-01',
+      dataFim: '2027-03-05',
+    });
 
     const [parceiro] = await ctx.db
       .insert(s.instituicao)
@@ -299,5 +345,138 @@ describe('AnexosService (CG-051)', () => {
       admin,
     );
     expect(salvo.entidadeTipo).toBe('INSTITUICAO');
+  });
+
+  it('associa varios documentos a passagem com autoria e data', async () => {
+    const passagem = await service.enviar(
+      envio({
+        entidadeTipo: 'DESPESA_MISSAO',
+        entidadeId: passagemId,
+        categoria: 'PASSAGEM',
+      }),
+      PDF(),
+      admin,
+    );
+    const bilhete = await service.enviar(
+      envio({
+        entidadeTipo: 'DESPESA_MISSAO',
+        entidadeId: passagemId,
+        categoria: 'BILHETE',
+      }),
+      PNG(),
+      admin,
+    );
+
+    const documentos = await service.listar(
+      {
+        entidadeTipo: 'DESPESA_MISSAO',
+        entidadeId: passagemId,
+        incluirInativos: false,
+      },
+      admin,
+    );
+    expect(documentos.map(({ id }) => id).sort()).toEqual(
+      [passagem.id, bilhete.id].sort(),
+    );
+    expect(
+      documentos.every(({ enviadoPor }) => enviadoPor === admin.name),
+    ).toBe(true);
+    expect(documentos.every(({ enviadoEm }) => enviadoEm instanceof Date)).toBe(
+      true,
+    );
+  });
+
+  it('associa comprovante de diaria e recusa categoria de passagem', async () => {
+    const comprovante = await service.enviar(
+      envio({
+        entidadeTipo: 'DESPESA_MISSAO',
+        entidadeId: diariaId,
+        categoria: 'COMPROVANTE_DIARIAS',
+      }),
+      PDF(),
+      admin,
+    );
+    expect(comprovante).toMatchObject({
+      entidadeId: diariaId,
+      categoria: 'COMPROVANTE_DIARIAS',
+    });
+
+    await expect(
+      service.enviar(
+        envio({
+          entidadeTipo: 'DESPESA_MISSAO',
+          entidadeId: diariaId,
+          categoria: 'BILHETE',
+        }),
+        PDF(),
+        admin,
+      ),
+    ).rejects.toThrow(/nao e compativel/i);
+  });
+
+  it('mantem o documento individual de cada cotacao', async () => {
+    for (const cotacaoId of cotacoesIds) {
+      await service.enviar(
+        envio({
+          entidadeTipo: 'COTACAO_PASSAGEM',
+          entidadeId: cotacaoId,
+          categoria: 'COTACAO',
+        }),
+        PDF(),
+        admin,
+      );
+    }
+
+    for (const cotacaoId of cotacoesIds) {
+      const documentos = await service.listar(
+        {
+          entidadeTipo: 'COTACAO_PASSAGEM',
+          entidadeId: cotacaoId,
+          incluirInativos: false,
+        },
+        admin,
+      );
+      expect(documentos).toHaveLength(1);
+      expect(documentos[0]).toMatchObject({
+        entidadeId: cotacaoId,
+        categoria: 'COTACAO',
+      });
+    }
+
+    await expect(
+      service.enviar(
+        envio({
+          entidadeTipo: 'COTACAO_PASSAGEM',
+          entidadeId: cotacoesIds[0],
+          categoria: 'NOTA_FISCAL',
+        }),
+        PDF(),
+        admin,
+      ),
+    ).rejects.toThrow(/categoria COTACAO/i);
+  });
+
+  it('substitui documento de cotacao sem perder o vinculo nem a versao', async () => {
+    const original = await service.enviar(
+      envio({
+        entidadeTipo: 'COTACAO_PASSAGEM',
+        entidadeId: cotacoesIds[0],
+        categoria: 'COTACAO',
+      }),
+      PDF(),
+      admin,
+    );
+    const nova = await service.substituir(original.id, PNG(), admin);
+
+    expect(nova).toMatchObject({
+      entidadeTipo: 'COTACAO_PASSAGEM',
+      entidadeId: cotacoesIds[0],
+      categoria: 'COTACAO',
+      substituiId: original.id,
+      versao: 2,
+    });
+    expect(
+      (await service.historico(nova.id, admin)).map(({ id }) => id),
+    ).toEqual([nova.id, original.id]);
   });
 });

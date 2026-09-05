@@ -4,7 +4,7 @@ Documento de referência para quem (pessoa ou LLM) vai mexer neste repositório 
 tê-lo escrito. Descreve o que existe hoje, por que está assim, e o que ainda não
 existe. **Mantenha-o atualizado quando mudar arquitetura ou convenção.**
 
-Última revisão: 2026-09-02.
+Última revisão: 2026-09-05.
 
 ---
 
@@ -605,6 +605,14 @@ o ícone estiver visível.
   Antivírus não existe; o ponto de inserção é `validarArquivo`, antes de
   `armazenamento.guardar`.
 
+  **Documentos da prestação (CG-052)** reutilizam a mesma API: anexos de
+  passagem, diária e outras despesas apontam para `DESPESA_MISSAO`; cada PDF de
+  cotação aponta para seu `COTACAO_PASSAGEM`. A categoria é validada contra o
+  tipo da despesa. Como `anexo` é polimórfico e não possui FK, o serviço de
+  prestação recusa remover uma despesa documentada ou apagar, durante edição,
+  uma cotação que tenha documento — preservar a linha é o que mantém o vínculo
+  histórico válido.
+
   **Não iniciar a antiga CG-045:** obter o aceite
   institucional de CG-005 a CG-009 antes de alterar novamente o contrato da
   missão. O PDF não substitui silenciosamente as decisões confirmadas.
@@ -677,7 +685,7 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
   `orcamento-por-rede-serie.ts`) e o resto depende do `pnpm smoke:telas`. É a
   ferramenta ditando a estrutura, e some com um runner que renderize componente
   (Vitest + Testing Library).
-- Upload/versionamento e política de acesso dos documentos pessoais, além do
+- Interface e política definitiva de acesso dos documentos pessoais, além do
   histórico de cancelamento, desistência, falecimento e substituição.
 - Rate limiting, auditoria abrangente fora das edições de plano/orçamento e
   observabilidade.

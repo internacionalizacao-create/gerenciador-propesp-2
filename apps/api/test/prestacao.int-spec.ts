@@ -396,6 +396,87 @@ describe('PrestacaoService (CG-050)', () => {
     );
   });
 
+  it('nao remove despesa que possui documento historico', async () => {
+    await service.criar(base.cicloId, missaoId, admin);
+    const criada = await service.criarDespesa(
+      base.cicloId,
+      missaoId,
+      despesa({ valorTotal: '500.00', descricao: 'Despesa documentada' }),
+      admin,
+    );
+    const despesaId = criada.despesas[0].id;
+    await ctx.db.insert(s.anexo).values({
+      nome: 'comprovante.pdf',
+      mimeType: 'application/pdf',
+      tamanho: 100,
+      caminho: '2027/documento-despesa',
+      categoria: 'COMPROVANTE',
+      entidadeTipo: 'DESPESA_MISSAO',
+      entidadeId: despesaId,
+    });
+
+    await expect(
+      service.removerDespesa(base.cicloId, missaoId, despesaId, admin),
+    ).rejects.toThrow(/preservada no historico/i);
+    expect(
+      await ctx.db
+        .select()
+        .from(s.despesaMissao)
+        .where(eq(s.despesaMissao.id, despesaId)),
+    ).toHaveLength(1);
+  });
+
+  it('nao apaga cotacao que possui documento ao editar passagem', async () => {
+    await service.criar(base.cicloId, missaoId, admin);
+    const criada = await service.criarDespesa(
+      base.cicloId,
+      missaoId,
+      despesa({
+        tipo: 'PASSAGEM',
+        valorTotal: '1000.00',
+        descricao: 'Passagem documentada',
+        passagem: {
+          cotacoes: [{ empresa: 'Agencia A', valor: '1100.00' }],
+        },
+      }),
+      admin,
+    );
+    const despesaId = criada.despesas[0].id;
+    const cotacaoId = criada.despesas[0].passagem?.cotacoes[0].id as string;
+    await ctx.db.insert(s.anexo).values({
+      nome: 'cotacao.pdf',
+      mimeType: 'application/pdf',
+      tamanho: 100,
+      caminho: '2027/documento-cotacao',
+      categoria: 'COTACAO',
+      entidadeTipo: 'COTACAO_PASSAGEM',
+      entidadeId: cotacaoId,
+    });
+
+    await expect(
+      service.atualizarDespesa(
+        base.cicloId,
+        missaoId,
+        despesaId,
+        despesa({
+          tipo: 'PASSAGEM',
+          valorTotal: '1000.00',
+          descricao: 'Passagem documentada',
+          passagem: {
+            cotacoes: [{ empresa: 'Agencia A', valor: '1100.00' }],
+          },
+        }),
+        admin,
+      ),
+    ).rejects.toThrow(/cotacao com documento/i);
+    expect(
+      await ctx.db
+        .select()
+        .from(s.cotacaoPassagem)
+        .where(eq(s.cotacaoPassagem.id, cotacaoId)),
+    ).toHaveLength(1);
+  });
+
   it('prestacao enviada nao aceita alteracao nesta etapa', async () => {
     // Envio e revisao sao a CG-054; ate la, quem enviou nao corrige por baixo.
     const prestacao = await service.criar(base.cicloId, missaoId, admin);
