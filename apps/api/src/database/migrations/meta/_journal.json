@@ -204,6 +204,13 @@
       "when": 1788632404363,
       "tag": "0028_submissao_decisoes_comite",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1788633591680,
+      "tag": "0029_identidade_escopo_acesso",
+      "breakpoints": true
     }
   ]
 }

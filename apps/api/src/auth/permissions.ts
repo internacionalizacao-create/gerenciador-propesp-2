@@ -43,6 +43,9 @@ export const PERMISSIONS = [
   'prestacao:read',
   'prestacao:write',
   'prestacao:review',
+  /** Ler e conceder escopo de acesso; ato administrativo, so do `admin`. */
+  'acesso:read',
+  'acesso:write',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];

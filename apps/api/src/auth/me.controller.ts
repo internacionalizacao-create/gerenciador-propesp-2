@@ -2,9 +2,12 @@ import { Controller, Get } from '@nestjs/common';
 
 import type { AuthUser } from './auth-user';
 import { CurrentUser, RequirePermission } from './auth.decorators';
+import { IdentidadeService } from './identidade.service';
 
 @Controller('me')
 export class MeController {
+  constructor(private readonly identidade: IdentidadeService) {}
+
   /**
    * Identidade do usuario logado, ja resolvida em permissoes.
    *
@@ -12,7 +15,13 @@ export class MeController {
    * decide de fato e sempre o guard no endpoint da acao, nao a UI.
    */
   @Get()
-  me(@CurrentUser() user: AuthUser) {
+  async me(@CurrentUser() user: AuthUser) {
+    // O vinculo com o cadastro local acontece aqui, e nao no guard: `/me` e o
+    // primeiro endpoint que o BFF chama depois do login, e o guard roda em toda
+    // requisicao — pagar uma escrita no banco a cada chamada para resolver algo
+    // que muda uma vez na vida da conta seria desperdicio puro.
+    const identidade = await this.identidade.resolver(user);
+
     return {
       id: user.id,
       username: user.username,
@@ -20,6 +29,8 @@ export class MeController {
       email: user.email,
       roles: user.roles,
       permissions: user.permissions,
+      pessoaId: identidade.pessoaId,
+      escopo: identidade.escopo,
     };
   }
 

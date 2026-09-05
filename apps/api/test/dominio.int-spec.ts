@@ -4,6 +4,8 @@ import {
 } from '@nestjs/common';
 import { and, eq } from 'drizzle-orm';
 
+import type { AuthUser } from '../src/auth/auth-user';
+import { IdentidadeService } from '../src/auth/identidade.service';
 import * as s from '../src/database/schema';
 import { executarSeed } from '../src/database/seed/seed';
 import { BolsistasService } from '../src/dominio/bolsistas.service';
@@ -25,6 +27,13 @@ import { PlanoService } from '../src/dominio/plano.service';
 import { PpgsService } from '../src/dominio/ppgs.service';
 import { ProgramasController } from '../src/dominio/programas.controller';
 import { criarContextoTeste, type ContextoTeste } from './db-teste';
+
+/** Escopo global: estes casos medem calculo, nao recorte de acesso. */
+const ADMIN: AuthUser = {
+  id: 'sub-admin-dominio',
+  roles: ['admin'],
+  permissions: ['ppg:read'],
+};
 
 /**
  * Servicos de dominio contra o Postgres real.
@@ -68,7 +77,10 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
     painel = new PainelService(ctx.db, orcamento);
     plano = new PlanoService(ctx.db, catalogo);
     ciclos = new CicloService(ctx.db, orcamento, plano);
-    ppgs = new PpgsService(ctx.db);
+    // Estes casos verificam o calculo da P14, nao o recorte de acesso: o
+    // usuario e `admin`, que enxerga todos os PPGs. O recorte tem cobertura
+    // propria em `acesso.int-spec.ts`.
+    ppgs = new PpgsService(ctx.db, new IdentidadeService(ctx.db));
     pendencias = new PendenciasService(ctx.db);
     programas = new ProgramasController(
       ctx.db,
@@ -814,7 +826,7 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
   // ------------------------------------------------------------------ //
   describe('PpgsService (P14)', () => {
     it('lista os 24 PPGs com bolsas e custo calculados', async () => {
-      const lista = await ppgs.listar();
+      const lista = await ppgs.listar(ADMIN);
 
       expect(lista).toHaveLength(24);
       expect(somarMoeda(lista.map((p) => p.custoAno))).toBe('1033513.40');
@@ -822,7 +834,9 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
     });
 
     it('mostra PPG sem bolsa como zero, e nao o esconde da lista', async () => {
-      const semBolsa = (await ppgs.listar()).filter((p) => p.bolsasAno === 0);
+      const semBolsa = (await ppgs.listar(ADMIN)).filter(
+        (p) => p.bolsasAno === 0,
+      );
 
       expect(semBolsa).toHaveLength(10);
       for (const p of semBolsa) expect(p.redes).toContain('UNICAMP');
@@ -870,8 +884,10 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
       // Vale registrar: PEND-006 aponta o PROFSAUDE, mas na planilha migrada
       // nenhum PPG aparece em duas tematicas. O alerta abaixo existe para o dia
       // em que aparecer, e este teste garante que ele nao dispara a toa.
-      const lista = await ppgs.listar();
-      const todos = await Promise.all(lista.map((p) => ppgs.detalhar(p.id)));
+      const lista = await ppgs.listar(ADMIN);
+      const todos = await Promise.all(
+        lista.map((p) => ppgs.detalhar(p.id, ADMIN)),
+      );
 
       expect(todos.filter((p) => p.alertaTematicaDuplicada)).toHaveLength(0);
     });
@@ -905,7 +921,7 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
         })
         .returning();
 
-      const detalhe = await ppgs.detalhar(participacao.ppgId);
+      const detalhe = await ppgs.detalhar(participacao.ppgId, ADMIN);
       expect(detalhe.alertaTematicaDuplicada).toContain('PEND-006');
       expect(detalhe.alertaTematicaDuplicada).toContain(
         tematicaOriginal.codigo.split('-')[0],
@@ -916,7 +932,8 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
         .where(eq(s.participacaoPpg.id, duplicada.id));
 
       expect(
-        (await ppgs.detalhar(participacao.ppgId)).alertaTematicaDuplicada,
+        (await ppgs.detalhar(participacao.ppgId, ADMIN))
+          .alertaTematicaDuplicada,
       ).toBeNull();
     });
   });

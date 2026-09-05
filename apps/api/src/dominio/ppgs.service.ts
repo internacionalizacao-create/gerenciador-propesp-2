@@ -2,6 +2,9 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { asc, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
+import type { AuthUser } from '../auth/auth-user';
+import { filtroPorPpg, podeVerPpg } from '../auth/escopo';
+import { IdentidadeService } from '../auth/identidade.service';
 import { consultar } from '../comum/consultar';
 import { DRIZZLE, type Database } from '../database/database.module';
 import * as s from '../database/schema';
@@ -66,9 +69,21 @@ export type PpgParcialDto = z.infer<typeof ppgParcialSchema>;
 
 @Injectable()
 export class PpgsService {
-  constructor(@Inject(DRIZZLE) private readonly db: Database) {}
+  constructor(
+    @Inject(DRIZZLE) private readonly db: Database,
+    private readonly identidade: IdentidadeService,
+  ) {}
 
-  async listar(): Promise<LinhaPpg[]> {
+  /**
+   * Lista os PPGs que o usuario enxerga.
+   *
+   * O recorte entra na consulta, e nao numa filtragem em memoria depois: filtrar
+   * fora do banco traria a tabela inteira para a aplicacao e vazaria a contagem
+   * real por qualquer soma feita antes do filtro.
+   */
+  async listar(usuario: AuthUser): Promise<LinhaPpg[]> {
+    const escopo = await this.identidade.escopoDe(usuario);
+
     return consultar<LinhaPpg>(
       this.db,
       sql`
@@ -113,12 +128,30 @@ export class PpgsService {
         left join pessoa   c  on c.id = p.coordenador_id
         left join custo    cu on cu.ppg_id = p.id
         left join vinculos v  on v.ppg_id  = p.id
+       where ${filtroPorPpg(escopo, sql`p.id`)}
        order by p.sigla
     `,
     );
   }
 
-  async detalhar(id: string) {
+  async detalhar(id: string, usuario: AuthUser) {
+    const escopo = await this.identidade.escopoDe(usuario);
+    if (!podeVerPpg(escopo, id)) {
+      // 404 e nao 403: dizer "existe, mas nao e seu" ja entrega que o PPG
+      // existe, e a lista nem sequer o mostrou.
+      throw new NotFoundException('PPG nao encontrado.');
+    }
+    return this.carregarDetalhe(id);
+  }
+
+  /**
+   * Leitura sem checagem de escopo, para uso interno depois de uma escrita.
+   *
+   * `criar` e `atualizar` ja passaram por `ppg:write`; refazer a checagem de
+   * leitura aqui faria o cadastro de um PPG fora do escopo terminar em 404
+   * depois de ter gravado.
+   */
+  private async carregarDetalhe(id: string) {
     const [ppg] = await this.db
       .select()
       .from(s.ppg)
@@ -229,7 +262,7 @@ export class PpgsService {
       .returning({ id: s.ppg.id });
 
     await this.gravarLinhas(criado.id, linhasPesquisa);
-    return this.detalhar(criado.id);
+    return this.carregarDetalhe(criado.id);
   }
 
   async atualizar(id: string, dto: PpgParcialDto) {
@@ -249,7 +282,7 @@ export class PpgsService {
       await this.gravarLinhas(id, linhasPesquisa);
     }
 
-    return this.detalhar(id);
+    return this.carregarDetalhe(id);
   }
 
   private async gravarLinhas(ppgId: string, nomes: string[]): Promise<void> {

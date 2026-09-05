@@ -14,3 +14,4 @@ export * from './comite-gestor';
 export * from './parceiros';
 export * from './prestacao';
 export * from './aprovacao';
+export * from './acesso';

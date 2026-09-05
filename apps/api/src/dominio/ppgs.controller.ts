@@ -8,7 +8,8 @@ import {
   Query,
 } from '@nestjs/common';
 
-import { RequirePermission } from '../auth/auth.decorators';
+import type { AuthUser } from '../auth/auth-user';
+import { CurrentUser, RequirePermission } from '../auth/auth.decorators';
 import { ZodValidationPipe } from '../comum/zod-validation.pipe';
 import { CatalogoService } from './catalogo.service';
 import {
@@ -26,14 +27,14 @@ export class PpgsController {
 
   @Get()
   @RequirePermission('ppg:read')
-  listar() {
-    return this.ppgs.listar();
+  listar(@CurrentUser() usuario: AuthUser) {
+    return this.ppgs.listar(usuario);
   }
 
   @Get(':id')
   @RequirePermission('ppg:read')
-  detalhar(@Param('id') id: string) {
-    return this.ppgs.detalhar(id);
+  detalhar(@Param('id') id: string, @CurrentUser() usuario: AuthUser) {
+    return this.ppgs.detalhar(id, usuario);
   }
 
   @Post()

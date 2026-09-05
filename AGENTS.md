@@ -88,6 +88,9 @@ apps/
         permissions.ts        catálogo de permissões + mapa papel -> permissões
         permissions.guard.ts  aplica @RequirePermission (global)
         token-verifier.service.ts  valida o JWT contra o JWKS do realm
+        identidade.service.ts liga `sub` do Keycloak a `pessoa`; resolve escopo
+        escopo.ts             traduz escopo em condição SQL (RECORTE_OBRIGATORIO)
+        acesso.controller.ts  admin concede/revoga escopo e reassocia pessoa
         me.controller.ts      GET /me e a sonda GET /me/exemplo-restrito
       comum/
         consultar.ts       envelope tipado para SQL cru
@@ -337,10 +340,50 @@ e mapeie em `ROLE_PERMISSIONS`. Papel sem entrada no mapa simplesmente não conc
 nada — não é erro (o Keycloak injeta `offline_access` e `uma_authorization` em
 todo token).
 
-**Quando a granularidade apertar** (permissão direta por usuário, escopo por
-programa de pós-graduação, delegação temporária), o ponto de mudança é
-`permissionsForRoles` — e só ele. Nenhum controller precisa mudar, porque nenhum
-menciona papel. Foi por isso que a indireção existe desde o começo.
+### Identidade local e escopo de acesso
+
+Papel responde **o que pode fazer**. Desde 2026-09-05 há mais duas perguntas,
+em tabelas separadas de propósito:
+
+| Pergunta | Onde vive |
+|---|---|
+| O que pode fazer? | papel no Keycloak → `permissionsForRoles` |
+| Quem é? | `usuario_sistema` — liga `sub` a `pessoa` |
+| Sobre o quê? | `escopo_acesso` — `GLOBAL`, `PPG` ou `REDE` |
+
+**O vínculo se faz no primeiro acesso, por e-mail.** O admin cria a conta no
+Keycloak com o mesmo e-mail da pessoa já cadastrada e
+[identidade.service.ts](apps/api/src/auth/identidade.service.ts) liga as duas em
+`GET /me` — é o caminho das pessoas já registradas em missões. Sem
+correspondência, cria pessoa nova: recusar o login deixaria o usuário preso sem
+nenhuma tela para pedir ajuda. Criar pessoa **não concede acesso** — escopo
+nasce vazio e é ato do `admin`, por `/acesso/usuarios/:id/escopos`.
+
+O vínculo acontece em `/me`, e não no guard: o guard roda em toda requisição, e
+pagar uma escrita por chamada para resolver algo que muda uma vez na vida da
+conta seria desperdício.
+
+**`RECORTE_OBRIGATORIO` em [escopo.ts](apps/api/src/auth/escopo.ts) é a decisão
+mais consequente do módulo.** Enquanto for `false`, conta **sem escopo nenhum**
+continua vendo tudo; quem já tem escopo cadastrado já é recortado hoje. O modo
+permissivo existe porque ligar o recorte antes de a PROPESP atribuir os escopos
+deixaria todo coordenador sem enxergar nada, no mesmo instante e sem explicação.
+Trocar para `true` fecha o sistema. Os dois modos têm teste.
+
+Uma sutileza que a implementação ingênua erra: quem tem escopo **de rede** e
+nenhum de PPG não está "sem configuração" — foi configurado para outra dimensão,
+e liberar todos os PPGs para ele seria vazamento. Por isso a checagem olha os
+dois tipos antes de concluir que ninguém configurou nada.
+
+O recorte entra **na consulta**, nunca numa filtragem em memória: filtrar fora
+do banco traz a tabela inteira para a aplicação e vaza a contagem real em
+qualquer soma feita antes do filtro. PPG fora do escopo responde **404, não
+403** — "existe, mas não é seu" já entrega que o PPG existe.
+
+**Quando a granularidade apertar** (permissão direta por usuário, delegação
+temporária), o ponto de mudança é `permissionsForRoles` — e só ele. Nenhum
+controller precisa mudar, porque nenhum menciona papel. Foi por isso que a
+indireção existe desde o começo.
 
 ---
 
@@ -496,7 +539,7 @@ o ícone estiver visível.
 
 - **Autenticação/autorização**: login e logout OIDC completos, sessão renovada
   automaticamente, guards globais, catálogo de permissões, realm versionado.
-- **Modelo de dados**: 44 tabelas em 11 módulos de schema Drizzle
+- **Modelo de dados**: 46 tabelas em 12 módulos de schema Drizzle
   ([apps/api/src/database/schema/](apps/api/src/database/schema/)), com migrations.
   Segue [system-structl.md](system-structl.md) §4.
 - **Seed com os dados reais** das planilhas e respostas formais
@@ -645,10 +688,10 @@ interface é **Coordenador de Temática**, não “membro do comitê”. Ediçã
 existente exige `plano:edit` (só `admin`), preserva código/rubrica e grava uma
 entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: somente
 2027 vem composto; 2028–2030 começam vazios e nunca copiam a quantidade automaticamente.
-- **Testes**: 122 unitários/regressões (58 API + 64 na web para toast, datas,
+- **Testes**: 127 unitários/regressões (63 API + 64 na web para toast, datas,
   React Hook Form/Zod, erros do multistep, formulários de parceiro,
   acessibilidade, contraste dos tokens, cálculos monetários, montagem de série
-  do gráfico e caminhos do BFF) + 261 de integração contra Postgres
+  do gráfico e caminhos do BFF) + 274 de integração contra Postgres
   real. As duas garantias de não duplicação da linha
   histórica do parceiro foram verificadas por mutação: trocar o `exists` +
   `selectDistinct` por um `join` faz ambas falharem.
@@ -689,14 +732,10 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
   (lista, busca, cadastro, edição, contatos e histórico); o que falta dela
   depende da CG-045, ainda bloqueada. A visibilidade por rede é a CG-028 —
   hoje parceiros e contatos são exclusivos do `admin`.
-- **Escopo por PPG na autorização.** `coordenador` é global, não "coordenador do
-  PPGDA". Continua sendo o próximo ponto de pressão: coordenadores lançam dados
-  desde o MVP ([system-structl.md](system-structl.md) §3.5), toda entidade já
-  carrega `ppgId`, e o ponto de mudança é `permissionsForRoles` mais um filtro
-  por escopo nas consultas de listagem.
-- Vínculo entre o `sub` do Keycloak e um registro local de `pessoa`. A identidade
-  vive só no token; o provisionamento (JIT no primeiro login é o usual) ainda
-  precisa ser decidido.
+- **Escopo aplicado além de PPGs.** O recorte já existe e funciona (ver §6),
+  mas por enquanto só a listagem e o detalhe de PPG o consultam. Plano, bolsas,
+  orçamento, missões e parceiros continuam sem recorte — é trabalho mecânico,
+  uma consulta por vez, e cada uma precisa de regressão própria.
 - Cobertura ampla de componentes na `web`. O `node --test` carrega TypeScript em
   modo strip-only: não lê `.tsx` e recusa *parameter property*
   (`constructor(readonly x: number)`). Por isso a lógica testável mora em `.ts`

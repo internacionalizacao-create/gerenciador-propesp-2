@@ -166,6 +166,28 @@ export const statusExecucaoEnum = pgEnum('status_execucao', [
  * ausencia da linha, nao um estado guardado. Ver `prestacao.ts`.
  */
 /**
+ * Alcance de um escopo de acesso.
+ *
+ * `GLOBAL` e o administrador: enxerga tudo. `PPG` e `REDE` recortam. Um mesmo
+ * usuario pode acumular varios escopos — coordenar dois PPGs, por exemplo.
+ */
+export const tipoEscopoAcessoEnum = pgEnum('tipo_escopo_acesso', [
+  'GLOBAL',
+  'PPG',
+  'REDE',
+]);
+
+/** Como o `sub` do Keycloak foi ligado a uma pessoa do cadastro local. */
+export const origemVinculoUsuarioEnum = pgEnum('origem_vinculo_usuario', [
+  /** E-mail do token bateu com o de uma pessoa ja cadastrada. */
+  'EMAIL',
+  /** Nao havia pessoa correspondente; o primeiro login criou uma. */
+  'CRIACAO_AUTOMATICA',
+  /** Um administrador associou a mao, corrigindo ou suprindo o automatico. */
+  'MANUAL',
+]);
+
+/**
  * Dimensao de **aprovacao** da missao (CG-006, CG-008 modelo B).
  *
  * E independente de `status_missao_comite`, que descreve a execucao. Uma missao
