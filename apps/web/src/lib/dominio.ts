@@ -696,6 +696,97 @@ export interface AvaliacaoSubmissao {
   pendencias: string[];
 }
 
+/** Documento anexado, como a API o devolve (CG-051). Sem `caminho`, e é o ponto. */
+export interface AnexoResumo {
+  id: string;
+  nome: string;
+  mimeType: string;
+  tamanho: number;
+  hashSha256: string | null;
+  categoria: string;
+  visibilidade: "INTERNA" | "RESTRITA" | "PUBLICA";
+  entidadeTipo: string;
+  entidadeId: string;
+  versao: number;
+  substituiId: string | null;
+  ativo: boolean;
+  enviadoPor: string | null;
+  enviadoEm: string;
+  legenda: string | null;
+  dataEvidencia: string | null;
+  localEvidencia: string | null;
+}
+
+export interface CotacaoPassagem {
+  id: string;
+  empresa: string;
+  valor: string;
+  obtidaEm: string | null;
+  observacoes: string | null;
+}
+
+export interface DespesaMissao {
+  id: string;
+  tipo: string;
+  participanteId: string | null;
+  participante: string | null;
+  exercicio: number;
+  quantidade: string | null;
+  valorUnitario: string | null;
+  valorTotal: string;
+  dataDocumento: string | null;
+  descricao: string;
+  observacoes: string | null;
+  passagem: {
+    empresa: string | null;
+    origem: string | null;
+    destino: string | null;
+    numeroVoo: string | null;
+    dataVoo: string | null;
+    compradaEm: string | null;
+    formaPagamento: string | null;
+    cotacoes: CotacaoPassagem[];
+  } | null;
+  diaria: {
+    dataInicio: string;
+    dataFim: string;
+    paisId: string | null;
+    pais: string | null;
+    cidade: string | null;
+  } | null;
+}
+
+/** Total por chave — tipo, exercício ou pessoa. Sempre string decimal. */
+export interface TotalPorChave {
+  chave: string;
+  rotulo: string;
+  total: string;
+}
+
+/**
+ * Prestação de contas da missão (CG-013/CG-050).
+ *
+ * A API devolve **`null`** quando a missão não tem prestação: ausência é
+ * ausência de linha, não o estado `NAO_INICIADA`. `total` também é nulo quando
+ * não há despesa — nunca R$ 0,00, que significaria outra coisa.
+ */
+export interface PrestacaoMissao {
+  id: string;
+  missaoId: string;
+  status: SituacaoPrestacao;
+  enviadaEm: string | null;
+  enviadaPor: string | null;
+  validadaEm: string | null;
+  validadaPor: string | null;
+  parecer: string | null;
+  observacoes: string | null;
+  despesas: DespesaMissao[];
+  total: string | null;
+  totalPorTipo: TotalPorChave[];
+  totalPorExercicio: TotalPorChave[];
+  totalPorPessoa: TotalPorChave[];
+}
+
 export interface ResumoMissoes {
   total: number;
   porStatus: Record<StatusMissao, number>;

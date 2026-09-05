@@ -10,6 +10,7 @@ import {
   Cartoes,
   Celula,
   EstadoVazio,
+  Moeda,
   Pagina,
   Secao,
   Selo,
@@ -17,11 +18,14 @@ import {
 } from "@/componentes/ui/basicos";
 import { apiFetch } from "@/lib/api";
 import type {
+  AnexoResumo,
   AtividadeMissao,
   AvaliacaoSubmissao,
+  DespesaMissao,
   Me,
   MissaoDetalhe,
   ParticipanteMissao,
+  PrestacaoMissao,
   RodadaAnalise,
   StatusAprovacaoMissao,
   StatusMissao,
@@ -35,17 +39,23 @@ import { data, dataHora, inteiro, rotulo } from "@/lib/formato";
  * documentos, análise e produtos **dentro** desta página, em abas, em vez das
  * telas globais que o PDF propunha.
  *
- * Fatias entregues: **Resumo** (resumo, roteiro, participantes) e **Análise**
- * (rodadas, pareceres, enviar e decidir). Documentos e prestação vêm depois.
+ * Quatro abas: **Resumo** (roteiro e participantes), **Análise** (rodadas,
+ * pareceres, enviar e decidir), **Documentos** e **Prestação**.
+ *
+ * As duas últimas são **leitura**. Anexar arquivo é a CG-051 pelo endpoint, e
+ * lançar despesa é a CG-053 — trazer os formulários para cá anteciparia uma
+ * task que tem critérios próprios.
  *
  * Tudo vem de `GET .../missoes/:id`. A tela não soma nem deriva nada: os dias
  * inclusivos, os totais e a situação temporal já chegam calculados.
  */
 
-type Aba = "resumo" | "analise";
+type Aba = "resumo" | "analise" | "documentos" | "prestacao";
+
+const ABAS_VALIDAS: Aba[] = ["resumo", "analise", "documentos", "prestacao"];
 
 function normalizarAba(valor: string | string[] | undefined): Aba {
-  return valor === "analise" ? "analise" : "resumo";
+  return ABAS_VALIDAS.includes(valor as Aba) ? (valor as Aba) : "resumo";
 }
 
 export default async function MissaoDetalhePagina({
@@ -72,11 +82,18 @@ export default async function MissaoDetalhePagina({
   }
 
   const rotaMissao = `/programas/${programa}/${ciclo}/comite-gestor/missoes/${id}`;
-  const [missao, rodadas, requisitos] = await Promise.all([
-    apiFetch<MissaoDetalhe>(rotaMissao),
-    apiFetch<RodadaAnalise[]>(`${rotaMissao}/analise`),
-    apiFetch<AvaliacaoSubmissao>(`${rotaMissao}/requisitos`),
-  ]);
+  const [missao, rodadas, requisitos, documentos, prestacao] =
+    await Promise.all([
+      apiFetch<MissaoDetalhe>(rotaMissao),
+      apiFetch<RodadaAnalise[]>(`${rotaMissao}/analise`),
+      apiFetch<AvaliacaoSubmissao>(`${rotaMissao}/requisitos`),
+      apiFetch<AnexoResumo[]>(
+        `/anexos?entidadeTipo=MISSAO_COMITE&entidadeId=${id}`,
+      ),
+      // Nulo quando a missão não tem prestação — ausência é ausência de linha,
+      // não o estado `NAO_INICIADA` (CG-013).
+      apiFetch<PrestacaoMissao | null>(`${rotaMissao}/prestacao`),
+    ]);
 
   const responsaveis = missao.participantes.filter(
     (pessoa) => pessoa.papel === "RESPONSAVEL",
@@ -158,6 +175,10 @@ export default async function MissaoDetalhePagina({
           podeDecidir={podeDecidir}
           podeReabrir={podeReabrir}
         />
+      ) : aba === "documentos" ? (
+        <Documentos documentos={documentos} />
+      ) : aba === "prestacao" ? (
+        <Prestacao prestacao={prestacao} />
       ) : (
         <>
       <Secao titulo="Resumo">
@@ -279,6 +300,8 @@ function Abas({ base, ativa }: { base: string; ativa: Aba }) {
   const abas: { id: Aba; texto: string }[] = [
     { id: "resumo", texto: "Resumo" },
     { id: "analise", texto: "Análise" },
+    { id: "documentos", texto: "Documentos" },
+    { id: "prestacao", texto: "Prestação" },
   ];
 
   return (
@@ -518,6 +541,229 @@ const DESCRICAO_APROVACAO: Record<StatusAprovacaoMissao, string> = {
   REPROVADA:
     "Reprovada pelo Comitê. Reabrir a análise é ato do administrador e não apaga esta decisão.",
 };
+
+/**
+ * Aba de documentos: leitura da lista, com download pelo endpoint autenticado.
+ *
+ * **Não há link para arquivo estático.** A chave de armazenamento é opaca e
+ * nunca sai da API (CG-014); o download passa por `/anexos/:id/conteudo`, que
+ * confere a permissão da entidade de destino a cada requisição.
+ *
+ * Anexar arquivo continua sendo a CG-051 pelo endpoint; a interface de envio
+ * entra com a CG-053, junto com o formulário de despesa.
+ */
+function Documentos({ documentos }: { documentos: AnexoResumo[] }) {
+  const ativos = documentos.filter((documento) => documento.ativo);
+
+  return (
+    <Secao
+      titulo="Documentos da missão"
+      descricao="Substituir um arquivo cria versão nova e preserva a anterior — não há exclusão, só inativação."
+    >
+      {ativos.length === 0 ? (
+        <EstadoVazio
+          titulo="Nenhum documento anexado"
+          descricao="Projeto e justificativa são exigidos antes do envio ao Comitê. A aba Análise mostra o que falta."
+        />
+      ) : (
+        <Tabela
+          rotulo="Documentos da missão"
+          colunas={[
+            { chave: "arquivo", texto: "Arquivo" },
+            { chave: "categoria", texto: "Categoria" },
+            { chave: "versao", texto: "Versão", alinhamento: "direita" },
+            { chave: "envio", texto: "Enviado" },
+            { chave: "acoes", texto: "Ações" },
+          ]}
+        >
+          {ativos.map((documento) => (
+            <tr key={documento.id}>
+              <Celula>
+                <span className="font-medium text-foreground">
+                  {documento.nome}
+                </span>
+                <span className="mt-0.5 block text-xs text-muted">
+                  {tamanhoLegivel(documento.tamanho)}
+                  {documento.legenda ? ` · ${documento.legenda}` : ""}
+                </span>
+              </Celula>
+              <Celula>{rotulo(documento.categoria)}</Celula>
+              <Celula direita className="tabular-nums">
+                {documento.versao}
+              </Celula>
+              <Celula>
+                {dataHora(documento.enviadoEm)}
+                {documento.enviadoPor ? (
+                  <span className="mt-0.5 block text-xs text-muted">
+                    {documento.enviadoPor}
+                  </span>
+                ) : null}
+              </Celula>
+              <Celula>
+                <a
+                  href={`/api/bff/anexos/${documento.id}/conteudo`}
+                  className="text-sm text-primary hover:underline"
+                >
+                  Baixar
+                  <span className="sr-only"> {documento.nome}</span>
+                </a>
+              </Celula>
+            </tr>
+          ))}
+        </Tabela>
+      )}
+    </Secao>
+  );
+}
+
+/**
+ * Aba de prestação — **leitura**.
+ *
+ * `prestacao` nula é o caso normal de missão que ainda não gastou, e é o
+ * critério de aceite da CG-045: a página abre e diz "Prestação não iniciada"
+ * em vez de quebrar. Lançar despesa, enviar e validar são a CG-053/CG-054.
+ *
+ * Total nulo continua "A definir", nunca R$ 0,00: prestação sem despesa e
+ * prestação de valor zero são coisas diferentes.
+ */
+function Prestacao({ prestacao }: { prestacao: PrestacaoMissao | null }) {
+  if (!prestacao) {
+    return (
+      <Secao titulo="Prestação de contas">
+        <EstadoVazio
+          titulo="Prestação não iniciada"
+          descricao="A prestação abre automaticamente quando a viagem é marcada como realizada, ou pode ser iniciada manualmente na tela de prestação."
+        />
+      </Secao>
+    );
+  }
+
+  return (
+    <>
+      <Secao
+        titulo="Prestação de contas"
+        descricao="Todos os valores em reais: a conversão de despesa feita no exterior acontece antes do lançamento (CG-009)."
+      >
+        <Cartoes>
+          <Cartao
+            titulo="Total prestado"
+            valor={<Moeda valor={prestacao.total} forte />}
+            destaque
+          />
+          <Cartao
+            titulo="Situação"
+            valor={rotulo(prestacao.status)}
+            nota={
+              prestacao.status === "VALIDADA"
+                ? "Só a validação abate o aporte do Comitê."
+                : "Ainda não abate o aporte anual."
+            }
+          />
+          <Cartao
+            titulo="Despesas"
+            valor={inteiro(prestacao.despesas.length)}
+          />
+        </Cartoes>
+
+        {prestacao.parecer ? (
+          <p className="mt-4 rounded-xl border border-border bg-surface-muted px-4 py-3 text-sm text-muted">
+            <span className="font-medium text-foreground">Parecer: </span>
+            {prestacao.parecer}
+          </p>
+        ) : null}
+      </Secao>
+
+      {prestacao.totalPorTipo.length > 0 ? (
+        <Secao titulo="Totais por tipo de despesa">
+          <Tabela
+            rotulo="Totais por tipo"
+            colunas={[
+              { chave: "tipo", texto: "Tipo" },
+              { chave: "total", texto: "Total", alinhamento: "direita" },
+            ]}
+          >
+            {prestacao.totalPorTipo.map((linha) => (
+              <tr key={linha.chave}>
+                <Celula>{linha.rotulo}</Celula>
+                <Celula direita>
+                  <Moeda valor={linha.total} />
+                </Celula>
+              </tr>
+            ))}
+          </Tabela>
+        </Secao>
+      ) : null}
+
+      <Secao titulo="Despesas">
+        {prestacao.despesas.length === 0 ? (
+          <EstadoVazio
+            titulo="Nenhuma despesa lançada"
+            descricao="A prestação existe, mas ainda não tem lançamento. Por isso o total aparece como “A definir” e não como R$ 0,00."
+          />
+        ) : (
+          <Tabela
+            rotulo="Despesas da prestação"
+            colunas={[
+              { chave: "despesa", texto: "Despesa" },
+              { chave: "pessoa", texto: "Pessoa" },
+              { chave: "exercicio", texto: "Exercício" },
+              { chave: "valor", texto: "Valor", alinhamento: "direita" },
+            ]}
+          >
+            {prestacao.despesas.map((despesa) => (
+              <LinhaDespesa key={despesa.id} despesa={despesa} />
+            ))}
+          </Tabela>
+        )}
+      </Secao>
+    </>
+  );
+}
+
+function LinhaDespesa({ despesa }: { despesa: DespesaMissao }) {
+  const trecho = despesa.passagem
+    ? [despesa.passagem.origem, despesa.passagem.destino]
+        .filter(Boolean)
+        .join(" → ")
+    : despesa.diaria
+      ? `${data(despesa.diaria.dataInicio)} a ${data(despesa.diaria.dataFim)}`
+      : null;
+
+  return (
+    <tr>
+      <Celula>
+        <span className="font-medium text-foreground">{despesa.descricao}</span>
+        <span className="mt-0.5 block text-xs text-muted">
+          {rotulo(despesa.tipo)}
+          {trecho ? ` · ${trecho}` : ""}
+        </span>
+        {/*
+          A cotação existe para justificar a escolha da passagem; mostrar
+          quantas foram obtidas é o que permite ver de relance se a comparação
+          aconteceu.
+        */}
+        {despesa.passagem && despesa.passagem.cotacoes.length > 0 ? (
+          <span className="mt-0.5 block text-xs text-subtle">
+            {inteiro(despesa.passagem.cotacoes.length)}{" "}
+            {despesa.passagem.cotacoes.length === 1 ? "cotação" : "cotações"}
+          </span>
+        ) : null}
+      </Celula>
+      <Celula>{despesa.participante ?? "—"}</Celula>
+      <Celula className="tabular-nums">{despesa.exercicio}</Celula>
+      <Celula direita>
+        <Moeda valor={despesa.valorTotal} />
+      </Celula>
+    </tr>
+  );
+}
+
+/** Tamanho do arquivo para leitura humana; a API devolve bytes. */
+function tamanhoLegivel(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 function LinhaAtividade({ atividade }: { atividade: AtividadeMissao }) {
   const destino = [atividade.cidade, atividade.pais]

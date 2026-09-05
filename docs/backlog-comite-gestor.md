@@ -1910,7 +1910,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   aprovados. Após a carga formal da CG-041A, o total atual é 33 unitários da API
   e 173 testes de integração; as 16 regressões da web permanecem aprovadas.
 
-- [~] **CG-045 — Construir o detalhe da missão**
+- [x] **CG-045 — Construir o detalhe da missão**
 
   Criar página com resumo, redes, roteiro, participantes, parceiros, contatos,
   documentos, aprovação, relato, prestação, produtos e histórico, preservando
@@ -1968,7 +1968,27 @@ Essa situação é calculada a partir das datas e não é persistida.
   reabertura criando a rodada 3 — com as três rodadas e as duas decisões
   visíveis no histórico, cada uma com seus 2 documentos fotografados.
 
-  Falta a fatia 3 (documentos e prestação).
+  **Fatia 3 (2026-09-05): documentos e prestação.** Duas abas de **leitura**.
+
+  Documentos lista os anexos ativos com categoria, versão, autor e download —
+  que passa por `/anexos/:id/conteudo`, nunca por arquivo estático: a chave de
+  armazenamento é opaca e a permissão é conferida a cada requisição (CG-014).
+
+  Prestação cumpre o **critério de aceite** da task: `prestacao` nula é o caso
+  normal e a página mostra "Prestação não iniciada" em vez de quebrar. Total
+  nulo continua "A definir" — prestação sem despesa e prestação de valor zero
+  são coisas diferentes.
+
+  **O que ficou de fora, de propósito:** anexar arquivo pela interface e lançar
+  despesa. São a CG-053, que tem critérios próprios; trazê-los para cá
+  anteciparia uma task inteira dentro de outra.
+
+  Verificado na aplicação real com prestação criada e duas despesas: total
+  R$ 7.970,00, totais por tipo, trecho da passagem e contagem de cotações.
+
+  **CG-045 concluída em 2026-09-05.** A navegação por abas fecha o desenho
+  aceito na arquitetura da informação: prestação, documentos e análise vivem
+  dentro da missão, e não como telas globais.
 
   **Um achado sério durante a verificação desta fatia**, sem relação com a
   interface: o `/me` respondia **500** e derrubava a aplicação inteira. O realm

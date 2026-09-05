@@ -709,12 +709,15 @@ o ícone estiver visível.
   designação de relator, nem quórum, nem notificação.
 
   **A tela da missão (CG-045)** está em
-  `/programas/[programa]/[ciclo]/comite-gestor/missoes/[id]`, com aba `Resumo`
-  (padrão, sem `?aba=`) e `Análise` (`?aba=analise`). As duas dimensões da
-  CG-006 aparecem sempre juntas e rotuladas — mostrar só uma faria "aprovada"
-  ser lido como "realizada". A aba de análise traz checklist, histórico de
-  rodadas e as ações de enviar, decidir e reabrir. Documentos e prestação são a
-  fatia seguinte.
+  `/programas/[programa]/[ciclo]/comite-gestor/missoes/[id]`, com quatro abas:
+  `Resumo` (padrão, sem `?aba=`), `Análise`, `Documentos` e `Prestação`. As
+  duas dimensões da CG-006 aparecem sempre juntas e rotuladas — mostrar só uma
+  faria "aprovada" ser lido como "realizada". Análise traz checklist, histórico
+  de rodadas e as ações de enviar, decidir e reabrir; Documentos e Prestação
+  são **leitura**, porque anexar arquivo e lançar despesa pela interface são a
+  CG-053. O download sai por `/anexos/:id/conteudo`, nunca por arquivo
+  estático. Prestação nula mostra "Prestação não iniciada" — ausência de
+  prestação é ausência de linha, não o estado `NAO_INICIADA`.
 
   Os papéis `gestor-rede` e `comite-gestor` existem no realm e em
   `ROLE_PERMISSIONS`, mas **não devem ser atribuídos ainda**: missões e

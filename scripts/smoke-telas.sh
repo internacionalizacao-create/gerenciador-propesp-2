@@ -174,6 +174,13 @@ if [[ "$USUARIO" == "admin" ]]; then
     testar "${MID}?aba=analise" "Situação da análise"
     testar "${MID}?aba=analise" "Documentos exigidos"
     testar "${MID}?aba=analise" "Histórico"
+    # Fatia 3. As asserções ficam nos títulos das seções, que existem em
+    # qualquer estado: "Prestação não iniciada" e "Nenhum documento anexado"
+    # dependem do banco e virariam falso alarme no primeiro lançamento.
+    testar "${MID}?aba=documentos" "Documentos da missão"
+    testar "${MID}?aba=prestacao" "Prestação de contas"
+    # Aba inexistente cai no resumo em vez de quebrar.
+    testar "${MID}?aba=inexistente" "Roteiro"
   fi
 fi
 
