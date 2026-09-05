@@ -504,4 +504,100 @@ describe('PrestacaoService (CG-050)', () => {
       /Missao nao encontrada/i,
     );
   });
+
+  it('devolve os documentos de cada despesa, inclusive os das cotacoes', async () => {
+    await service.criar(base.cicloId, missaoId, admin);
+    const criada = await service.criarDespesa(
+      base.cicloId,
+      missaoId,
+      despesa({
+        tipo: 'PASSAGEM',
+        valorTotal: '4200.00',
+        descricao: 'Passagem com cotacoes',
+        passagem: {
+          cotacoes: [
+            { empresa: 'Empresa A', valor: '4200.00' },
+            { empresa: 'Empresa B', valor: '4700.00' },
+          ],
+        },
+      }),
+      admin,
+    );
+    const despesaId = criada.despesas[0].id;
+    const cotacaoId = criada.despesas[0].passagem!.cotacoes[0].id;
+
+    await ctx.db.insert(s.anexo).values([
+      {
+        nome: 'bilhete.pdf',
+        mimeType: 'application/pdf',
+        tamanho: 100,
+        caminho: '2027/bilhete',
+        categoria: 'BILHETE',
+        entidadeTipo: 'DESPESA_MISSAO',
+        entidadeId: despesaId,
+      },
+      {
+        nome: 'cotacao-a.pdf',
+        mimeType: 'application/pdf',
+        tamanho: 100,
+        caminho: '2027/cotacao-a',
+        categoria: 'COTACAO',
+        entidadeTipo: 'COTACAO_PASSAGEM',
+        entidadeId: cotacaoId,
+      },
+    ]);
+
+    const detalhe = await service.detalhe(base.cicloId, missaoId);
+    const [linha] = detalhe!.despesas;
+
+    // O documento da cotacao conta para a despesa que a contem: a tela indica
+    // pendencia por despesa, e a cotacao nao aparece sozinha em lugar nenhum.
+    expect(linha.documentos.map((d) => d.nome).sort()).toEqual([
+      'bilhete.pdf',
+      'cotacao-a.pdf',
+    ]);
+    expect(
+      linha.documentos.find((d) => d.nome === 'cotacao-a.pdf')?.cotacaoId,
+    ).toBe(cotacaoId);
+    expect(
+      linha.documentos.find((d) => d.nome === 'bilhete.pdf')?.cotacaoId,
+    ).toBeNull();
+  });
+
+  it('documento inativo nao conta como comprovante', async () => {
+    await service.criar(base.cicloId, missaoId, admin);
+    const criada = await service.criarDespesa(
+      base.cicloId,
+      missaoId,
+      despesa({ valorTotal: '300.00', descricao: 'Despesa sem comprovante' }),
+      admin,
+    );
+    const despesaId = criada.despesas[0].id;
+    await ctx.db.insert(s.anexo).values({
+      nome: 'antigo.pdf',
+      mimeType: 'application/pdf',
+      tamanho: 100,
+      caminho: '2027/antigo',
+      categoria: 'COMPROVANTE',
+      entidadeTipo: 'DESPESA_MISSAO',
+      entidadeId: despesaId,
+      ativo: false,
+    });
+
+    // Se contasse, a tela diria que a despesa esta comprovada quando o unico
+    // arquivo foi substituido ou inativado.
+    const detalhe = await service.detalhe(base.cicloId, missaoId);
+    expect(detalhe!.despesas[0].documentos).toEqual([]);
+  });
+
+  it('despesa sem documento chega com a lista vazia, nao indefinida', async () => {
+    await service.criar(base.cicloId, missaoId, admin);
+    const criada = await service.criarDespesa(
+      base.cicloId,
+      missaoId,
+      despesa({ valorTotal: '120.00', descricao: 'Transporte local' }),
+      admin,
+    );
+    expect(criada.despesas[0].documentos).toEqual([]);
+  });
 });

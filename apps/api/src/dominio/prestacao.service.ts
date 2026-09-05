@@ -180,6 +180,26 @@ export interface DespesaDetalhe {
     pais: string | null;
     cidade: string | null;
   } | null;
+  /**
+   * Documentos ativos da despesa e das cotacoes dela (CG-052).
+   *
+   * Vem junto, e nao por uma chamada de `/anexos` por despesa: a tela precisa
+   * indicar quais despesas estao sem comprovante, e descobrir isso com N+1
+   * requisicoes pioraria a cada lancamento novo.
+   */
+  documentos: DocumentoDaDespesa[];
+}
+
+/** Documento anexado a uma despesa ou a uma cotacao dela. */
+export interface DocumentoDaDespesa {
+  id: string;
+  nome: string;
+  categoria: string;
+  versao: number;
+  enviadoEm: Date;
+  enviadoPor: string | null;
+  /** Preenchido quando o documento pertence a uma cotacao, nao a despesa. */
+  cotacaoId: string | null;
 }
 
 export interface PrestacaoDetalhe {
@@ -504,6 +524,74 @@ export class PrestacaoService {
       .where(eq(s.despesaMissao.prestacaoId, prestacaoId))
       .orderBy(asc(s.cotacaoPassagem.valor));
 
+    /**
+     * Documentos da prestacao, numa consulta so.
+     *
+     * `anexo` e polimorfico e nao tem chave estrangeira, entao o vinculo se
+     * refaz aqui por `entidade_id`: ou o id da despesa, ou o id de uma cotacao
+     * dela. O `in` sobre os dois conjuntos evita uma chamada por despesa.
+     */
+    const idsDespesa = linhas.map((linha) => linha.id);
+    const idsCotacao = cotacoes.map((cotacao) => cotacao.id);
+    const documentos =
+      idsDespesa.length === 0
+        ? []
+        : await this.db
+            .select({
+              id: s.anexo.id,
+              nome: s.anexo.nome,
+              categoria: s.anexo.categoria,
+              versao: s.anexo.versao,
+              enviadoEm: s.anexo.enviadoEm,
+              enviadoPor: s.anexo.enviadoPor,
+              entidadeTipo: s.anexo.entidadeTipo,
+              entidadeId: s.anexo.entidadeId,
+            })
+            .from(s.anexo)
+            .where(
+              and(
+                eq(s.anexo.ativo, true),
+                or(
+                  and(
+                    eq(s.anexo.entidadeTipo, 'DESPESA_MISSAO'),
+                    inArray(s.anexo.entidadeId, idsDespesa),
+                  ),
+                  idsCotacao.length > 0
+                    ? and(
+                        eq(s.anexo.entidadeTipo, 'COTACAO_PASSAGEM'),
+                        inArray(s.anexo.entidadeId, idsCotacao),
+                      )
+                    : undefined,
+                ),
+              ),
+            )
+            .orderBy(asc(s.anexo.enviadoEm));
+
+    /** De qual despesa e cada cotacao, para reatribuir o documento dela. */
+    const despesaDaCotacao = new Map(
+      cotacoes.map((cotacao) => [cotacao.id, cotacao.despesaId]),
+    );
+
+    const documentosDaDespesa = (despesaId: string): DocumentoDaDespesa[] =>
+      documentos
+        .filter((documento) =>
+          documento.entidadeTipo === 'DESPESA_MISSAO'
+            ? documento.entidadeId === despesaId
+            : despesaDaCotacao.get(documento.entidadeId) === despesaId,
+        )
+        .map((documento) => ({
+          id: documento.id,
+          nome: documento.nome,
+          categoria: documento.categoria,
+          versao: documento.versao,
+          enviadoEm: documento.enviadoEm,
+          enviadoPor: documento.enviadoPor,
+          cotacaoId:
+            documento.entidadeTipo === 'COTACAO_PASSAGEM'
+              ? documento.entidadeId
+              : null,
+        }));
+
     const despesas: DespesaDetalhe[] = linhas.map((linha) => ({
       id: linha.id,
       tipo: linha.tipo,
@@ -550,6 +638,7 @@ export class PrestacaoService {
               cidade: linha.diariaCidade,
             }
           : null,
+      documentos: documentosDaDespesa(linha.id),
     }));
 
     const [totais, porTipo, porExercicio, porPessoa] = await Promise.all([

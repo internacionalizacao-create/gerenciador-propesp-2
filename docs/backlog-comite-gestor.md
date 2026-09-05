@@ -2269,7 +2269,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   `anexos.int-spec.ts` e dois em `prestacao.int-spec.ts`, além dos testes já
   existentes de armazenamento, permissão e versão.
 
-- [ ] **CG-053 — Construir interface da prestação**
+- [x] **CG-053 — Construir interface da prestação**
 
   - resumo de passagem, cotação, diária e outras despesas homologadas;
   - lista por participante;
@@ -2279,6 +2279,51 @@ Essa situação é calculada a partir das datas e não é persistida.
   - indicação de documentos pendentes.
 
   Dependências: CG-045, CG-050 e CG-052.
+
+  **Concluída em 2026-09-05**, dentro da aba Prestação da CG-045.
+
+  A despesa deixou de ser linha de tabela e virou cartão: com cotações,
+  documentos e ações, a tabela ficaria com uma célula gigante e o resto vazio, e
+  a rolagem horizontal esconderia justamente a informação nova.
+
+  **A API passou a devolver os documentos de cada despesa** (`documentos` em
+  `DespesaDetalhe`), incluindo os das cotações dela. Sem isso a indicação de
+  pendência exigiria uma chamada a `/anexos` por despesa, e pioraria a cada
+  lançamento. Como `anexo` é polimórfico e não tem chave estrangeira, o vínculo
+  se refaz por `entidade_id` numa consulta só.
+
+  **Documento de cotação conta para a despesa que a contém**: a tela indica
+  pendência por despesa, e a cotação não aparece sozinha em lugar nenhum.
+
+  O botão de remover some quando a despesa tem documento — a API recusa (CG-052)
+  e mostrar um botão que sempre falha é pior que não mostrá-lo. A regra que vale
+  continua sendo a da API.
+
+  **Dois achados que o build não pegou:**
+
+  - **`categoriasDoTipo` exportada de um módulo `"use client"`** não pode ser
+    chamada pelo Server Component: o build passa e a página responde **500**.
+    Foi para [documentos-despesa.ts](../apps/web/src/lib/formularios/documentos-despesa.ts),
+    módulo neutro que os dois lados importam. Só o smoke pegou.
+  - **`allowImportingTsExtensions` precisou entrar no tsconfig da web.** O
+    `node --test` roda TypeScript em modo strip-only e exige a extensão no
+    import relativo, enquanto o TS a recusa por padrão — então um `.ts` que
+    importa outro `.ts` não podia ser testado, o que é exatamente o padrão que o
+    repositório adota para manter lógica fora dos `.tsx`. Só é válido porque
+    `noEmit` está ligado.
+
+  Cobertura: 3 regressões de integração para os documentos por despesa e 7 em
+  [despesa-payload.test.mjs](../apps/web/test/despesa-payload.test.mjs) para a
+  montagem do formulário — **o pareamento das cotações por índice é o caso que
+  quebraria em silêncio**: filtrar as listas antes de parear casaria a empresa
+  de uma linha com o valor de outra, e a API aceitaria.
+
+  Verificado na aplicação: upload para despesa e para cotação pelo caminho
+  multipart do BFF, recusa de categoria incompatível, e a página mostrando os
+  dois arquivos com a marcação "de uma cotação".
+
+  **Fora de escopo, por decisão da própria task:** enviar e validar a prestação
+  são a CG-054.
 
 - [ ] **CG-054 — Implementar envio e revisão da prestação**
 

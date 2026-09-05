@@ -725,6 +725,17 @@ export interface CotacaoPassagem {
   observacoes: string | null;
 }
 
+export interface DocumentoDaDespesa {
+  id: string;
+  nome: string;
+  categoria: string;
+  versao: number;
+  enviadoEm: string;
+  enviadoPor: string | null;
+  /** Preenchido quando o documento pertence a uma cotação, não à despesa. */
+  cotacaoId: string | null;
+}
+
 export interface DespesaMissao {
   id: string;
   tipo: string;
@@ -754,6 +765,13 @@ export interface DespesaMissao {
     pais: string | null;
     cidade: string | null;
   } | null;
+  /**
+   * Documentos ativos da despesa e das cotações dela.
+   *
+   * Vem junto do detalhe, e não por uma chamada de `/anexos` por despesa: a
+   * indicação de pendência precisa disso para toda linha de uma vez.
+   */
+  documentos: DocumentoDaDespesa[];
 }
 
 /** Total por chave — tipo, exercício ou pessoa. Sempre string decimal. */

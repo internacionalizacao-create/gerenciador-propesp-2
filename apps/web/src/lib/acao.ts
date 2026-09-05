@@ -22,7 +22,7 @@ export type { EstadoDaAcao } from "./acao-tipos";
 
 export async function enviar(
   caminho: string,
-  metodo: "POST" | "PATCH",
+  metodo: "POST" | "PATCH" | "DELETE",
   corpo: unknown,
   revalidar: string[],
   sucesso: string,
@@ -30,10 +30,42 @@ export async function enviar(
   try {
     await apiFetch(caminho, {
       method: metodo,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(corpo),
+      // `DELETE` sem corpo: mandar `"undefined"` como JSON faria a API tentar
+      // validar um payload que ninguem enviou.
+      ...(corpo === undefined
+        ? {}
+        : {
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(corpo),
+          }),
     });
 
+    for (const rota of revalidar) revalidatePath(rota);
+    return { ok: true, mensagem: sucesso };
+  } catch (erro) {
+    return traduzirErro(erro);
+  }
+}
+
+/**
+ * Envia arquivo para a API, repassando o `FormData` do navegador.
+ *
+ * **Não define `Content-Type`**: o `fetch` precisa gerar o boundary do
+ * multipart sozinho, e fixar o cabeçalho aqui produziria um corpo que o Nest
+ * não consegue separar — o sintoma é "arquivo vazio" com o arquivo presente.
+ *
+ * O arquivo atravessa o servidor do Next, e não vai direto do browser para a
+ * API: é o mesmo desenho BFF do resto, e o token continua sem chegar ao
+ * JavaScript da página.
+ */
+export async function enviarArquivo(
+  caminho: string,
+  corpo: FormData,
+  revalidar: string[],
+  sucesso: string,
+): Promise<EstadoDaAcao> {
+  try {
+    await apiFetch(caminho, { method: "POST", body: corpo });
     for (const rota of revalidar) revalidatePath(rota);
     return { ok: true, mensagem: sucesso };
   } catch (erro) {

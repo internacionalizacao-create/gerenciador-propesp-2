@@ -6,6 +6,13 @@ import {
   ReabrirAnalise,
 } from "@/componentes/formularios/acoes-analise";
 import {
+  AnexarDocumento,
+  EditarDespesa,
+  IniciarPrestacao,
+  NovaDespesa,
+  RemoverDespesa,
+} from "@/componentes/formularios/form-despesa";
+import {
   Cartao,
   Cartoes,
   Celula,
@@ -30,6 +37,11 @@ import type {
   StatusAprovacaoMissao,
   StatusMissao,
 } from "@/lib/dominio";
+import {
+  CATEGORIAS_DA_COTACAO,
+  CATEGORIAS_DA_MISSAO,
+  categoriasDoTipo,
+} from "@/lib/formularios/documentos-despesa";
 import { data, dataHora, inteiro, rotulo } from "@/lib/formato";
 
 /**
@@ -111,6 +123,11 @@ export default async function MissaoDetalhePagina({
     me.permissions.includes("missao:reopen") &&
     (missao.statusAprovacao === "APROVADA" ||
       missao.statusAprovacao === "REPROVADA");
+  // A prestação trava depois do envio (CG-054): até lá, `prestacao:write` é o
+  // que separa quem lança de quem só lê.
+  const podeLancar =
+    me.permissions.includes("prestacao:write") &&
+    (prestacao === null || prestacao.status === "EM_PREENCHIMENTO");
 
   return (
     <Pagina
@@ -176,9 +193,18 @@ export default async function MissaoDetalhePagina({
           podeReabrir={podeReabrir}
         />
       ) : aba === "documentos" ? (
-        <Documentos documentos={documentos} />
+        <Documentos
+          documentos={documentos}
+          contexto={contexto}
+          podeAnexar={me.permissions.includes("missao:edit")}
+        />
       ) : aba === "prestacao" ? (
-        <Prestacao prestacao={prestacao} />
+        <Prestacao
+          prestacao={prestacao}
+          missao={missao}
+          contexto={contexto}
+          podeEscrever={podeLancar}
+        />
       ) : (
         <>
       <Secao titulo="Resumo">
@@ -552,13 +578,33 @@ const DESCRICAO_APROVACAO: Record<StatusAprovacaoMissao, string> = {
  * Anexar arquivo continua sendo a CG-051 pelo endpoint; a interface de envio
  * entra com a CG-053, junto com o formulário de despesa.
  */
-function Documentos({ documentos }: { documentos: AnexoResumo[] }) {
+function Documentos({
+  documentos,
+  contexto,
+  podeAnexar,
+}: {
+  documentos: AnexoResumo[];
+  contexto: { programa: string; ciclo: string; id: string };
+  podeAnexar: boolean;
+}) {
   const ativos = documentos.filter((documento) => documento.ativo);
 
   return (
     <Secao
       titulo="Documentos da missão"
       descricao="Substituir um arquivo cria versão nova e preserva a anterior — não há exclusão, só inativação."
+      acoes={
+        podeAnexar ? (
+          <AnexarDocumento
+            contexto={contexto}
+            entidadeTipo="MISSAO_COMITE"
+            entidadeId={contexto.id}
+            titulo="Anexar documento à missão"
+            descricao="Projeto e justificativa são exigidos antes do envio ao Comitê; convite, programação e orçamento são recomendados."
+            categorias={CATEGORIAS_DA_MISSAO}
+          />
+        ) : undefined
+      }
     >
       {ativos.length === 0 ? (
         <EstadoVazio
@@ -626,17 +672,34 @@ function Documentos({ documentos }: { documentos: AnexoResumo[] }) {
  * Total nulo continua "A definir", nunca R$ 0,00: prestação sem despesa e
  * prestação de valor zero são coisas diferentes.
  */
-function Prestacao({ prestacao }: { prestacao: PrestacaoMissao | null }) {
+function Prestacao({
+  prestacao,
+  missao,
+  contexto,
+  podeEscrever,
+}: {
+  prestacao: PrestacaoMissao | null;
+  missao: MissaoDetalhe;
+  contexto: { programa: string; ciclo: string; id: string };
+  podeEscrever: boolean;
+}) {
   if (!prestacao) {
     return (
-      <Secao titulo="Prestação de contas">
+      <Secao
+        titulo="Prestação de contas"
+        acoes={podeEscrever ? <IniciarPrestacao contexto={contexto} /> : undefined}
+      >
         <EstadoVazio
           titulo="Prestação não iniciada"
-          descricao="A prestação abre automaticamente quando a viagem é marcada como realizada, ou pode ser iniciada manualmente na tela de prestação."
+          descricao="Ela abre automaticamente quando a viagem é marcada como realizada, ou pode ser iniciada agora."
         />
       </Secao>
     );
   }
+
+  const semComprovante = prestacao.despesas.filter(
+    (despesa) => despesa.documentos.length === 0,
+  );
 
   return (
     <>
@@ -694,33 +757,103 @@ function Prestacao({ prestacao }: { prestacao: PrestacaoMissao | null }) {
         </Secao>
       ) : null}
 
-      <Secao titulo="Despesas">
+      {prestacao.totalPorPessoa.length > 0 ? (
+        <Secao
+          titulo="Por participante"
+          descricao="Despesa sem pessoa específica — inscrição institucional, por exemplo — fica fora deste recorte e continua no total geral."
+        >
+          <Tabela
+            rotulo="Totais por participante"
+            colunas={[
+              { chave: "pessoa", texto: "Participante" },
+              { chave: "total", texto: "Total", alinhamento: "direita" },
+            ]}
+          >
+            {prestacao.totalPorPessoa.map((linha) => (
+              <tr key={linha.chave}>
+                <Celula>{linha.rotulo}</Celula>
+                <Celula direita>
+                  <Moeda valor={linha.total} />
+                </Celula>
+              </tr>
+            ))}
+          </Tabela>
+        </Secao>
+      ) : null}
+
+      <Secao
+        titulo="Despesas"
+        acoes={
+          podeEscrever ? (
+            <NovaDespesa
+              contexto={contexto}
+              participantes={missao.participantes}
+              exercicioPadrao={Number(missao.dataInicio.slice(0, 4))}
+            />
+          ) : undefined
+        }
+      >
+        {/*
+          A indicação de pendência é por despesa, não por documento: o que a
+          pessoa precisa saber é qual lançamento ainda não tem comprovante.
+        */}
+        {semComprovante.length > 0 ? (
+          <div
+            role="status"
+            className="mb-4 rounded-2xl border-l-4 border-warning bg-warning-soft px-4 py-3.5 text-sm text-on-warning-soft"
+          >
+            <p className="font-semibold">
+              {semComprovante.length === 1
+                ? "1 despesa sem comprovante"
+                : `${inteiro(semComprovante.length)} despesas sem comprovante`}
+            </p>
+            <p className="mt-1">
+              {semComprovante.map((despesa) => despesa.descricao).join(" · ")}
+            </p>
+          </div>
+        ) : null}
+
         {prestacao.despesas.length === 0 ? (
           <EstadoVazio
             titulo="Nenhuma despesa lançada"
             descricao="A prestação existe, mas ainda não tem lançamento. Por isso o total aparece como “A definir” e não como R$ 0,00."
           />
         ) : (
-          <Tabela
-            rotulo="Despesas da prestação"
-            colunas={[
-              { chave: "despesa", texto: "Despesa" },
-              { chave: "pessoa", texto: "Pessoa" },
-              { chave: "exercicio", texto: "Exercício" },
-              { chave: "valor", texto: "Valor", alinhamento: "direita" },
-            ]}
-          >
+          <ul className="space-y-4">
             {prestacao.despesas.map((despesa) => (
-              <LinhaDespesa key={despesa.id} despesa={despesa} />
+              <CartaoDespesa
+                key={despesa.id}
+                despesa={despesa}
+                contexto={contexto}
+                participantes={missao.participantes}
+                podeEscrever={podeEscrever}
+              />
             ))}
-          </Tabela>
+          </ul>
         )}
       </Secao>
     </>
   );
 }
 
-function LinhaDespesa({ despesa }: { despesa: DespesaMissao }) {
+/**
+ * Uma despesa com o que ela tem de específico e os documentos dela.
+ *
+ * Deixou de ser linha de tabela quando ganhou cotações, documentos e ações: a
+ * tabela ficaria com uma célula gigante e o resto vazio, e a rolagem
+ * horizontal esconderia justamente a informação nova.
+ */
+function CartaoDespesa({
+  despesa,
+  contexto,
+  participantes,
+  podeEscrever,
+}: {
+  despesa: DespesaMissao;
+  contexto: { programa: string; ciclo: string; id: string };
+  participantes: ParticipanteMissao[];
+  podeEscrever: boolean;
+}) {
   const trecho = despesa.passagem
     ? [despesa.passagem.origem, despesa.passagem.destino]
         .filter(Boolean)
@@ -730,33 +863,100 @@ function LinhaDespesa({ despesa }: { despesa: DespesaMissao }) {
       : null;
 
   return (
-    <tr>
-      <Celula>
-        <span className="font-medium text-foreground">{despesa.descricao}</span>
-        <span className="mt-0.5 block text-xs text-muted">
-          {rotulo(despesa.tipo)}
-          {trecho ? ` · ${trecho}` : ""}
-        </span>
-        {/*
-          A cotação existe para justificar a escolha da passagem; mostrar
-          quantas foram obtidas é o que permite ver de relance se a comparação
-          aconteceu.
-        */}
-        {despesa.passagem && despesa.passagem.cotacoes.length > 0 ? (
-          <span className="mt-0.5 block text-xs text-subtle">
-            {inteiro(despesa.passagem.cotacoes.length)}{" "}
-            {despesa.passagem.cotacoes.length === 1 ? "cotação" : "cotações"}
-          </span>
-        ) : null}
-      </Celula>
-      <Celula>{despesa.participante ?? "—"}</Celula>
-      <Celula className="tabular-nums">{despesa.exercicio}</Celula>
-      <Celula direita>
-        <Moeda valor={despesa.valorTotal} />
-      </Celula>
-    </tr>
+    <li className="rounded-2xl border border-border bg-surface px-5 py-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="font-medium text-foreground">{despesa.descricao}</p>
+          <p className="mt-0.5 text-xs text-muted">
+            {rotulo(despesa.tipo)}
+            {trecho ? ` · ${trecho}` : ""}
+            {despesa.participante ? ` · ${despesa.participante}` : ""}
+            {` · exercício ${despesa.exercicio}`}
+          </p>
+        </div>
+        <div className="text-right">
+          <Moeda valor={despesa.valorTotal} forte />
+          {despesa.documentos.length === 0 ? (
+            <span className="mt-1 block">
+              <Selo tom="aviso">Sem comprovante</Selo>
+            </span>
+          ) : null}
+        </div>
+      </div>
+
+      {despesa.passagem && despesa.passagem.cotacoes.length > 0 ? (
+        <div className="mt-3">
+          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-subtle">
+            Cotações
+          </p>
+          <ul className="mt-1.5 space-y-1">
+            {despesa.passagem.cotacoes.map((cotacao) => (
+              <li
+                key={cotacao.id}
+                className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted"
+              >
+                <span>{cotacao.empresa}</span>
+                <span className="flex items-center gap-3">
+                  <Moeda valor={cotacao.valor} />
+                  {podeEscrever ? (
+                    <AnexarDocumento
+                      contexto={contexto}
+                      entidadeTipo="COTACAO_PASSAGEM"
+                      entidadeId={cotacao.id}
+                      rotuloBotao="Anexar PDF"
+                      titulo={`Cotação ${cotacao.empresa}`}
+                      descricao="Cada cotação tem o PDF próprio: é ele que justifica a escolha da passagem."
+                      categorias={CATEGORIAS_DA_COTACAO}
+                    />
+                  ) : null}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {despesa.documentos.length > 0 ? (
+        <ul className="mt-3 space-y-1 border-t border-border pt-3">
+          {despesa.documentos.map((documento) => (
+            <li key={documento.id} className="text-sm">
+              <a
+                href={`/api/bff/anexos/${documento.id}/conteudo`}
+                className="text-primary hover:underline"
+              >
+                {documento.nome}
+              </a>
+              <span className="ml-2 text-xs text-subtle">
+                {rotulo(documento.categoria)}
+                {documento.cotacaoId ? " · de uma cotação" : ""}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {podeEscrever ? (
+        <div className="mt-3 flex flex-wrap gap-2 border-t border-border pt-3">
+          <EditarDespesa
+            contexto={contexto}
+            despesa={despesa}
+            participantes={participantes}
+          />
+          <AnexarDocumento
+            contexto={contexto}
+            entidadeTipo="DESPESA_MISSAO"
+            entidadeId={despesa.id}
+            titulo={`Documento de ${despesa.descricao}`}
+            descricao="A categoria é validada contra o tipo da despesa: comprovante de diária não entra numa passagem."
+            categorias={categoriasDoTipo(despesa.tipo)}
+          />
+          <RemoverDespesa contexto={contexto} despesa={despesa} />
+        </div>
+      ) : null}
+    </li>
   );
 }
+
 
 /** Tamanho do arquivo para leitura humana; a API devolve bytes. */
 function tamanhoLegivel(bytes: number): string {

@@ -179,6 +179,9 @@ if [[ "$USUARIO" == "admin" ]]; then
     # dependem do banco e virariam falso alarme no primeiro lançamento.
     testar "${MID}?aba=documentos" "Documentos da missão"
     testar "${MID}?aba=prestacao" "Prestação de contas"
+    # CG-053: as acoes so aparecem para quem tem `prestacao:write`, e por isso
+    # ficam no bloco do admin. "Anexar documento" cobre o caminho de upload.
+    testar "${MID}?aba=documentos" "Anexar documento"
     # Aba inexistente cai no resumo em vez de quebrar.
     testar "${MID}?aba=inexistente" "Roteiro"
   fi

@@ -715,9 +715,16 @@ o ícone estiver visível.
   faria "aprovada" ser lido como "realizada". Análise traz checklist, histórico
   de rodadas e as ações de enviar, decidir e reabrir; Documentos e Prestação
   são **leitura**, porque anexar arquivo e lançar despesa pela interface são a
-  CG-053. O download sai por `/anexos/:id/conteudo`, nunca por arquivo
-  estático. Prestação nula mostra "Prestação não iniciada" — ausência de
-  prestação é ausência de linha, não o estado `NAO_INICIADA`.
+  CG-053 (concluída junto). O download sai por `/anexos/:id/conteudo`, nunca
+  por arquivo estático. Prestação nula mostra "Prestação não iniciada" —
+  ausência de prestação é ausência de linha, não o estado `NAO_INICIADA`.
+
+  **Cuidado ao criar helper para uma tela:** função exportada de módulo
+  `"use client"` não pode ser chamada pelo Server Component. O build passa e a
+  página responde 500 — foi o que aconteceu com as categorias de documento por
+  tipo de despesa, hoje em
+  [documentos-despesa.ts](apps/web/src/lib/formularios/documentos-despesa.ts).
+  Lógica que os dois lados usam vai num `.ts` neutro.
 
   Os papéis `gestor-rede` e `comite-gestor` existem no realm e em
   `ROLE_PERMISSIONS`, mas **não devem ser atribuídos ainda**: missões e
@@ -736,10 +743,10 @@ interface é **Coordenador de Temática**, não “membro do comitê”. Ediçã
 existente exige `plano:edit` (só `admin`), preserva código/rubrica e grava uma
 entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: somente
 2027 vem composto; 2028–2030 começam vazios e nunca copiam a quantidade automaticamente.
-- **Testes**: 131 unitários/regressões (67 API + 64 na web para toast, datas,
+- **Testes**: 138 unitários/regressões (67 API + 71 na web para toast, datas,
   React Hook Form/Zod, erros do multistep, formulários de parceiro,
   acessibilidade, contraste dos tokens, cálculos monetários, montagem de série
-  do gráfico e caminhos do BFF) + 303 de integração contra Postgres
+  do gráfico e caminhos do BFF) + 306 de integração contra Postgres
   real. As duas garantias de não duplicação da linha
   histórica do parceiro foram verificadas por mutação: trocar o `exists` +
   `selectDistinct` por um `join` faz ambas falharem.

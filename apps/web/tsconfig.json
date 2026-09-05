@@ -9,6 +9,13 @@
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
+    // Permite `import ... from "./x.ts"`. O `node --test` do repositorio roda
+    // TypeScript em modo strip-only e **exige** a extensao no import relativo,
+    // enquanto o TS a recusa por padrao. Sem isto, um modulo `.ts` que importa
+    // outro `.ts` nao pode ser testado — que e justamente o padrao adotado para
+    // manter logica testavel fora dos `.tsx`. So e valido porque `noEmit` esta
+    // ligado: nada aqui e compilado para disco pelo tsc.
+    "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",
