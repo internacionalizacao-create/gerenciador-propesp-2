@@ -37,6 +37,24 @@ testar() {
   printf '  \033[1;32mok\033[0m    %-52s %s\n' "$rota" "$esperado"
 }
 
+# Confere tambem o caminho browser -> BFF -> API usando a mesma sessao. A tela
+# inicial pode renderizar com dado do servidor mesmo se uma consulta interativa
+# posterior estiver quebrada; este recorte fecha as duas pontas sem criar dado.
+testar_bff() {
+  local rota="$1" esperado="$2"
+  local resposta corpo codigo
+  resposta=$(curl -s -b "$JAR" -w $'\n%{http_code}' "${WEB}${rota}")
+  codigo=${resposta##*$'\n'}
+  corpo=${resposta%$'\n'*}
+
+  if [[ "$codigo" != "200" ]] || ! grep -qF "$esperado" <<<"$corpo"; then
+    printf '  \033[1;31mFALHA\033[0m %-52s BFF HTTP %s sem "%s"\n' "$rota" "$codigo" "$esperado"
+    FALHAS=$((FALHAS + 1))
+    return
+  fi
+  printf '  \033[1;32mok\033[0m    %-52s BFF %s\n' "$rota" "$esperado"
+}
+
 echo "Renderizacao das telas como ${USUARIO}:"
 testar "/"                                                   "2.315.444,58"
 testar "/"                                                   "1.033.513,40"
@@ -78,6 +96,10 @@ if [[ "$USUARIO" == "admin" ]]; then
   # CG-016: a missao pertence a uma ou mais redes, e o recorte por rede fica na URL.
   testar "/programas/capes-global/2027-2030/comite-gestor?aba=missoes" "Todas as redes"
   testar "/programas/capes-global/2027-2030/comite-gestor?aba=missoes" "UNICAMP"
+  # CG-063: a sessao real tambem atravessa o BFF nas consultas que sustentam o
+  # formulario e a lista. E somente leitura para nao poluir a base do smoke.
+  testar_bff "/api/bff/programas/capes-global/2027-2030/comite-gestor/missoes" '"itens"'
+  testar_bff "/api/bff/programas/capes-global/2027-2030/comite-gestor/referencias-missao" '"redes"'
   # Os dois vazios sao diferentes: sem nenhuma missao o que falta e o cadastro;
   # com um filtro de escopo que nao casa, o que falta e ampliar o recorte.
   testar "/programas/capes-global/2027-2030/comite-gestor?aba=missoes" "Nenhuma missão cadastrada"
