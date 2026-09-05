@@ -15,26 +15,26 @@
   "maxFailureWaitSeconds": 900,
   "failureFactor": 5,
   "waitIncrementSeconds": 60,
-
   "passwordPolicy": "length(8) and digits(1) and notUsername and notEmail",
-
   "accessTokenLifespan": 300,
   "ssoSessionIdleTimeout": 1800,
   "ssoSessionMaxLifespan": 36000,
   "ssoSessionIdleTimeoutRememberMe": 604800,
   "ssoSessionMaxLifespanRememberMe": 2592000,
   "offlineSessionIdleTimeout": 2592000,
-
   "internationalizationEnabled": true,
-  "supportedLocales": ["pt-BR", "en"],
+  "supportedLocales": [
+    "pt-BR",
+    "en"
+  ],
   "defaultLocale": "pt-BR",
-
   "eventsEnabled": true,
   "eventsExpiration": 15552000,
-  "eventsListeners": ["jboss-logging"],
+  "eventsListeners": [
+    "jboss-logging"
+  ],
   "adminEventsEnabled": true,
   "adminEventsDetailsEnabled": true,
-
   "roles": {
     "realm": [
       {
@@ -56,10 +56,21 @@
       {
         "name": "discente",
         "description": "Discente matriculado: consulta os proprios dados."
+      },
+      {
+        "name": "gestor-rede",
+        "description": "Gestor da Rede — cuida das missoes e parceiros da propria rede e as submete a analise.",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "comite-gestor",
+        "description": "Comite Gestor — analisa e decide sobre as missoes submetidas; nao lanca.",
+        "composite": false,
+        "clientRole": false
       }
     ]
   },
-
   "clients": [
     {
       "clientId": "gerenciador-web",
@@ -74,8 +85,12 @@
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
       "frontchannelLogout": true,
-      "redirectUris": ["http://localhost:3000/api/auth/callback"],
-      "webOrigins": ["http://localhost:3000"],
+      "redirectUris": [
+        "http://localhost:3000/api/auth/callback"
+      ],
+      "webOrigins": [
+        "http://localhost:3000"
+      ],
       "attributes": {
         "pkce.code.challenge.method": "S256",
         "post.logout.redirect.uris": "http://localhost:3000/*",
@@ -112,7 +127,6 @@
       "webOrigins": []
     }
   ],
-
   "users": [
     {
       "username": "admin",
@@ -121,10 +135,20 @@
       "email": "admin@propesp.local",
       "firstName": "Ana",
       "lastName": "Administradora",
-      "credentials": [{ "type": "password", "value": "admin123", "temporary": false }],
-      "realmRoles": ["admin"],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "admin"
+      ],
       "clientRoles": {
-        "realm-management": ["realm-admin"]
+        "realm-management": [
+          "realm-admin"
+        ]
       }
     },
     {
@@ -134,8 +158,17 @@
       "email": "coord.teste@propesp.local",
       "firstName": "Carlos",
       "lastName": "Coordenador",
-      "credentials": [{ "type": "password", "value": "coord123", "temporary": false }],
-      "realmRoles": ["coordenador", "docente"]
+      "credentials": [
+        {
+          "type": "password",
+          "value": "coord123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "coordenador",
+        "docente"
+      ]
     },
     {
       "username": "docente.teste",
@@ -144,8 +177,16 @@
       "email": "docente.teste@propesp.local",
       "firstName": "Marina",
       "lastName": "Docente",
-      "credentials": [{ "type": "password", "value": "docente123", "temporary": false }],
-      "realmRoles": ["docente"]
+      "credentials": [
+        {
+          "type": "password",
+          "value": "docente123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "docente"
+      ]
     },
     {
       "username": "secretaria.teste",
@@ -154,8 +195,16 @@
       "email": "secretaria.teste@propesp.local",
       "firstName": "Sonia",
       "lastName": "Secretaria",
-      "credentials": [{ "type": "password", "value": "secretaria123", "temporary": false }],
-      "realmRoles": ["secretaria"]
+      "credentials": [
+        {
+          "type": "password",
+          "value": "secretaria123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "secretaria"
+      ]
     },
     {
       "username": "discente.teste",
@@ -164,8 +213,16 @@
       "email": "discente.teste@propesp.local",
       "firstName": "Diego",
       "lastName": "Discente",
-      "credentials": [{ "type": "password", "value": "discente123", "temporary": false }],
-      "realmRoles": ["discente"]
+      "credentials": [
+        {
+          "type": "password",
+          "value": "discente123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "discente"
+      ]
     }
   ]
 }

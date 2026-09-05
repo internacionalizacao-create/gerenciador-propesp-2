@@ -33,6 +33,18 @@ export interface Identidade {
   readonly escopo: EscopoAcesso;
 }
 
+/**
+ * Por que uma conta pode ficar sem vinculo local.
+ *
+ * `CONFLITO_PESSOA` e o caso real que derrubou o `/me` em 2026-09-05: o realm
+ * foi recriado, os `sub` mudaram, e o e-mail passou a apontar para uma pessoa
+ * ja ligada a conta antiga. Resolver isso sozinho — repontando a pessoa para o
+ * `sub` novo — seria porta de sequestro de identidade: quem criasse uma conta
+ * com um e-mail conhecido herdaria a pessoa e os escopos dela. Quem desempata
+ * e um administrador, por `POST /acesso/usuarios/:id/pessoa`.
+ */
+export type MotivoSemVinculo = 'CONFLITO_PESSOA';
+
 /** Escopo de quem ainda nao tem vinculo: nao ve nada recortado. */
 export const ESCOPO_VAZIO: EscopoAcesso = {
   global: false,
@@ -50,8 +62,14 @@ export class IdentidadeService {
    * Devolve a identidade local, criando o vinculo no primeiro acesso.
    *
    * E idempotente: chamada de novo, so atualiza `ultimo_acesso_em`.
+   *
+   * **Devolve `null` em vez de falhar quando o vinculo nao e possivel.** O
+   * `/me` e a primeira chamada de toda sessao: um erro aqui derruba a
+   * aplicacao inteira para aquele usuario, e ele nem chega a uma tela onde
+   * peca ajuda. A autorizacao nao depende deste vinculo — papeis e permissoes
+   * vem do token —, entao o que se perde e so o que precisa de escopo.
    */
-  async resolver(usuario: AuthUser): Promise<Identidade> {
+  async resolver(usuario: AuthUser): Promise<Identidade | null> {
     const existente = await this.buscarPorSub(usuario.id);
     if (existente) {
       await this.db
@@ -62,6 +80,8 @@ export class IdentidadeService {
     }
 
     const usuarioId = await this.vincular(usuario);
+    if (!usuarioId) return null;
+
     return {
       usuarioId,
       pessoaId: await this.pessoaDoUsuario(usuarioId),
@@ -161,8 +181,10 @@ export class IdentidadeService {
    * chamadas. `onConflictDoNothing` no `sub` mais releitura resolve sem
    * transacao explicita — quem perder a corrida le a linha do vencedor.
    */
-  private async vincular(usuario: AuthUser): Promise<string> {
+  private async vincular(usuario: AuthUser): Promise<string | null> {
     const pessoaId = await this.acharOuCriarPessoa(usuario);
+    if (!pessoaId) return null;
+
     const origem = usuario.email ? 'EMAIL' : 'CRIACAO_AUTOMATICA';
 
     const [criado] = await this.db
@@ -203,13 +225,34 @@ export class IdentidadeService {
    * A pessoa criada nasce com `tipo = 'SERVIDOR'` e sem PPG. **Isso nao
    * concede acesso a nada:** escopo mora em `escopo_acesso`, e nasce vazio.
    */
-  private async acharOuCriarPessoa(usuario: AuthUser): Promise<string> {
+  private async acharOuCriarPessoa(usuario: AuthUser): Promise<string | null> {
     if (usuario.email) {
       const [encontrada] = await this.db
         .select({ id: s.pessoa.id })
         .from(s.pessoa)
         .where(eq(s.pessoa.email, usuario.email));
-      if (encontrada) return encontrada.id;
+
+      if (encontrada) {
+        // A pessoa pode ja pertencer a outra conta — foi o que aconteceu
+        // quando o realm foi recriado e todos os `sub` mudaram. Reusar aqui
+        // violaria `usuario_sistema_pessoa_uk` e derrubaria o `/me`; repontar
+        // sozinho seria pior, porque bastaria criar uma conta com o e-mail
+        // certo para herdar a pessoa e os escopos dela.
+        const [jaVinculada] = await this.db
+          .select({ sub: s.usuarioSistema.sub })
+          .from(s.usuarioSistema)
+          .where(eq(s.usuarioSistema.pessoaId, encontrada.id));
+
+        if (jaVinculada) {
+          this.logger.warn(
+            `Conta ${usuario.username ?? usuario.id} tem o e-mail de uma pessoa ja ` +
+              `vinculada ao sub ${jaVinculada.sub}. O vinculo ficou pendente: ` +
+              'um administrador precisa reassociar por POST /acesso/usuarios/:id/pessoa.',
+          );
+          return null;
+        }
+        return encontrada.id;
+      }
     }
 
     const [criada] = await this.db

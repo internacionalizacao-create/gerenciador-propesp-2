@@ -276,4 +276,39 @@ describe('Identidade e escopo de acesso', () => {
     );
     expect(resposta.escopo.global).toBe(true);
   });
+
+  it('nao derruba o /me quando o e-mail aponta para pessoa ja vinculada', async () => {
+    // Caso real de 2026-09-05: o realm foi recriado, todos os `sub` mudaram, e
+    // o e-mail passou a achar a pessoa ja ligada a conta antiga. Antes disso o
+    // insert violava `usuario_sistema_pessoa_uk` e o `/me` respondia 500 — ou
+    // seja, a aplicacao inteira parava para aquele usuario.
+    await identidade.resolver(usuario({ id: 'sub-antigo' }));
+
+    const me = new MeController(identidade);
+    const resposta = await me.me(usuario({ id: 'sub-novo' }));
+
+    expect(resposta.pessoaId).toBeNull();
+    expect(resposta.vinculoPendente).toBe(true);
+    // A sessao continua util: papeis e permissoes vem do token.
+    expect(resposta.permissions).toContain('ppg:read');
+
+    // E nao criou pessoa duplicada para contornar o conflito.
+    const pessoas = await ctx.db
+      .select()
+      .from(s.pessoa)
+      .where(eq(s.pessoa.email, 'coord.teste@propesp.local'));
+    expect(pessoas).toHaveLength(1);
+  });
+
+  it('o administrador reassocia a conta em conflito', async () => {
+    await identidade.resolver(usuario({ id: 'sub-antigo' }));
+    await identidade.resolver(usuario({ id: 'sub-novo' }));
+
+    // Repontar sozinho seria sequestro de identidade: bastaria criar conta com
+    // o e-mail certo para herdar a pessoa e os escopos dela. Quem desempata e
+    // um administrador.
+    const contas = await ctx.db.select().from(s.usuarioSistema);
+    expect(contas).toHaveLength(1);
+    expect(contas[0].sub).toBe('sub-antigo');
+  });
 });

@@ -453,6 +453,8 @@ const papeisMissao = ['RESPONSAVEL', 'PARTICIPANTE', 'APOIO'] as const;
  * no filtro, em producao, com um valor que o banco aceita e a API recusa.
  */
 const statusMissao = s.statusMissaoComiteEnum.enumValues;
+/** So o tipo interessa aqui: o enum do banco e a fonte dos valores. */
+type StatusAprovacao = (typeof s.statusAprovacaoMissaoEnum.enumValues)[number];
 
 /** Derivada da consulta, nao gravada: nao ha enum no banco para ela. */
 const situacoesTemporais = ['FUTURA', 'EM_ANDAMENTO', 'ENCERRADA'] as const;
@@ -507,6 +509,8 @@ export interface MissaoResumo {
   dataInicio: string;
   dataFim: string;
   status: (typeof statusMissao)[number];
+  /** Dimensao de aprovacao (CG-019), independente do status de execucao. */
+  statusAprovacao: StatusAprovacao;
   situacaoTemporal: (typeof situacoesTemporais)[number];
   situacaoPrestacao: (typeof situacoesPrestacao)[number];
   participantes: number;
@@ -637,6 +641,8 @@ export interface MissaoDetalhe {
   dataFim: string;
   numeroDias: number;
   status: (typeof statusMissao)[number];
+  /** Dimensao de aprovacao (CG-019), independente do status de execucao. */
+  statusAprovacao: StatusAprovacao;
   situacaoTemporal: (typeof situacoesTemporais)[number];
   relatoGeral: string | null;
   resultados: string | null;
@@ -922,6 +928,7 @@ export class MissoesComiteService {
       data_fim: string;
       status: MissaoResumo['status'];
       situacao_temporal: MissaoResumo['situacaoTemporal'];
+      status_aprovacao: MissaoResumo['statusAprovacao'];
       situacao_prestacao: MissaoResumo['situacaoPrestacao'];
       participantes: string;
       atividades: string;
@@ -938,6 +945,7 @@ export class MissoesComiteService {
                m.data_inicio,
                m.data_fim,
                m.status,
+               m.status_aprovacao,
                ${situacaoTemporal} as situacao_temporal,
                ${situacaoPrestacao} as situacao_prestacao,
                (select count(*) from missao_participante p
@@ -1005,6 +1013,7 @@ export class MissoesComiteService {
         dataInicio: linha.data_inicio,
         dataFim: linha.data_fim,
         status: linha.status,
+        statusAprovacao: linha.status_aprovacao,
         situacaoTemporal: linha.situacao_temporal,
         situacaoPrestacao: linha.situacao_prestacao,
         participantes: Number(linha.participantes),
@@ -1139,6 +1148,7 @@ export class MissoesComiteService {
       dataFim: missao.dataFim,
       numeroDias: calcularDiasInclusivos(missao.dataInicio, missao.dataFim),
       status: missao.status,
+      statusAprovacao: missao.statusAprovacao,
       situacaoTemporal: situacaoTemporalDe(missao.dataInicio, missao.dataFim),
       relatoGeral: missao.relatoGeral,
       resultados: missao.resultados,
@@ -1216,6 +1226,16 @@ export class MissoesComiteService {
     if (anterior.status === 'CONCLUIDA' || anterior.status === 'CANCELADA') {
       throw new ConflictException(
         'Missao concluida ou cancelada nao pode ser editada.',
+      );
+    }
+
+    // Congela o que esta sob analise (CG-037). Sem isto, o Comite poderia
+    // aprovar um texto diferente do que leu — e a decisao ficaria registrada
+    // sobre uma missao que ja nao existe mais naquela forma. Solicitar ajustes
+    // devolve a edicao, que e justamente o proposito daquela decisao.
+    if (anterior.statusAprovacao === 'EM_ANALISE') {
+      throw new ConflictException(
+        'Missao em analise nao pode ser editada. Aguarde a decisao do Comite.',
       );
     }
 

@@ -101,8 +101,10 @@ if [[ "$USUARIO" == "admin" ]]; then
   testar_bff "/api/bff/programas/capes-global/2027-2030/comite-gestor/missoes" '"itens"'
   testar_bff "/api/bff/programas/capes-global/2027-2030/comite-gestor/referencias-missao" '"redes"'
   # Os dois vazios sao diferentes: sem nenhuma missao o que falta e o cadastro;
-  # com um filtro de escopo que nao casa, o que falta e ampliar o recorte.
-  testar "/programas/capes-global/2027-2030/comite-gestor?aba=missoes" "Nenhuma missão cadastrada"
+  # com um filtro de escopo que nao casa, o que falta e ampliar o recorte. Este
+  # segundo vale sempre; o primeiro so quando o banco de fato nao tem missao —
+  # a seed nao traz, mas qualquer cadastro manual invalidaria a assercao e
+  # transformaria o smoke em fonte de falso alarme. Mesma logica dos parceiros.
   testar "/programas/capes-global/2027-2030/comite-gestor?aba=missoes&busca=inexistente" "Nenhuma missão para este filtro"
   # CG-049: parceiros. A busca vem antes do cadastro porque o problema que a
   # deduplicacao resolve e o cadastro repetido.
@@ -148,6 +150,24 @@ if [[ "$USUARIO" == "admin" ]]; then
   else
     # Banco sem parceiro: o que se verifica e o estado vazio de cadastro.
     testar "$PARCEIROS" "Nenhum parceiro cadastrado"
+  fi
+
+  # CG-045: detalhe da missao, so quando houver alguma cadastrada. A seed nao
+  # traz missoes, e o smoke nao cria — criar deixaria dado permanente, porque o
+  # dominio nao tem exclusao.
+  MISSOES="/programas/capes-global/2027-2030/comite-gestor/missoes"
+  MID=$(curl -s -b "$JAR" "${WEB}/programas/capes-global/2027-2030/comite-gestor?aba=missoes" \
+    | grep -o "${MISSOES}/[0-9a-f-]\{36\}" | head -1)
+  if [[ -z "$MID" ]]; then
+    testar "/programas/capes-global/2027-2030/comite-gestor?aba=missoes" "Nenhuma missão cadastrada"
+  else
+    testar "$MID" "Voltar para missões"
+    testar "$MID" "Roteiro"
+    testar "$MID" "Participantes"
+    # As duas dimensoes da CG-006 aparecem juntas: mostrar so uma faria
+    # "aprovada" ser lido como "realizada".
+    testar "$MID" "Situação perante o Comitê Gestor"
+    testar "$MID" "Situação de execução da missão"
   fi
 fi
 

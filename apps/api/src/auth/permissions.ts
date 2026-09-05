@@ -43,6 +43,12 @@ export const PERMISSIONS = [
   'prestacao:read',
   'prestacao:write',
   'prestacao:review',
+  /** Enviar a missao para analise do Comite (CG-037). */
+  'missao:submit',
+  /** Decidir sobre uma rodada de analise: aprovar, ajustar, reprovar (CG-038). */
+  'missao:decide',
+  /** Reabrir analise ja decidida; so `admin`, e sempre com justificativa. */
+  'missao:reopen',
   /** Ler e conceder escopo de acesso; ato administrativo, so do `admin`. */
   'acesso:read',
   'acesso:write',
@@ -106,6 +112,45 @@ export const ROLE_PERMISSIONS: Readonly<Record<string, readonly Permission[]>> =
 
     /** Consulta. */
     discente: [...SOMENTE_LEITURA],
+
+    /**
+     * Gestor da Rede: cuida das missoes da propria rede e as submete.
+     *
+     * **Nao atribua este papel a ninguem ainda.** O recorte por rede so existe
+     * para PPG; missoes e parceiros ainda nao consultam escopo, entao hoje o
+     * papel enxergaria as tres redes. Criar o papel agora e barato e nao
+     * concede nada a ninguem — atribui-lo, sim.
+     */
+    'gestor-rede': [
+      ...SOMENTE_LEITURA,
+      'equipe-gestao:read',
+      'missao:read',
+      'missao:write',
+      'missao:edit',
+      'missao:submit',
+      'parceiro:read',
+      'parceiro:write',
+      'prestacao:read',
+      'prestacao:write',
+    ],
+
+    /**
+     * Comite Gestor: analisa e decide, nao lanca.
+     *
+     * Nao tem `missao:write` nem `missao:edit` de proposito: quem decide sobre
+     * uma missao nao deveria poder alterar o que esta julgando. `missao:reopen`
+     * tambem fica de fora — desfazer decisao ja tomada e ato do `admin`.
+     * Mesma ressalva de atribuicao do `gestor-rede`.
+     */
+    'comite-gestor': [
+      ...SOMENTE_LEITURA,
+      'equipe-gestao:read',
+      'missao:read',
+      'missao:decide',
+      'parceiro:read',
+      'prestacao:read',
+      'prestacao:review',
+    ],
   };
 
 /** Uniao das permissoes de todos os papeis do usuario, sem repeticao. */

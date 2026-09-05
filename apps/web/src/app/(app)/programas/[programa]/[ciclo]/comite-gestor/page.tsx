@@ -27,6 +27,7 @@ import type {
   ResumoMissoes,
   SituacaoPrestacao,
   SituacaoTemporalMissao,
+  StatusAprovacaoMissao,
   StatusMissao,
 } from "@/lib/dominio";
 import { data, inteiro, percentual, rotulo, somarMoeda } from "@/lib/formato";
@@ -88,6 +89,19 @@ const TOM_STATUS: Record<
   CONFIRMADA: "primario",
   CONCLUIDA: "sucesso",
   CANCELADA: "perigo",
+};
+
+const TOM_APROVACAO: Record<
+  StatusAprovacaoMissao,
+  "neutro" | "primario" | "sucesso" | "aviso" | "perigo" | "info"
+> = {
+  RASCUNHO: "neutro",
+  EM_ANALISE: "info",
+  // Ajustes solicitados e aviso, nao erro: a missao voltou para quem a
+  // escreveu, o que e fluxo normal.
+  AJUSTES_SOLICITADOS: "aviso",
+  APROVADA: "sucesso",
+  REPROVADA: "perigo",
 };
 
 const ROTULO_TEMPORAL: Record<SituacaoTemporalMissao, string> = {
@@ -565,6 +579,17 @@ async function Missoes({
                     <Selo tom={TOM_STATUS[missao.status]}>
                       {ROTULO_STATUS[missao.status]}
                     </Selo>
+                    {/* A aprovação é dimensão própria (CG-006/CG-019). Sem ela
+                        aqui, a lista não diria o que aguarda o Comitê — e
+                        "concluída" seria lido como "aprovada". Rascunho de
+                        aprovação é o estado inicial e não vira ruído visual. */}
+                    {missao.statusAprovacao === "RASCUNHO" ? null : (
+                      <span className="mt-1 block">
+                        <Selo tom={TOM_APROVACAO[missao.statusAprovacao]}>
+                          {rotulo(missao.statusAprovacao)}
+                        </Selo>
+                      </span>
+                    )}
                   </Celula>
                   <Celula>
                     {/* Selo próprio: a situação da prestação é independente da

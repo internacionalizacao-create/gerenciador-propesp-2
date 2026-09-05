@@ -675,6 +675,39 @@ o ícone estiver visível.
   missão. Falta ligar `sub` do Keycloak a `pessoa` para aplicar "somente o
   responsável envia" — é pré-requisito da CG-037.
 
+  **Submissão para análise (CG-037)** entrou em 2026-09-05:
+  `GET .../missoes/:id/requisitos` devolve o checklist e
+  `POST .../missoes/:id/submissao` abre a rodada (`missao:submit`). Os
+  requisitos vêm de `requisito_submissao`, **nunca de constante**. Recusa é
+  422 com a lista de pendências. **Somente o responsável envia** — verificável
+  desde que existe o vínculo `sub` → `pessoa`; `admin` passa sempre, senão uma
+  missão cujo responsável saiu ficaria travada. **A edição congela em
+  `EM_ANALISE`:** sem isso o Comitê aprovaria texto diferente do que leu.
+  Notificação durável (D-11) ficou de fora — é proposta não homologada.
+
+  **O `/me` nunca deve falhar por causa do vínculo de identidade.** Quando o
+  `sub` do Keycloak não pode ser ligado a uma pessoa — o caso real foi o realm
+  recriado, com todos os `sub` novos e o e-mail apontando para pessoa já
+  vinculada —, `resolver` devolve `null`, o `/me` responde `pessoaId: null` e
+  `vinculoPendente: true`, e a sessão segue válida. Antes disso a resposta era
+  500 e a aplicação inteira parava. Repontar a pessoa automaticamente seria
+  pior: bastaria criar conta com um e-mail conhecido para herdar identidade e
+  escopos. Quem desempata é `POST /acesso/usuarios/:id/pessoa`.
+
+  **Decisões do Comitê (CG-038)** completam o fluxo:
+  `POST .../missoes/:id/decisao` (`missao:decide`),
+  `POST .../missoes/:id/analise/reabertura` (`missao:reopen`) e
+  `GET .../missoes/:id/analise`. **Atenção ao caminho da reabertura:**
+  `.../missoes/:id/reabertura`, sem `analise`, é outra coisa — reabre a
+  *execução* de uma missão concluída, não a *análise* decidida. Os documentos
+  analisados são **fotografados** no instante da decisão, com nome e versão:
+  sem isso um upload posterior reescreveria o que o Comitê diz ter lido. Não há
+  designação de relator, nem quórum, nem notificação.
+
+  Os papéis `gestor-rede` e `comite-gestor` existem no realm e em
+  `ROLE_PERMISSIONS`, mas **não devem ser atribuídos ainda**: missões e
+  parceiros não consultam escopo, então hoje veriam as três redes.
+
   **Não iniciar a antiga CG-045:** obter o aceite
   institucional de CG-005 a CG-009 antes de alterar novamente o contrato da
   missão. O PDF não substitui silenciosamente as decisões confirmadas.
@@ -688,10 +721,10 @@ interface é **Coordenador de Temática**, não “membro do comitê”. Ediçã
 existente exige `plano:edit` (só `admin`), preserva código/rubrica e grava uma
 entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: somente
 2027 vem composto; 2028–2030 começam vazios e nunca copiam a quantidade automaticamente.
-- **Testes**: 127 unitários/regressões (63 API + 64 na web para toast, datas,
+- **Testes**: 131 unitários/regressões (67 API + 64 na web para toast, datas,
   React Hook Form/Zod, erros do multistep, formulários de parceiro,
   acessibilidade, contraste dos tokens, cálculos monetários, montagem de série
-  do gráfico e caminhos do BFF) + 274 de integração contra Postgres
+  do gráfico e caminhos do BFF) + 303 de integração contra Postgres
   real. As duas garantias de não duplicação da linha
   histórica do parceiro foram verificadas por mutação: trocar o `exists` +
   `selectDistinct` por um `join` faz ambas falharem.

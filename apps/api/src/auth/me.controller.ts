@@ -29,8 +29,13 @@ export class MeController {
       email: user.email,
       roles: user.roles,
       permissions: user.permissions,
-      pessoaId: identidade.pessoaId,
-      escopo: identidade.escopo,
+      // Nulo quando o vinculo nao pode ser feito — e-mail apontando para uma
+      // pessoa ja ligada a outra conta, por exemplo. A sessao continua valida:
+      // papeis e permissoes vem do token, e so o que depende de escopo fica de
+      // fora ate um administrador reassociar.
+      pessoaId: identidade?.pessoaId ?? null,
+      escopo: identidade?.escopo ?? (await this.identidade.escopoDe(user)),
+      vinculoPendente: identidade === null,
     };
   }
 

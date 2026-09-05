@@ -50,6 +50,14 @@ import {
   type TransicaoMissao,
 } from './missoes-comite.service';
 import {
+  DecisaoService,
+  decidirSchema,
+  reabrirSchema,
+  type Decidir,
+  type Reabrir,
+} from './decisao.service';
+import { SubmissaoService } from './submissao.service';
+import {
   atualizarOrcamentoSchema,
   OrcamentoService,
   type AtualizarOrcamento,
@@ -93,6 +101,8 @@ export class ProgramasController {
     private readonly pendencias: PendenciasService,
     private readonly gestaoComite: ComiteGestorService,
     private readonly missoesComite: MissoesComiteService,
+    private readonly submissao: SubmissaoService,
+    private readonly decisao: DecisaoService,
     private readonly prestacao: PrestacaoService,
   ) {}
 
@@ -551,6 +561,87 @@ export class ProgramasController {
   ) {
     const ciclo = await this.contexto.resolver(slug, nome);
     return this.missoesComite.relatar(ciclo.cicloId, id, dto, usuario);
+  }
+
+  /**
+   * Checklist de submissao (CG-037).
+   *
+   * Separado do envio de proposito: descobrir o que falta so na hora de enviar
+   * transformaria a conferencia em tentativa e erro.
+   */
+  @Get(':programa/:ciclo/comite-gestor/missoes/:id/requisitos')
+  @RequirePermission('missao:read')
+  async requisitosDaMissao(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('id') id: string,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.submissao.avaliar(ciclo.cicloId, id);
+  }
+
+  /** Envia a missao para analise do Comite, abrindo uma rodada (CG-037). */
+  @Post(':programa/:ciclo/comite-gestor/missoes/:id/submissao')
+  @RequirePermission('missao:submit')
+  async submeterMissaoComite(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('id') id: string,
+    @CurrentUser() usuario: AuthUser,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.submissao.submeter(ciclo.cicloId, id, usuario);
+  }
+
+  /**
+   * Decisao do Comite sobre a rodada aberta (CG-038).
+   *
+   * `missao:decide` nao inclui `missao:write`: quem julga nao altera o que
+   * esta julgando.
+   */
+  @Post(':programa/:ciclo/comite-gestor/missoes/:id/decisao')
+  @RequirePermission('missao:decide')
+  async decidirMissaoComite(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('id') id: string,
+    @CurrentUser() usuario: AuthUser,
+    @Body(new ZodValidationPipe(decidirSchema)) dto: Decidir,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.decisao.decidir(ciclo.cicloId, id, dto, usuario);
+  }
+
+  /**
+   * Reabre a **analise** ja decidida; exclusivo de `admin`, sempre justificado.
+   *
+   * Nao confundir com `/reabertura`, logo abaixo, que reabre a **execucao** de
+   * uma missao concluida ou cancelada. Sao as duas dimensoes da CG-006: uma
+   * desfaz a decisao do Comite, a outra o encerramento administrativo.
+   */
+  @Post(':programa/:ciclo/comite-gestor/missoes/:id/analise/reabertura')
+  @RequirePermission('missao:reopen')
+  async reabrirAnaliseMissao(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('id') id: string,
+    @CurrentUser() usuario: AuthUser,
+    @Body(new ZodValidationPipe(reabrirSchema)) dto: Reabrir,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.decisao.reabrir(ciclo.cicloId, id, dto, usuario);
+  }
+
+  /** Todas as rodadas e decisoes da missao, da mais nova para a mais antiga. */
+  @Get(':programa/:ciclo/comite-gestor/missoes/:id/analise')
+  @RequirePermission('missao:read')
+  async historicoAnaliseMissao(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('id') id: string,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.decisao.historico(ciclo.cicloId, id);
   }
 
   @Post(':programa/:ciclo/comite-gestor/missoes/:id/situacao')

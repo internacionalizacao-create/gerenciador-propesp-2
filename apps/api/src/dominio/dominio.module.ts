@@ -10,6 +10,8 @@ import { ContatosParceirosController } from './contatos-parceiros.controller';
 import { ContatosParceirosService } from './contatos-parceiros.service';
 import { ContextoService } from './contexto.service';
 import { MissoesComiteService } from './missoes-comite.service';
+import { DecisaoService } from './decisao.service';
+import { SubmissaoService } from './submissao.service';
 import { OrcamentoService } from './orcamento.service';
 import { PainelService } from './painel.service';
 import { AnexosController } from './anexos.controller';
@@ -59,6 +61,8 @@ import { CatalogoController, PpgsController } from './ppgs.controller';
     BolsistasService,
     ComiteGestorService,
     MissoesComiteService,
+    SubmissaoService,
+    DecisaoService,
     ParceirosService,
     PrestacaoService,
     AnexosService,

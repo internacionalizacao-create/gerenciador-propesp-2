@@ -176,6 +176,32 @@ const ROTULOS: Record<string, string> = {
   ENTREGUE: "Entregue",
   VALIDADO: "Validado",
   ATRASADO: "Atrasado",
+  // papeis na missao (CG-018)
+  RESPONSAVEL: "Responsável",
+  PARTICIPANTE: "Participante",
+  APOIO: "Apoio",
+  COMITE_GESTOR: "Comitê Gestor",
+  ADMINISTRACAO: "Administração",
+  // situacao da missao e do roteiro. `CONCLUIDA`, `CANCELADA` e `EM_ANDAMENTO`
+  // ja estao acima, vindos da bolsa concedida, e o texto serve para os dois.
+  RASCUNHO: "Rascunho",
+  PLANEJADA: "Planejada",
+  CONFIRMADA: "Confirmada",
+  REALIZADA: "Realizada",
+  NAO_REALIZADA: "Não realizada",
+  FUTURA: "Futura",
+  ENCERRADA: "Encerrada",
+  // dimensao de aprovacao (CG-019). `EM_ANALISE` ja existe acima, vindo das
+  // pendencias, e o texto serve para as duas.
+  AJUSTES_SOLICITADOS: "Ajustes solicitados",
+  APROVADA: "Aprovada",
+  REPROVADA: "Reprovada",
+  // relacionamento da atividade (CG-018)
+  REUNIAO_INSTITUCIONAL: "Reunião institucional",
+  COOPERACAO_ACADEMICA: "Cooperação acadêmica",
+  PESQUISA: "Pesquisa",
+  MOBILIDADE: "Mobilidade",
+  CONVENIO: "Convênio",
 };
 
 export function rotulo(valor: string | null | undefined): string {

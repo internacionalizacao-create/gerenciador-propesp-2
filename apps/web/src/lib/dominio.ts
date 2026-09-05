@@ -519,6 +519,7 @@ export interface MissaoResumo {
   dataInicio: string;
   dataFim: string;
   status: StatusMissao;
+  statusAprovacao: StatusAprovacaoMissao;
   situacaoTemporal: SituacaoTemporalMissao;
   situacaoPrestacao: SituacaoPrestacao;
   participantes: number;
@@ -528,6 +529,122 @@ export interface MissaoResumo {
   redes: string[];
   /** Nulo quando não há prestação; a interface nunca apresenta R$ 0,00. */
   valorPrestado: string | null;
+}
+
+/**
+ * Dimensão de aprovação da missão (CG-019), independente do status de execução.
+ *
+ * São eixos distintos de propósito: a missão aprovada pode estar planejada,
+ * confirmada ou concluída. A tela mostra os dois, nunca um só.
+ */
+export type StatusAprovacaoMissao =
+  | "RASCUNHO"
+  | "EM_ANALISE"
+  | "AJUSTES_SOLICITADOS"
+  | "APROVADA"
+  | "REPROVADA";
+
+export interface ParticipanteMissao {
+  id: string;
+  pessoaId: string;
+  nome: string;
+  email: string | null;
+  tipoPessoa: string;
+  ppg: string | null;
+  instituicao: string | null;
+  papel: "RESPONSAVEL" | "PARTICIPANTE" | "APOIO";
+  membroEquipeId: string | null;
+  tipoEquipe: "COMITE_GESTOR" | "ADMINISTRACAO" | null;
+  funcaoEquipe: string | null;
+  cargo: string | null;
+  area: string | null;
+  dataInicio: string;
+  dataFim: string;
+  numeroDias: number;
+  observacoes: string | null;
+}
+
+export interface AtividadeMissao {
+  id: string;
+  ordem: number;
+  tipo: string;
+  titulo: string;
+  paisId: string;
+  pais: string;
+  cidade: string | null;
+  estadoRegiao: string | null;
+  local: string | null;
+  endereco: string | null;
+  instituicaoId: string | null;
+  instituicao: string | null;
+  instituicaoDoCatalogo: boolean;
+  contatoInstituicaoId: string | null;
+  contatoInstituicao: string | null;
+  tipoRelacionamento: string | null;
+  objetivoRelacionamento: string | null;
+  eventoNome: string | null;
+  eventoTipo: string | null;
+  eventoSite: string | null;
+  objetivoParticipacao: string | null;
+  relacaoInternacionalizacao: string | null;
+  dataInicio: string;
+  dataFim: string;
+  numeroDias: number;
+  planejamento: string | null;
+  relatoRealizado: string | null;
+  resultados: string | null;
+  status: string;
+  /** Aconteceu sem constar do roteiro planejado. */
+  naoPrevista: boolean;
+  justificativaInclusao: string | null;
+  observacoes: string | null;
+}
+
+export interface RegistroHistoricoMissao {
+  id: string;
+  acao: string;
+  campo: string | null;
+  valorAnterior: string | null;
+  valorNovo: string | null;
+  justificativa: string | null;
+  usuarioNome: string | null;
+  ocorridoEm: string;
+}
+
+export interface TotaisMissao {
+  passagens: string | null;
+  diarias: string | null;
+  geral: string | null;
+  porExercicio: { ano: number; passagens: string; diarias: string }[];
+}
+
+export interface MissaoDetalhe {
+  id: string;
+  codigo: string;
+  tipo: string | null;
+  unidadeDepartamento: string | null;
+  titulo: string;
+  objetivo: string;
+  dataInicio: string;
+  dataFim: string;
+  numeroDias: number;
+  status: StatusMissao;
+  statusAprovacao: StatusAprovacaoMissao;
+  situacaoTemporal: SituacaoTemporalMissao;
+  relatoGeral: string | null;
+  resultados: string | null;
+  observacoes: string | null;
+  criadoEm: string;
+  atualizadoEm: string;
+  participantes: ParticipanteMissao[];
+  atividades: AtividadeMissao[];
+  paises: string[];
+  redes: { id: string; nome: string }[];
+  prestacao: null;
+  situacaoPrestacao: SituacaoPrestacao;
+  totais: TotaisMissao;
+  documentos: never[];
+  historico: RegistroHistoricoMissao[];
 }
 
 export interface ResumoMissoes {

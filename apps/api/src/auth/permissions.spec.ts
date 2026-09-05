@@ -100,4 +100,41 @@ describe('permissionsForRoles', () => {
       expect(permissionsForRoles([papel])).toContain('painel:read');
     }
   });
+
+  it('quem decide sobre a missao nao pode altera-la', () => {
+    const comite = permissionsForRoles(['comite-gestor']);
+
+    expect(comite).toContain('missao:decide');
+    // A separacao e o ponto do papel: julgar o que se pode reescrever no meio
+    // da analise esvaziaria a decisao registrada.
+    expect(comite).not.toContain('missao:write');
+    expect(comite).not.toContain('missao:edit');
+    expect(comite).not.toContain('missao:submit');
+    // Desfazer decisao ja tomada e ato do `admin`, com justificativa.
+    expect(comite).not.toContain('missao:reopen');
+  });
+
+  it('o gestor de rede envia, mas nao decide', () => {
+    const gestor = permissionsForRoles(['gestor-rede']);
+
+    expect(gestor).toContain('missao:submit');
+    expect(gestor).toContain('missao:write');
+    expect(gestor).not.toContain('missao:decide');
+    expect(gestor).not.toContain('missao:reopen');
+  });
+
+  it('reabrir analise e exclusivo do admin', () => {
+    expect(permissionsForRoles(['admin'])).toContain('missao:reopen');
+    for (const papel of Object.keys(ROLE_PERMISSIONS)) {
+      if (papel === 'admin') continue;
+      expect(permissionsForRoles([papel])).not.toContain('missao:reopen');
+    }
+  });
+
+  it('conceder acesso e ato exclusivo do admin', () => {
+    for (const papel of Object.keys(ROLE_PERMISSIONS)) {
+      if (papel === 'admin') continue;
+      expect(permissionsForRoles([papel])).not.toContain('acesso:write');
+    }
+  });
 });

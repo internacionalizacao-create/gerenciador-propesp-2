@@ -1633,7 +1633,7 @@ Essa situação é calculada a partir das datas e não é persistida.
 
   Resultado: 170 testes de integração e 32 unitários da API.
 
-- [ ] **CG-037 — Implementar submissão para análise**
+- [x] **CG-037 — Implementar submissão para análise**
 
   Criar ação explícita para enviar a missão ao Comitê:
 
@@ -1650,7 +1650,40 @@ Essa situação é calculada a partir das datas e não é persistida.
   Critério de aceite: submissão incompleta é recusada com erros acionáveis e
   reenvio após ajustes cria nova rodada sem apagar a anterior.
 
-- [ ] **CG-038 — Implementar decisões e rodadas de ajustes**
+  **Concluída em 2026-09-05.** Entrou
+  [submissao.service.ts](../apps/api/src/dominio/submissao.service.ts), com
+  `GET .../missoes/:id/requisitos` (checklist) e
+  `POST .../missoes/:id/submissao` (envio, permissão `missao:submit`).
+
+  O checklist é endpoint separado do envio de propósito: descobrir o que falta
+  só na hora de enviar transformaria a conferência em tentativa e erro. A recusa
+  responde **422 com a lista de pendências** — o corpo da requisição está
+  correto, o que falta é estado da missão.
+
+  **"Somente o responsável envia" agora é verificável**, porque o vínculo
+  `sub` → `pessoa` existe. `admin` passa sempre: sem essa exceção a PROPESP não
+  destravaria missão cujo responsável saiu da instituição. A rodada grava
+  `submetido_por_pessoa_id`, não só o `sub`.
+
+  **A edição congela durante a análise.** Sem isso o Comitê poderia aprovar um
+  texto diferente do que leu, e a decisão ficaria registrada sobre uma missão
+  que já não existe mais naquela forma. Solicitar ajustes devolve a edição — é
+  o propósito daquela decisão. `MissaoDetalhe` e `MissaoResumo` passaram a
+  expor `statusAprovacao`.
+
+  **Notificação durável (D-11) não entrou.** A tarefa a pedia, mas D-11 é
+  *proposta* na folha de homologação e não foi aceita. Construir um outbox
+  agora seria implementar decisão institucional que ninguém tomou.
+
+  Cobertura: 14 regressões em
+  [submissao.int-spec.ts](../apps/api/test/submissao.int-spec.ts) — documento
+  faltando com a mensagem certa, documento inativo não satisfaz requisito,
+  requisito de outro tipo de missão não bloqueia, participante comum recebe
+  403, envio duplicado, edição congelada, reenvio criando rodada 2 sem apagar a
+  decisão da 1, missão aprovada que não volta por reenvio, cancelada e ciclo
+  trocado.
+
+- [x] **CG-038 — Implementar decisões e rodadas de ajustes**
 
   Implementar `APROVAR`, `SOLICITAR_AJUSTES` e `REPROVAR` conforme a governança
   homologada:
@@ -1666,6 +1699,40 @@ Essa situação é calculada a partir das datas e não é persistida.
 
   Critério de aceite: histórico mostra todas as decisões, autores, datas e
   pareceres; aprovação anterior nunca é sobrescrita pelo reenvio.
+
+  **Concluída em 2026-09-05**, com quatro decisões do responsável tomadas na
+  mesma data:
+
+  | Ponto | Decisão |
+  |---|---|
+  | Notificar o responsável (D-11) | **Fora desta task.** D-11 é proposta não homologada; construir outbox agora seria implementar decisão que ninguém tomou. |
+  | Documentos analisados | **Fotografia automática** no instante da decisão. |
+  | Relator | **Sem designação prévia**: quem tem `missao:decide` decide, e o parecer registra quem foi. |
+  | Escopo por rede | **Só `admin` por enquanto**; a barreira por rede é a CG-028. |
+
+  Entrou [decisao.service.ts](../apps/api/src/dominio/decisao.service.ts), com
+  `POST .../missoes/:id/decisao`, `POST .../missoes/:id/analise/reabertura` e
+  `GET .../missoes/:id/analise`.
+
+  **A rota de reabertura precisou de caminho próprio.** Já existia
+  `.../missoes/:id/reabertura`, que reabre a **execução** de uma missão
+  concluída ou cancelada — coisa diferente de reabrir a **análise** decidida.
+  São as duas dimensões da CG-006 colidindo no mesmo verbo; o TypeScript pegou
+  pela duplicação do nome do método, não pela rota.
+
+  **A fotografia dos documentos é o ponto delicado.** Copiar a lista e a versão
+  de cada arquivo no instante da decisão é o que impede um upload posterior de
+  reescrever retroativamente o que o Comitê diz ter analisado — se a decisão
+  apontasse para "os anexos da missão", o parecer mudaria sozinho. Documento
+  inativo não entra; decisão sem nenhum documento não quebra.
+
+  Cobertura: 13 regressões em
+  [decisao.int-spec.ts](../apps/api/test/decisao.int-spec.ts).
+
+  **Um erro dos próprios testes vale registro:** as primeiras versões fixavam a
+  reunião em `2027-06-25` porque a missão é de 2027. Está errado — o Comitê
+  aprova **antes** da viagem, e a data de reunião no futuro é recusada de
+  propósito. O check pegou o teste, não o contrário.
 
 - [ ] **CG-039 — Testar aprovação, concorrência e notificações**
 
@@ -1843,7 +1910,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   aprovados. Após a carga formal da CG-041A, o total atual é 33 unitários da API
   e 173 testes de integração; as 16 regressões da web permanecem aprovadas.
 
-- [ ] **CG-045 — Construir o detalhe da missão**
+- [~] **CG-045 — Construir o detalhe da missão**
 
   Criar página com resumo, redes, roteiro, participantes, parceiros, contatos,
   documentos, aprovação, relato, prestação, produtos e histórico, preservando
@@ -1857,6 +1924,38 @@ Essa situação é calculada a partir das datas e não é persistida.
   Critério de aceite: missão sem prestação abre normalmente e mostra o estado
   “Prestação não iniciada”; missão em análise mostra a rodada e as ações
   permitidas sem misturar edição, decisão e prestação.
+
+  **Desbloqueada em 2026-09-05**, quando CG-037 e CG-038 fecharam a última
+  dependência. Entregue em fatias.
+
+  **Fatia 1 (2026-09-05): resumo, roteiro e participantes.**
+  [missoes/[id]/page.tsx](../apps/web/src/app/(app)/programas/[programa]/[ciclo]/comite-gestor/missoes/[id]/page.tsx).
+  A lista já apontava para esta rota desde a CG-041 — era link morto até agora.
+
+  **As duas dimensões da CG-006 aparecem juntas**, com selos separados e
+  rotulados ("Aprovação: …", "Execução: …"). Mostrar só uma produziria a
+  leitura errada mais provável: *aprovada* lida como *realizada*, ou
+  *concluída* lida como *aprovada pelo Comitê*. A lista também ganhou o selo de
+  aprovação, omitido quando é `RASCUNHO` para não virar ruído.
+
+  A tela não soma nem deriva nada: dias inclusivos, situação temporal e totais
+  chegam calculados da API.
+
+  Faltam as fatias 2 (análise: rodadas, pareceres, ações de enviar e decidir) e
+  3 (documentos e prestação), além da navegação por abas — que só faz sentido
+  quando houver mais de uma.
+
+  **Um achado sério durante a verificação desta fatia**, sem relação com a
+  interface: o `/me` respondia **500** e derrubava a aplicação inteira. O realm
+  havia sido recriado, todos os `sub` mudaram, e o vínculo por e-mail achava a
+  pessoa já ligada à conta antiga — violando `usuario_sistema_pessoa_uk`.
+  Corrigido: `resolver` devolve `null` em vez de falhar, o `/me` responde
+  `pessoaId: null` e `vinculoPendente: true`, e a sessão continua válida porque
+  papéis e permissões vêm do token. **Repontar sozinho seria pior que falhar:**
+  bastaria criar uma conta com um e-mail conhecido para herdar a pessoa e os
+  escopos dela. Quem desempata é um administrador, por
+  `POST /acesso/usuarios/:id/pessoa`. Duas regressões novas em
+  `acesso.int-spec.ts` cobrem o caso.
 
 - [ ] **CG-046 — Construir edição do relato da missão**
 
