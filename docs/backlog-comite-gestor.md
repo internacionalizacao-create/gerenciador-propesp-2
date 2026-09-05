@@ -157,8 +157,9 @@ Pessoa/equipe
   aprovação do Comitê, escopo por rede, produtos, convênios, evidências,
   dashboards e relatórios continuam pendentes.
 - [~] O pacote que torna CG-005 a CG-009 decidíveis foi produzido em
-  [homologacao-comite-gestor.md](homologacao-comite-gestor.md). As cinco tasks
-  passaram a `[~]`: a parte técnica está pronta, o aceite institucional não.
+  [homologacao-comite-gestor.md](homologacao-comite-gestor.md). CG-005 a CG-008
+  ainda aguardam aceite institucional; a CG-009 foi concluída depois com as
+  respostas do documento de orçamento e decisões do responsável pelo projeto.
 - [x] CG-022 e CG-040 foram concluídas em 2026-09-01: contagem de missões por
   membro e filtro de exercício da tabela de aportes.
 - [x] CG-016 foi concluída em 2026-09-01: a missão pertence a uma ou mais redes
@@ -210,6 +211,11 @@ Pessoa/equipe
 - [x] CG-052 foi concluída em 2026-09-05: documentos de passagem, diária e
   cotações têm categoria compatível com o alvo, preservam autoria, data e
   versões, e despesas documentadas não podem deixar anexos órfãos.
+- [x] CG-061 foi concluída em 2026-09-05 para a matriz provisória de acesso:
+  UUIDs e nomes maliciosos são recusados na fronteira, o download codifica o
+  nome com segurança e referência direta não contorna a permissão do alvo. A
+  verificação completa (lint, build, 58+64 unitários, 246 integrações e os dois
+  smokes) foi executada no fechamento.
 - [x] CG-014 foi concluída em 2026-09-02: modelo documental decidido e
   registrado em [modelo-documental.md](modelo-documental.md), com três pontos
   institucionais propostos e ainda por confirmar.
@@ -217,14 +223,16 @@ Pessoa/equipe
   de despesa, formatos, abertura da prestação e a natureza da estimativa; o
   responsável decidiu BRL único, abatimento do aporte por prestação validada e
   requisitos agnósticos ao tipo de missão.
-- [x] O backlog possui 70 tasks rastreáveis: 36 concluídas, 11 em andamento e
-  23 pendentes. Esses números são retrato de 2026-09-05 e devem ser atualizados
+- [x] O backlog possui 70 tasks rastreáveis: 37 concluídas, 11 em andamento e
+  22 pendentes. Esses números são retrato de 2026-09-05 e devem ser atualizados
   quando um checkbox mudar.
 
-Próxima ação obrigatória: **obter o aceite da folha de aprovação** de
+Próxima ação obrigatória para retomar o fluxo funcional: **obter o aceite da
+folha de aprovação** de
 [homologacao-comite-gestor.md](homologacao-comite-gestor.md), que fecha CG-005 a
-CG-009. A CG-045 continua não sendo a próxima: rede, aprovação, parceiros e
-documentos alterarão o contrato da página de detalhe.
+CG-008 e os blocos institucionais ainda abertos. A CG-009 já foi concluída. A
+CG-045 continua não sendo a próxima: aprovação e escopo de acesso ainda alteram
+o contrato da página de detalhe.
 
 As duas tasks que podiam avançar sem depender do aceite foram entregues em
 2026-09-01: **CG-022** (contagem de missões por membro) e **CG-040** (filtro de
@@ -235,10 +243,10 @@ projeto, as decisões **estruturais** do pacote (CG-006 e CG-007) passaram a ser
 tratadas como aceitas para desbloquear as **CG-016 a CG-018**, que foram
 concluídas. As
 decisões **institucionais** continuam pendentes e nada que dependa delas foi
-implementado: modelo B de aprovação (CG-008), formatos/retenção de documentos
-(CG-009/D-08), perfil Participante (D-12) e a matriz definitiva de acesso
+implementado: modelo B de aprovação (CG-008), retenção/backup de documentos
+(D-08), perfil Participante (D-12) e a matriz definitiva de acesso
 (CG-003). A folha de aprovação continua valendo — o aceite formal ainda é o que
-fecha CG-005 a CG-009.
+fecha CG-005 a CG-008 e os blocos restantes.
 
 ## Proposta de navegação
 
@@ -2173,12 +2181,38 @@ Essa situação é calculada a partir das datas e não é persistida.
 
   Dependências: CG-050 a CG-055.
 
-- [ ] **CG-061 — Cobrir segurança dos documentos**
+- [x] **CG-061 — Cobrir segurança dos documentos**
 
   Testar usuário sem permissão, IDs adulterados, MIME falso, arquivo acima do
   limite, nome malicioso e acesso a documento de outra missão.
 
   Dependências: CG-051 e CG-052.
+
+  Concluída em 2026-09-05 para a matriz provisória, na qual somente `admin`
+  possui as permissões de prestação. A cobertura comprova recusa de usuário sem
+  permissão mesmo conhecendo o UUID, alvo inexistente, UUID malformado antes da
+  consulta ao banco, MIME falso, arquivo acima do limite e nome com caracteres
+  de controle. O `Content-Disposition` usa fallback ASCII e `filename*` UTF-8,
+  remove caminho e não permite CR/LF, aspas ou ponto e vírgula alterarem o
+  cabeçalho.
+
+  A proteção entre redes para dois usuários que possuam `prestacao:read` não é
+  parte desta task porque esse segundo perfil ainda não existe: nasce com a
+  CG-028 e é testado pela CG-029. Hoje, conhecer o ID de documento de outra
+  missão não amplia permissões; `prestacao:read` continua obrigatória.
+
+  Fechamento em 2026-09-05: a checagem de caractere de controle saiu de uma
+  expressão regular com literais `\u0000-\u001f` — que o `no-control-regex`
+  do ESLint recusa, e a entrega anterior deixou o `pnpm lint` quebrado — para a
+  função `temControle`, que percorre os pontos de código. **Não foi silenciada a
+  regra:** um `eslint-disable` aqui esconderia o próximo literal de controle
+  escrito sem intenção. Cinco casos novos em
+  [anexos.service.spec.ts](../apps/api/src/dominio/anexos.service.spec.ts)
+  cobrem nome limpo, nome acentuado, CR/LF, `NUL` e `DEL`.
+
+  Verificado de ponta a ponta em 2026-09-05: **58 unitários da API, 64
+  regressões da web, 246 integrações**, `pnpm lint`, `pnpm build`,
+  `pnpm smoke:login` e `pnpm smoke:telas` (nos dois usuários) aprovados.
 
 - [~] **CG-062 — Criar regressões da interface**
 
@@ -2242,6 +2276,19 @@ Essa situação é calculada a partir das datas e não é persistida.
   traz parceiros, mas qualquer cadastro feito à mão invalidaria a asserção e
   transformaria o smoke em fonte de falso alarme.
 
+  Em 2026-09-05 o smoke passou a atravessar também o caminho autenticado
+  browser → BFF → API para a lista e as referências do formulário de missão.
+  As chamadas são somente leitura: criar missão no smoke atual deixaria dados
+  permanentes porque o domínio não possui exclusão. O preenchimento visual do
+  sidesheet continua dependendo de automação de navegador, ainda inexistente no
+  repositório.
+
+  **Os dois scripts estavam versionados sem o bit de execução** (modo `100644`),
+  então `pnpm smoke:login` e `pnpm smoke:telas` falhavam com *Permission denied*
+  em qualquer clone limpo — só funcionavam por `bash scripts/...`. Corrigido com
+  `git update-index --chmod=+x` em 2026-09-05. Um smoke que não roda pelo comando
+  documentado é um smoke que ninguém roda.
+
 - [~] **CG-064 — Revisar acessibilidade e responsividade**
 
   Verificar teclado, foco dos sidesheets, rótulos, anúncios de erro/sucesso,
@@ -2280,12 +2327,16 @@ Essa situação é calculada a partir das datas e não é persistida.
   `aria-labelledby`/`aria-describedby` presentes no diálogo e `aria-label` no
   botão de fechar. Cobertura: 8 regressões novas em
   `apps/web/test/acessibilidade.test.mjs`; resultado geral **44 unitários da
-  API, 43 regressões da web e 203 integrações aprovados**.
+  API, 43 regressões da web e 203 integrações aprovados** (retrato de
+  2026-09-02; hoje são 58, 64 e 246).
+
+  Em 2026-09-05 os pares semânticos passaram a ter regressão numérica de
+  contraste nos temas claro e escuro. Texto normal exige pelo menos 4,5:1;
+  borda forte e anel de foco, 3:1. A menor razão atual entre os pares de estado
+  é 5,24:1 (`danger` escuro), e `subtle` sobre `surface`, 4,90:1 no claro.
 
   Continua pendente, porque depende de tela que ainda não existe: revisão das
-  telas de prestação, aprovação e dashboards. Contraste dos estados não foi
-  medido com ferramenta — os tokens semânticos foram herdados e não auditados
-  em número de razão de contraste.
+  telas de prestação, aprovação e dashboards.
 
 - [~] **CG-065 — Atualizar a documentação do projeto**
 
@@ -2324,6 +2375,14 @@ Essa situação é calculada a partir das datas e não é persistida.
   frente. O catálogo de permissões continua vivendo em
   `apps/api/src/auth/permissions.ts`, com o processo de extensão descrito no
   `AGENTS.md` §6 — `parceiro:read|write` já estão lá e cobertos por teste.
+
+  Passagem em 2026-09-05: documentação e arquitetura agora registram CG-050 a
+  CG-052, incluindo as categorias de documento por tipo de despesa e as travas
+  que preservam anexos polimórficos. O resumo deixou de afirmar que todo o Épico
+  5 estava pendente, CG-009 foi separada das quatro homologações ainda abertas,
+  e a lista de decisões futuras perdeu itens já resolvidos (tipos de despesa,
+  BRL, formatos, evento como atividade e instituição provisória). Retenção,
+  backup, antivírus e visibilidade definitiva permanecem corretamente abertos.
 
 ### Épico 8 — Dashboards, relatórios e exportações
 
@@ -2429,26 +2488,19 @@ aceite da equipe.
 - [ ] Classificar as 40 seções entre MVP, fase posterior, visão futura e fora do
   escopo (CG-005).
 - [ ] Homologar dimensões e transições de estado (CG-006).
-- [ ] Definir missão/evento multirrede e “Minha rede” (CG-007).
+- [ ] Homologar a matriz perfil–escopo e o significado de “Minha rede”
+  (CG-003/CG-007); a relação multirrede das entidades já foi implementada.
 - [ ] Definir quórum, relator ou autoridade individual do Comitê (CG-008).
 - [ ] Confirmar se haverá titular/suplente nas duas equipes ou apenas função em
   texto controlado.
-- [ ] Separar orçamento estimado pré-aprovação de despesa efetiva (CG-009).
 - [ ] Definir a regra institucional para escolher o exercício de cada despesa;
   o modelo já prevê que ele será informado explicitamente.
-- [ ] Confirmar quais outras despesas integram o MVP (CG-009).
-- [ ] Definir formatos, tamanho máximo, antivírus, backup e retenção dos
-  documentos (CG-009/CG-014).
+- [ ] Definir antivírus, backup e retenção dos documentos; formatos e limite de
+  25 MB configurável já estão implementados (CG-009/CG-014/CG-051).
 - [ ] Definir obrigatoriedade condicional e dispensa no checklist (CG-009).
-- [ ] Decidir se evento é cadastro reutilizável ou atividade da missão (D-10).
-- [ ] Decidir se instituição livre será proibida ou conciliada como provisória
-  (D-06).
 - [ ] Definir canal de notificações e política de retentativa (D-11).
 - [ ] Definir vínculo entre usuário Keycloak e pessoa local (D-12).
 - [ ] Definir visibilidade e retenção dos contatos, fotos e comprovantes
   pessoais (D-13).
 - [ ] Definir quem pode validar uma prestação quando os acessos deixarem de ser
   exclusivos do `admin`.
-- [ ] Definir se despesas em moeda estrangeira precisarão guardar moeda, valor
-  original, cotação e valor convertido; o MVP proposto trabalha com o valor
-  oficial em reais.

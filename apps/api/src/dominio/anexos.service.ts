@@ -128,6 +128,8 @@ export const justificarAnexoSchema = z.object({
 });
 export type JustificarAnexo = z.infer<typeof justificarAnexoSchema>;
 
+export const idAnexoSchema = z.uuid('Identificador de documento invalido.');
+
 /** O que sai para o cliente. `caminho` **não** está aqui, e é o ponto. */
 export interface AnexoResumo {
   id: string;
@@ -329,6 +331,15 @@ export class AnexosService {
     if (!arquivo?.buffer?.length) {
       throw new BadRequestException('Arquivo vazio.');
     }
+    if (
+      !arquivo.originalname ||
+      arquivo.originalname.length > 300 ||
+      temControle(arquivo.originalname)
+    ) {
+      // CR/LF no nome pode virar injecao de cabecalho no download. O nome nao
+      // participa da chave do storage, mas ainda chega ao Content-Disposition.
+      throw new BadRequestException('Nome de arquivo invalido.');
+    }
     if (arquivo.buffer.length > TAMANHO_MAXIMO) {
       throw new PayloadTooLargeException(
         `O arquivo excede o limite de ${Math.floor(TAMANHO_MAXIMO / 1024 / 1024)} MB.`,
@@ -456,4 +467,37 @@ export class AnexosService {
 
 function nomeDoUsuario(usuario: AuthUser): string | null {
   return usuario.name ?? usuario.username ?? usuario.email ?? null;
+}
+
+/**
+ * Content-Disposition seguro e compativel com nomes Unicode (RFC 5987).
+ * `filename` e um fallback ASCII; `filename*` preserva o nome para navegadores
+ * atuais sem permitir que aspas, barras ou controles alterem o cabecalho.
+ */
+export function disposicaoDoAnexo(nome: string): string {
+  const base = nome.split(/[\\/]/).at(-1) || 'documento';
+  const ascii = base
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\x20-\x7e]/g, '_')
+    .replace(/["\\;]/g, '_');
+  const utf8 = encodeURIComponent(base).replace(
+    /[!'()*]/g,
+    (caractere) => `%${caractere.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${utf8}`;
+}
+
+/**
+ * Nome de arquivo com caractere de controle e recusado na fronteira. A checagem
+ * percorre os pontos de codigo em vez de usar expressao regular porque um
+ * literal de controle dentro de regex e justamente o que o `no-control-regex`
+ * proibe — e silenciar a regra esconderia o proximo caso, escrito sem intencao.
+ */
+export function temControle(nome: string): boolean {
+  for (const caractere of nome) {
+    const codigo = caractere.codePointAt(0) ?? 0;
+    if (codigo < 0x20 || codigo === 0x7f) return true;
+  }
+  return false;
 }

@@ -4,7 +4,7 @@ Especificação funcional e de dados do sistema que substitui as planilhas hoje 
 pela PROPESP/UEA para gerir bolsas, orçamento e mobilidade internacional da
 pós-graduação.
 
-**Última revisão:** 2026-08-31
+**Última revisão:** 2026-09-05
 **Fontes:** `dados/levamtamento de bolsas/`, incluindo a planilha atualizada
 `Planejamento_CAPES_Global_2027_2030_Atualizado_UNICAMP_UFMG.xlsx`;
 `dados/remanejamento/Guia_Orientacoes_Remanejamento_Transformacao_CAPES_Global final (1).pdf`;
@@ -12,7 +12,9 @@ pós-graduação.
 `dados/insights/`; `dados/sugestaov1-prototipo/`.
 **Estado da implementação:** autenticação/autorização, modelo de dados (40 tabelas),
 seed com os dados reais, **serviços de cálculo (RN-01 a RN-20), telas de
-planejamento anual e cadastro individual de bolsas/produtos** estão implementados e testados.
+planejamento anual, cadastro individual de bolsas/produtos e fundações de
+missões, parceiros, prestação e documentos do Comitê Gestor** estão
+implementados e testados.
 
 | Página | Situação |
 |---|---|

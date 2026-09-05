@@ -197,6 +197,17 @@ describe('AnexosService (CG-051)', () => {
     );
   });
 
+  it('recusa nome com controle antes de gravar no storage', async () => {
+    await expect(
+      service.enviar(
+        envio(),
+        arquivo('comprovante.pdf\r\nX-Injetado: sim', PDF().buffer),
+        admin,
+      ),
+    ).rejects.toThrow(/Nome de arquivo invalido/i);
+    expect(await ctx.db.select().from(s.anexo)).toEqual([]);
+  });
+
   it('recusa upload apontando para entidade inexistente', async () => {
     // `entidade_id` nao tem chave estrangeira; sem esta checagem o upload
     // criaria um orfao no ato.
@@ -207,6 +218,28 @@ describe('AnexosService (CG-051)', () => {
         admin,
       ),
     ).rejects.toThrow(/nao existe/i);
+  });
+
+  it('id existente de documento financeiro nao amplia permissao por referencia direta', async () => {
+    const documento = await service.enviar(
+      envio({
+        entidadeTipo: 'COTACAO_PASSAGEM',
+        entidadeId: cotacoesIds[0],
+        categoria: 'COTACAO',
+      }),
+      PDF(),
+      admin,
+    );
+
+    // Conhecer ou adulterar o UUID nao concede prestacao:read. Enquanto a
+    // matriz provisoria for exclusiva de admin, esta e a fronteira aplicavel;
+    // o isolamento horizontal por rede nasce com a CG-028.
+    await expect(service.baixar(documento.id, somenteMissao)).rejects.toThrow(
+      /prestacao:read/i,
+    );
+    await expect(
+      service.baixar('11111111-1111-4111-8111-111111111111', admin),
+    ).rejects.toThrow(/nao encontrado/i);
   });
 
   it('aplica a permissao da entidade de destino, nao uma do documento', async () => {

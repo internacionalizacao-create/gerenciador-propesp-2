@@ -613,6 +613,13 @@ o ícone estiver visível.
   uma cotação que tenha documento — preservar a linha é o que mantém o vínculo
   histórico válido.
 
+  **Segurança documental (CG-061)** valida UUID antes do banco, rejeita nome
+  com caracteres de controle e monta `Content-Disposition` com fallback ASCII
+  mais `filename*` UTF-8. Conhecer o UUID não contorna a permissão herdada do
+  alvo. Isolamento horizontal entre dois perfis com a mesma permissão continua
+  pertencendo à CG-028/CG-029, porque a matriz provisória ainda dá acesso ao
+  módulo somente a `admin`.
+
   **Não iniciar a antiga CG-045:** obter o aceite
   institucional de CG-005 a CG-009 antes de alterar novamente o contrato da
   missão. O PDF não substitui silenciosamente as decisões confirmadas.
@@ -626,10 +633,10 @@ interface é **Coordenador de Temática**, não “membro do comitê”. Ediçã
 existente exige `plano:edit` (só `admin`), preserva código/rubrica e grava uma
 entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: somente
 2027 vem composto; 2028–2030 começam vazios e nunca copiam a quantidade automaticamente.
-- **Testes**: 118 unitários/regressões (55 API + 63 na web para toast, datas,
+- **Testes**: 122 unitários/regressões (58 API + 64 na web para toast, datas,
   React Hook Form/Zod, erros do multistep, formulários de parceiro,
-  acessibilidade, cálculos monetários, montagem de série do gráfico e caminhos
-  do BFF) + 238 de integração contra Postgres
+  acessibilidade, contraste dos tokens, cálculos monetários, montagem de série
+  do gráfico e caminhos do BFF) + 246 de integração contra Postgres
   real. As duas garantias de não duplicação da linha
   histórica do parceiro foram verificadas por mutação: trocar o `exists` +
   `selectDistinct` por um `join` faz ambas falharem.

@@ -17,7 +17,9 @@ import type { AuthUser } from '../auth/auth-user';
 import { ZodValidationPipe } from '../comum/zod-validation.pipe';
 import {
   AnexosService,
+  disposicaoDoAnexo,
   enviarAnexoSchema,
+  idAnexoSchema,
   justificarAnexoSchema,
   listarAnexosSchema,
   type ArquivoRecebido,
@@ -60,7 +62,10 @@ export class AnexosController {
   }
 
   @Get(':id/historico')
-  historico(@Param('id') id: string, @CurrentUser() usuario: AuthUser) {
+  historico(
+    @Param('id', new ZodValidationPipe(idAnexoSchema)) id: string,
+    @CurrentUser() usuario: AuthUser,
+  ) {
     return this.anexos.historico(id, usuario);
   }
 
@@ -71,23 +76,20 @@ export class AnexosController {
    */
   @Get(':id/conteudo')
   async baixar(
-    @Param('id') id: string,
+    @Param('id', new ZodValidationPipe(idAnexoSchema)) id: string,
     @CurrentUser() usuario: AuthUser,
     @Res() resposta: Response,
   ) {
     const arquivo = await this.anexos.baixar(id, usuario);
     resposta.setHeader('Content-Type', arquivo.mimeType);
-    resposta.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${arquivo.nome.replace(/"/g, '')}"`,
-    );
+    resposta.setHeader('Content-Disposition', disposicaoDoAnexo(arquivo.nome));
     resposta.send(arquivo.conteudo);
   }
 
   @Post(':id/substituicao')
   @UseInterceptors(FileInterceptor('arquivo'))
   substituir(
-    @Param('id') id: string,
+    @Param('id', new ZodValidationPipe(idAnexoSchema)) id: string,
     @UploadedFile() arquivo: ArquivoRecebido,
     @CurrentUser() usuario: AuthUser,
   ) {
@@ -96,7 +98,7 @@ export class AnexosController {
 
   @Post(':id/inativacao')
   inativar(
-    @Param('id') id: string,
+    @Param('id', new ZodValidationPipe(idAnexoSchema)) id: string,
     @CurrentUser() usuario: AuthUser,
     @Body(new ZodValidationPipe(justificarAnexoSchema)) dto: JustificarAnexo,
   ) {

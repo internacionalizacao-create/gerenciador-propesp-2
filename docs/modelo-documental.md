@@ -164,7 +164,9 @@ pronto para receber a regra definitiva.
 - **CG-051** implementa upload/download com esta estrutura, a validação por
   conteúdo e o endpoint autenticado.
 - **CG-052** liga documento a despesa por `entidade_tipo = 'DESPESA_MISSAO'` e
-  `'COTACAO_PASSAGEM'` — a cotação tem PDF próprio (§22).
+  `'COTACAO_PASSAGEM'` — a cotação tem PDF próprio (§22). Concluída em
+  2026-09-05 com validação da categoria contra o tipo de despesa e proteção
+  contra edição/exclusão que deixaria o vínculo polimórfico órfão.
 - **CG-019** cria `decisao_documento`, pelo motivo do §3.
 - **CG-057** usa `categoria`, `legenda`, `data_evidencia`, `local_evidencia` e
   `visibilidade`.

@@ -114,3 +114,75 @@ test("o toast anuncia sucesso e erro com urgencias diferentes", async () => {
     /aria-live=\{tom === "erro" \? "assertive" : "polite"\}/,
   );
 });
+
+function luminancia(hex) {
+  const canais = [1, 3, 5]
+    .map((inicio) => Number.parseInt(hex.slice(inicio, inicio + 2), 16) / 255)
+    .map((canal) =>
+      canal <= 0.04045
+        ? canal / 12.92
+        : ((canal + 0.055) / 1.055) ** 2.4,
+    );
+  return 0.2126 * canais[0] + 0.7152 * canais[1] + 0.0722 * canais[2];
+}
+
+function contraste(a, b) {
+  const [clara, escura] = [luminancia(a), luminancia(b)].sort((x, y) => y - x);
+  return (clara + 0.05) / (escura + 0.05);
+}
+
+function tokensDoBloco(css, seletor) {
+  const inicio = css.indexOf(seletor);
+  assert.notEqual(inicio, -1, `seletor ${seletor} ausente`);
+  const bloco = css.slice(inicio, css.indexOf("}\n", inicio));
+  return Object.fromEntries(
+    [...bloco.matchAll(/--([\w-]+):\s*(#[0-9A-Fa-f]{6})/g)].map(
+      ([, nome, valor]) => [nome, valor],
+    ),
+  );
+}
+
+test("os pares semanticos mantem contraste WCAG AA nos dois temas", async () => {
+  const css = await readFile(raiz("src/app/globals.css"), "utf8");
+  const pares = [
+    "primary",
+    "primary-soft",
+    "success",
+    "success-soft",
+    "warning",
+    "warning-soft",
+    "danger",
+    "danger-soft",
+    "info",
+    "info-soft",
+    "network-1",
+    "network-1-soft",
+    "network-2",
+    "network-2-soft",
+    "network-3",
+    "network-3-soft",
+  ];
+
+  for (const [tema, seletor] of [
+    ["claro", ":root,"],
+    ["escuro", '[data-theme="dark"] {'],
+  ]) {
+    const tokens = tokensDoBloco(css, seletor);
+    for (const fundo of pares) {
+      const razao = contraste(tokens[fundo], tokens[`on-${fundo}`]);
+      assert.ok(
+        razao >= 4.5,
+        `${tema}: --on-${fundo} sobre --${fundo} tem apenas ${razao.toFixed(2)}:1`,
+      );
+    }
+    for (const texto of ["muted", "subtle"]) {
+      const razao = contraste(tokens[texto], tokens.surface);
+      assert.ok(
+        razao >= 4.5,
+        `${tema}: --${texto} sobre --surface tem apenas ${razao.toFixed(2)}:1`,
+      );
+    }
+    assert.ok(contraste(tokens["border-strong"], tokens.surface) >= 3);
+    assert.ok(contraste(tokens.ring, tokens.background) >= 3);
+  }
+});
