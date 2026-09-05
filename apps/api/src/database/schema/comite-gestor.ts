@@ -13,7 +13,7 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 
-import { id, timestamps } from './comum';
+import { id, statusAprovacaoMissaoEnum, timestamps } from './comum';
 import { instituicao, pais, pessoa } from './institucional';
 import { contatoInstituicao } from './parceiros';
 import { tipoMissaoEnum } from './planejamento';
@@ -135,6 +135,18 @@ export const missaoComite = pgTable(
     dataInicio: date('data_inicio').notNull(),
     dataFim: date('data_fim').notNull(),
     status: statusMissaoComiteEnum('status').notNull().default('RASCUNHO'),
+    /**
+     * Dimensao de aprovacao (CG-019), independente de `status`.
+     *
+     * Nao foi acrescentado valor a `status_missao_comite` porque as duas
+     * dimensoes se cruzam: a missao aprovada pode estar planejada, confirmada
+     * ou concluida, e uma coluna unica precisaria de um valor novo para cada
+     * combinacao. O derivado fica fora do banco — quem decide o que a tela
+     * mostra e o servico, lendo as duas.
+     */
+    statusAprovacao: statusAprovacaoMissaoEnum('status_aprovacao')
+      .notNull()
+      .default('RASCUNHO'),
     relatoGeral: text('relato_geral'),
     resultados: text('resultados'),
     observacoes: text('observacoes'),

@@ -496,7 +496,7 @@ o ícone estiver visível.
 
 - **Autenticação/autorização**: login e logout OIDC completos, sessão renovada
   automaticamente, guards globais, catálogo de permissões, realm versionado.
-- **Modelo de dados**: 40 tabelas em 10 módulos de schema Drizzle
+- **Modelo de dados**: 44 tabelas em 11 módulos de schema Drizzle
   ([apps/api/src/database/schema/](apps/api/src/database/schema/)), com migrations.
   Segue [system-structl.md](system-structl.md) §4.
 - **Seed com os dados reais** das planilhas e respostas formais
@@ -620,6 +620,18 @@ o ícone estiver visível.
   pertencendo à CG-028/CG-029, porque a matriz provisória ainda dá acesso ao
   módulo somente a `admin`.
 
+  **Aprovação da missão (CG-019)** entrou em 2026-09-05, depois de o
+  responsável aceitar o **modelo B**: o colegiado delibera fora do sistema —
+  reunião semanal, podendo haver semana sem reunião — e o relator registra o
+  parecer com a data dessa deliberação. A aprovação é dimensão própria
+  (`missao_comite.status_aprovacao`), independente do status de execução. O
+  banco garante uma rodada aberta por missão, uma decisão por rodada, data de
+  reunião só nas decisões terminais e justificativa obrigatória na reabertura.
+  **Os requisitos documentais são dados** (`requisito_submissao`), por decisão
+  explícita: uma lista fixa no código impediria cadastrar um tipo novo de
+  missão. Falta ligar `sub` do Keycloak a `pessoa` para aplicar "somente o
+  responsável envia" — é pré-requisito da CG-037.
+
   **Não iniciar a antiga CG-045:** obter o aceite
   institucional de CG-005 a CG-009 antes de alterar novamente o contrato da
   missão. O PDF não substitui silenciosamente as decisões confirmadas.
@@ -636,7 +648,7 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
 - **Testes**: 122 unitários/regressões (58 API + 64 na web para toast, datas,
   React Hook Form/Zod, erros do multistep, formulários de parceiro,
   acessibilidade, contraste dos tokens, cálculos monetários, montagem de série
-  do gráfico e caminhos do BFF) + 246 de integração contra Postgres
+  do gráfico e caminhos do BFF) + 261 de integração contra Postgres
   real. As duas garantias de não duplicação da linha
   histórica do parceiro foram verificadas por mutação: trocar o `exists` +
   `selectDistinct` por um `join` faz ambas falharem.

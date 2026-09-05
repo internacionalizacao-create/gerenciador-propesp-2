@@ -58,6 +58,7 @@ export interface ResultadoSeed {
   premissas: number;
   fontes: number;
   orcamentoComiteGestor: number;
+  requisitosSubmissao: number;
 }
 
 export async function executarSeed(
@@ -535,7 +536,40 @@ export async function executarSeed(
     )
     .returning();
 
+  /**
+   * Requisitos documentais da submissao (CG-019, decisao de 2026-09-05).
+   *
+   * Projeto e justificativa sao obrigatorios; convite, programacao e orcamento
+   * entram como recomendados, nao como bloqueio. **Sao dados, nao constantes:**
+   * o responsavel pelo projeto pediu explicitamente que a lista nao fosse
+   * fechada no codigo, porque "uma missao pode ser diferente da outra" e um
+   * tipo novo nao pode ficar impedido de ser cadastrado. Tipo nulo vale para
+   * todos os tipos de missao.
+   */
+  const requisitosSubmissao = await db
+    .insert(s.requisitoSubmissao)
+    .values(
+      (
+        [
+          ['PROJETO', true, 'Projeto ou plano de trabalho da missao.'],
+          ['JUSTIFICATIVA', true, 'Justificativa da necessidade da missao.'],
+          ['CONVITE', false, 'Convite, quando houver instituicao anfitria.'],
+          ['PROGRAMACAO', false, 'Programacao do evento, quando aplicavel.'],
+          ['ORCAMENTO', false, 'Estimativa de custos, quando disponivel.'],
+        ] as const
+      ).map(([categoria, obrigatorio, descricao]) => ({
+        cicloId: ciclo.id,
+        tipoMissao: null,
+        momento: 'SUBMISSAO' as const,
+        categoria,
+        obrigatorio,
+        descricao,
+      })),
+    )
+    .returning();
+
   return {
+    requisitosSubmissao: requisitosSubmissao.length,
     paises: paises.length,
     instituicoes: 1 + instituicoesRede.length,
     programas: 1 + outrosProgramas.length,

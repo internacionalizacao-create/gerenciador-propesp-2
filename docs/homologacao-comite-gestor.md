@@ -449,23 +449,51 @@ Marque cada bloco. Um bloco aceito destrava as tasks da última coluna.
 | Bloco | Decisão | Destrava |
 |---|---|---|
 | CG-005 — classificação das 40 seções | ☐ Aceito ☐ Ajustar ☐ Rejeitar | recorte de todas as entregas |
-| CG-005 — arquitetura da informação (§39) | ☐ Aceito ☐ Ajustar ☐ Rejeitar | CG-040, CG-045, CG-047 |
+| CG-005 — arquitetura da informação (§39) | ☑ **Aceito em 2026-09-05** | CG-040, CG-045, CG-047 |
 | CG-006 — quatro dimensões de estado | ☐ Aceito ☐ Ajustar ☐ Rejeitar | CG-010, CG-016, CG-034 |
 | CG-006 — migração dos estados atuais | ☐ Aceito ☐ Ajustar ☐ Rejeitar | CG-015 |
 | CG-007 — matriz entidade–rede | ☐ Aceito ☐ Ajustar ☐ Rejeitar | CG-016, CG-017 |
 | CG-007 — matriz perfil–escopo e "Minha rede" | ☐ Aceito ☐ Ajustar ☐ Rejeitar | CG-003, CG-028 |
-| CG-008 — modelo B de aprovação | ☐ Aceito ☐ Ajustar ☐ Rejeitar | CG-019, CG-037, CG-038, CG-047, CG-048 |
+| CG-008 — modelo B de aprovação | ☑ **Aceito em 2026-09-05, com um ajuste** | CG-019, CG-037, CG-038, CG-047, CG-048 |
 | CG-009 — tabela requisito–momento–efeito | ☐ Aceito ☐ Ajustar ☐ Rejeitar | CG-013, CG-050, CG-055 |
 | CG-009 — modelo de despesas e cotações | ☐ Aceito ☐ Ajustar ☐ Rejeitar | CG-013, CG-050 |
 | CG-009 — formatos, tamanho e retenção | ☐ Aceito ☐ Ajustar ☐ Rejeitar | CG-014, CG-051, CG-061 |
 | CG-009 — checklist condicional e dispensa | ☐ Aceito ☐ Ajustar ☐ Rejeitar | CG-058 |
 
+### Decisões tomadas em 2026-09-05
+
+O responsável pelo projeto aceitou a arquitetura da informação e o **modelo B**,
+com um ajuste e uma restrição:
+
+| Ponto | Proposta | Decisão |
+|---|---|---|
+| Quem envia para análise | Responsável pela missão **ou** Gestor da Rede | **Somente o responsável pela missão** |
+| Documentos obrigatórios | Projeto + justificativa; demais condicionais | Aceito, **porém a lista não pode ser fechada no código**: cada missão pode exigir documentos diferentes, e um tipo novo não pode ficar impedido de ser cadastrado |
+| Limite de rodadas | Sem limite, cada retorno numerado | Aceito |
+| Quem reabre decisão | Somente `admin`, com justificativa | Aceito |
+| Deliberação do Comitê | — | **Reunião semanal**, podendo haver semana sem reunião |
+
+Consequências diretas de projeto:
+
+1. **A data da reunião é informada, nunca derivada.** Como há semanas sem
+   reunião, um calendário semanal calculado registraria deliberação que não
+   houve. O relator informa a data, e o sistema só verifica que é uma data real
+   e não futura.
+2. **Os requisitos de submissão são dados, não código.** Uma constante com
+   `['PROJETO', 'JUSTIFICATIVA']` atenderia hoje e bloquearia o primeiro tipo de
+   missão diferente — exatamente o que a decisão proíbe. Por isso a CG-019 cria
+   `requisito_submissao`, consultável por ciclo e tipo de missão.
+3. **"Somente o responsável envia" ainda não é aplicável.** A regra depende de
+   ligar o `sub` do Keycloak a um registro de `pessoa`, o que não existe (ver
+   `AGENTS.md` §9). A coluna já está no schema; enquanto o vínculo não existir,
+   quem submete é `admin`, e a restrição fica registrada como pendência.
+
 ### Perguntas que só a equipe pode responder
 
 Estas não têm proposta técnica possível; sem elas a implementação para:
 
-1. O Comitê Gestor delibera em reunião? Com que periodicidade e com que registro?
-   (define o modelo B na prática)
+1. ~~O Comitê Gestor delibera em reunião?~~ **Respondido em 2026-09-05:**
+   reunião semanal, podendo haver semana sem reunião.
 2. Qual a regra institucional para escolher o **exercício** de uma despesa: a
    data do pagamento, a data da viagem ou o empenho?
 3. Existe exigência de **retenção mínima** dos comprovantes e das cotações?

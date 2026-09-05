@@ -1062,7 +1062,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   `0021_amplia_missao_evento_participante.sql`, `comum/datas.ts`,
   `dominio/missoes-comite.service.ts`, schemas de formulário e testes.
 
-- [ ] **CG-019 — Criar schema de submissão e decisões do Comitê**
+- [x] **CG-019 — Criar schema de submissão e decisões do Comitê**
 
   Criar estruturas para:
 
@@ -1081,6 +1081,65 @@ Essa situação é calculada a partir das datas e não é persistida.
 
   Critério de aceite: todas as rodadas e pareceres sobrevivem a novos envios e
   nenhuma decisão anterior é sobrescrita ou apagada.
+
+  **Concluída em 2026-09-05**, logo após o aceite do modelo B. Entrou
+  [aprovacao.ts](../apps/api/src/database/schema/aprovacao.ts) com quatro
+  tabelas, mais a coluna `status_aprovacao` em `missao_comite` e a migration
+  `0028_submissao_decisoes_comite`.
+
+  **A aprovação é dimensão própria, não valor novo em `status_missao_comite`.**
+  As duas se cruzam — a missão aprovada pode estar planejada, confirmada ou
+  concluída —, e uma coluna única precisaria de um valor para cada combinação.
+
+  As garantias ficaram no banco, e não no serviço que ainda será escrito:
+
+  - `rodada_analise_aberta_uk` é índice **parcial**: no máximo uma rodada aberta
+    por missão. Dois cliques em "enviar para análise" colocariam a missão duas
+    vezes na fila do Comitê, e nada diria qual delas a decisão encerra —
+    checagem em aplicação perde essa corrida, o índice não.
+  - `decisao_comite_rodada_uk` garante uma decisão por rodada; duas seriam dois
+    estados finais para o mesmo exame.
+  - `decisao_comite_reuniao_ck` exige a data da reunião em `APROVAR` e
+    `REPROVAR` e a proíbe em `SOLICITAR_AJUSTES` — devolver para ajuste é ato do
+    relator, não deliberação do colegiado. **A data é informada, nunca
+    derivada:** as reuniões são semanais, mas há semanas sem reunião, e um
+    calendário calculado registraria deliberação que não houve.
+  - `rodada_analise_justificativa_ck` exige justificativa na reabertura e a
+    proíbe na submissão.
+  - `decisao_documento` tem `on delete restrict` para o anexo: um parecer não
+    pode perder a referência do que examinou.
+
+  **Os requisitos documentais são dados, não constantes** — `requisito_submissao`
+  por ciclo, tipo de missão (nulo = todos) e momento. É a decisão de 2026-09-05:
+  fechar a lista no código atenderia hoje e impediria o primeiro tipo novo de
+  missão. A seed carrega cinco linhas: projeto e justificativa obrigatórios;
+  convite, programação e orçamento recomendados. `momento = 'ENCERRAMENTO'`
+  existe para a CG-058 e ainda não é consultado.
+
+  Dois achados durante a implementação:
+
+  - **O índice `coalesce(tipo_missao::text, '*')` não compila:** o cast de enum
+    para texto não é `IMMUTABLE` e o Postgres recusa a expressão. Foram usados
+    dois índices parciais (`_geral_uk` e `_tipo_uk`), que cobrem os mesmos casos
+    sem função — inclusive o caso que motivou a normalização, já que dois NULL
+    não colidem em Postgres.
+  - **`encerrada_em` montado com `new Date()` no cliente dispara o check**,
+    porque `submetido_em` usa o `now()` do banco. É o check funcionando; os
+    testes passaram a informar o par de datas.
+
+  Cobertura: 15 regressões em
+  [aprovacao.int-spec.ts](../apps/api/test/aprovacao.int-spec.ts), incluindo o
+  vaivém completo (enviar → ajustes → reenviar → aprovar → reabrir → reprovar),
+  que confirma que a aprovação do meio permanece no histórico. As asserções usam
+  `esperarViolacao`, que confere o **nome da constraint** — casar a mensagem do
+  Drizzle aprovaria o teste por qualquer falha, inclusive por erro de digitação
+  no próprio teste.
+
+  **Ainda não aplicável: "somente o responsável pela missão envia".** A regra
+  depende de ligar o `sub` do Keycloak a um registro de `pessoa`, que não
+  existe (`AGENTS.md` §9). A coluna `submetido_por_pessoa_id` já está gravada
+  para que a verificação entre sem migração; até lá quem submete é `admin`.
+  Isso é pré-requisito da CG-037, não desta task.
 
 ### Épico 2 — Pessoas e equipes na API
 

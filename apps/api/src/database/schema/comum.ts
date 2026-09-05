@@ -165,6 +165,46 @@ export const statusExecucaoEnum = pgEnum('status_execucao', [
  * `NAO_INICIADA` nao esta aqui de proposito: a ausencia de prestacao e a
  * ausencia da linha, nao um estado guardado. Ver `prestacao.ts`.
  */
+/**
+ * Dimensao de **aprovacao** da missao (CG-006, CG-008 modelo B).
+ *
+ * E independente de `status_missao_comite`, que descreve a execucao. Uma missao
+ * pode estar APROVADA e ainda RASCUNHO de execucao, ou CONCLUIDA tendo sido
+ * REPROVADA — separar as duas dimensoes e o que evita a coluna unica que
+ * precisaria de um valor novo a cada cruzamento.
+ */
+export const statusAprovacaoMissaoEnum = pgEnum('status_aprovacao_missao', [
+  'RASCUNHO',
+  'EM_ANALISE',
+  'AJUSTES_SOLICITADOS',
+  'APROVADA',
+  'REPROVADA',
+]);
+
+/** Decisao do Comite sobre uma rodada de analise (CG-008). */
+export const acaoDecisaoComiteEnum = pgEnum('acao_decisao_comite', [
+  'APROVAR',
+  'SOLICITAR_AJUSTES',
+  'REPROVAR',
+]);
+
+/**
+ * Por que a rodada de analise nasceu.
+ *
+ * Reabertura nao e uma decisao: e uma nova rodada sobre uma missao ja decidida.
+ * Distinguir a origem preserva a leitura do historico sem apagar nada.
+ */
+export const origemRodadaAnaliseEnum = pgEnum('origem_rodada_analise', [
+  'SUBMISSAO',
+  'REABERTURA',
+]);
+
+/** Momento em que um requisito documental e cobrado. */
+export const momentoRequisitoEnum = pgEnum('momento_requisito', [
+  'SUBMISSAO',
+  'ENCERRAMENTO',
+]);
+
 export const statusPrestacaoMissaoEnum = pgEnum('status_prestacao_missao', [
   'EM_PREENCHIMENTO',
   'ENVIADA',
