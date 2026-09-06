@@ -182,6 +182,9 @@ if [[ "$USUARIO" == "admin" ]]; then
     # CG-053: as acoes so aparecem para quem tem `prestacao:write`, e por isso
     # ficam no bloco do admin. "Anexar documento" cobre o caminho de upload.
     testar "${MID}?aba=documentos" "Anexar documento"
+    # CG-054: a descricao do estado da prestacao existe em qualquer um dos
+    # quatro, ao contrario das acoes, que dependem de onde a missao esta.
+    testar "${MID}?aba=prestacao" "Prestação de contas"
     # Aba inexistente cai no resumo em vez de quebrar.
     testar "${MID}?aba=inexistente" "Roteiro"
   fi

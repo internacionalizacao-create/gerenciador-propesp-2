@@ -7,6 +7,8 @@ import {
 import { and, eq, ne, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
+import { dataHojeEmManaus } from '../comum/datas';
+
 import { consultar } from '../comum/consultar';
 import { DRIZZLE, type Database } from '../database/database.module';
 import * as s from '../database/schema';
@@ -698,19 +700,6 @@ function tipoPessoa(
   if (nivel === 'POS_DOC') return 'PESQUISADOR';
   if (nivel === 'MOBILIDADE_BREVE') return 'EXTERNO';
   return 'DISCENTE';
-}
-
-function dataHojeEmManaus(data = new Date()): string {
-  const partes = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Manaus',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(data);
-  const valor = Object.fromEntries(
-    partes.map((parte) => [parte.type, parte.value]),
-  );
-  return `${valor.year}-${valor.month}-${valor.day}`;
 }
 
 function diferencaDias(de: string, ate: string): number {

@@ -2325,7 +2325,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   **Fora de escopo, por decisão da própria task:** enviar e validar a prestação
   são a CG-054.
 
-- [ ] **CG-054 — Implementar envio e revisão da prestação**
+- [x] **CG-054 — Implementar envio e revisão da prestação**
 
   - iniciar prestação;
   - enviar;
@@ -2341,6 +2341,44 @@ Essa situação é calculada a partir das datas e não é persistida.
   Dependência: CG-053.
 
   Critério de aceite: somente `VALIDADA` produz execução oficial do orçamento.
+
+  **Concluída em 2026-09-06.** Três rotas novas — `/prestacao/envio`
+  (`prestacao:write`), `/prestacao/validacao` e `/prestacao/devolucao`
+  (`prestacao:review`). As permissões são diferentes de propósito: preparar e
+  revisar são atos distintos, mesmo enquanto só `admin` tem as duas.
+
+  **`COM_PENDENCIA` volta a aceitar lançamento.** É o ponto que a implementação
+  ingênua erra: devolver para correção sem reabrir a edição deixaria o
+  responsável sem como atender à pendência. `ENVIADA` congela — senão o revisor
+  validaria um valor diferente do que leu. `VALIDADA` congela em definitivo,
+  porque é ela que abate o aporte (CG-009) e alterar depois mudaria o saldo sem
+  passar por revisão nenhuma.
+
+  **Não há rodada numerada**, ao contrário da análise da missão: a prestação tem
+  um par de estados e é a trilha de auditoria que conta o vaivém. Por isso o
+  teste da trilha verifica a sequência inteira, e não só o estado final.
+
+  Duas regras que decidi e valem revisão sua:
+
+  - **Prestação sem despesa não é enviada.** Total nulo, não zero (CG-050):
+    enviar isso pediria ao revisor que validasse a ausência de informação.
+  - **Parecer é obrigatório na devolução e opcional na validação**, seguindo o
+    texto da task ("devolver com pendência e justificativa"). Diverge da CG-038,
+    onde aprovar também exige parecer. Se quiser simetria, é uma linha.
+
+  O reenvio limpa o parecer da devolução: mantê-lo faria a tela mostrar uma
+  pendência já corrigida ao lado do envio novo.
+
+  `dataHojeEmManaus` saiu de `bolsistas.service.ts` para
+  [comum/datas.ts](../apps/api/src/comum/datas.ts) — a terceira repetição do
+  fuso viraria divergência. Um envio às 22h de Manaus cairia no dia seguinte se
+  a data viesse em UTC.
+
+  Cobertura: 12 regressões em
+  [prestacao-ciclo.int-spec.ts](../apps/api/test/prestacao-ciclo.int-spec.ts).
+  Verificado na aplicação: o vaivém completo pelo BFF e os quatro estados na
+  tela, conferindo que cada ação aparece só onde deve — validada não oferece
+  lançar, enviar, validar, devolver nem remover.
 
 - [ ] **CG-055 — Integrar prestações aos indicadores do orçamento**
 

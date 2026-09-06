@@ -477,8 +477,10 @@ describe('PrestacaoService (CG-050)', () => {
     ).toHaveLength(1);
   });
 
-  it('prestacao enviada nao aceita alteracao nesta etapa', async () => {
-    // Envio e revisao sao a CG-054; ate la, quem enviou nao corrige por baixo.
+  it('prestacao enviada nao aceita alteracao', async () => {
+    // Quem enviou nao corrige por baixo: o revisor validaria um valor
+    // diferente do que leu. O ciclo completo de estados e a CG-054, coberto em
+    // `prestacao-ciclo.int-spec.ts`; aqui so o efeito sobre o lancamento.
     const prestacao = await service.criar(base.cicloId, missaoId, admin);
     await ctx.db
       .update(s.prestacaoContasMissao)
@@ -487,7 +489,7 @@ describe('PrestacaoService (CG-050)', () => {
 
     await expect(
       service.criarDespesa(base.cicloId, missaoId, despesa(), admin),
-    ).rejects.toThrow(/ja foi enviada/i);
+    ).rejects.toThrow(/em analise nao aceita alteracao/i);
   });
 
   it('nao enxerga missao de outro ciclo', async () => {

@@ -7,6 +7,8 @@ import {
 import { and, asc, eq, inArray, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
+import { dataHojeEmManaus } from '../comum/datas';
+
 import type { AuthUser } from '../auth/auth-user';
 import { DRIZZLE, type Database } from '../database/database.module';
 import * as s from '../database/schema';
@@ -133,6 +135,37 @@ export const criarDespesaSchema = z
     }
   });
 export type CriarDespesa = z.infer<typeof criarDespesaSchema>;
+
+/**
+ * Estados em que a prestacao aceita lancamento (CG-054).
+ *
+ * `COM_PENDENCIA` esta aqui de proposito: e o estado de "devolvida para
+ * correcao", e sem edicao a devolucao nao teria efeito nenhum.
+ */
+const ESTADOS_EDITAVEIS: readonly StatusPrestacao[] = [
+  'EM_PREENCHIMENTO',
+  'COM_PENDENCIA',
+];
+
+type StatusPrestacao = (typeof s.statusPrestacaoMissaoEnum.enumValues)[number];
+
+export const validarPrestacaoSchema = z.object({
+  parecer: z.string().trim().max(4000).nullish(),
+});
+export type ValidarPrestacao = z.infer<typeof validarPrestacaoSchema>;
+
+export const devolverPrestacaoSchema = z.object({
+  /**
+   * Obrigatoria. Devolver sem dizer o que corrigir transforma a revisao em
+   * porta giratoria: o responsavel reenvia a mesma coisa e o ciclo recomeca.
+   */
+  parecer: z
+    .string()
+    .trim()
+    .min(3, 'Descreva a pendencia a ser corrigida.')
+    .max(4000),
+});
+export type DevolverPrestacao = z.infer<typeof devolverPrestacaoSchema>;
 
 export const atualizarPrestacaoSchema = z.object({
   observacoes: z.string().trim().max(4000).nullish(),
@@ -271,6 +304,144 @@ export class PrestacaoService {
       return criada.id;
     });
     return this.montar(id);
+  }
+
+  /**
+   * Envia a prestacao para revisao (CG-054).
+   *
+   * Vale para o primeiro envio e para o reenvio depois de uma devolucao: os
+   * dois partem de um estado editavel e chegam em `ENVIADA`. Nao ha rodada
+   * numerada aqui, ao contrario da analise da missao — a prestacao tem um par
+   * de estados e a trilha de auditoria conta o vaivem.
+   */
+  async enviar(
+    cicloId: string,
+    missaoId: string,
+    usuario: AuthUser,
+  ): Promise<PrestacaoDetalhe> {
+    const prestacao = await this.obterPrestacaoEditavel(
+      cicloId,
+      missaoId,
+      this.db,
+    );
+
+    // Prestacao sem despesa tem total **nulo**, nao zero (CG-050). Enviar isso
+    // para revisao pediria ao revisor que validasse a ausencia de informacao.
+    const [{ quantas }] = await this.db
+      .select({ quantas: sql<number>`count(*)::int` })
+      .from(s.despesaMissao)
+      .where(eq(s.despesaMissao.prestacaoId, prestacao.id));
+    if (quantas === 0) {
+      throw new BadRequestException(
+        'Lance ao menos uma despesa antes de enviar a prestacao.',
+      );
+    }
+
+    return this.transicionar(prestacao, 'ENVIADA', usuario, {
+      enviadaEm: dataHojeEmManaus(),
+      enviadaPor: nomeDoUsuario(usuario),
+      // O parecer anterior era da devolucao: mante-lo faria a tela mostrar uma
+      // pendencia ja corrigida ao lado do novo envio.
+      parecer: null,
+    });
+  }
+
+  /**
+   * Valida a prestacao (CG-054).
+   *
+   * **E o unico estado que produz execucao oficial do orcamento** — a CG-055
+   * abate o aporte a partir daqui, e nada abate antes (CG-009). Por isso a
+   * transicao so parte de `ENVIADA`: validar direto do preenchimento pularia a
+   * revisao inteira.
+   */
+  async validar(
+    cicloId: string,
+    missaoId: string,
+    dto: ValidarPrestacao,
+    usuario: AuthUser,
+  ): Promise<PrestacaoDetalhe> {
+    const prestacao = await this.obterEmRevisao(cicloId, missaoId);
+    return this.transicionar(prestacao, 'VALIDADA', usuario, {
+      validadaEm: dataHojeEmManaus(),
+      validadaPor: nomeDoUsuario(usuario),
+      parecer: dto.parecer ?? null,
+    });
+  }
+
+  /** Devolve com pendencia; a prestacao volta a aceitar alteracao. */
+  async devolver(
+    cicloId: string,
+    missaoId: string,
+    dto: DevolverPrestacao,
+    usuario: AuthUser,
+  ): Promise<PrestacaoDetalhe> {
+    const prestacao = await this.obterEmRevisao(cicloId, missaoId);
+    return this.transicionar(prestacao, 'COM_PENDENCIA', usuario, {
+      parecer: dto.parecer,
+    });
+  }
+
+  /**
+   * A prestacao que aguarda decisao do revisor.
+   *
+   * Separado de `obterPrestacaoEditavel` porque a pergunta e oposta: la o que
+   * vale e "aceita lancamento?", aqui e "esta na mesa do revisor?".
+   */
+  private async obterEmRevisao(cicloId: string, missaoId: string) {
+    await this.obterMissao(cicloId, missaoId, this.db);
+    const [prestacao] = await this.db
+      .select()
+      .from(s.prestacaoContasMissao)
+      .where(eq(s.prestacaoContasMissao.missaoId, missaoId))
+      .limit(1);
+
+    if (!prestacao) {
+      throw new NotFoundException('Esta missao ainda nao tem prestacao.');
+    }
+    if (prestacao.status !== 'ENVIADA') {
+      throw new BadRequestException(
+        prestacao.status === 'VALIDADA'
+          ? 'Esta prestacao ja foi validada.'
+          : 'Somente prestacao enviada pode ser revisada.',
+      );
+    }
+    return prestacao;
+  }
+
+  /**
+   * Grava a mudanca de estado com auditoria, numa transacao.
+   *
+   * O `check` do banco exige `enviada_em` fora do preenchimento e
+   * `validada_em` na validacao; por isso a data vai junto do estado, e nunca
+   * num update separado que poderia falhar no meio.
+   */
+  private async transicionar(
+    prestacao: { id: string; status: string },
+    novo: (typeof s.statusPrestacaoMissaoEnum.enumValues)[number],
+    usuario: AuthUser,
+    campos: Record<string, unknown>,
+  ): Promise<PrestacaoDetalhe> {
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(s.prestacaoContasMissao)
+        .set({ ...campos, status: novo, atualizadoEm: new Date() })
+        .where(eq(s.prestacaoContasMissao.id, prestacao.id));
+
+      await tx.insert(s.registroAuditoria).values({
+        entidadeTipo: 'PRESTACAO_CONTAS_MISSAO',
+        entidadeId: prestacao.id,
+        acao: 'EDICAO',
+        campo: 'status',
+        valorAnterior: prestacao.status,
+        valorNovo: novo,
+        justificativa:
+          typeof campos.parecer === 'string' ? campos.parecer : null,
+        usuarioId: usuario.id,
+        usuarioNome: nomeDoUsuario(usuario),
+      });
+    });
+
+    return this.montar(prestacao.id);
   }
 
   async atualizar(
@@ -918,11 +1089,16 @@ export class PrestacaoService {
     if (!prestacao) {
       throw new NotFoundException('Esta missao ainda nao tem prestacao.');
     }
-    // Envio e revisao sao a CG-054. Ate la, prestacao que saiu de
-    // preenchimento nao aceita alteracao de despesa por este caminho.
-    if (prestacao.status !== 'EM_PREENCHIMENTO') {
+    // `COM_PENDENCIA` volta a aceitar alteracao: devolver para correcao sem
+    // reabrir a edicao deixaria o responsavel sem como atender a pendencia.
+    // `ENVIADA` congela — senao o revisor validaria um valor diferente do que
+    // leu. `VALIDADA` congela em definitivo: e ela que abate o aporte (CG-009),
+    // e alterar despesa depois mudaria o saldo sem passar por revisao nenhuma.
+    if (!ESTADOS_EDITAVEIS.includes(prestacao.status)) {
       throw new BadRequestException(
-        'A prestacao ja foi enviada e nao aceita alteracao nesta etapa.',
+        prestacao.status === 'VALIDADA'
+          ? 'Prestacao validada nao aceita alteracao. Ela ja abateu o aporte.'
+          : 'Prestacao em analise nao aceita alteracao. Aguarde a revisao.',
       );
     }
     return prestacao;

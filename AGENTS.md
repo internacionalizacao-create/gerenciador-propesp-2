@@ -719,6 +719,16 @@ o ícone estiver visível.
   por arquivo estático. Prestação nula mostra "Prestação não iniciada" —
   ausência de prestação é ausência de linha, não o estado `NAO_INICIADA`.
 
+  **Ciclo de vida da prestação (CG-054):** `/prestacao/envio`
+  (`prestacao:write`), `/prestacao/validacao` e `/prestacao/devolucao`
+  (`prestacao:review`). Os quatro estados governam o que a tela oferece.
+  **`COM_PENDENCIA` volta a aceitar lançamento** — devolver sem reabrir a edição
+  deixaria o responsável sem como corrigir; `ENVIADA` congela para o revisor não
+  validar outra coisa; `VALIDADA` congela em definitivo, porque abate o aporte.
+  Não há rodada numerada como na análise da missão: é a trilha de auditoria que
+  conta o vaivém. Prestação sem despesa não é enviada, e o reenvio limpa o
+  parecer da devolução.
+
   **Cuidado ao criar helper para uma tela:** função exportada de módulo
   `"use client"` não pode ser chamada pelo Server Component. O build passa e a
   página responde 500 — foi o que aconteceu com as categorias de documento por
@@ -746,7 +756,7 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
 - **Testes**: 138 unitários/regressões (67 API + 71 na web para toast, datas,
   React Hook Form/Zod, erros do multistep, formulários de parceiro,
   acessibilidade, contraste dos tokens, cálculos monetários, montagem de série
-  do gráfico e caminhos do BFF) + 306 de integração contra Postgres
+  do gráfico e caminhos do BFF) + 318 de integração contra Postgres
   real. As duas garantias de não duplicação da linha
   histórica do parceiro foram verificadas por mutação: trocar o `exists` +
   `selectDistinct` por um `join` faz ambas falharem.
@@ -768,14 +778,11 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
   auditoria. O Gerenciador não propõe, autoriza ou executa. A estrutura genérica de
   execução financeira permanece no schema para outros programas, mas P11 é fora do
   escopo do CAPES Global porque os pagamentos são feitos diretamente pela CAPES.
-- **Envio, revisão e interface da prestação.** A CG-013 criou as cinco tabelas
-  e a CG-050 a API de CRUD e cálculos (`.../missoes/:id/prestacao`): nenhum
-  total é persistido, todos saem de `sum` em `numeric`, e prestação sem despesa
-  tem total **nulo**, não zero. Enviar e validar é a CG-054 — até lá a prestação
-  fica em `EM_PREENCHIMENTO` e recusa alteração depois disso. A interface é a
-  CG-053. Ausência de prestação é ausência de linha, não o estado
-  `NAO_INICIADA`; a lista de missões ainda devolve `'NAO_INICIADA'::text` fixo e
-  deve passar a um `left join` quando a CG-053 precisar do selo real.
+- **Abatimento do aporte pela prestação validada (CG-055).** O ciclo de vida
+  está pronto (CG-054), mas nada abate ainda: `VALIDADA` é o único estado que
+  deve produzir execução oficial, e a integração com os indicadores do orçamento
+  continua pendente. A lista de missões também devolve `'NAO_INICIADA'::text`
+  fixo e deve passar a um `left join` para mostrar o selo real.
 - Relatórios (P20), importação com adaptador por programa (P21), documentos e
   evidências (P22), convênios e produção consolidada (P18/P19). O documento novo
   do Comitê propõe trazer parte de P18–P20/P22 para o fluxo da missão, mas a fase

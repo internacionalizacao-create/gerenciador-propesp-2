@@ -21,6 +21,10 @@ import {
   PrestacaoService,
   type AtualizarPrestacao,
   type CriarDespesa,
+  devolverPrestacaoSchema,
+  validarPrestacaoSchema,
+  type DevolverPrestacao,
+  type ValidarPrestacao,
 } from './prestacao.service';
 import { consultar } from '../comum/consultar';
 import { DRIZZLE, type Database } from '../database/database.module';
@@ -470,6 +474,58 @@ export class ProgramasController {
   ) {
     const ciclo = await this.contexto.resolver(slug, nome);
     return this.prestacao.atualizar(ciclo.cicloId, id, dto, usuario);
+  }
+
+  /**
+   * Envia a prestacao para revisao (CG-054).
+   *
+   * `prestacao:write` — e ato de quem prepara. Serve tambem para o reenvio
+   * depois de uma devolucao: os dois partem de estado editavel.
+   */
+  @Post(':programa/:ciclo/comite-gestor/missoes/:id/prestacao/envio')
+  @RequirePermission('prestacao:write')
+  async enviarPrestacao(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('id') id: string,
+    @CurrentUser() usuario: AuthUser,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.prestacao.enviar(ciclo.cicloId, id, usuario);
+  }
+
+  /**
+   * Valida a prestacao — **unico estado que abate o aporte** (CG-009/CG-055).
+   *
+   * `prestacao:review`, nao `prestacao:write`: preparar e revisar sao atos
+   * distintos, mesmo enquanto so `admin` tem as duas permissoes.
+   */
+  @Post(':programa/:ciclo/comite-gestor/missoes/:id/prestacao/validacao')
+  @RequirePermission('prestacao:review')
+  async validarPrestacao(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('id') id: string,
+    @CurrentUser() usuario: AuthUser,
+    @Body(new ZodValidationPipe(validarPrestacaoSchema)) dto: ValidarPrestacao,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.prestacao.validar(ciclo.cicloId, id, dto, usuario);
+  }
+
+  /** Devolve com pendencia; a prestacao volta a aceitar alteracao. */
+  @Post(':programa/:ciclo/comite-gestor/missoes/:id/prestacao/devolucao')
+  @RequirePermission('prestacao:review')
+  async devolverPrestacao(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('id') id: string,
+    @CurrentUser() usuario: AuthUser,
+    @Body(new ZodValidationPipe(devolverPrestacaoSchema))
+    dto: DevolverPrestacao,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.prestacao.devolver(ciclo.cicloId, id, dto, usuario);
   }
 
   @Post(':programa/:ciclo/comite-gestor/missoes/:id/prestacao/despesas')

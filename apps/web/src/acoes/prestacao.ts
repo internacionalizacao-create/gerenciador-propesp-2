@@ -121,3 +121,60 @@ export async function anexarDocumento(
     "Documento anexado.",
   );
 }
+
+/**
+ * Envia a prestação para revisão (CG-054).
+ *
+ * Serve para o primeiro envio e para o reenvio depois de uma devolução: os dois
+ * partem de estado editável. A API recusa quando não há despesa nenhuma —
+ * prestação sem lançamento tem total nulo, e validar a ausência de informação
+ * não significa nada.
+ */
+export async function enviarPrestacao(
+  contexto: Contexto,
+  _anterior: EstadoDaAcao,
+): Promise<EstadoDaAcao> {
+  return enviar(
+    `${rota(contexto)}/envio`,
+    "POST",
+    {},
+    revalidar(contexto),
+    "Prestação enviada para revisão.",
+  );
+}
+
+/**
+ * Valida a prestação.
+ *
+ * **É o único estado que abate o aporte** (CG-009). Exige `prestacao:review`,
+ * não `prestacao:write`: preparar e revisar são atos distintos, mesmo enquanto
+ * só o `admin` tem as duas permissões.
+ */
+export async function validarPrestacao(
+  contexto: Contexto,
+  _anterior: EstadoDaAcao,
+  formulario: FormData,
+): Promise<EstadoDaAcao> {
+  return enviar(
+    `${rota(contexto)}/validacao`,
+    "POST",
+    { parecer: texto(formulario, "parecer") },
+    revalidar(contexto),
+    "Prestação validada.",
+  );
+}
+
+/** Devolve com pendência; a prestação volta a aceitar lançamento. */
+export async function devolverPrestacao(
+  contexto: Contexto,
+  _anterior: EstadoDaAcao,
+  formulario: FormData,
+): Promise<EstadoDaAcao> {
+  return enviar(
+    `${rota(contexto)}/devolucao`,
+    "POST",
+    { parecer: texto(formulario, "parecer") },
+    revalidar(contexto),
+    "Prestação devolvida para correção.",
+  );
+}

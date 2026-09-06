@@ -6,6 +6,11 @@ import {
   ReabrirAnalise,
 } from "@/componentes/formularios/acoes-analise";
 import {
+  DevolverPrestacao,
+  EnviarPrestacao,
+  ValidarPrestacao,
+} from "@/componentes/formularios/acoes-prestacao";
+import {
   AnexarDocumento,
   EditarDespesa,
   IniciarPrestacao,
@@ -34,6 +39,7 @@ import type {
   ParticipanteMissao,
   PrestacaoMissao,
   RodadaAnalise,
+  SituacaoPrestacao,
   StatusAprovacaoMissao,
   StatusMissao,
 } from "@/lib/dominio";
@@ -123,11 +129,24 @@ export default async function MissaoDetalhePagina({
     me.permissions.includes("missao:reopen") &&
     (missao.statusAprovacao === "APROVADA" ||
       missao.statusAprovacao === "REPROVADA");
-  // A prestação trava depois do envio (CG-054): até lá, `prestacao:write` é o
-  // que separa quem lança de quem só lê.
-  const podeLancar =
+  /*
+    A prestação congela quando sai de um estado editável (CG-054).
+    `COM_PENDENCIA` volta a aceitar lançamento: sem isso a devolução não teria
+    efeito nenhum. `VALIDADA` congela em definitivo — é ela que abate o aporte.
+  */
+  const editavel =
+    prestacao === null ||
+    prestacao.status === "EM_PREENCHIMENTO" ||
+    prestacao.status === "COM_PENDENCIA";
+  const podeLancar = me.permissions.includes("prestacao:write") && editavel;
+  const podeEnviarPrestacao =
     me.permissions.includes("prestacao:write") &&
-    (prestacao === null || prestacao.status === "EM_PREENCHIMENTO");
+    prestacao !== null &&
+    editavel;
+  // Revisar é ato distinto de preparar, e a permissão é outra.
+  const podeRevisar =
+    me.permissions.includes("prestacao:review") &&
+    prestacao?.status === "ENVIADA";
 
   return (
     <Pagina
@@ -204,6 +223,8 @@ export default async function MissaoDetalhePagina({
           missao={missao}
           contexto={contexto}
           podeEscrever={podeLancar}
+          podeEnviar={podeEnviarPrestacao}
+          podeRevisar={podeRevisar}
         />
       ) : (
         <>
@@ -677,11 +698,15 @@ function Prestacao({
   missao,
   contexto,
   podeEscrever,
+  podeEnviar,
+  podeRevisar,
 }: {
   prestacao: PrestacaoMissao | null;
   missao: MissaoDetalhe;
   contexto: { programa: string; ciclo: string; id: string };
   podeEscrever: boolean;
+  podeEnviar: boolean;
+  podeRevisar: boolean;
 }) {
   if (!prestacao) {
     return (
@@ -706,6 +731,25 @@ function Prestacao({
       <Secao
         titulo="Prestação de contas"
         descricao="Todos os valores em reais: a conversão de despesa feita no exterior acontece antes do lançamento (CG-009)."
+        acoes={
+          <div className="flex flex-wrap gap-2">
+            {podeEnviar ? (
+              <EnviarPrestacao
+                contexto={contexto}
+                reenvio={prestacao.status === "COM_PENDENCIA"}
+              />
+            ) : null}
+            {podeRevisar ? (
+              <>
+                <ValidarPrestacao
+                  contexto={contexto}
+                  total={prestacao.total}
+                />
+                <DevolverPrestacao contexto={contexto} />
+              </>
+            ) : null}
+          </div>
+        }
       >
         <Cartoes>
           <Cartao
@@ -728,10 +772,42 @@ function Prestacao({
           />
         </Cartoes>
 
+        {/*
+          O parecer significa coisas diferentes conforme o estado: em
+          `COM_PENDENCIA` é o que falta corrigir, e em `VALIDADA` é o registro
+          do que foi conferido. Mostrar os dois como "Parecer" faria a pendência
+          parecer aprovação.
+        */}
         {prestacao.parecer ? (
-          <p className="mt-4 rounded-xl border border-border bg-surface-muted px-4 py-3 text-sm text-muted">
-            <span className="font-medium text-foreground">Parecer: </span>
-            {prestacao.parecer}
+          <div
+            role={prestacao.status === "COM_PENDENCIA" ? "status" : undefined}
+            className={
+              prestacao.status === "COM_PENDENCIA"
+                ? "mt-4 rounded-2xl border-l-4 border-warning bg-warning-soft px-4 py-3.5 text-sm text-on-warning-soft"
+                : "mt-4 rounded-xl border border-border bg-surface-muted px-4 py-3 text-sm text-muted"
+            }
+          >
+            <p className="font-semibold">
+              {prestacao.status === "COM_PENDENCIA"
+                ? "Pendência a corrigir"
+                : "Parecer"}
+            </p>
+            <p className="mt-1">{prestacao.parecer}</p>
+          </div>
+        ) : null}
+
+        <p className="mt-4 text-sm text-muted">
+          {DESCRICAO_PRESTACAO[prestacao.status]}
+        </p>
+
+        {prestacao.enviadaEm || prestacao.validadaEm ? (
+          <p className="mt-1.5 text-xs text-subtle">
+            {prestacao.enviadaEm
+              ? `Enviada em ${data(prestacao.enviadaEm)}${prestacao.enviadaPor ? ` por ${prestacao.enviadaPor}` : ""}.`
+              : ""}
+            {prestacao.validadaEm
+              ? ` Validada em ${data(prestacao.validadaEm)}${prestacao.validadaPor ? ` por ${prestacao.validadaPor}` : ""}.`
+              : ""}
           </p>
         ) : null}
       </Secao>
@@ -843,6 +919,19 @@ function Prestacao({
  * tabela ficaria com uma célula gigante e o resto vazio, e a rolagem
  * horizontal esconderia justamente a informação nova.
  */
+/** O que cada estado significa para quem olha, não o rótulo do enum. */
+const DESCRICAO_PRESTACAO: Record<SituacaoPrestacao, string> = {
+  NAO_INICIADA: "A prestação ainda não foi aberta.",
+  EM_PREENCHIMENTO:
+    "Em preenchimento. Lance as despesas e envie para revisão quando estiver completa.",
+  ENVIADA:
+    "Em revisão. O lançamento fica bloqueado até a decisão, para que o revisor não valide um valor diferente do que leu.",
+  COM_PENDENCIA:
+    "Devolvida para correção. O lançamento está liberado de novo, e um novo envio recomeça a revisão.",
+  VALIDADA:
+    "Validada. É o único estado que abate o aporte anual do Comitê, e a prestação não aceita mais alteração.",
+};
+
 function CartaoDespesa({
   despesa,
   contexto,
