@@ -2650,13 +2650,61 @@ Essa situação é calculada a partir das datas e não é persistida.
   uma missão é política institucional. Enquanto ninguém cadastrar, o checklist
   roda com os cinco fatos.
 
-- [ ] **CG-059 — Testar resultados e encerramento**
+- [x] **CG-059 — Testar resultados e encerramento**
 
   Cobrir resposta sem produto, vários produtos, convênio multilateral, evidência
   privada, avaliação parcial, checklist condicional, dispensa, missão não
   realizada e tentativa de encerramento incompleto.
 
   Dependências: CG-056 a CG-058.
+
+  **Concluída em 2026-09-06.** Auditei a cobertura antes de escrever: resposta
+  sem produto, avaliação parcial, checklist condicional, dispensa e tentativa de
+  encerramento incompleto já tinham regressão na CG-056 e na CG-058. Sobraram
+  quatro buracos, e são eles que
+  [resultados-encerramento.int-spec.ts](../apps/api/test/resultados-encerramento.int-spec.ts)
+  fecha, em 10 regressões: vários produtos na mesma missão, missão não
+  realizada, convênio multilateral chegando ao histórico do parceiro, e o que
+  acontece com o checklist **depois** que a missão fecha.
+
+  **O último buraco era um defeito, e foi corrigido.** Encerrar afirma que os
+  requisitos foram atendidos, mas o checklist é recalculado a cada leitura — de
+  propósito (CG-058). Remover o único produto depois do encerramento fazia a
+  afirmação virar mentira em silêncio: a missão ficava fechada exibindo
+  pendência. É o mesmo risco que a CG-038 resolveu fotografando os documentos
+  analisados.
+
+  **O remédio óbvio seria errado.** Congelar os resultados na missão encerrada,
+  como a prestação congela em `VALIDADA`, bloquearia o artigo publicado meses
+  depois da viagem — que é o caso normal, não a exceção — e empurraria o
+  registro para fora do sistema. Também impediria mover `situacao` de `PREVISTO`
+  para `CONCLUIDO`, que é justamente o que essa coluna existe para permitir.
+
+  O congelamento é só o necessário: recusa-se **a operação que zera a resposta**
+  — remover o último produto sem declaração, ou limpar a declaração sem produto.
+  Cadastrar, editar e remover um entre vários continuam liberados. A saída é
+  reabrir a missão, que deixa rastro de quem autorizou; há regressão para isso
+  também.
+
+  Duas regras que os testes fixaram e que o código praticava por omissão:
+
+  1. **Missão que não aconteceu encerra.** Roteiro inteiro `NAO_REALIZADA`
+     continua sendo roteiro relatado: o requisito é dizer o que houve, não ter
+     dado certo. Quem registra o fracasso é a avaliação `NAO` com justificativa.
+     Bloquear aqui deixaria a missão frustrada aberta para sempre.
+  2. **Missão cancelada não encerra, e o motivo é impedimento.** Mesmo com todos
+     os requisitos satisfeitos, `podeEncerrar` é falso e `pendencias` vem vazio —
+     não há o que preencher para resolver.
+
+  **As três garantias foram verificadas por mutação:** remover o congelamento
+  derruba 1 caso, congelar de mais (bloquear toda edição em missão encerrada)
+  derruba outro, e desconsiderar `ignorarProdutoId` — que faz a checagem contar
+  o produto prestes a sair — derruba um terceiro.
+
+  **Fora de alcance: evidência privada.** Depende da galeria da CG-057, que não
+  existe. O eixo de visibilidade já está no schema (`visibilidade_anexo`), mas
+  testá-lo sem a tela que o consome fixaria uma promessa, não um comportamento.
+  É o único item da lista que não foi coberto.
 
 ### Épico 7 — Qualidade, segurança e documentação
 

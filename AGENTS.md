@@ -820,6 +820,20 @@ o ícone estiver visível.
   encerramento foi semeado: quais a PROPESP exige é política institucional, e a
   lista é dado.
 
+  **Missão encerrada não volta a "resposta indefinida" (CG-059).** Encerrar
+  afirma que os requisitos foram atendidos, e o checklist é recalculado a cada
+  leitura — remover o único produto depois faria a afirmação virar mentira em
+  silêncio, deixando uma missão fechada exibindo pendência. **O congelamento é
+  só o necessário:** recusa-se a operação que *zera a resposta* (remover o
+  último produto sem declaração, ou limpar a declaração sem produto).
+  Cadastrar, editar e remover um entre vários continuam liberados numa missão
+  encerrada — o artigo publicado meses depois da viagem é o caso normal, e
+  travar tudo empurraria o registro para fora do sistema. A saída é reabrir a
+  missão, que deixa rastro de quem autorizou. Duas regras relacionadas: **missão
+  que não aconteceu encerra** (roteiro inteiro `NAO_REALIZADA` é roteiro
+  relatado; quem registra o fracasso é a avaliação `NAO`), e **missão cancelada
+  não encerra** — com `pendencias` vazio, porque é impedimento, não pendência.
+
   **Cuidado ao criar helper para uma tela:** função exportada de módulo
   `"use client"` não pode ser chamada pelo Server Component. O build passa e a
   página responde 500 — foi o que aconteceu com as categorias de documento por
@@ -847,7 +861,7 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
 - **Testes**: 138 unitários/regressões (67 API + 71 na web para toast, datas,
   React Hook Form/Zod, erros do multistep, formulários de parceiro,
   acessibilidade, contraste dos tokens, cálculos monetários, montagem de série
-  do gráfico e caminhos do BFF) + 378 de integração contra Postgres
+  do gráfico e caminhos do BFF) + 388 de integração contra Postgres
   real. As duas garantias de não duplicação da linha
   histórica do parceiro foram verificadas por mutação: trocar o `exists` +
   `selectDistinct` por um `join` faz ambas falharem.

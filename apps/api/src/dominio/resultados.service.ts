@@ -12,6 +12,7 @@ import {
   eq,
   ilike,
   inArray,
+  ne,
   or,
   sql,
   type SQL,
@@ -500,6 +501,8 @@ export class ResultadosService {
         );
       }
 
+      await this.exigirRespostaPreservada(missao, atual.id, tx);
+
       await tx.delete(s.produtoMissao).where(eq(s.produtoMissao.id, atual.id));
       await tx.insert(s.registroAuditoria).values({
         entidadeTipo: 'PRODUTO_MISSAO',
@@ -527,6 +530,7 @@ export class ResultadosService {
       const missao = await this.exigirMissaoEditavel(cicloId, missaoId, tx);
 
       if (dto.gerouProduto) {
+        await this.exigirRespostaPreservada(missao, null, tx);
         await this.limparDeclaracaoSemProduto(missao, usuario, tx);
         return;
       }
@@ -1063,6 +1067,56 @@ export class ResultadosService {
    * Comite esta lendo — objetivo, roteiro, orcamento —, e produto e o que a
    * missao rendeu depois de aprovada e realizada.
    */
+  /**
+   * Missao encerrada nao volta a "resposta indefinida" (CG-059).
+   *
+   * Encerrar afirma que os requisitos foram atendidos, e a resposta sobre
+   * produtos e um deles. Como o checklist e recalculado a cada leitura — e nao
+   * gravado, de proposito (CG-058) —, apagar a resposta depois faria a
+   * afirmacao virar mentira em silencio: a missao ficaria fechada exibindo
+   * pendencia. E o mesmo risco que a CG-038 resolveu fotografando os documentos
+   * analisados.
+   *
+   * **O congelamento e so este.** Cadastrar produto novo, editar e ate remover
+   * um entre varios continuam liberados numa missao encerrada: o artigo
+   * publicado meses depois da viagem e o caso normal, e travar tudo empurraria
+   * o registro para fora do sistema. O que se recusa e exatamente a operacao
+   * que zera a resposta — remover o ultimo produto sem declaracao, ou limpar a
+   * declaracao sem produto. A saida e reabrir a missao, que deixa rastro de
+   * quem autorizou.
+   *
+   * `ignorarProdutoId` existe porque a checagem roda **antes** do delete: sem
+   * ele, o produto prestes a sair ainda contaria e a recusa nunca dispararia.
+   */
+  private async exigirRespostaPreservada(
+    missao: { id: string; status: string; semProdutoDeclaradoEm: Date | null },
+    ignorarProdutoId: string | null,
+    db: DbLeitura,
+  ): Promise<void> {
+    if (missao.status !== 'CONCLUIDA') return;
+
+    const [restante] = await db
+      .select({ id: s.produtoMissao.id })
+      .from(s.produtoMissao)
+      .where(
+        ignorarProdutoId
+          ? and(
+              eq(s.produtoMissao.missaoId, missao.id),
+              ne(s.produtoMissao.id, ignorarProdutoId),
+            )
+          : eq(s.produtoMissao.missaoId, missao.id),
+      )
+      .limit(1);
+
+    if (restante) return;
+    if (ignorarProdutoId && missao.semProdutoDeclaradoEm) return;
+
+    throw new ConflictException(
+      'Missao encerrada nao pode ficar sem resposta sobre produtos. ' +
+        'Reabra a missao antes de desfazer a resposta.',
+    );
+  }
+
   private async exigirMissaoEditavel(
     cicloId: string,
     missaoId: string,
