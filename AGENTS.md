@@ -807,7 +807,7 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
 - **Testes**: 138 unitários/regressões (67 API + 71 na web para toast, datas,
   React Hook Form/Zod, erros do multistep, formulários de parceiro,
   acessibilidade, contraste dos tokens, cálculos monetários, montagem de série
-  do gráfico e caminhos do BFF) + 356 de integração contra Postgres
+  do gráfico e caminhos do BFF) + 365 de integração contra Postgres
   real. As duas garantias de não duplicação da linha
   histórica do parceiro foram verificadas por mutação: trocar o `exists` +
   `selectDistinct` por um `join` faz ambas falharem.

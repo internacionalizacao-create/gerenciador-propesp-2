@@ -2586,12 +2586,51 @@ Essa situação é calculada a partir das datas e não é persistida.
 
 ### Épico 7 — Qualidade, segurança e documentação
 
-- [ ] **CG-060 — Cobrir integração financeira**
+- [x] **CG-060 — Cobrir integração financeira**
 
   Testar totais por exercício, passagem e diária, prestação enviada, devolvida
   e validada, missão sem prestação, missão cancelada e reabertura.
 
   Dependências: CG-050 a CG-055.
+
+  **Concluída em 2026-09-06.** Auditei o que a CG-055 já cobria antes de
+  escrever: totais por exercício, os quatro estados da prestação e a situação na
+  lista já estavam em `execucao-comite.int-spec.ts`, e passagem/diária em
+  `prestacao.int-spec.ts` — mas só do lado do lançamento, nunca atravessando o
+  cálculo do painel. Sobraram quatro buracos, e são eles que
+  [integracao-financeira.int-spec.ts](../apps/api/test/integracao-financeira.int-spec.ts)
+  fecha, em 9 regressões.
+
+  **Duas regras que os testes fixaram e que valem sua revisão** — nenhuma estava
+  escrita em lugar nenhum, e o código as praticava por omissão:
+
+  1. **Cancelar a missão não estorna o que já foi validado.** A CG-006 diz que
+     cancelar não apaga despesa ou documento já gravado, e a CG-054 diz que
+     `VALIDADA` congela em definitivo porque é ela que abate o aporte. Devolver
+     o valor ao saldo faria o aporte crescer sem lançamento nenhum. Estorno, se
+     um dia existir, é lançamento próprio — não efeito colateral de mudar
+     status. Prestação **não** validada de missão cancelada continua aparecendo
+     como pendência: sumir daria a impressão de que não há o que resolver,
+     quando há uma prestação lançada e nunca revisada.
+  2. **Reabrir a missão não reabre a prestação.** São dimensões independentes
+     (CG-006). Se a reabertura da execução descongelasse a prestação, ela seria
+     o caminho lateral para alterar um valor que já abateu o aporte sem passar
+     por revisor nenhum.
+
+  Missão cancelada **continua contando** na linha do exercício, e o teste amarra
+  isso à lista com `?ano=`: a invariante da CG-055 é que quem clica na linha
+  encontra lá o mesmo número: excluir cancelada de um lado só quebraria os dois
+  números de uma vez.
+
+  Missão sem prestação conta como missão e devolve dinheiro **nulo, não zero**,
+  e `prestacoesPendentes = 0` — prestação inexistente não é prestação pendente.
+
+  **As três garantias foram verificadas por mutação**, porque teste que fixa
+  comportamento existente passa na primeira execução e isso não prova nada:
+  excluir `CANCELADA` do cálculo derruba 2 casos; um `join` com
+  `cotacao_passagem` no cálculo (que multiplicaria a passagem pelo número de
+  cotações) derruba o caso de passagem e diária; e descongelar a prestação na
+  reabertura derruba os 3 casos de reabertura.
 
 - [x] **CG-061 — Cobrir segurança dos documentos**
 
@@ -2888,7 +2927,8 @@ CG-066 a CG-069.
 ### Entrega F — Endurecimento transversal
 
 CG-060 a CG-065, executadas continuamente e concluídas após as entregas que
-servem de dependência.
+servem de dependência. CG-060 e CG-061 concluídas; CG-062 a CG-065 seguem
+abertas porque dependem de telas que ainda não existem.
 
 ## Pendências para decisão futura
 
