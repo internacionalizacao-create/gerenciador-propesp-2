@@ -19,6 +19,8 @@ import {
 import { apiFetch } from "@/lib/api";
 import type {
   ComiteGestor,
+  ExecucaoComite,
+  ExecucaoExercicio,
   Me,
   MembroEquipeGestao,
   PaginaMissoes,
@@ -168,18 +170,26 @@ export default async function ComiteGestorPagina({
     );
   }
 
-  const [dados, membros, pessoas, referenciasMissao] = await Promise.all([
-    apiFetch<ComiteGestor>(`/programas/${programa}/${ciclo}/comite-gestor`),
-    apiFetch<MembroEquipeGestao[]>(
-      `/programas/${programa}/${ciclo}/comite-gestor/equipes`,
-    ),
-    apiFetch<PessoaDisponivel[]>("/pessoas"),
-    aba === "missoes"
-      ? apiFetch<ReferenciasMissao>(
-          `/programas/${programa}/${ciclo}/comite-gestor/referencias-missao`,
-        )
-      : Promise.resolve({ paises: [], instituicoes: [], redes: [] }),
-  ]);
+  const [dados, membros, pessoas, referenciasMissao, execucao] =
+    await Promise.all([
+      apiFetch<ComiteGestor>(`/programas/${programa}/${ciclo}/comite-gestor`),
+      apiFetch<MembroEquipeGestao[]>(
+        `/programas/${programa}/${ciclo}/comite-gestor/equipes`,
+      ),
+      apiFetch<PessoaDisponivel[]>("/pessoas"),
+      aba === "missoes"
+        ? apiFetch<ReferenciasMissao>(
+            `/programas/${programa}/${ciclo}/comite-gestor/referencias-missao`,
+          )
+        : Promise.resolve({ paises: [], instituicoes: [], redes: [] }),
+      // Só a Visão geral usa a execução; buscá-la nas outras abas pagaria duas
+      // agregações sobre a prestação para desenhar uma lista.
+      aba === "visao-geral"
+        ? apiFetch<ExecucaoComite>(
+            `/programas/${programa}/${ciclo}/comite-gestor/execucao`,
+          )
+        : Promise.resolve(null),
+    ]);
 
   const inicioPadrao = `${dados.anos[0] ?? new Date().getFullYear()}-01-01`;
   const contextoFormulario = {
@@ -213,6 +223,7 @@ export default async function ComiteGestorPagina({
       {aba === "visao-geral" ? (
         <VisaoGeral
           dados={dados}
+          execucao={execucao}
           membros={membros}
           base={base}
           exercicio={exercicioDaConsulta(consulta, dados.anos)}
@@ -270,11 +281,13 @@ function Abas({ base, ativa }: { base: string; ativa: Aba }) {
 
 function VisaoGeral({
   dados,
+  execucao,
   membros,
   base,
   exercicio,
 }: {
   dados: ComiteGestor;
+  execucao: ExecucaoComite | null;
   membros: MembroEquipeGestao[];
   base: string;
   exercicio: number | null;
@@ -329,12 +342,18 @@ function VisaoGeral({
 
       <div className="mt-10" />
 
+      {/* O recorte vale para as duas tabelas, por isso ele fica acima delas e
+          não dentro de uma. */}
+      <FiltroExercicio base={base} anos={dados.anos} ativo={exercicio} />
+
+      {execucao ? (
+        <Execucao dados={execucao} exercicio={exercicio} />
+      ) : null}
+
       <Secao
         titulo="Origem do orçamento"
-        descricao="Aportes das redes coordenadoras por exercício. Os valores de missões e prestações serão apresentados separadamente."
+        descricao="Aportes das redes coordenadoras por exercício, sem relação com o orçamento de bolsas do CAPES Global."
       >
-        <FiltroExercicio base={base} anos={dados.anos} ativo={exercicio} />
-
         <Tabela
           colunas={[
             { chave: "rede", texto: "Rede" },
@@ -404,6 +423,169 @@ function VisaoGeral({
       </Secao>
     </>
   );
+}
+
+/**
+ * Execução orçamentária do Comitê Gestor (CG-055).
+ *
+ * A regra homologada é uma só e é negativa: **somente a prestação validada
+ * abate o aporte** (CG-009). Por isso "Validado" e "Não validado" são colunas
+ * distintas, e só a primeira entra no saldo — uma única coluna "executado"
+ * obrigaria a escolher entre esconder o que ainda não vale e fazer parecer que
+ * já vale.
+ */
+function Execucao({
+  dados,
+  exercicio,
+}: {
+  dados: ExecucaoComite;
+  exercicio: number | null;
+}) {
+  // Com um exercício escolhido, os cartões passam a falar dele; sem recorte,
+  // falam do ciclo — que **não** é a soma das linhas quando o assunto é
+  // contagem de missões (a que atravessa dois anos aparece nas duas).
+  const recorte: Omit<ExecucaoExercicio, "ano"> =
+    (exercicio
+      ? dados.exercicios.find((linha) => linha.ano === exercicio)
+      : dados.total) ?? dados.total;
+
+  const linhas = exercicio
+    ? dados.exercicios.filter((linha) => linha.ano === exercicio)
+    : dados.exercicios;
+
+  return (
+    <Secao
+      titulo="Execução orçamentária"
+      descricao="Somente a prestação validada abate o aporte. O que está em preenchimento ou aguardando revisão aparece aqui, mas não reduz o saldo oficial."
+    >
+      <Cartoes>
+        <Cartao
+          titulo="Validado"
+          valor={<Moeda valor={recorte.validado} />}
+          nota="Único valor que abate o aporte"
+        />
+        <Cartao
+          titulo="Saldo oficial"
+          destaque
+          valor={<Moeda valor={recorte.saldoOficial} />}
+          nota="Aporte menos prestação validada"
+        />
+        <Cartao
+          titulo="Não validado"
+          valor={<Moeda valor={recorte.naoValidado} />}
+          nota="Lançado, sem efeito no saldo"
+        />
+        <Cartao
+          titulo="Prestações pendentes"
+          valor={inteiro(recorte.prestacoesPendentes)}
+          nota={`${inteiro(recorte.missoes)} ${recorte.missoes === 1 ? "missão" : "missões"} no recorte`}
+        />
+      </Cartoes>
+
+      <div className="mt-6" />
+
+      {linhas.length === 0 ? (
+        <EstadoVazio
+          titulo="Sem exercícios para mostrar"
+          descricao="Nenhum aporte cadastrado e nenhuma despesa lançada neste ciclo."
+        />
+      ) : (
+        <Tabela
+          rotulo="Execução por exercício"
+          colunas={[
+            { chave: "ano", texto: "Exercício" },
+            { chave: "orcamento", texto: "Orçamento", alinhamento: "direita" },
+            {
+              chave: "preenchimento",
+              texto: "Em preenchimento",
+              alinhamento: "direita",
+            },
+            { chave: "enviado", texto: "Enviado", alinhamento: "direita" },
+            { chave: "validado", texto: "Validado", alinhamento: "direita" },
+            { chave: "saldo", texto: "Saldo oficial", alinhamento: "direita" },
+            { chave: "missoes", texto: "Missões", alinhamento: "direita" },
+            {
+              chave: "pendentes",
+              texto: "Pendentes",
+              alinhamento: "direita",
+            },
+          ]}
+          rodape={
+            exercicio ? undefined : (
+              <tr>
+                <Celula>Ciclo</Celula>
+                <Celula direita>
+                  <Moeda valor={dados.total.orcamento} forte />
+                </Celula>
+                <Celula direita>
+                  <Moeda valor={emPreenchimento(dados.total)} />
+                </Celula>
+                <Celula direita>
+                  <Moeda valor={dados.total.enviado} />
+                </Celula>
+                <Celula direita>
+                  <Moeda valor={dados.total.validado} forte />
+                </Celula>
+                <Celula direita>
+                  <Moeda valor={dados.total.saldoOficial} forte />
+                </Celula>
+                {/* Contagem distinta do ciclo, e não a soma da coluna: a missão
+                    que atravessa dois exercícios está nas duas linhas. */}
+                <Celula direita>{inteiro(dados.total.missoes)}</Celula>
+                <Celula direita>
+                  {inteiro(dados.total.prestacoesPendentes)}
+                </Celula>
+              </tr>
+            )
+          }
+        >
+          {linhas.map((linha) => (
+            <tr key={linha.ano}>
+              <Celula>
+                <span className="font-medium text-foreground">{linha.ano}</span>
+              </Celula>
+              <Celula direita>
+                <Moeda valor={linha.orcamento} />
+              </Celula>
+              <Celula direita>
+                <Moeda valor={emPreenchimento(linha)} />
+              </Celula>
+              <Celula direita>
+                <Moeda valor={linha.enviado} />
+              </Celula>
+              <Celula direita>
+                <Moeda valor={linha.validado} forte />
+              </Celula>
+              <Celula direita>
+                <Moeda valor={linha.saldoOficial} forte />
+              </Celula>
+              <Celula direita>{inteiro(linha.missoes)}</Celula>
+              <Celula direita>
+                {linha.prestacoesPendentes > 0 ? (
+                  <Selo tom="aviso">{inteiro(linha.prestacoesPendentes)}</Selo>
+                ) : (
+                  inteiro(linha.prestacoesPendentes)
+                )}
+              </Celula>
+            </tr>
+          ))}
+        </Tabela>
+      )}
+
+      <p className="mt-3 text-xs text-subtle">{dados.aviso}</p>
+    </Secao>
+  );
+}
+
+/**
+ * Editável hoje: em preenchimento mais devolvido com pendência.
+ *
+ * Os dois somam porque `COM_PENDENCIA` volta a aceitar lançamento (CG-054) —
+ * são o mesmo estado do ponto de vista de quem prepara. Quantas prestações
+ * voltaram por pendência é a coluna "Pendentes".
+ */
+function emPreenchimento(linha: Omit<ExecucaoExercicio, "ano">) {
+  return somarMoeda([linha.emPreenchimento, linha.comPendencia]);
 }
 
 /**

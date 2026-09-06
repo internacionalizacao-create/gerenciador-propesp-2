@@ -467,6 +467,37 @@ export interface ComiteGestor {
   aviso: string;
 }
 
+/**
+ * Execução orçamentária do Comitê Gestor por exercício (CG-055).
+ *
+ * Os quatro estados vêm separados de propósito. Somente `validado` abate o
+ * aporte (CG-009); juntá-los numa coluna "executado" obrigaria a escolher entre
+ * esconder o que ainda não vale e fazer parecer que já vale.
+ */
+export interface ExecucaoExercicio {
+  ano: number;
+  orcamento: string | null;
+  emPreenchimento: string | null;
+  comPendencia: string | null;
+  enviado: string | null;
+  validado: string | null;
+  /** `orcamento - validado`. Nada mais abate. */
+  saldoOficial: string | null;
+  naoValidado: string | null;
+  missoes: number;
+  prestacoesPendentes: number;
+}
+
+export interface ExecucaoComite {
+  exercicios: ExecucaoExercicio[];
+  /**
+   * Consolidado do ciclo — **não** é a soma das colunas: missão que atravessa
+   * dois exercícios aparece nas duas linhas e seria contada duas vezes.
+   */
+  total: Omit<ExecucaoExercicio, "ano">;
+  aviso: string;
+}
+
 export interface PessoaDisponivel {
   id: string;
   nome: string;

@@ -4,7 +4,7 @@ Documento de referência para quem (pessoa ou LLM) vai mexer neste repositório 
 tê-lo escrito. Descreve o que existe hoje, por que está assim, e o que ainda não
 existe. **Mantenha-o atualizado quando mudar arquitetura ou convenção.**
 
-Última revisão: 2026-09-05.
+Última revisão: 2026-09-06.
 
 ---
 
@@ -21,9 +21,10 @@ dados com a seed real, serviços de cálculo (RN-01 a RN-20), telas de planejame
 anual e o cadastro individual de bolsas/produtos existem e são verificados. As planilhas
 não fornecem beneficiários, então P03 começa vazio e será alimentado pela equipe.
 No CAPES Global não há execução financeira na UEA: a CAPES paga diretamente. Falta
-o registro histórico de movimentações externas, concluir a interface e a
-prestação das missões do Comitê Gestor, documentos, relatórios, panorama/mapa de mobilidade e o escopo local por
-PPG/temática na autorização. Ver §9.
+o registro histórico de movimentações externas, os produtos e o encerramento
+das missões do Comitê Gestor, relatórios, panorama/mapa de mobilidade e o
+escopo local por PPG/temática na autorização. O ciclo financeiro do Comitê
+fechou: missão, aprovação, prestação e abatimento do aporte estão de pé. Ver §9.
 
 A visão de arquitetura e os fluxos de negócio/técnicos estão em
 [docs/arquitetura-sistema.md](docs/arquitetura-sistema.md). A especificação
@@ -719,6 +720,31 @@ o ícone estiver visível.
   por arquivo estático. Prestação nula mostra "Prestação não iniciada" —
   ausência de prestação é ausência de linha, não o estado `NAO_INICIADA`.
 
+  **Execução orçamentária (CG-055)** vive em
+  `GET .../comite-gestor/execucao` e aparece na aba Visão geral, ao lado — e
+  não no lugar — da tabela de aportes por rede. **Somente `VALIDADA` abate o
+  aporte**: `saldoOficial` é `orçamento − validado`, e os outros três estados
+  ocupam colunas próprias justamente para que isso fique visível. Uma coluna
+  única "executado" obrigaria a escolher entre esconder o que ainda não vale e
+  fazer parecer que já vale. **O dinheiro agrupa por `despesa.exercicio`; as
+  missões, pelas datas** — a segunda usa o mesmo critério do filtro `?ano=` da
+  lista, para o número não mudar ao clicar. O consolidado do ciclo **não é a
+  soma das colunas**: missão que atravessa dois exercícios está nas duas
+  linhas, e a contagem do total é distinta. Exercício com despesa e sem aporte
+  aparece com saldo negativo, porque esconder o estouro atrás de um nulo seria
+  pior. `somarOuNulo` existe ao lado de `somarMoeda` em `orcamento.service.ts`
+  porque o zero de `somarMoeda` é certo para temática sem linha e errado para
+  prestação nunca iniciada.
+
+  **A lista de missões passou a mostrar a prestação real.** O
+  `'NAO_INICIADA'::text` fixo virou `left join` em `prestacao_contas_missao`
+  (`prestacao_missao_uk` garante que a junção não duplique linha, o que
+  importaria porque `count(*) over ()` dá o total da página), e `valorPrestado`
+  soma as despesas em **qualquer** estado — filtrar por `VALIDADA` faria a
+  missão em preenchimento parecer sem lançamento. O detalhe da missão devolve
+  situação e totais reais; `prestacao` continua nulo lá porque o corpo dela sai
+  de `GET .../prestacao`, e duplicar a resposta abriria espaço para divergirem.
+
   **Ciclo de vida da prestação (CG-054):** `/prestacao/envio`
   (`prestacao:write`), `/prestacao/validacao` e `/prestacao/devolucao`
   (`prestacao:review`). Os quatro estados governam o que a tela oferece.
@@ -756,7 +782,7 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
 - **Testes**: 138 unitários/regressões (67 API + 71 na web para toast, datas,
   React Hook Form/Zod, erros do multistep, formulários de parceiro,
   acessibilidade, contraste dos tokens, cálculos monetários, montagem de série
-  do gráfico e caminhos do BFF) + 318 de integração contra Postgres
+  do gráfico e caminhos do BFF) + 334 de integração contra Postgres
   real. As duas garantias de não duplicação da linha
   histórica do parceiro foram verificadas por mutação: trocar o `exists` +
   `selectDistinct` por um `join` faz ambas falharem.
@@ -778,11 +804,6 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
   auditoria. O Gerenciador não propõe, autoriza ou executa. A estrutura genérica de
   execução financeira permanece no schema para outros programas, mas P11 é fora do
   escopo do CAPES Global porque os pagamentos são feitos diretamente pela CAPES.
-- **Abatimento do aporte pela prestação validada (CG-055).** O ciclo de vida
-  está pronto (CG-054), mas nada abate ainda: `VALIDADA` é o único estado que
-  deve produzir execução oficial, e a integração com os indicadores do orçamento
-  continua pendente. A lista de missões também devolve `'NAO_INICIADA'::text`
-  fixo e deve passar a um `left join` para mostrar o selo real.
 - Relatórios (P20), importação com adaptador por programa (P21), documentos e
   evidências (P22), convênios e produção consolidada (P18/P19). O documento novo
   do Comitê propõe trazer parte de P18–P20/P22 para o fluxo da missão, mas a fase

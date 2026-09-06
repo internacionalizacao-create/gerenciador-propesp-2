@@ -87,6 +87,15 @@ if [[ "$USUARIO" == "admin" ]]; then
   testar "/programas/capes-global/2027-2030/comite-gestor?ano=2027" "381.333,00"
   # Exercicio fora do ciclo e ignorado, e nao quebra a pagina.
   testar "/programas/capes-global/2027-2030/comite-gestor?ano=1999" "Total anual"
+  # CG-055: execucao orcamentaria. As ancoras sao os rotulos, e nao valores: o
+  # quanto ja foi validado depende do banco e viraria falso alarme no primeiro
+  # lancamento. O que precisa existir sempre e a separacao entre o que abate o
+  # aporte e o que nao abate.
+  testar "/programas/capes-global/2027-2030/comite-gestor" "Execução orçamentária"
+  testar "/programas/capes-global/2027-2030/comite-gestor" "Saldo oficial"
+  testar "/programas/capes-global/2027-2030/comite-gestor" "Não validado"
+  testar "/programas/capes-global/2027-2030/comite-gestor?ano=2027" "Saldo oficial"
+  testar_bff "/api/bff/programas/capes-global/2027-2030/comite-gestor/execucao" '"saldoOficial"'
   testar "/programas/capes-global/2027-2030/comite-gestor?aba=equipes" "Adicionar membro"
   # Ancora no cabecalho da coluna, e nao no rotulo "Missões" da aba: so o
   # cabecalho e alinhado a direita.

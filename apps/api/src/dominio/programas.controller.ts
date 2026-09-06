@@ -37,6 +37,7 @@ import {
   type AtualizarMembroEquipe,
   type CriarMembroEquipe,
 } from './comite-gestor.service';
+import { ExecucaoComiteService } from './execucao-comite.service';
 import { ContextoService } from './contexto.service';
 import {
   atualizarMissaoComiteSchema,
@@ -108,6 +109,7 @@ export class ProgramasController {
     private readonly submissao: SubmissaoService,
     private readonly decisao: DecisaoService,
     private readonly prestacao: PrestacaoService,
+    private readonly execucao: ExecucaoComiteService,
   ) {}
 
   /** P05 · lista somente os programas ativos para operacao. */
@@ -366,6 +368,24 @@ export class ProgramasController {
     @Param('ciclo') nome: string,
   ) {
     return this.ciclos.comiteGestor(await this.contexto.resolver(slug, nome));
+  }
+
+  /**
+   * P17 · execucao orcamentaria do Comite Gestor por exercicio (CG-055).
+   *
+   * Fica separada de `/comite-gestor`, que devolve a origem do dinheiro
+   * (aportes por rede). Sao duas perguntas distintas — de onde veio e quanto
+   * ja virou execucao oficial — e a segunda so passou a existir com a
+   * prestacao validada.
+   */
+  @Get(':programa/:ciclo/comite-gestor/execucao')
+  @RequirePermission('equipe-gestao:read')
+  async execucaoComite(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.execucao.porExercicio(ciclo.cicloId);
   }
 
   @Get(':programa/:ciclo/comite-gestor/equipes')

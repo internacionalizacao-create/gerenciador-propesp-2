@@ -2380,7 +2380,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   tela, conferindo que cada ação aparece só onde deve — validada não oferece
   lançar, enviar, validar, devolver nem remover.
 
-- [ ] **CG-055 — Integrar prestações aos indicadores do orçamento**
+- [x] **CG-055 — Integrar prestações aos indicadores do orçamento**
 
   Exibir por exercício:
 
@@ -2398,6 +2398,56 @@ Essa situação é calculada a partir das datas e não é persistida.
   Dependência: CG-054.
 
   Critério de aceite: valores não validados nunca reduzem o saldo oficial.
+
+  **Concluída em 2026-09-06.** `GET .../comite-gestor/execucao`
+  (`equipe-gestao:read`) devolve, por exercício, o aporte, os quatro estados da
+  prestação em colunas separadas, o saldo oficial, a contagem de missões e a de
+  prestações pendentes. Fica **fora** de `/comite-gestor`, que continua
+  respondendo a origem do dinheiro: de onde veio e quanto virou execução
+  oficial são duas perguntas, e a segunda só passou a existir com a CG-054.
+
+  **Os quatro estados vêm separados de propósito.** Uma única coluna
+  "executado" obrigaria a escolher entre esconder o que ainda não vale e fazer
+  parecer que já vale; com colunas distintas, o critério de aceite fica visível
+  na própria tela — `saldoOficial` é `orçamento − validado`, e mais nada entra.
+  Há regressão para cada travessia: preenchimento, envio e devolução deixam o
+  saldo parado, e só a validação o move.
+
+  Três decisões que a implementação ingênua erra:
+
+  - **O dinheiro agrupa por `despesa.exercicio`; as missões, pelas datas.** São
+    perguntas diferentes na mesma linha. A despesa carrega o exercício
+    justamente porque a viagem de dezembro paga em janeiro pertence ao ano que
+    o lançamento diz; já a contagem de missões usa o mesmo critério do filtro
+    `?ano=` da lista, senão o número muda ao clicar.
+  - **O consolidado do ciclo não é a soma das colunas.** Missão que atravessa
+    dois exercícios aparece nas duas linhas; somar contaria duas vezes. A
+    contagem do total é distinta, sobre o ciclo inteiro.
+  - **Exercício com despesa e sem aporte aparece, e com saldo negativo.**
+    Restringir a tabela aos anos do orçamento faria o gasto sumir; devolver
+    nulo transformaria um estouro em ausência de informação.
+
+  Nulo continua diferente de zero: exercício sem lançamento mostra *A definir*,
+  não R$ 0,00. Daí `somarOuNulo` ao lado de `somarMoeda` em
+  [orcamento.service.ts](../apps/api/src/dominio/orcamento.service.ts) — o zero
+  de `somarMoeda` é o certo para uma temática sem linha e o errado para uma
+  prestação nunca iniciada.
+
+  **A lista de missões parou de mentir.** `'NAO_INICIADA'::text` fixo e
+  `valor_prestado` nulo viraram `left join` em `prestacao_contas_missao` e soma
+  das despesas — o filtro por situação já existia e "funcionava" contra a
+  constante, sem que nenhum teste pudesse pegá-lo. `valorPrestado` soma todos os
+  estados de propósito: filtrar por `VALIDADA` faria a missão em preenchimento
+  aparecer sem valor nenhum. O detalhe da missão ganhou o mesmo tratamento;
+  `prestacao` segue nulo lá porque o corpo dela sai de `GET .../prestacao`, e
+  duplicar a resposta abriria espaço para divergirem.
+
+  Cobertura: 16 regressões em
+  [execucao-comite.int-spec.ts](../apps/api/test/execucao-comite.int-spec.ts),
+  incluindo a que fixa a não duplicação de linha pelo `left join`. Verificado
+  na aplicação com a base de desenvolvimento: R$ 8.150,00 validados e
+  R$ 2.400,00 devolvidos com pendência em 2027, saldo oficial de
+  R$ 373.183,00 — o valor devolvido aparece na tela e não entra no saldo.
 
 ### Épico 6 — Produtos, evidências e encerramento
 

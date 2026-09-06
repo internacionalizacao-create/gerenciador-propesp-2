@@ -14,6 +14,7 @@ import { calcularDiasInclusivos } from '../comum/datas';
 import { DRIZZLE, type Database } from '../database/database.module';
 import * as s from '../database/schema';
 import { pessoaRapidaSchema, type PessoaRapida } from './comite-gestor.service';
+import { somarOuNulo } from './orcamento.service';
 
 const dataCompleta = z
   .string()
@@ -826,9 +827,15 @@ export class MissoesComiteService {
    * Lista as missoes do ciclo com filtros combinaveis e paginacao.
    *
    * A situacao temporal e a situacao da prestacao sao derivadas na consulta, e
-   * nao colunas. Enquanto a CG-013 nao existir, toda missao responde
-   * `NAO_INICIADA` — o que preserva o filtro funcionando e concentra a mudanca
-   * futura em uma unica expressao SQL.
+   * nao colunas. `NAO_INICIADA` e a **ausencia** da linha de prestacao, nao um
+   * estado gravado (CG-013): por isso ela sai de `coalesce` sobre o `left
+   * join`, e nao de uma coluna que precisaria ser mantida em dia.
+   *
+   * `valorPrestado` soma tudo o que foi lancado, em qualquer estado. Nao e o
+   * valor que abate o aporte — so a prestacao `VALIDADA` abate (CG-009/CG-055),
+   * e quem diz isso na tela e a coluna de situacao ao lado. Filtrar aqui por
+   * `VALIDADA` faria a missao em preenchimento aparecer sem valor nenhum, como
+   * se ninguem tivesse lancado nada.
    */
   async listar(cicloId: string, filtro: FiltroMissoes): Promise<PaginaMissoes> {
     // Escopo e situacao ficam separados de proposito: o resumo conta por
@@ -905,7 +912,11 @@ export class MissoesComiteService {
       when m.data_inicio > current_date then 'FUTURA'
       else 'EM_ANDAMENTO'
     end`;
-    const situacaoPrestacao = sql`'NAO_INICIADA'::text`;
+    // `left join`, e nao subconsulta por linha: `prestacao_missao_uk` garante
+    // no maximo uma prestacao por missao, entao a juncao nao pode multiplicar
+    // linhas — o que aqui importaria duas vezes, porque `count(*) over ()`
+    // devolve o total da pagina e a contagem viraria mentira.
+    const situacaoPrestacao = sql`coalesce(pr.status::text, 'NAO_INICIADA')`;
 
     if (filtro.situacaoTemporal) {
       situacao.push(sql`${situacaoTemporal} = ${filtro.situacaoTemporal}`);
@@ -966,9 +977,12 @@ export class MissoesComiteService {
                    where mr.missao_id = m.id),
                  '{}'
                ) as redes,
-               null::text as valor_prestado,
+               (select sum(d.valor_total)
+                  from despesa_missao d
+                 where d.prestacao_id = pr.id) as valor_prestado,
                count(*) over () as total
           from missao_comite m
+          left join prestacao_contas_missao pr on pr.missao_id = m.id
          where ${sql.join([...escopo, ...situacao], sql` and `)}
          order by ${coluna} ${direcao}, m.codigo ${direcao}
          limit ${filtro.tamanho} offset ${deslocamento}
@@ -1051,10 +1065,12 @@ export class MissoesComiteService {
   /**
    * Detalhe completo da missao.
    *
-   * Prestacao e documentos ainda nao existem no schema (CG-013/CG-014). Em vez
-   * de omiti-los, o contrato ja os declara vazios e explicitos: a tela de
-   * detalhe pode ser construida agora e nao muda de formato quando a prestacao
-   * chegar.
+   * `prestacao` continua nulo aqui de proposito: o corpo dela sai de
+   * `GET .../prestacao`, que ja devolve despesas, documentos e totais por tipo,
+   * por exercicio e por pessoa. Repetir tudo neste endpoint criaria duas
+   * respostas para a mesma pergunta, com chance de divergirem. O que este
+   * detalhe carrega e o resumo: em que estado a prestacao esta e quanto foi
+   * lancado (CG-055).
    */
   async detalhe(cicloId: string, id: string): Promise<MissaoDetalhe> {
     const missao = await this.db.query.missaoComite.findFirst({
@@ -1096,6 +1112,8 @@ export class MissoesComiteService {
         ),
       )
       .orderBy(desc(s.registroAuditoria.ocorridoEm));
+
+    const resumoPrestacao = await this.resumoPrestacao(id);
 
     const atividades = [...missao.atividades]
       .sort((a, b) => a.ordem - b.ordem)
@@ -1192,18 +1210,83 @@ export class MissoesComiteService {
         (a, b) => a.localeCompare(b, 'pt-BR'),
       ),
       prestacao: null,
-      situacaoPrestacao: 'NAO_INICIADA',
-      totais: {
-        passagens: null,
-        diarias: null,
-        geral: null,
-        porExercicio: [],
-      },
+      situacaoPrestacao: resumoPrestacao.situacao,
+      totais: resumoPrestacao.totais,
       documentos: [],
       historico: historico.map((registro) => ({
         ...registro,
         ocorridoEm: registro.ocorridoEm.toISOString(),
       })),
+    };
+  }
+
+  /**
+   * Estado e totais da prestacao para o detalhe da missao (CG-055).
+   *
+   * `NAO_INICIADA` sai da ausencia da linha, nunca de um estado gravado. E os
+   * totais ficam **nulos** quando nao ha lancamento, jamais R$ 0,00: e essa
+   * distincao que deixa a tela escrever "Prestacao nao iniciada" com
+   * honestidade, em vez de anunciar um gasto zerado que ninguem apurou.
+   *
+   * `passagens` e `diarias` nomeiam dois dos sete tipos de despesa homologados
+   * na CG-009, entao `geral` nao e a soma dos dois — e o total de todos. Quem
+   * precisa da quebra completa por tipo usa `GET .../prestacao`.
+   */
+  private async resumoPrestacao(missaoId: string): Promise<{
+    situacao: (typeof situacoesPrestacao)[number];
+    totais: TotaisMissao;
+  }> {
+    const [prestacao] = await this.db
+      .select({
+        id: s.prestacaoContasMissao.id,
+        status: s.prestacaoContasMissao.status,
+      })
+      .from(s.prestacaoContasMissao)
+      .where(eq(s.prestacaoContasMissao.missaoId, missaoId));
+
+    if (!prestacao) {
+      return {
+        situacao: 'NAO_INICIADA',
+        totais: {
+          passagens: null,
+          diarias: null,
+          geral: null,
+          porExercicio: [],
+        },
+      };
+    }
+
+    const linhas = await consultar<{
+      exercicio: number;
+      passagens: string | null;
+      diarias: string | null;
+      geral: string;
+    }>(
+      this.db,
+      sql`
+        select exercicio,
+               sum(valor_total) filter (where tipo = 'PASSAGEM') as passagens,
+               sum(valor_total) filter (where tipo = 'DIARIA') as diarias,
+               sum(valor_total) as geral
+          from despesa_missao
+         where prestacao_id = ${prestacao.id}
+         group by exercicio
+         order by exercicio
+      `,
+    );
+
+    return {
+      situacao: prestacao.status,
+      totais: {
+        passagens: somarOuNulo(linhas.map((linha) => linha.passagens)),
+        diarias: somarOuNulo(linhas.map((linha) => linha.diarias)),
+        geral: somarOuNulo(linhas.map((linha) => linha.geral)),
+        porExercicio: linhas.map((linha) => ({
+          ano: linha.exercicio,
+          passagens: linha.passagens ?? '0.00',
+          diarias: linha.diarias ?? '0.00',
+        })),
+      },
     };
   }
 

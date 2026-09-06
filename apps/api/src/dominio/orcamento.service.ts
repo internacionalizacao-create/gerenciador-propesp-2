@@ -412,6 +412,23 @@ export function somarMoeda(valores: readonly (string | null)[]): string {
 }
 
 /**
+ * Mesma soma, mas preservando a diferenca entre "nao ha valor" e "o valor e
+ * zero".
+ *
+ * `somarMoeda` devolve "0.00" para uma lista toda nula, e isso e o que a maior
+ * parte das telas quer — o orcamento de uma tematica sem linha e zero mesmo.
+ * Onde a ausencia significa outra coisa, porem — prestacao nunca iniciada,
+ * exercicio sem aporte —, esse zero mente: a interface escreveria R$ 0,00 no
+ * lugar de *A definir* (secao 9.2 da especificacao). Dai as duas funcoes.
+ */
+export function somarOuNulo(
+  valores: readonly (string | null)[],
+): string | null {
+  if (valores.every((valor) => valor === null)) return null;
+  return somarMoeda(valores);
+}
+
+/**
  * Converte "1234.56" em 123456 centavos.
  *
  * Existe porque somar dinheiro em `number` erra: `0.1 + 0.2 !== 0.3`, e o erro
