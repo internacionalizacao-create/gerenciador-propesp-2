@@ -55,6 +55,15 @@ import {
   type TransicaoMissao,
 } from './missoes-comite.service';
 import {
+  atualizarProdutoMissaoSchema,
+  criarProdutoMissaoSchema,
+  responderProdutosSchema,
+  ResultadosService,
+  type AtualizarProdutoMissao,
+  type CriarProdutoMissao,
+  type ResponderProdutos,
+} from './resultados.service';
+import {
   DecisaoService,
   decidirSchema,
   reabrirSchema,
@@ -110,6 +119,7 @@ export class ProgramasController {
     private readonly decisao: DecisaoService,
     private readonly prestacao: PrestacaoService,
     private readonly execucao: ExecucaoComiteService,
+    private readonly resultados: ResultadosService,
   ) {}
 
   /** P05 · lista somente os programas ativos para operacao. */
@@ -748,6 +758,104 @@ export class ProgramasController {
   }
 
   /** P16 · premissas e fontes documentais. */
+  /* Resultados da missao: produtos e a resposta "gerou produto?" (CG-056). */
+
+  /**
+   * Leitura sob `missao:read`, escrita sob `missao:write`.
+   *
+   * Nao e `missao:edit`: `edit` guarda o **planejamento**, que congela em
+   * analise para o Comite nao aprovar texto diferente do que leu. Produto e
+   * resultado, registrado depois da viagem, e cai no mesmo verbo do relato.
+   *
+   * O convenio, esse, vive em `/convenios` sob `parceiro:write` — quem registra
+   * o resultado da viagem nao necessariamente pode alterar o cadastro
+   * institucional do parceiro.
+   */
+  @Get(':programa/:ciclo/comite-gestor/missoes/:id/produtos')
+  @RequirePermission('missao:read')
+  async produtosDaMissao(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('id') id: string,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.resultados.resultadosDaMissao(ciclo.cicloId, id);
+  }
+
+  @Post(':programa/:ciclo/comite-gestor/missoes/:id/produtos')
+  @RequirePermission('missao:write')
+  async criarProdutoDaMissao(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('id') id: string,
+    @CurrentUser() usuario: AuthUser,
+    @Body(new ZodValidationPipe(criarProdutoMissaoSchema))
+    dto: CriarProdutoMissao,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.resultados.criarProduto(ciclo.cicloId, id, dto, usuario);
+  }
+
+  @Patch(':programa/:ciclo/comite-gestor/missoes/:id/produtos/:produtoId')
+  @RequirePermission('missao:write')
+  async atualizarProdutoDaMissao(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('id') id: string,
+    @Param('produtoId') produtoId: string,
+    @CurrentUser() usuario: AuthUser,
+    @Body(new ZodValidationPipe(atualizarProdutoMissaoSchema))
+    dto: AtualizarProdutoMissao,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.resultados.atualizarProduto(
+      ciclo.cicloId,
+      id,
+      produtoId,
+      dto,
+      usuario,
+    );
+  }
+
+  @Delete(':programa/:ciclo/comite-gestor/missoes/:id/produtos/:produtoId')
+  @RequirePermission('missao:write')
+  async removerProdutoDaMissao(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('id') id: string,
+    @Param('produtoId') produtoId: string,
+    @CurrentUser() usuario: AuthUser,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.resultados.removerProduto(
+      ciclo.cicloId,
+      id,
+      produtoId,
+      usuario,
+    );
+  }
+
+  /**
+   * Resposta explicita "a missao gerou produto?".
+   *
+   * Existe porque "nenhum produto cadastrado" e ambiguo: significa tanto que
+   * nao houve produto quanto que ninguem respondeu ainda, e o checklist de
+   * encerramento precisa saber a diferenca.
+   */
+  @Post(':programa/:ciclo/comite-gestor/missoes/:id/produtos/resposta')
+  @RequirePermission('missao:write')
+  async responderProdutosDaMissao(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('id') id: string,
+    @CurrentUser() usuario: AuthUser,
+    @Body(new ZodValidationPipe(responderProdutosSchema))
+    dto: ResponderProdutos,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.resultados.responderProdutos(ciclo.cicloId, id, dto, usuario);
+  }
+
   @Get(':programa/:ciclo/premissas')
   @RequirePermission('premissa:read')
   async premissas(

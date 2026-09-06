@@ -1374,11 +1374,11 @@ Essa situação é calculada a partir das datas e não é persistida.
   caso — missão de duas redes com duas atividades no mesmo parceiro — e exige
   uma única linha.
 
-  Produtos e convênios **não** aparecem como total zero: `modulosPendentes` os
-  nomeia apontando para a CG-056, porque zero afirmaria que nada aconteceu
-  quando a verdade é que ainda não existe onde registrar. Quando a CG-056 e a
-  CG-057 chegarem, acrescentam sua seção e saem dessa lista, sem quebrar o
-  contrato.
+  Produtos e convênios **não** apareciam como total zero: `modulosPendentes` os
+  nomeava apontando para a CG-056, porque zero afirmaria que nada aconteceu
+  quando a verdade era que ainda não existia onde registrar. A CG-056 chegou em
+  2026-09-06, acrescentou as seções `convenios` e `produtos` e saiu dessa lista,
+  sem quebrar o contrato — `modulosPendentes` permanece, agora vazia.
 
   Evento continua sendo projeção das atividades que nomeiam um (D-10), não uma
   entidade separada. Documentos leem `anexo` em `INSTITUICAO`/`PARCEIRO`, o
@@ -2224,9 +2224,10 @@ Essa situação é calculada a partir das datas e não é persistida.
   de versões; e inativação com justificativa e trilha, sem exclusão.
 
   `PRODUTO_MISSAO`, `CONVENIO`, `SUBMISSAO_MISSAO` e `DECISAO_COMITE` **não**
-  entraram no enum de destino porque suas tabelas ainda não existem (CG-056 e
+  entraram no enum de destino porque suas tabelas ainda não existiam (CG-056 e
   CG-019) — aceitar upload apontando para tabela inexistente seria criar órfão
-  no ato. Entram junto com as tasks delas.
+  no ato. Entram junto com as tasks delas: `PRODUTO_MISSAO` e `CONVENIO`
+  entraram na CG-056, cada um com a política de permissão da própria entidade.
 
   **Antivírus/quarentena não foi implementado.** O item dizia "quando exigido",
   não há scanner disponível no ambiente e a exigência não foi homologada;
@@ -2451,7 +2452,7 @@ Essa situação é calculada a partir das datas e não é persistida.
 
 ### Épico 6 — Produtos, evidências e encerramento
 
-- [ ] **CG-056 — Implementar produtos da missão e convênios**
+- [x] **CG-056 — Implementar produtos da missão e convênios**
 
   Criar domínio próprio, separado de `produto_bolsa`, com:
 
@@ -2466,6 +2467,81 @@ Essa situação é calculada a partir das datas e não é persistida.
 
   Critério de aceite: missão sem produto registra a resposta negativa; missão
   com convênio alimenta o histórico dos parceiros sem duplicar instituição.
+
+  **Concluída em 2026-09-06.** Domínio próprio em
+  [resultados.ts](../apps/api/src/database/schema/resultados.ts) e
+  [resultados.service.ts](../apps/api/src/dominio/resultados.service.ts): seis
+  tabelas novas (`convenio`, `convenio_rede`, `produto_missao` e as três
+  ligações de instituição, rede e responsável), migration
+  `0030_produtos_convenios_cg056.sql`.
+
+  **A resposta "gerou produto?" não é uma coluna booleana.** O "sim" já é fato
+  consultável — existe linha em `produto_missao` — e um booleano ao lado dele só
+  poderia divergir no dia em que alguém apagasse o último produto. É o que a
+  CG-058 proíbe. Só a resposta **negativa** é gravada, porque essa não é
+  derivável: zero produto significa tanto "não gerou" quanto "ninguém respondeu
+  ainda", e o checklist de encerramento precisa distinguir as duas. Ficou em
+  `missao_comite.sem_produto_declarado_em/_por/_justificativa`, com `check` que
+  recusa declaração sem autor. Cadastrar produto **retira** a declaração
+  anterior, com auditoria: manter as duas faria a missão afirmar as duas coisas.
+
+  **O convênio não pertence à missão.** Ele se ancora na `instituicao`, guarda a
+  missão apenas como origem (opcional — convênio anterior ao sistema é caso
+  legítimo) e a FK é `set null`: apagar a missão não pode apagar o acordo, que é
+  o registro mais duradouro dos dois. Por isso o controlador é
+  [convenios.controller.ts](../apps/api/src/dominio/convenios.controller.ts), sem
+  `:programa/:ciclo` no caminho.
+
+  **Permissões, sem string nova:** produto usa `missao:read`/`missao:write`
+  (resultado da viagem, mesmo verbo do relato — não `missao:edit`, que guarda o
+  planejamento e congela em análise); convênio usa `parceiro:read`/`parceiro:write`
+  (cadastro institucional). Consequência aceita: quem só tem `missao:write`
+  aponta um convênio existente mas não cria um. Na matriz provisória tudo isso
+  continua exclusivo de `admin`.
+
+  `produto_missao_convenio_ck` é bicondicional, não duas regras soltas: produto
+  do tipo `CONVENIO` sem acordo afirmaria um convênio que não existe, e acordo
+  apontado por produto de outro tipo o esconderia do checklist de encerramento,
+  que procura pelo tipo.
+
+  Não há exclusão de convênio, só inativação — mesma decisão dos parceiros
+  (CG-026), e a FK do produto é `restrict` para que não exista outro caminho.
+  Produto documentado também não é removido, pela regra da CG-052: `anexo` é
+  polimórfico e apagar a linha deixaria o arquivo apontando para um id morto.
+
+  `entidade_anexo` ganhou `PRODUTO_MISSAO` e `CONVENIO`, com política própria em
+  `anexos.service.ts` — os dois documentos versionados que a task pede.
+
+  `GET /parceiros/:id/historico` (CG-027) ganhou as seções `convenios` e
+  `produtos`, e `modulosPendentes` passou a vir vazia. O campo permanece no
+  contrato para o próximo módulo entrar sem quebrá-lo. **A não duplicação foi
+  verificada por mutação:** trocar `exists` + `selectDistinct` por `join` na
+  consulta de produtos faz o teste do histórico falhar com o mesmo produto duas
+  vezes — o parceiro entra pelas duas portas (instituição do produto e titular
+  do convênio) e o produto ainda nomeia uma segunda instituição.
+
+  Interface: **leitura apenas**. A missão ganhou a seção *Resultados* no Resumo,
+  com os três estados separados (produtos, declaração negativa com autor e data,
+  resposta pendente); o parceiro ganhou *Convênios* e *Produtos*. O cadastro
+  entra com a edição do relato, na CG-046.
+
+  **Achado fora do escopo, corrigido junto:** a página da missão quebrava com 500
+  em qualquer missão **sem** prestação. `GET .../prestacao` devolve `null`, o
+  Nest serializa isso como 200 sem corpo e `apiFetch` entrega `undefined`, então
+  a checagem `=== null` da página passava batido. Nunca apareceu porque o banco
+  de desenvolvimento só tinha missões com prestação e os testes de integração
+  chamam o serviço direto, sem passar por HTTP.
+
+  Cobertura: 22 regressões em
+  [resultados.int-spec.ts](../apps/api/test/resultados.int-spec.ts) — resposta
+  ausente, negativa, negativa recusada com produto, retirada da declaração,
+  bicondicional do convênio no serviço e no banco, rede de outro ciclo,
+  auditoria por campo, remoção com e sem documento, convênio vigente sem
+  assinatura, convênio sobrevivendo à missão, lista sem duplicar acordo
+  multirrede, inativação e histórico do parceiro.
+  Verificado na aplicação: missão, convênio e produto criados pelo BFF como
+  `admin`, os três estados da seção *Resultados* na tela e as duas seções novas
+  do parceiro; os dados de verificação foram removidos do banco depois.
 
 - [ ] **CG-057 — Implementar fotos e evidências da missão**
 
@@ -2802,7 +2878,8 @@ CG-013, CG-014 e CG-050 a CG-055.
 
 ### Entrega D — Produtos, convênios, encerramento e relato final
 
-CG-056 a CG-058, depois CG-046 e CG-059.
+CG-056 concluída em 2026-09-06; seguem CG-057 e CG-058, depois CG-046 e
+CG-059.
 
 ### Entrega E — Indicadores, relatórios e exportações
 

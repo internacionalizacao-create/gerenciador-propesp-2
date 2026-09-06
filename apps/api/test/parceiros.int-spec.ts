@@ -458,11 +458,12 @@ describe('ParceirosService', () => {
         site: 'https://cooperacao.example',
       }),
     ]);
-    // Modulos inexistentes vao nomeados, nunca como total zero.
-    expect(historico.modulosPendentes).toEqual([
-      { modulo: 'PRODUTOS', task: 'CG-056' },
-      { modulo: 'CONVENIOS', task: 'CG-056' },
-    ]);
+    // Produtos e convenios existem desde a CG-056; a lista de modulos
+    // pendentes fica vazia e o contrato permanece, para o proximo modulo do
+    // escopo entrar por aqui sem quebrar quem ja consome a resposta.
+    expect(historico.modulosPendentes).toEqual([]);
+    expect(historico.convenios).toEqual([]);
+    expect(historico.produtos).toEqual([]);
   });
 
   it('ignora missao de outro parceiro e lista documentos do proprio', async () => {

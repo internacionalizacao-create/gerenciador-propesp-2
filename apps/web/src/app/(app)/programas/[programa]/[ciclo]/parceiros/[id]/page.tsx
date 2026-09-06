@@ -65,7 +65,8 @@ export default async function ParceiroDetalhe({
     apiFetch<Parceiro[]>("/parceiros"),
   ]);
 
-  const { parceiro, contatos, missoes, eventos, documentos } = historico;
+  const { parceiro, contatos, missoes, eventos, documentos, convenios, produtos } =
+    historico;
   const podeEscrever = me.permissions.includes("parceiro:write");
   const base = `/programas/${programa}/${ciclo}/parceiros`;
 
@@ -350,6 +351,88 @@ export default async function ParceiroDetalhe({
                 <Celula className="text-muted">
                   {data(evento.dataInicio)} a {data(evento.dataFim)}
                 </Celula>
+              </tr>
+            ))}
+          </Tabela>
+        </Secao>
+      ) : null}
+
+      {convenios.length > 0 ? (
+        <Secao
+          titulo="Convênios"
+          descricao="Acordos firmados com esta instituição. O convênio sobrevive à missão que o originou (CG-056)."
+        >
+          <Tabela
+            rotulo="Convênios do parceiro"
+            colunas={[
+              { chave: "acordo", texto: "Acordo" },
+              { chave: "situacao", texto: "Situação" },
+              { chave: "vigencia", texto: "Vigência" },
+              { chave: "origem", texto: "Origem" },
+            ]}
+          >
+            {convenios.map((convenio) => (
+              <tr key={convenio.id}>
+                <Celula>
+                  <span className="font-medium text-foreground">
+                    {convenio.titulo}
+                  </span>
+                  <span className="block text-xs text-subtle">
+                    {rotulo(convenio.tipoAcordo)}
+                    {convenio.area ? ` · ${convenio.area}` : ""}
+                  </span>
+                </Celula>
+                <Celula>
+                  <Selo tom={convenio.ativo ? "neutro" : "aviso"}>
+                    {convenio.ativo
+                      ? rotulo(convenio.situacao)
+                      : "Inativado"}
+                  </Selo>
+                </Celula>
+                <Celula className="text-muted">
+                  {data(convenio.dataInicio)} a{" "}
+                  {convenio.dataFim ? data(convenio.dataFim) : "indeterminada"}
+                  <span className="block text-xs text-subtle">
+                    Assinatura: {data(convenio.dataAssinatura)}
+                  </span>
+                </Celula>
+                <Celula className="text-muted">
+                  {convenio.missaoOrigemCodigo ?? "fora de missão"}
+                </Celula>
+              </tr>
+            ))}
+          </Tabela>
+        </Secao>
+      ) : null}
+
+      {produtos.length > 0 ? (
+        <Secao
+          titulo="Produtos"
+          descricao="Resultados de missão que envolvem este parceiro, pela instituição relacionada ou pelo convênio (CG-056)."
+        >
+          <Tabela
+            rotulo="Produtos ligados ao parceiro"
+            colunas={[
+              { chave: "produto", texto: "Produto" },
+              { chave: "situacao", texto: "Situação" },
+              { chave: "missao", texto: "Missão" },
+            ]}
+          >
+            {produtos.map((produto) => (
+              <tr key={produto.id}>
+                <Celula>
+                  <span className="font-medium text-foreground">
+                    {produto.titulo}
+                  </span>
+                  <span className="block text-xs text-subtle">
+                    {rotulo(produto.tipo)}
+                    {produto.ano ? ` · ${produto.ano}` : ""}
+                  </span>
+                </Celula>
+                <Celula className="text-muted">
+                  {rotulo(produto.situacao)}
+                </Celula>
+                <Celula className="text-muted">{produto.missaoCodigo}</Celula>
               </tr>
             ))}
           </Tabela>

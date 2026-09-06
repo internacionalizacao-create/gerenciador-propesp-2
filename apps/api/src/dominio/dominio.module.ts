@@ -9,6 +9,8 @@ import { ComiteGestorService } from './comite-gestor.service';
 import { ContatosParceirosController } from './contatos-parceiros.controller';
 import { ContatosParceirosService } from './contatos-parceiros.service';
 import { ContextoService } from './contexto.service';
+import { ConveniosController } from './convenios.controller';
+import { ResultadosService } from './resultados.service';
 import { MissoesComiteService } from './missoes-comite.service';
 import { DecisaoService } from './decisao.service';
 import { ExecucaoComiteService } from './execucao-comite.service';
@@ -49,6 +51,7 @@ import { CatalogoController, PpgsController } from './ppgs.controller';
     ParceirosController,
     AnexosController,
     ContatosParceirosController,
+    ConveniosController,
   ],
   providers: [
     ContextoService,
@@ -70,6 +73,7 @@ import { CatalogoController, PpgsController } from './ppgs.controller';
     AnexosService,
     ArmazenamentoService,
     ContatosParceirosService,
+    ResultadosService,
   ],
   exports: [ContextoService, OrcamentoService, PainelService, CatalogoService],
 })

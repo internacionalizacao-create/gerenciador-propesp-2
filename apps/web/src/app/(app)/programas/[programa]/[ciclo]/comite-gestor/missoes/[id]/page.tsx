@@ -18,6 +18,7 @@ import {
   RemoverDespesa,
 } from "@/componentes/formularios/form-despesa";
 import {
+  Aviso,
   Cartao,
   Cartoes,
   Celula,
@@ -38,6 +39,7 @@ import type {
   MissaoDetalhe,
   ParticipanteMissao,
   PrestacaoMissao,
+  ResultadosDaMissao,
   RodadaAnalise,
   SituacaoPrestacao,
   StatusAprovacaoMissao,
@@ -100,7 +102,7 @@ export default async function MissaoDetalhePagina({
   }
 
   const rotaMissao = `/programas/${programa}/${ciclo}/comite-gestor/missoes/${id}`;
-  const [missao, rodadas, requisitos, documentos, prestacao] =
+  const [missao, rodadas, requisitos, documentos, prestacaoBruta, resultados] =
     await Promise.all([
       apiFetch<MissaoDetalhe>(rotaMissao),
       apiFetch<RodadaAnalise[]>(`${rotaMissao}/analise`),
@@ -111,7 +113,20 @@ export default async function MissaoDetalhePagina({
       // Nulo quando a missão não tem prestação — ausência é ausência de linha,
       // não o estado `NAO_INICIADA` (CG-013).
       apiFetch<PrestacaoMissao | null>(`${rotaMissao}/prestacao`),
+      // Produtos e a resposta "gerou produto?" (CG-056). Leitura aqui; o
+      // cadastro entra com a edição do relato (CG-046).
+      apiFetch<ResultadosDaMissao>(`${rotaMissao}/produtos`),
     ]);
+
+  /**
+   * Missão sem prestação chega como corpo vazio, não como `null` JSON.
+   *
+   * A API devolve `null` e o Nest serializa isso como 200 sem corpo, então
+   * `apiFetch` entrega `undefined` — e a checagem `=== null` abaixo passaria
+   * batido, derrubando a página inteira em 500. Só acontece em missão que ainda
+   * não abriu prestação, que é justamente o caso que a tela promete tratar.
+   */
+  const prestacao = prestacaoBruta ?? null;
 
   const responsaveis = missao.participantes.filter(
     (pessoa) => pessoa.papel === "RESPONSAVEL",
@@ -331,9 +346,98 @@ export default async function MissaoDetalhePagina({
           </Tabela>
         )}
       </Secao>
+
+      <Resultados resultados={resultados} />
         </>
       )}
     </Pagina>
+  );
+}
+
+/**
+ * Resultados da missão (CG-056).
+ *
+ * O estado vazio é o ponto da tela: "nenhum produto cadastrado" é ambíguo, e
+ * por isso a API separa a declaração explícita de não haver produto da simples
+ * ausência de resposta. Mostrar as duas como a mesma coisa desfaria a distinção
+ * que o modelo criou para o checklist de encerramento (CG-058).
+ */
+function Resultados({ resultados }: { resultados: ResultadosDaMissao }) {
+  if (resultados.respostaProduto === "NAO") {
+    return (
+      <Secao
+        titulo="Resultados"
+        descricao="Produtos gerados pela missão e acordos dela decorrentes."
+      >
+        <Aviso tom="info" titulo="Missão declarada sem produto">
+          Declarado por {resultados.declaracaoSemProduto?.declaradoPor} em{" "}
+          {dataHora(resultados.declaracaoSemProduto?.declaradoEm)}.
+          {resultados.declaracaoSemProduto?.justificativa
+            ? ` ${resultados.declaracaoSemProduto.justificativa}`
+            : ""}
+        </Aviso>
+      </Secao>
+    );
+  }
+
+  if (resultados.produtos.length === 0) {
+    return (
+      <Secao
+        titulo="Resultados"
+        descricao="Produtos gerados pela missão e acordos dela decorrentes."
+      >
+        <EstadoVazio
+          titulo="Resposta pendente"
+          descricao="Ninguém informou ainda se a missão gerou produto. Não é o mesmo que não ter gerado — o encerramento exige a resposta."
+        />
+      </Secao>
+    );
+  }
+
+  return (
+    <Secao
+      titulo="Resultados"
+      descricao="Produtos gerados pela missão e acordos dela decorrentes."
+    >
+      <Tabela
+        rotulo="Produtos da missão"
+        colunas={[
+          { chave: "produto", texto: "Produto" },
+          { chave: "situacao", texto: "Situação" },
+          { chave: "envolvidos", texto: "Envolvidos" },
+          { chave: "documentos", texto: "Docs.", alinhamento: "direita" },
+        ]}
+      >
+        {resultados.produtos.map((produto) => (
+          <tr key={produto.id}>
+            <Celula>
+              <span className="font-medium text-foreground">
+                {produto.titulo}
+              </span>
+              <span className="block text-xs text-subtle">
+                {rotulo(produto.tipo)}
+                {produto.ano ? ` · ${produto.ano}` : ""}
+                {produto.convenio ? ` · ${produto.convenio.titulo}` : ""}
+              </span>
+            </Celula>
+            <Celula className="text-muted">{rotulo(produto.situacao)}</Celula>
+            <Celula className="text-muted">
+              {produto.instituicoes.length > 0
+                ? produto.instituicoes.map((item) => item.nome).join(", ")
+                : "—"}
+              {produto.responsaveis.length > 0 ? (
+                <span className="block text-xs text-subtle">
+                  {produto.responsaveis.map((item) => item.nome).join(", ")}
+                </span>
+              ) : null}
+            </Celula>
+            <Celula direita className="text-muted">
+              {inteiro(produto.quantidadeDocumentos)}
+            </Celula>
+          </tr>
+        ))}
+      </Tabela>
+    </Secao>
   );
 }
 

@@ -58,7 +58,9 @@ const POLITICA: Record<
       | 'prestacao'
       | 'despesa'
       | 'cotacao'
-      | 'instituicao';
+      | 'instituicao'
+      | 'produto'
+      | 'convenio';
   }
 > = {
   MISSAO_COMITE: {
@@ -95,6 +97,21 @@ const POLITICA: Record<
     ler: 'parceiro:read',
     escrever: 'parceiro:write',
     tabela: 'instituicao',
+  },
+  /**
+   * O produto e resultado da missao; o convenio e cadastro do parceiro. Por
+   * isso as permissoes divergem apesar de os dois nascerem da mesma viagem
+   * (CG-056).
+   */
+  PRODUTO_MISSAO: {
+    ler: 'missao:read',
+    escrever: 'missao:write',
+    tabela: 'produto',
+  },
+  CONVENIO: {
+    ler: 'parceiro:read',
+    escrever: 'parceiro:write',
+    tabela: 'convenio',
   },
 };
 
@@ -371,6 +388,8 @@ export class AnexosService {
       despesa: s.despesaMissao,
       cotacao: s.cotacaoPassagem,
       instituicao: s.instituicao,
+      produto: s.produtoMissao,
+      convenio: s.convenio,
     } as const;
     const tabela = tabelas[POLITICA[tipo].tabela];
     const [existe] = await this.db

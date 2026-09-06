@@ -996,10 +996,39 @@ export interface DocumentoDoHistorico {
 /**
  * Módulo previsto pelo escopo cujo modelo ainda não existe. Vem nomeado da API
  * em vez de zerado: total zero afirmaria que nada aconteceu (CG-027).
+ *
+ * Vazio desde a CG-056; o campo permanece para o próximo módulo entrar sem
+ * quebrar o contrato.
  */
 export interface ModuloPendente {
   modulo: "PRODUTOS" | "CONVENIOS";
   task: string;
+}
+
+/** Acordo formal do parceiro (CG-056). */
+export interface ConvenioDoHistorico {
+  id: string;
+  titulo: string;
+  tipoAcordo: string;
+  situacao: string;
+  area: string | null;
+  dataAssinatura: string | null;
+  dataInicio: string | null;
+  dataFim: string | null;
+  ativo: boolean;
+  missaoOrigemId: string | null;
+  missaoOrigemCodigo: string | null;
+}
+
+/** Produto de missão que envolve o parceiro (CG-056). */
+export interface ProdutoDoHistorico {
+  id: string;
+  titulo: string;
+  tipo: string;
+  situacao: string;
+  ano: number | null;
+  missaoId: string;
+  missaoCodigo: string;
 }
 
 export interface HistoricoParceiro {
@@ -1008,5 +1037,67 @@ export interface HistoricoParceiro {
   missoes: MissaoDoHistorico[];
   eventos: EventoDoHistorico[];
   documentos: DocumentoDoHistorico[];
+  convenios: ConvenioDoHistorico[];
+  produtos: ProdutoDoHistorico[];
   modulosPendentes: ModuloPendente[];
+}
+
+/** Referência nomeada devolvida junto dos produtos (CG-056). */
+export interface ReferenciaNomeada {
+  id: string;
+  nome: string;
+}
+
+export interface ConvenioResumo {
+  id: string;
+  instituicaoId: string;
+  instituicao: string;
+  titulo: string;
+  tipoAcordo: string;
+  area: string | null;
+  situacao: string;
+  numeroProcesso: string | null;
+  dataAssinatura: string | null;
+  dataInicio: string | null;
+  dataFim: string | null;
+  ativo: boolean;
+  missaoOrigemId: string | null;
+  missaoOrigemCodigo: string | null;
+  redes: ReferenciaNomeada[];
+}
+
+export interface ProdutoMissao {
+  id: string;
+  missaoId: string;
+  tipo: string;
+  titulo: string;
+  descricao: string | null;
+  situacao: string;
+  ano: number | null;
+  referencia: string | null;
+  observacoes: string | null;
+  convenio: ConvenioResumo | null;
+  instituicoes: ReferenciaNomeada[];
+  redes: ReferenciaNomeada[];
+  responsaveis: (ReferenciaNomeada & { papel: string | null })[];
+  quantidadeDocumentos: number;
+}
+
+/**
+ * Resultados da missão (CG-056).
+ *
+ * `respostaProduto` distingue "não gerou produto" de "ninguém respondeu": as
+ * duas coisas dão zero produto cadastrado, e o checklist de encerramento
+ * precisa saber qual é qual.
+ */
+export interface ResultadosDaMissao {
+  missaoId: string;
+  codigo: string;
+  respostaProduto: "SIM" | "NAO" | "NAO_INFORMADO";
+  declaracaoSemProduto: {
+    declaradoEm: string;
+    declaradoPor: string;
+    justificativa: string | null;
+  } | null;
+  produtos: ProdutoMissao[];
 }

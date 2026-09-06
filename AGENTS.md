@@ -108,6 +108,7 @@ apps/
         pendencias.service.ts P13
         comite-gestor.service.ts  P17 — pessoas e equipes
         missoes-comite.service.ts P17 — criação, consulta, edição, ciclo de vida e relato de missões
+        resultados.service.ts  CG-056 — produtos da missão e convênios do parceiro
         *.controller.ts       rotas REST, uma permissão por endpoint
       config/env.ts        validação de ambiente com zod (falha no boot)
       database/            schema Drizzle, migrations e seed
@@ -540,7 +541,7 @@ o ícone estiver visível.
 
 - **Autenticação/autorização**: login e logout OIDC completos, sessão renovada
   automaticamente, guards globais, catálogo de permissões, realm versionado.
-- **Modelo de dados**: 46 tabelas em 12 módulos de schema Drizzle
+- **Modelo de dados**: 52 tabelas em 13 módulos de schema Drizzle
   ([apps/api/src/database/schema/](apps/api/src/database/schema/)), com migrations.
   Segue [system-structl.md](system-structl.md) §4.
 - **Seed com os dados reais** das planilhas e respostas formais
@@ -603,8 +604,9 @@ o ícone estiver visível.
   devolve redes, contatos, missões com atividades, eventos e documentos em uma
   linha por missão. Ela usa `exists` mais `selectDistinct` sobre a missão, nunca
   `join` com atividade ou rede — senão a missão de duas redes, ou a que visita o
-  mesmo parceiro em duas paradas, apareceria repetida. Produtos e convênios não
-  vão zerados: `modulosPendentes` os nomeia apontando para a CG-056. A CG-049
+  mesmo parceiro em duas paradas, apareceria repetida. Produtos e convênios
+  entraram na CG-056 como seções próprias e `modulosPendentes` ficou vazia — o
+  campo permanece no contrato para o módulo seguinte. A CG-049
   levou isso à interface em `/programas/[programa]/[ciclo]/parceiros`: lista com
   busca e filtro por rede, cadastro e edição em sidesheet, contatos com troca de
   principal e inativação/reativação, e o detalhe histórico. **O alerta de
@@ -755,6 +757,29 @@ o ícone estiver visível.
   conta o vaivém. Prestação sem despesa não é enviada, e o reenvio limpa o
   parecer da devolução.
 
+  **Produtos da missão e convênios (CG-056)** entraram em 2026-09-06.
+  `produto_missao` é domínio próprio, separado de `produto_bolsa`: são duas
+  cobranças sobre coisas diferentes, e reaproveitar a tabela deixaria
+  `bolsa_concedida_id` nulo em metade das linhas. **A resposta "gerou produto?"
+  não é booleano:** o "sim" já é a existência de linha em `produto_missao`, e só
+  a resposta **negativa** é gravada
+  (`missao_comite.sem_produto_declarado_em/_por/_justificativa`), porque zero
+  produto significa tanto "não gerou" quanto "ninguém respondeu" e o checklist de
+  encerramento (CG-058) precisa distinguir as duas. Cadastrar produto retira a
+  declaração, com auditoria. **O convênio não pertence à missão**: ancora-se na
+  `instituicao`, guarda a missão só como origem (FK `set null`) e vive em
+  `/convenios`, sem `:programa/:ciclo` no caminho — um acordo sobrevive à viagem
+  e ao ciclo. Produto usa `missao:read`/`missao:write` (resultado, mesmo verbo do
+  relato — não `missao:edit`, que congela em análise); convênio usa
+  `parceiro:read`/`parceiro:write`. Nenhuma permissão nova. `produto_missao` do
+  tipo `CONVENIO` exige um acordo apontado, e só ele pode apontar — o `check` é
+  bicondicional porque as duas metades escondem coisas diferentes. Não há
+  exclusão de convênio (só inativação, FK `restrict`) nem remoção de produto
+  documentado (regra da CG-052). `entidade_anexo` ganhou `PRODUTO_MISSAO` e
+  `CONVENIO`. O histórico do parceiro ganhou as seções `convenios` e `produtos`,
+  e `modulosPendentes` ficou vazia. **A interface é leitura:** seção *Resultados*
+  no Resumo da missão e duas seções no parceiro; o cadastro é a CG-046.
+
   **Cuidado ao criar helper para uma tela:** função exportada de módulo
   `"use client"` não pode ser chamada pelo Server Component. O build passa e a
   página responde 500 — foi o que aconteceu com as categorias de documento por
@@ -782,7 +807,7 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
 - **Testes**: 138 unitários/regressões (67 API + 71 na web para toast, datas,
   React Hook Form/Zod, erros do multistep, formulários de parceiro,
   acessibilidade, contraste dos tokens, cálculos monetários, montagem de série
-  do gráfico e caminhos do BFF) + 334 de integração contra Postgres
+  do gráfico e caminhos do BFF) + 356 de integração contra Postgres
   real. As duas garantias de não duplicação da linha
   histórica do parceiro foram verificadas por mutação: trocar o `exists` +
   `selectDistinct` por um `join` faz ambas falharem.
@@ -807,9 +832,9 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
 - Relatórios (P20), importação com adaptador por programa (P21), documentos e
   evidências (P22), convênios e produção consolidada (P18/P19). O documento novo
   do Comitê propõe trazer parte de P18–P20/P22 para o fluxo da missão, mas a fase
-  e a prioridade ainda dependem da CG-005. Produtos individuais por bolsa já
-  existem em P03 e não devem ser reutilizados como produto de missão sem a
-  modelagem da CG-056.
+  e a prioridade ainda dependem da CG-005. Produtos individuais por bolsa
+  continuam em P03 e **não** foram reutilizados como produto de missão: a
+  CG-056 criou domínio próprio (`produto_missao`), separado de `produto_bolsa`.
 - Seleção de parceiro **dentro da missão**, conciliação pela interface e
   paginação da lista de parceiros. A CG-049 entregou o lado do parceiro
   (lista, busca, cadastro, edição, contatos e histórico); o que falta dela

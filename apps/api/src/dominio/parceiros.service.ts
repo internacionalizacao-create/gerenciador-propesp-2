@@ -134,10 +134,16 @@ export interface HistoricoParceiro {
   missoes: MissaoHistorico[];
   eventos: EventoHistorico[];
   documentos: DocumentoHistorico[];
+  convenios: ConvenioHistorico[];
+  produtos: ProdutoHistorico[];
   /**
    * Modulos previstos pelo escopo cujo modelo ainda nao existe. Vao nomeados em
    * vez de zerados: total zero afirmaria que nada aconteceu, e a verdade e que
    * ainda nao ha onde registrar.
+   *
+   * Vazio desde a CG-056, que criou produtos e convenios. O campo permanece no
+   * contrato porque o proximo modulo do escopo entra por aqui sem quebrar quem
+   * ja consome a resposta.
    */
   modulosPendentes: ModuloPendente[];
 }
@@ -145,6 +151,32 @@ export interface HistoricoParceiro {
 export interface ModuloPendente {
   modulo: 'PRODUTOS' | 'CONVENIOS';
   task: string;
+}
+
+/** Acordo formal com este parceiro (CG-056). */
+export interface ConvenioHistorico {
+  id: string;
+  titulo: string;
+  tipoAcordo: string;
+  situacao: string;
+  area: string | null;
+  dataAssinatura: string | null;
+  dataInicio: string | null;
+  dataFim: string | null;
+  ativo: boolean;
+  missaoOrigemId: string | null;
+  missaoOrigemCodigo: string | null;
+}
+
+/** Produto de missao que envolve este parceiro (CG-056). */
+export interface ProdutoHistorico {
+  id: string;
+  titulo: string;
+  tipo: string;
+  situacao: string;
+  ano: number | null;
+  missaoId: string;
+  missaoCodigo: string;
 }
 
 export interface ContatoHistorico {
@@ -346,67 +378,122 @@ export class ParceirosService {
   async historico(id: string): Promise<HistoricoParceiro> {
     const parceiro = await this.detalhar(id);
 
-    const [contatos, missoes, documentos] = await Promise.all([
-      this.db
-        .select({
-          id: s.contatoInstituicao.id,
-          nome: s.contatoInstituicao.nome,
-          cargo: s.contatoInstituicao.cargo,
-          departamento: s.contatoInstituicao.departamento,
-          email: s.contatoInstituicao.email,
-          telefone: s.contatoInstituicao.telefone,
-          principal: s.contatoInstituicao.principal,
-          ativo: s.contatoInstituicao.ativo,
-        })
-        .from(s.contatoInstituicao)
-        .where(eq(s.contatoInstituicao.instituicaoId, id))
-        .orderBy(
-          desc(s.contatoInstituicao.principal),
-          desc(s.contatoInstituicao.ativo),
-          asc(s.contatoInstituicao.nome),
-        ),
-      this.db
-        .selectDistinct({
-          id: s.missaoComite.id,
-          codigo: s.missaoComite.codigo,
-          titulo: s.missaoComite.titulo,
-          tipo: s.missaoComite.tipo,
-          dataInicio: s.missaoComite.dataInicio,
-          dataFim: s.missaoComite.dataFim,
-          status: s.missaoComite.status,
-          cicloId: s.ciclo.id,
-          ciclo: s.ciclo.nome,
-          programaSlug: s.programa.slug,
-        })
-        .from(s.missaoComite)
-        .innerJoin(s.ciclo, eq(s.ciclo.id, s.missaoComite.cicloId))
-        .innerJoin(s.programa, eq(s.programa.id, s.ciclo.programaId))
-        .where(
-          sql`exists (
+    const [contatos, missoes, documentos, convenios, produtos] =
+      await Promise.all([
+        this.db
+          .select({
+            id: s.contatoInstituicao.id,
+            nome: s.contatoInstituicao.nome,
+            cargo: s.contatoInstituicao.cargo,
+            departamento: s.contatoInstituicao.departamento,
+            email: s.contatoInstituicao.email,
+            telefone: s.contatoInstituicao.telefone,
+            principal: s.contatoInstituicao.principal,
+            ativo: s.contatoInstituicao.ativo,
+          })
+          .from(s.contatoInstituicao)
+          .where(eq(s.contatoInstituicao.instituicaoId, id))
+          .orderBy(
+            desc(s.contatoInstituicao.principal),
+            desc(s.contatoInstituicao.ativo),
+            asc(s.contatoInstituicao.nome),
+          ),
+        this.db
+          .selectDistinct({
+            id: s.missaoComite.id,
+            codigo: s.missaoComite.codigo,
+            titulo: s.missaoComite.titulo,
+            tipo: s.missaoComite.tipo,
+            dataInicio: s.missaoComite.dataInicio,
+            dataFim: s.missaoComite.dataFim,
+            status: s.missaoComite.status,
+            cicloId: s.ciclo.id,
+            ciclo: s.ciclo.nome,
+            programaSlug: s.programa.slug,
+          })
+          .from(s.missaoComite)
+          .innerJoin(s.ciclo, eq(s.ciclo.id, s.missaoComite.cicloId))
+          .innerJoin(s.programa, eq(s.programa.id, s.ciclo.programaId))
+          .where(
+            sql`exists (
             select 1 from ${s.atividadeMissao}
             where ${s.atividadeMissao.missaoId} = ${s.missaoComite.id}
               and ${s.atividadeMissao.instituicaoId} = ${id}
           )`,
-        )
-        .orderBy(desc(s.missaoComite.dataInicio), asc(s.missaoComite.codigo)),
-      this.db
-        .select({
-          id: s.anexo.id,
-          nome: s.anexo.nome,
-          mimeType: s.anexo.mimeType,
-          tamanho: s.anexo.tamanho,
-          enviadoPor: s.anexo.enviadoPor,
-          enviadoEm: s.anexo.enviadoEm,
-        })
-        .from(s.anexo)
-        .where(
-          and(
-            eq(s.anexo.entidadeId, id),
-            inArray(s.anexo.entidadeTipo, ['INSTITUICAO', 'PARCEIRO']),
-          ),
-        )
-        .orderBy(desc(s.anexo.enviadoEm)),
-    ]);
+          )
+          .orderBy(desc(s.missaoComite.dataInicio), asc(s.missaoComite.codigo)),
+        this.db
+          .select({
+            id: s.anexo.id,
+            nome: s.anexo.nome,
+            mimeType: s.anexo.mimeType,
+            tamanho: s.anexo.tamanho,
+            enviadoPor: s.anexo.enviadoPor,
+            enviadoEm: s.anexo.enviadoEm,
+          })
+          .from(s.anexo)
+          .where(
+            and(
+              eq(s.anexo.entidadeId, id),
+              inArray(s.anexo.entidadeTipo, ['INSTITUICAO', 'PARCEIRO']),
+            ),
+          )
+          .orderBy(desc(s.anexo.enviadoEm)),
+        this.db
+          .select({
+            id: s.convenio.id,
+            titulo: s.convenio.titulo,
+            tipoAcordo: s.convenio.tipoAcordo,
+            situacao: s.convenio.situacao,
+            area: s.convenio.area,
+            dataAssinatura: s.convenio.dataAssinatura,
+            dataInicio: s.convenio.dataInicio,
+            dataFim: s.convenio.dataFim,
+            ativo: s.convenio.ativo,
+            missaoOrigemId: s.convenio.missaoOrigemId,
+            missaoOrigemCodigo: s.missaoComite.codigo,
+          })
+          .from(s.convenio)
+          .leftJoin(
+            s.missaoComite,
+            eq(s.missaoComite.id, s.convenio.missaoOrigemId),
+          )
+          .where(eq(s.convenio.instituicaoId, id))
+          .orderBy(desc(s.convenio.dataInicio), asc(s.convenio.titulo)),
+        /**
+         * Produto entra pela instituicao relacionada, com `selectDistinct` sobre
+         * o proprio produto: um produto que nomeia o mesmo parceiro duas vezes
+         * nao existe (ha unique), mas o join com a missao mais o filtro por
+         * instituicao repetiria a linha se um dia a ligacao deixar de ser unica.
+         */
+        this.db
+          .selectDistinct({
+            id: s.produtoMissao.id,
+            titulo: s.produtoMissao.titulo,
+            tipo: s.produtoMissao.tipo,
+            situacao: s.produtoMissao.situacao,
+            ano: s.produtoMissao.ano,
+            missaoId: s.produtoMissao.missaoId,
+            missaoCodigo: s.missaoComite.codigo,
+          })
+          .from(s.produtoMissao)
+          .innerJoin(
+            s.missaoComite,
+            eq(s.missaoComite.id, s.produtoMissao.missaoId),
+          )
+          .where(
+            sql`exists (
+            select 1 from ${s.produtoMissaoInstituicao}
+            where ${s.produtoMissaoInstituicao.produtoId} = ${s.produtoMissao.id}
+              and ${s.produtoMissaoInstituicao.instituicaoId} = ${id}
+          ) or exists (
+            select 1 from ${s.convenio}
+            where ${s.convenio.id} = ${s.produtoMissao.convenioId}
+              and ${s.convenio.instituicaoId} = ${id}
+          )`,
+          )
+          .orderBy(asc(s.produtoMissao.titulo)),
+      ]);
 
     const missaoIds = missoes.map((missao) => missao.id);
     const [redes, atividades] = await Promise.all([
@@ -473,10 +560,9 @@ export class ParceirosService {
       })),
       eventos,
       documentos,
-      modulosPendentes: [
-        { modulo: 'PRODUTOS', task: 'CG-056' },
-        { modulo: 'CONVENIOS', task: 'CG-056' },
-      ],
+      convenios,
+      produtos,
+      modulosPendentes: [],
     };
   }
 

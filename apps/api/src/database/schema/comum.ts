@@ -152,6 +152,72 @@ export const statusProdutoBolsaEnum = pgEnum('status_produto_bolsa', [
   'CANCELADO',
 ]);
 
+/**
+ * Tipos de produto **da missao** (CG-056).
+ *
+ * Enum proprio, e nao `tipo_produto_bolsa`: sao dois dominios que so parecem o
+ * mesmo. O produto de bolsa e do beneficiario, cobrado dele e vinculado a uma
+ * concessao; o produto da missao e institucional — convenio, rede de pesquisa,
+ * captacao — e nasce de uma viagem do Comite. Reaproveitar o enum obrigaria a
+ * lista unica a servir as duas cobrancas e faria o primeiro valor novo de um
+ * lado aparecer no formulario do outro.
+ *
+ * `CONVENIO` esta aqui, e nao so na tabela `convenio`, porque o checklist de
+ * encerramento homologado (CG-009) exige "convenio anexado **se houver produto
+ * do tipo CONVENIO**": e o produto que declara que a missao rendeu um acordo, e
+ * a tabela `convenio` guarda o acordo em si, que sobrevive a missao.
+ */
+export const tipoProdutoMissaoEnum = pgEnum('tipo_produto_missao', [
+  'CONVENIO',
+  'PROJETO_PESQUISA',
+  'PUBLICACAO',
+  'TESE_COTUTELA',
+  'PATENTE',
+  'EVENTO',
+  'REDE_PESQUISA',
+  'MOBILIDADE',
+  'CAPTACAO_RECURSOS',
+  'OUTRO',
+]);
+
+/**
+ * Situacao do produto da missao.
+ *
+ * Separada de `status_produto_bolsa` pelo mesmo motivo do tipo. `VALIDADO` nao
+ * existe aqui: validar produto de bolsa e ato de cobranca sobre o beneficiario,
+ * e ninguem valida o convenio que a propria instituicao assinou.
+ */
+export const situacaoProdutoMissaoEnum = pgEnum('situacao_produto_missao', [
+  'PREVISTO',
+  'EM_ANDAMENTO',
+  'CONCLUIDO',
+  'CANCELADO',
+]);
+
+/** Tipos de acordo previstos em system-structl.md §4.8. */
+export const tipoAcordoConvenioEnum = pgEnum('tipo_acordo_convenio', [
+  'INTERCAMBIO_PESQUISA',
+  'DUPLA_TITULACAO',
+  'COOPERACAO_TECNICA',
+  'INTERCAMBIO_ACADEMICO',
+  'MOBILIDADE_DOCENTE',
+  'COTUTELA',
+  'OUTRO',
+]);
+
+/**
+ * Situacao do convenio — os tres valores de system-structl.md §4.8.
+ *
+ * Nao ha `CANCELADO`: acordo denunciado ou nao renovado e `ENCERRADO`, e a data
+ * de fim diz quando. Um quarto valor exigiria decidir institucionalmente o que
+ * distingue "cancelado" de "encerrado", e essa pergunta nao foi feita.
+ */
+export const situacaoConvenioEnum = pgEnum('situacao_convenio', [
+  'EM_TRAMITACAO',
+  'VIGENTE',
+  'ENCERRADO',
+]);
+
 export const statusExecucaoEnum = pgEnum('status_execucao', [
   'NAO_INICIADO',
   'EMPENHADO',
@@ -316,8 +382,9 @@ export const visibilidadeAnexoEnum = pgEnum('visibilidade_anexo', [
  * existencia no servico sao o que impede um `entidade_tipo` escrito errado de
  * esconder o arquivo para sempre.
  *
- * `PRODUTO_MISSAO`, `CONVENIO`, `SUBMISSAO_MISSAO` e `DECISAO_COMITE` **nao**
- * estao aqui porque suas tabelas ainda nao existem (CG-056 e CG-019). Aceitar
+ * `PRODUTO_MISSAO` e `CONVENIO` entraram na CG-056, junto com suas tabelas.
+ * `SUBMISSAO_MISSAO` e `DECISAO_COMITE` continuam de fora: o documento
+ * analisado se prende a missao e a decisao apenas o fotografa (CG-019). Aceitar
  * upload apontando para tabela inexistente seria criar orfao no ato.
  */
 export const entidadeAnexoEnum = pgEnum('entidade_anexo', [
@@ -328,6 +395,10 @@ export const entidadeAnexoEnum = pgEnum('entidade_anexo', [
   'COTACAO_PASSAGEM',
   'INSTITUICAO',
   'PARCEIRO',
+  // Acrescentados no fim de proposito: `ALTER TYPE ... ADD VALUE` so sabe
+  // inserir, e reordenar a lista aqui obrigaria a recriar o tipo no banco.
+  'PRODUTO_MISSAO',
+  'CONVENIO',
 ]);
 
 export const statusRemanejamentoEnum = pgEnum('status_remanejamento', [

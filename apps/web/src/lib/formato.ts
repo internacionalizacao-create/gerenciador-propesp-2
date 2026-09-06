@@ -202,6 +202,21 @@ const ROTULOS: Record<string, string> = {
   PESQUISA: "Pesquisa",
   MOBILIDADE: "Mobilidade",
   CONVENIO: "Convênio",
+  // produtos da missão e convênios (CG-056). `CONVENIO`, `PUBLICACAO`,
+  // `PATENTE`, `EVENTO`, `MOBILIDADE`, `PREVISTO`, `EM_ANDAMENTO`, `VIGENTE`,
+  // `ENCERRADO` e `CANCELADO` já estão acima e servem aos dois domínios.
+  PROJETO_PESQUISA: "Projeto de pesquisa",
+  TESE_COTUTELA: "Tese em cotutela",
+  REDE_PESQUISA: "Rede de pesquisa",
+  CAPTACAO_RECURSOS: "Captação de recursos",
+  CONCLUIDO: "Concluído",
+  EM_TRAMITACAO: "Em tramitação",
+  INTERCAMBIO_PESQUISA: "Intercâmbio de pesquisa",
+  DUPLA_TITULACAO: "Dupla titulação",
+  COOPERACAO_TECNICA: "Cooperação técnica",
+  INTERCAMBIO_ACADEMICO: "Intercâmbio acadêmico",
+  MOBILIDADE_DOCENTE: "Mobilidade docente",
+  COTUTELA: "Cotutela",
 };
 
 export function rotulo(valor: string | null | undefined): string {

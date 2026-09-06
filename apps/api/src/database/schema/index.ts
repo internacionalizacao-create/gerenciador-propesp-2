@@ -13,5 +13,6 @@ export * from './governanca';
 export * from './comite-gestor';
 export * from './parceiros';
 export * from './prestacao';
+export * from './resultados';
 export * from './aprovacao';
 export * from './acesso';

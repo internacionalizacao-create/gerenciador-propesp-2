@@ -8,6 +8,7 @@ import {
   pgEnum,
   pgTable,
   text,
+  timestamp,
   uniqueIndex,
   uuid,
   varchar,
@@ -149,6 +150,27 @@ export const missaoComite = pgTable(
       .default('RASCUNHO'),
     relatoGeral: text('relato_geral'),
     resultados: text('resultados'),
+    /**
+     * Declaracao de que a missao **nao** gerou produto (CG-056).
+     *
+     * Nao existe coluna `gerou_produto`. A resposta afirmativa ja e um fato
+     * consultavel — ha linha em `produto_missao` —, e um booleano ao lado dela
+     * so poderia divergir no dia em que alguem apagasse o ultimo produto. E
+     * exatamente o que a CG-058 proibe: "nao persistir booleanos que apenas
+     * duplicam existencia de outros registros".
+     *
+     * A resposta negativa, essa sim, nao e derivavel: zero produto significa
+     * tanto "nao gerou" quanto "ninguem respondeu ainda", e o checklist de
+     * encerramento precisa distinguir as duas. Por isso so ela e gravada, com
+     * autor e momento.
+     */
+    semProdutoDeclaradoEm: timestamp('sem_produto_declarado_em', {
+      withTimezone: true,
+    }),
+    semProdutoDeclaradoPor: varchar('sem_produto_declarado_por', {
+      length: 200,
+    }),
+    semProdutoJustificativa: text('sem_produto_justificativa'),
     observacoes: text('observacoes'),
     ...timestamps,
   },
@@ -157,6 +179,13 @@ export const missaoComite = pgTable(
     index('missao_comite_ciclo_status_idx').on(t.cicloId, t.status),
     index('missao_comite_periodo_idx').on(t.dataInicio, t.dataFim),
     check('missao_comite_periodo_ck', sql`${t.dataFim} >= ${t.dataInicio}`),
+    // Declaracao sem autor nao e declaracao, e justificativa sem declaracao e
+    // texto orfao que a tela mostraria como se alguem tivesse respondido.
+    check(
+      'missao_comite_sem_produto_ck',
+      sql`(${t.semProdutoDeclaradoEm} is null) = (${t.semProdutoDeclaradoPor} is null)
+       and (${t.semProdutoDeclaradoEm} is not null or ${t.semProdutoJustificativa} is null)`,
+    ),
   ],
 );
 
