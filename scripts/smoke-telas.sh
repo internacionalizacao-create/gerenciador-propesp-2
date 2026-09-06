@@ -194,6 +194,10 @@ if [[ "$USUARIO" == "admin" ]]; then
     # CG-054: a descricao do estado da prestacao existe em qualquer um dos
     # quatro, ao contrario das acoes, que dependem de onde a missao esta.
     testar "${MID}?aba=prestacao" "Prestação de contas"
+    # CG-046: acoes do relato. "Registrar relato" vira "Editar relato" quando
+    # ja existe um, entao a ancora estavel e a secao, nao o rotulo do botao.
+    testar "$MID" "Roteiro"
+    testar "$MID" "relato"
     # CG-058: checklist de encerramento. As ancoras sao os rotulos dos
     # requisitos, que existem em qualquer estado da missao — "Atendido" e
     # "Pendente" dependem do banco e virariam falso alarme.

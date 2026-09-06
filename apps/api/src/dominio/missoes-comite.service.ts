@@ -634,7 +634,8 @@ export interface AtividadeMissaoDetalhe {
   planejamento: string | null;
   relatoRealizado: string | null;
   resultados: string | null;
-  status: string;
+  /** Do enum do banco, nao `string`: a tela decide o que mostrar por ele. */
+  status: (typeof s.statusAtividadeMissaoEnum.enumValues)[number];
   /** Aconteceu sem constar do roteiro planejado. */
   naoPrevista: boolean;
   justificativaInclusao: string | null;

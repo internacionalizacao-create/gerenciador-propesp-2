@@ -2002,7 +2002,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   `POST /acesso/usuarios/:id/pessoa`. Duas regressões novas em
   `acesso.int-spec.ts` cobrem o caso.
 
-- [ ] **CG-046 — Construir edição do relato da missão**
+- [x] **CG-046 — Construir edição do relato da missão**
 
   - registrar atividade realizada;
   - resultados e encaminhamentos;
@@ -2013,6 +2013,75 @@ Essa situação é calculada a partir das datas e não é persistida.
   - concluir missão.
 
   Dependências: CG-035, CG-045 e CG-058.
+
+  **Concluída em 2026-09-06.** Ela era o buraco mais consequente do módulo: a
+  CG-058 pôs o botão *Encerrar missão* na tela, mas relato, roteiro relatado e
+  avaliação **não podiam ser preenchidos pela interface** — só por API. Ninguém
+  encerrava uma missão pelo sistema.
+
+  **São dois formulários**, por decisão do responsável: o relato edita o
+  planejado e um botão à parte acrescenta a parada extra. Juntá-los faria quem
+  só quer corrigir uma frase percorrer um cadastro inteiro de atividade.
+
+  Isso é possível porque a API **insere** atividade não prevista, nunca
+  reconcilia: o relato manda `atividadesNaoPrevistas: []` e não apaga as que já
+  existem, e a extra manda `atividades: []` e não toca nas planejadas. Os dois
+  usam o mesmo `PATCH .../relato`.
+
+  Consequência disso, e é o ponto que a implementação ingênua erra: o endpoint
+  exige `relatoGeral`, então **o formulário da extra reenvia o relato atual
+  inalterado** — mandar vazio apagaria o texto que já existe. Por isso o botão
+  só aparece depois que há relato: antes disso não há a que anexar a parada.
+  Verificado na aplicação: o botão nasce ausente e surge assim que o relato é
+  salvo.
+
+  Três condicionais que a tela resolve e a API só saberia recusar:
+
+  - **Justificativa da avaliação** aparece apenas em `PARCIALMENTE` e `NAO`, e
+    `payloadRelato` a descarta no `SIM` — o campo some da tela, mas o valor
+    digitado antes continua no estado do React Hook Form, e mandá-lo gravaria a
+    explicação de um insucesso que a tela não mostra mais.
+  - **"O que foi realizado"** aparece só na atividade marcada como realizada:
+    pedir o relato de uma parada que não aconteceu inverteria a pergunta.
+  - **Instituição** vai por catálogo *ou* por nome livre, nunca os dois — a API
+    recusa a combinação, e escolher no cliente evita um erro que a pessoa não
+    consegue corrigir na tela.
+
+  `AtividadeMissao.status` deixou de ser `string` e passou a ser o enum, nos
+  dois lados. Era `string` que impedia o formulário de tipar as opções.
+
+  Cobertura: 8 regressões em
+  [relato-payload.test.mjs](../apps/web/test/relato-payload.test.mjs) — o que se
+  fixa ali é o que a API aceitaria sem reclamar gravando a coisa errada:
+  avaliação vazia virando `""` em vez de ausência, justificativa sobrevivendo ao
+  `SIM`, e a extra apagando o relato. Web passou de 71 para 79 regressões.
+
+  Verificado na aplicação, ponta a ponta: relato salvo → botão da extra aparece
+  → atividade não prevista entra como `naoPrevista=true` sem tocar nas
+  planejadas nem no relato → responder produtos → confirmar → **encerrar**. A
+  missão MCG-001 fechou pelo caminho completo, com o documento de ata que a
+  exigência de encerramento pedia.
+
+  **A resposta "gerou produto?" entrou junto**, embora fosse da CG-056: era o
+  último requisito de encerramento sem interface, e deixá-lo de fora manteria
+  exatamente o problema que esta task existe para resolver. Só a resposta
+  **negativa** tem formulário — não há botão "Sim", porque ele gravaria uma
+  afirmação sem nada que a sustente e a tela mostraria "gerou produto" com a
+  lista vazia. O "sim" se responde cadastrando o produto. *Desfazer resposta*
+  aparece na missão encerrada e é recusado pela API com a instrução de reabrir
+  (CG-059): o botão não é escondido porque quem decide é a API, e esconder
+  apagaria o motivo.
+
+  **Não entregue, e não é esquecimento:** "instituições e pessoas efetivamente
+  contatadas" da lista da task. A atividade não prevista já aponta instituição
+  e a planejada já tem contato, mas registrar quem foi *efetivamente* contatado
+  — distinto de quem estava previsto — não tem modelo: exigiria um vínculo novo
+  entre atividade e contato, com a marca de "realizado". É modelagem, não tela,
+  e inventá-la aqui seria decisão não homologada. Fica registrado para a CG-057
+  ou para uma task própria.
+
+  `CampoCombobox` ganhou seu primeiro uso real aqui (país e parceiro da
+  atividade extra) — foi criado na CG-045 e até agora nenhuma tela o consumia.
 
 - [ ] **CG-047 — Construir fila de análise do Comitê**
 

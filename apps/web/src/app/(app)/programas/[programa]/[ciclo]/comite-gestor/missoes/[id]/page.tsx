@@ -6,6 +6,12 @@ import {
   ReabrirAnalise,
 } from "@/componentes/formularios/acoes-analise";
 import {
+  DeclararSemProduto,
+  NovaAtividadeExtra,
+  ReabrirRespostaProdutos,
+  RegistrarRelato,
+} from "@/componentes/formularios/form-relato";
+import {
   DispensarRequisito,
   EncerrarMissao,
   RevogarDispensa,
@@ -46,6 +52,7 @@ import type {
   PrestacaoMissao,
   ChecklistEncerramento,
   ItemEncerramento,
+  ReferenciasMissao,
   ResultadosDaMissao,
   RodadaAnalise,
   SituacaoPrestacao,
@@ -117,6 +124,7 @@ export default async function MissaoDetalhePagina({
     prestacaoBruta,
     resultados,
     encerramento,
+    referencias,
   ] =
     await Promise.all([
       apiFetch<MissaoDetalhe>(rotaMissao),
@@ -133,6 +141,13 @@ export default async function MissaoDetalhePagina({
       apiFetch<ResultadosDaMissao>(`${rotaMissao}/produtos`),
       // Checklist de encerramento (CG-058), recalculado a cada leitura.
       apiFetch<ChecklistEncerramento>(`${rotaMissao}/encerramento`),
+      // País e parceiros do formulário de atividade não prevista (CG-046). Só
+      // o Resumo o abre; buscar nas outras abas pagaria duas listas por nada.
+      aba === "resumo"
+        ? apiFetch<ReferenciasMissao>(
+            `/programas/${programa}/${ciclo}/comite-gestor/referencias-missao`,
+          )
+        : Promise.resolve({ paises: [], instituicoes: [], redes: [] }),
     ]);
 
   /**
@@ -164,6 +179,10 @@ export default async function MissaoDetalhePagina({
   // Encerrar mexe na dimensão de execução, e por isso olha `status`, nunca
   // `statusAprovacao` (CG-006). `missao:decide` é a permissão do Comitê — e,
   // com o `admin`, exatamente quem pode dispensar requisito (CG-058).
+  // Relatar é ato de execução, não de aprovação: `missao:write`, e a missão
+  // cancelada não recebe relato (a API recusa; a tela nem oferece).
+  const podeRelatar =
+    me.permissions.includes("missao:write") && missao.status !== "CANCELADA";
   const podeEncerrar =
     me.permissions.includes("missao:write") && missao.status === "CONFIRMADA";
   const podeDispensar = me.permissions.includes("missao:decide");
@@ -316,6 +335,18 @@ export default async function MissaoDetalhePagina({
       <Secao
         titulo="Roteiro"
         descricao="Cada parada tem período, destino e propósito próprios. A atividade não prevista continua visivelmente diferente do que foi planejado desde o início."
+        acoes={
+          podeRelatar ? (
+            <div className="flex flex-wrap gap-2">
+              <RegistrarRelato contexto={contexto} missao={missao} />
+              <NovaAtividadeExtra
+                contexto={contexto}
+                missao={missao}
+                referencias={referencias}
+              />
+            </div>
+          ) : undefined
+        }
       >
         {missao.atividades.length === 0 ? (
           <EstadoVazio
@@ -370,7 +401,11 @@ export default async function MissaoDetalhePagina({
         )}
       </Secao>
 
-      <Resultados resultados={resultados} />
+      <Resultados
+            resultados={resultados}
+            contexto={contexto}
+            podeResponder={podeRelatar}
+          />
 
           <Encerramento
             checklist={encerramento}
@@ -519,12 +554,25 @@ const ROTULO_AVALIACAO: Record<"SIM" | "PARCIALMENTE" | "NAO", string> = {
  * ausência de resposta. Mostrar as duas como a mesma coisa desfaria a distinção
  * que o modelo criou para o checklist de encerramento (CG-058).
  */
-function Resultados({ resultados }: { resultados: ResultadosDaMissao }) {
+function Resultados({
+  resultados,
+  contexto,
+  podeResponder,
+}: {
+  resultados: ResultadosDaMissao;
+  contexto: { programa: string; ciclo: string; id: string };
+  podeResponder: boolean;
+}) {
   if (resultados.respostaProduto === "NAO") {
     return (
       <Secao
         titulo="Resultados"
         descricao="Produtos gerados pela missão e acordos dela decorrentes."
+        acoes={
+          podeResponder ? (
+            <ReabrirRespostaProdutos contexto={contexto} />
+          ) : undefined
+        }
       >
         <Aviso tom="info" titulo="Missão declarada sem produto">
           Declarado por {resultados.declaracaoSemProduto?.declaradoPor} em{" "}
@@ -542,6 +590,11 @@ function Resultados({ resultados }: { resultados: ResultadosDaMissao }) {
       <Secao
         titulo="Resultados"
         descricao="Produtos gerados pela missão e acordos dela decorrentes."
+        acoes={
+          podeResponder ? (
+            <DeclararSemProduto contexto={contexto} />
+          ) : undefined
+        }
       >
         <EstadoVazio
           titulo="Resposta pendente"

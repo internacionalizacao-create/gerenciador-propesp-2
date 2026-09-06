@@ -322,7 +322,7 @@ export function campoApiParaFormulario(campo: string): string {
   );
 }
 
-function opcional(valor: string): string | undefined {
+export function opcional(valor: string): string | undefined {
   const normalizado = valor.trim();
   return normalizado === "" ? undefined : normalizado;
 }
@@ -344,7 +344,7 @@ function cpfValido(valor: string): boolean {
   return true;
 }
 
-function dataParaIso(valor: string): string | null {
+export function dataParaIso(valor: string): string | null {
   const correspondencia = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(valor.trim());
   if (!correspondencia) return null;
 

@@ -626,6 +626,11 @@ export interface ParticipanteMissao {
   observacoes: string | null;
 }
 
+export type StatusAtividadeMissao =
+  | "PLANEJADA"
+  | "REALIZADA"
+  | "NAO_REALIZADA";
+
 export interface AtividadeMissao {
   id: string;
   ordem: number;
@@ -655,7 +660,8 @@ export interface AtividadeMissao {
   planejamento: string | null;
   relatoRealizado: string | null;
   resultados: string | null;
-  status: string;
+  /** Espelha `status_atividade_missao`; o relato é quem sai de PLANEJADA. */
+  status: StatusAtividadeMissao;
   /** Aconteceu sem constar do roteiro planejado. */
   naoPrevista: boolean;
   justificativaInclusao: string | null;

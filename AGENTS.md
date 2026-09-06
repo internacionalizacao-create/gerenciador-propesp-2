@@ -779,8 +779,11 @@ o ícone estiver visível.
   exclusão de convênio (só inativação, FK `restrict`) nem remoção de produto
   documentado (regra da CG-052). `entidade_anexo` ganhou `PRODUTO_MISSAO` e
   `CONVENIO`. O histórico do parceiro ganhou as seções `convenios` e `produtos`,
-  e `modulosPendentes` ficou vazia. **A interface é leitura:** seção *Resultados*
-  no Resumo da missão e duas seções no parceiro; o cadastro é a CG-046.
+  e `modulosPendentes` ficou vazia. **A interface é leitura**, com uma exceção: a
+  seção *Resultados* traz a resposta "gerou produto?" desde a CG-046 — só a
+  **negativa**, porque o "sim" se responde cadastrando o produto e um botão
+  "Sim" gravaria afirmação sem nada que a sustente. O cadastro de produto e o
+  de convênio pela tela ainda não existem.
 
   **Encerramento da missão (CG-058)** entrou em 2026-09-06, e mudou o
   significado de `CONCLUIR`: a transição passa pelo **checklist inteiro**, não
@@ -820,6 +823,18 @@ o ícone estiver visível.
   encerramento foi semeado: quais a PROPESP exige é política institucional, e a
   lista é dado.
 
+  **O relato da missão (CG-046)** são **dois** formulários no Resumo, e a
+  separação é decisão de 2026-09-06: o relato edita o planejado e um botão à
+  parte acrescenta a parada extra. Os dois usam o mesmo `PATCH .../relato`, e
+  isso só funciona porque a API **insere** atividade não prevista em vez de
+  reconciliar — o relato manda `atividadesNaoPrevistas: []` sem apagar as
+  existentes, e a extra manda `atividades: []` sem tocar nas planejadas.
+  **O formulário da extra reenvia o relato atual inalterado**, porque o
+  endpoint exige `relatoGeral` e mandar vazio apagaria o texto; por isso o botão
+  só aparece depois que há relato. A justificativa da avaliação some no `SIM` no
+  payload, e não só na tela: o valor digitado antes continua no estado do React
+  Hook Form. `AtividadeMissao.status` é o enum nos dois lados, não `string`.
+
   **Missão encerrada não volta a "resposta indefinida" (CG-059).** Encerrar
   afirma que os requisitos foram atendidos, e o checklist é recalculado a cada
   leitura — remover o único produto depois faria a afirmação virar mentira em
@@ -858,7 +873,7 @@ interface é **Coordenador de Temática**, não “membro do comitê”. Ediçã
 existente exige `plano:edit` (só `admin`), preserva código/rubrica e grava uma
 entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: somente
 2027 vem composto; 2028–2030 começam vazios e nunca copiam a quantidade automaticamente.
-- **Testes**: 138 unitários/regressões (67 API + 71 na web para toast, datas,
+- **Testes**: 146 unitários/regressões (67 API + 79 na web para toast, datas,
   React Hook Form/Zod, erros do multistep, formulários de parceiro,
   acessibilidade, contraste dos tokens, cálculos monetários, montagem de série
   do gráfico e caminhos do BFF) + 388 de integração contra Postgres
