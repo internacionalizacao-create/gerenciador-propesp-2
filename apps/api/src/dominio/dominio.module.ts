@@ -13,6 +13,7 @@ import { ConveniosController } from './convenios.controller';
 import { ResultadosService } from './resultados.service';
 import { MissoesComiteService } from './missoes-comite.service';
 import { DecisaoService } from './decisao.service';
+import { EncerramentoService } from './encerramento.service';
 import { ExecucaoComiteService } from './execucao-comite.service';
 import { SubmissaoService } from './submissao.service';
 import { OrcamentoService } from './orcamento.service';
@@ -66,6 +67,7 @@ import { CatalogoController, PpgsController } from './ppgs.controller';
     ComiteGestorService,
     MissoesComiteService,
     ExecucaoComiteService,
+    EncerramentoService,
     SubmissaoService,
     DecisaoService,
     ParceirosService,

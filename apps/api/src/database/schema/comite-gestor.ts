@@ -14,7 +14,12 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 
-import { id, statusAprovacaoMissaoEnum, timestamps } from './comum';
+import {
+  avaliacaoObjetivosEnum,
+  id,
+  statusAprovacaoMissaoEnum,
+  timestamps,
+} from './comum';
 import { instituicao, pais, pessoa } from './institucional';
 import { contatoInstituicao } from './parceiros';
 import { tipoMissaoEnum } from './planejamento';
@@ -171,6 +176,18 @@ export const missaoComite = pgTable(
       length: 200,
     }),
     semProdutoJustificativa: text('sem_produto_justificativa'),
+    /**
+     * Avaliacao do alcance dos objetivos (CG-058).
+     *
+     * Fica na missao, e nao numa tabela de relatorio: e resposta unica por
+     * missao, e uma tabela 1:1 so criaria um segundo lugar para procura-la.
+     * Nula significa "ninguem respondeu" — e o checklist de encerramento exige
+     * a resposta.
+     */
+    avaliacaoObjetivos: avaliacaoObjetivosEnum('avaliacao_objetivos'),
+    avaliacaoJustificativa: text('avaliacao_justificativa'),
+    /** O que a missao desdobra depois de encerrada: acordos, visitas, projetos. */
+    desdobramentos: text('desdobramentos'),
     observacoes: text('observacoes'),
     ...timestamps,
   },
@@ -185,6 +202,78 @@ export const missaoComite = pgTable(
       'missao_comite_sem_produto_ck',
       sql`(${t.semProdutoDeclaradoEm} is null) = (${t.semProdutoDeclaradoPor} is null)
        and (${t.semProdutoDeclaradoEm} is not null or ${t.semProdutoJustificativa} is null)`,
+    ),
+    /**
+     * Justificativa e obrigatoria quando o objetivo nao foi plenamente
+     * alcancado, e proibida sem avaliacao nenhuma.
+     *
+     * A assimetria e proposital: "atingiu" nao precisa explicacao, "nao
+     * atingiu" precisa — sem isso o relatorio final registra um insucesso sem
+     * dizer por que. E texto sem resposta seria justificativa de coisa nenhuma.
+     */
+    check(
+      'missao_comite_avaliacao_ck',
+      sql`(${t.avaliacaoObjetivos} is not null
+            or ${t.avaliacaoJustificativa} is null)
+       and (${t.avaliacaoObjetivos} is null
+            or ${t.avaliacaoObjetivos} = 'SIM'
+            or ${t.avaliacaoJustificativa} is not null)`,
+    ),
+  ],
+);
+
+/**
+ * Dispensa de um requisito de encerramento, para uma missao especifica
+ * (CG-058).
+ *
+ * Decisao do responsavel em 2026-09-06: dispensam `admin` e o Comite, e a
+ * dispensa vale **so para a missao apontada** — nunca para um tipo inteiro.
+ * Dispensa por tipo seria mudanca de politica disfarcada de excecao: mudaria o
+ * que se exige de toda missao futura sem passar por `requisito_submissao`, que
+ * e onde a politica mora.
+ *
+ * `chave` guarda tanto o requisito de fato (`PRESTACAO_VALIDADA`) quanto o
+ * documental (`DOCUMENTO:ATA`). Nao ha FK para `requisito_submissao` porque
+ * metade das chaves nao vem de la; quem garante que a chave existe e o
+ * servico, que so aceita dispensar o que aparece no checklist daquela missao.
+ *
+ * Nao ha exclusao: revogar preenche `revogada_em`. A dispensa foi o que abriu
+ * o encerramento, e apagar a linha apagaria a explicacao de por que a missao
+ * pode fechar sem o requisito.
+ */
+export const dispensaRequisitoEncerramento = pgTable(
+  'dispensa_requisito_encerramento',
+  {
+    id: id(),
+    missaoId: uuid('missao_id')
+      .notNull()
+      .references(() => missaoComite.id, { onDelete: 'cascade' }),
+    chave: varchar('chave', { length: 80 }).notNull(),
+    justificativa: text('justificativa').notNull(),
+    dispensadaEm: timestamp('dispensada_em', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    dispensadaPor: varchar('dispensada_por', { length: 200 }),
+    dispensadaPorId: varchar('dispensada_por_id', { length: 120 }),
+    revogadaEm: timestamp('revogada_em', { withTimezone: true }),
+    revogadaPor: varchar('revogada_por', { length: 200 }),
+    revogadaJustificativa: text('revogada_justificativa'),
+    ...timestamps,
+  },
+  (t) => [
+    /**
+     * Uma dispensa vigente por requisito. O indice e parcial porque a revogada
+     * fica na tabela: sem o `where`, revogar e dispensar de novo colidiria, e a
+     * unica saida seria apagar o historico que a revogacao existe para manter.
+     */
+    uniqueIndex('dispensa_requisito_vigente_uk')
+      .on(t.missaoId, t.chave)
+      .where(sql`${t.revogadaEm} is null`),
+    index('dispensa_requisito_missao_idx').on(t.missaoId),
+    check(
+      'dispensa_requisito_revogacao_ck',
+      sql`(${t.revogadaEm} is null) = (${t.revogadaPor} is null)
+       and (${t.revogadaEm} is not null or ${t.revogadaJustificativa} is null)`,
     ),
   ],
 );

@@ -474,6 +474,37 @@ export interface ComiteGestor {
  * aporte (CG-009); juntá-los numa coluna "executado" obrigaria a escolher entre
  * esconder o que ainda não vale e fazer parecer que já vale.
  */
+/**
+ * Checklist de encerramento da missão (CG-058).
+ *
+ * Nada disso é gravado: cada item é recalculado contra o registro que descreve.
+ * Um booleano guardado divergiria no dia em que a prestação fosse devolvida, e
+ * a missão encerraria com base numa foto velha.
+ */
+export interface ItemEncerramento {
+  chave: string;
+  titulo: string;
+  descricao: string | null;
+  /** Item não aplicável continua na lista, mas não bloqueia. */
+  aplicavel: boolean;
+  obrigatorio: boolean;
+  atendido: boolean;
+  dispensa: {
+    justificativa: string;
+    dispensadaEm: string;
+    dispensadaPor: string | null;
+  } | null;
+  comoResolver: string | null;
+}
+
+export interface ChecklistEncerramento {
+  podeEncerrar: boolean;
+  /** Estado errado da missão — não há o que preencher para resolver. */
+  impedimento: string | null;
+  itens: ItemEncerramento[];
+  pendencias: string[];
+}
+
 export interface ExecucaoExercicio {
   ano: number;
   orcamento: string | null;
@@ -663,6 +694,10 @@ export interface MissaoDetalhe {
   statusAprovacao: StatusAprovacaoMissao;
   situacaoTemporal: SituacaoTemporalMissao;
   relatoGeral: string | null;
+  /** Alcance dos objetivos (CG-058). Nulo = ninguém respondeu ainda. */
+  avaliacaoObjetivos: "SIM" | "PARCIALMENTE" | "NAO" | null;
+  avaliacaoJustificativa: string | null;
+  desdobramentos: string | null;
   resultados: string | null;
   observacoes: string | null;
   criadoEm: string;

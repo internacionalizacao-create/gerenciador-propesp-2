@@ -6,6 +6,11 @@ import {
   ReabrirAnalise,
 } from "@/componentes/formularios/acoes-analise";
 import {
+  DispensarRequisito,
+  EncerrarMissao,
+  RevogarDispensa,
+} from "@/componentes/formularios/acoes-encerramento";
+import {
   DevolverPrestacao,
   EnviarPrestacao,
   ValidarPrestacao,
@@ -39,6 +44,8 @@ import type {
   MissaoDetalhe,
   ParticipanteMissao,
   PrestacaoMissao,
+  ChecklistEncerramento,
+  ItemEncerramento,
   ResultadosDaMissao,
   RodadaAnalise,
   SituacaoPrestacao,
@@ -102,7 +109,15 @@ export default async function MissaoDetalhePagina({
   }
 
   const rotaMissao = `/programas/${programa}/${ciclo}/comite-gestor/missoes/${id}`;
-  const [missao, rodadas, requisitos, documentos, prestacaoBruta, resultados] =
+  const [
+    missao,
+    rodadas,
+    requisitos,
+    documentos,
+    prestacaoBruta,
+    resultados,
+    encerramento,
+  ] =
     await Promise.all([
       apiFetch<MissaoDetalhe>(rotaMissao),
       apiFetch<RodadaAnalise[]>(`${rotaMissao}/analise`),
@@ -116,6 +131,8 @@ export default async function MissaoDetalhePagina({
       // Produtos e a resposta "gerou produto?" (CG-056). Leitura aqui; o
       // cadastro entra com a edição do relato (CG-046).
       apiFetch<ResultadosDaMissao>(`${rotaMissao}/produtos`),
+      // Checklist de encerramento (CG-058), recalculado a cada leitura.
+      apiFetch<ChecklistEncerramento>(`${rotaMissao}/encerramento`),
     ]);
 
   /**
@@ -144,6 +161,12 @@ export default async function MissaoDetalhePagina({
     me.permissions.includes("missao:reopen") &&
     (missao.statusAprovacao === "APROVADA" ||
       missao.statusAprovacao === "REPROVADA");
+  // Encerrar mexe na dimensão de execução, e por isso olha `status`, nunca
+  // `statusAprovacao` (CG-006). `missao:decide` é a permissão do Comitê — e,
+  // com o `admin`, exatamente quem pode dispensar requisito (CG-058).
+  const podeEncerrar =
+    me.permissions.includes("missao:write") && missao.status === "CONFIRMADA";
+  const podeDispensar = me.permissions.includes("missao:decide");
   /*
     A prestação congela quando sai de um estado editável (CG-054).
     `COM_PENDENCIA` volta a aceitar lançamento: sem isso a devolução não teria
@@ -348,11 +371,145 @@ export default async function MissaoDetalhePagina({
       </Secao>
 
       <Resultados resultados={resultados} />
+
+          <Encerramento
+            checklist={encerramento}
+            contexto={contexto}
+            podeEncerrar={podeEncerrar}
+            podeDispensar={podeDispensar}
+            missao={missao}
+          />
         </>
       )}
     </Pagina>
   );
 }
+
+/**
+ * Checklist de encerramento (CG-058).
+ *
+ * A lista inteira aparece, inclusive o que já está atendido: mostrar só o que
+ * falta responderia "o que fazer agora" e não "o que foi conferido" — e é a
+ * segunda pergunta que alguém faz ao olhar uma missão encerrada meses depois.
+ *
+ * **Dispensado não vira atendido.** O requisito continua constando como não
+ * cumprido, com a justificativa ao lado. Pintá-lo de verde apagaria a exceção
+ * exatamente onde ela precisa ficar visível.
+ */
+function Encerramento({
+  checklist,
+  contexto,
+  podeEncerrar,
+  podeDispensar,
+  missao,
+}: {
+  checklist: ChecklistEncerramento;
+  contexto: { programa: string; ciclo: string; id: string };
+  podeEncerrar: boolean;
+  podeDispensar: boolean;
+  missao: MissaoDetalhe;
+}) {
+  return (
+    <Secao
+      titulo="Encerramento"
+      descricao="A missão só encerra quando os requisitos aplicáveis estiverem atendidos ou dispensados."
+    >
+      {missao.avaliacaoObjetivos ? (
+        <Aviso
+          tom={missao.avaliacaoObjetivos === "SIM" ? "info" : "aviso"}
+          titulo={`Objetivos alcançados: ${ROTULO_AVALIACAO[missao.avaliacaoObjetivos]}`}
+        >
+          {missao.avaliacaoJustificativa ?? "Sem ressalvas registradas."}
+          {missao.desdobramentos ? (
+            <p className="mt-2">
+              <span className="font-medium">Desdobramentos:</span>{" "}
+              {missao.desdobramentos}
+            </p>
+          ) : null}
+        </Aviso>
+      ) : null}
+
+      {checklist.impedimento ? (
+        <Aviso tom="info">{checklist.impedimento}</Aviso>
+      ) : null}
+
+      <Tabela
+        rotulo="Requisitos de encerramento"
+        colunas={[
+          { chave: "requisito", texto: "Requisito" },
+          { chave: "situacao", texto: "Situação" },
+          { chave: "acao", texto: <span className="sr-only">Ações</span> },
+        ]}
+      >
+        {checklist.itens.map((item) => (
+          <tr key={item.chave}>
+            <Celula>
+              <span className="font-medium text-foreground">{item.titulo}</span>
+              {item.descricao ? (
+                <p className="mt-0.5 text-xs text-muted">{item.descricao}</p>
+              ) : null}
+              {item.dispensa ? (
+                <p className="mt-1 text-xs text-on-warning-soft">
+                  Dispensado por {item.dispensa.dispensadaPor ?? "—"} em{" "}
+                  {dataHora(item.dispensa.dispensadaEm)}:{" "}
+                  {item.dispensa.justificativa}
+                </p>
+              ) : !item.atendido && item.comoResolver ? (
+                <p className="mt-0.5 text-xs text-muted">{item.comoResolver}</p>
+              ) : null}
+            </Celula>
+            <Celula>
+              <SeloRequisito item={item} />
+            </Celula>
+            <Celula direita>
+              {podeDispensar && !item.atendido && item.aplicavel ? (
+                item.dispensa ? (
+                  <RevogarDispensa
+                    contexto={contexto}
+                    chave={item.chave}
+                    titulo={item.titulo}
+                  />
+                ) : item.obrigatorio ? (
+                  <DispensarRequisito
+                    contexto={contexto}
+                    chave={item.chave}
+                    titulo={item.titulo}
+                  />
+                ) : null
+              ) : null}
+            </Celula>
+          </tr>
+        ))}
+      </Tabela>
+
+      {podeEncerrar ? (
+        <div className="mt-5">
+          <EncerrarMissao contexto={contexto} />
+        </div>
+      ) : null}
+    </Secao>
+  );
+}
+
+/**
+ * Quatro estados, e nenhum deles se confunde com outro.
+ *
+ * "Dispensado" fica em aviso, e não em sucesso: a missão fechou sem o
+ * requisito, e a cor precisa dizer isso.
+ */
+function SeloRequisito({ item }: { item: ItemEncerramento }) {
+  if (item.atendido) return <Selo tom="sucesso">Atendido</Selo>;
+  if (item.dispensa) return <Selo tom="aviso">Dispensado</Selo>;
+  if (!item.aplicavel) return <Selo tom="neutro">Não se aplica</Selo>;
+  if (!item.obrigatorio) return <Selo tom="neutro">Opcional</Selo>;
+  return <Selo tom="perigo">Pendente</Selo>;
+}
+
+const ROTULO_AVALIACAO: Record<"SIM" | "PARCIALMENTE" | "NAO", string> = {
+  SIM: "sim",
+  PARCIALMENTE: "parcialmente",
+  NAO: "não",
+};
 
 /**
  * Resultados da missão (CG-056).

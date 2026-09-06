@@ -194,6 +194,13 @@ if [[ "$USUARIO" == "admin" ]]; then
     # CG-054: a descricao do estado da prestacao existe em qualquer um dos
     # quatro, ao contrario das acoes, que dependem de onde a missao esta.
     testar "${MID}?aba=prestacao" "Prestação de contas"
+    # CG-058: checklist de encerramento. As ancoras sao os rotulos dos
+    # requisitos, que existem em qualquer estado da missao — "Atendido" e
+    # "Pendente" dependem do banco e virariam falso alarme.
+    testar "$MID" "Encerramento"
+    testar "$MID" "Prestação de contas validada"
+    testar "$MID" "Avaliação dos objetivos"
+    testar_bff "/api/bff${MISSOES}/${MID##*/}/encerramento" '"podeEncerrar"'
     # Aba inexistente cai no resumo em vez de quebrar.
     testar "${MID}?aba=inexistente" "Roteiro"
   fi

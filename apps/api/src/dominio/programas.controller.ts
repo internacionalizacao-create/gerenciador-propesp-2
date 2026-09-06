@@ -38,6 +38,13 @@ import {
   type CriarMembroEquipe,
 } from './comite-gestor.service';
 import { ExecucaoComiteService } from './execucao-comite.service';
+import {
+  dispensarRequisitoSchema,
+  EncerramentoService,
+  revogarDispensaSchema,
+  type DispensarRequisito,
+  type RevogarDispensa,
+} from './encerramento.service';
 import { ContextoService } from './contexto.service';
 import {
   atualizarMissaoComiteSchema,
@@ -119,6 +126,7 @@ export class ProgramasController {
     private readonly decisao: DecisaoService,
     private readonly prestacao: PrestacaoService,
     private readonly execucao: ExecucaoComiteService,
+    private readonly encerramento: EncerramentoService,
     private readonly resultados: ResultadosService,
   ) {}
 
@@ -664,6 +672,58 @@ export class ProgramasController {
   ) {
     const ciclo = await this.contexto.resolver(slug, nome);
     return this.submissao.avaliar(ciclo.cicloId, id);
+  }
+
+  /**
+   * Checklist de encerramento da missao (CG-058).
+   *
+   * Existe separado de `CONCLUIR` pelo mesmo motivo da CG-037: descobrir o que
+   * falta so na hora de encerrar transforma a conferencia em tentativa e erro.
+   */
+  @Get(':programa/:ciclo/comite-gestor/missoes/:id/encerramento')
+  @RequirePermission('missao:read')
+  async checklistEncerramento(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('id') id: string,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.encerramento.checklist(ciclo.cicloId, id);
+  }
+
+  /**
+   * Dispensa um requisito de encerramento desta missao.
+   *
+   * `missao:decide` e a permissao do Comite, que o `admin` tambem tem — e
+   * exatamente "admin e Comite", decidido em 2026-09-06. Nenhuma permissao nova
+   * foi criada: quem delibera sobre a missao e quem pode abrir excecao nela.
+   */
+  @Post(':programa/:ciclo/comite-gestor/missoes/:id/encerramento/dispensa')
+  @RequirePermission('missao:decide')
+  async dispensarRequisito(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(dispensarRequisitoSchema))
+    body: DispensarRequisito,
+    @CurrentUser() usuario: AuthUser,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.encerramento.dispensar(ciclo.cicloId, id, body, usuario);
+  }
+
+  /** Revoga a dispensa sem apagar a linha — ela explica por que a missao fechou. */
+  @Post(':programa/:ciclo/comite-gestor/missoes/:id/encerramento/revogacao')
+  @RequirePermission('missao:decide')
+  async revogarDispensa(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(revogarDispensaSchema)) body: RevogarDispensa,
+    @CurrentUser() usuario: AuthUser,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.encerramento.revogarDispensa(ciclo.cicloId, id, body, usuario);
   }
 
   /** Envia a missao para analise do Comite, abrindo uma rodada (CG-037). */

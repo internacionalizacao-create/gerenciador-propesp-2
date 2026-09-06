@@ -288,6 +288,18 @@ export const origemRodadaAnaliseEnum = pgEnum('origem_rodada_analise', [
 ]);
 
 /** Momento em que um requisito documental e cobrado. */
+/**
+ * Alcance dos objetivos previstos, respondido no encerramento (CG-058).
+ *
+ * Tres valores, e nao booleano: "parcialmente" e a resposta honesta da maior
+ * parte das missoes, e forcar sim/nao empurraria todas elas para o "sim".
+ */
+export const avaliacaoObjetivosEnum = pgEnum('avaliacao_objetivos', [
+  'SIM',
+  'PARCIALMENTE',
+  'NAO',
+]);
+
 export const momentoRequisitoEnum = pgEnum('momento_requisito', [
   'SUBMISSAO',
   'ENCERRAMENTO',

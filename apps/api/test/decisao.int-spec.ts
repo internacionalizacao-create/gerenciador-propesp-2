@@ -4,6 +4,7 @@ import type { AuthUser } from '../src/auth/auth-user';
 import { IdentidadeService } from '../src/auth/identidade.service';
 import * as s from '../src/database/schema';
 import { DecisaoService, decidirSchema } from '../src/dominio/decisao.service';
+import { EncerramentoService } from '../src/dominio/encerramento.service';
 import { MissoesComiteService } from '../src/dominio/missoes-comite.service';
 import { SubmissaoService } from '../src/dominio/submissao.service';
 import { criarContextoTeste, type ContextoTeste } from './db-teste';
@@ -55,7 +56,7 @@ describe('DecisaoService (CG-038)', () => {
     const identidade = new IdentidadeService(ctx.db);
     decisao = new DecisaoService(ctx.db);
     submissao = new SubmissaoService(ctx.db, identidade);
-    missoes = new MissoesComiteService(ctx.db);
+    missoes = new MissoesComiteService(ctx.db, new EncerramentoService(ctx.db));
   });
 
   afterAll(async () => {

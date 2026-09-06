@@ -14,6 +14,7 @@ import { calcularDiasInclusivos } from '../comum/datas';
 import { DRIZZLE, type Database } from '../database/database.module';
 import * as s from '../database/schema';
 import { pessoaRapidaSchema, type PessoaRapida } from './comite-gestor.service';
+import { EncerramentoService } from './encerramento.service';
 import { somarOuNulo } from './orcamento.service';
 
 const dataCompleta = z
@@ -369,6 +370,16 @@ export const relatarMissaoSchema = z
       .min(20, 'Descreva o que aconteceu na missao.')
       .max(10000),
     resultados: z.string().trim().max(10000).nullish(),
+    /**
+     * Avaliacao do alcance dos objetivos (CG-058).
+     *
+     * Opcional aqui e obrigatoria para encerrar: relatar e responder sao atos
+     * distintos, e travar o relato pela avaliacao impediria salvar o texto pela
+     * metade. Quem cobra a resposta e o checklist de encerramento.
+     */
+    avaliacaoObjetivos: z.enum(['SIM', 'PARCIALMENTE', 'NAO']).nullish(),
+    avaliacaoJustificativa: z.string().trim().max(5000).nullish(),
+    desdobramentos: z.string().trim().max(10000).nullish(),
     atividades: z
       .array(
         z
@@ -415,7 +426,31 @@ export const relatarMissaoSchema = z
       .max(200)
       .default([]),
   })
-  .strict();
+  .strict()
+  .superRefine((valor, contexto) => {
+    // A assimetria e a regra homologada em 2026-09-06: "atingiu o objetivo" nao
+    // precisa de explicacao, "nao atingiu" precisa — senao o relatorio final
+    // registra um insucesso sem dizer por que. O banco garante o mesmo.
+    if (
+      (valor.avaliacaoObjetivos === 'PARCIALMENTE' ||
+        valor.avaliacaoObjetivos === 'NAO') &&
+      !valor.avaliacaoJustificativa
+    ) {
+      contexto.addIssue({
+        code: 'custom',
+        path: ['avaliacaoJustificativa'],
+        message:
+          'Explique por que os objetivos não foram plenamente alcançados.',
+      });
+    }
+    if (!valor.avaliacaoObjetivos && valor.avaliacaoJustificativa) {
+      contexto.addIssue({
+        code: 'custom',
+        path: ['avaliacaoObjetivos'],
+        message: 'Responda a avaliação antes de justificá-la.',
+      });
+    }
+  });
 export type RelatarMissao = z.infer<typeof relatarMissaoSchema>;
 
 /** De onde cada transicao pode partir. */
@@ -647,6 +682,10 @@ export interface MissaoDetalhe {
   situacaoTemporal: (typeof situacoesTemporais)[number];
   relatoGeral: string | null;
   resultados: string | null;
+  /** Alcance dos objetivos (CG-058). Nulo = ninguem respondeu ainda. */
+  avaliacaoObjetivos: 'SIM' | 'PARCIALMENTE' | 'NAO' | null;
+  avaliacaoJustificativa: string | null;
+  desdobramentos: string | null;
   observacoes: string | null;
   criadoEm: string;
   atualizadoEm: string;
@@ -666,7 +705,10 @@ type DbTransacional = Pick<Database, 'execute' | 'insert' | 'select'>;
 
 @Injectable()
 export class MissoesComiteService {
-  constructor(@Inject(DRIZZLE) private readonly db: Database) {}
+  constructor(
+    @Inject(DRIZZLE) private readonly db: Database,
+    private readonly encerramento: EncerramentoService,
+  ) {}
 
   /**
    * Catalogos usados pelo formulario; IDs nunca ficam fixos no cliente.
@@ -1170,6 +1212,9 @@ export class MissoesComiteService {
       situacaoTemporal: situacaoTemporalDe(missao.dataInicio, missao.dataFim),
       relatoGeral: missao.relatoGeral,
       resultados: missao.resultados,
+      avaliacaoObjetivos: missao.avaliacaoObjetivos,
+      avaliacaoJustificativa: missao.avaliacaoJustificativa,
+      desdobramentos: missao.desdobramentos,
       observacoes: missao.observacoes,
       criadoEm: missao.criadoEm.toISOString(),
       atualizadoEm: missao.atualizadoEm.toISOString(),
@@ -1765,7 +1810,13 @@ export class MissoesComiteService {
         `Missao ${rotuloStatus(missao.status)} nao aceita a acao ${dto.acao.toLowerCase()}.`,
       );
     }
-    if (dto.acao === 'CONCLUIR') this.exigirRelatoMinimo(missao);
+    // CONCLUIR passa a ser o **encerramento** (CG-058, decisao de 2026-09-06):
+    // o checklist inteiro vale, nao so o relato. O gate sai do mesmo calculo
+    // que a tela mostra — se fossem contas diferentes, a missao seria recusada
+    // por um motivo que a tela nao exibia.
+    if (dto.acao === 'CONCLUIR') {
+      await this.encerramento.exigirRequisitos(cicloId, id);
+    }
     if (dto.acao === 'CANCELAR' && !dto.justificativa) {
       throw new BadRequestException(
         'Informe a justificativa do cancelamento da missao.',
@@ -1894,17 +1945,41 @@ export class MissoesComiteService {
       };
 
       const resultados = dto.resultados ?? null;
+      const avaliacaoObjetivos = dto.avaliacaoObjetivos ?? null;
+      // A justificativa segue a avaliacao: responder `SIM` depois de ter
+      // justificado um `NAO` deixaria na tela a explicacao de um insucesso que
+      // nao existe mais.
+      const avaliacaoJustificativa =
+        avaliacaoObjetivos && avaliacaoObjetivos !== 'SIM'
+          ? (dto.avaliacaoJustificativa ?? null)
+          : null;
+      const desdobramentos = dto.desdobramentos ?? null;
+
       if (anterior.relatoGeral !== dto.relatoGeral) {
         registrar('relatoGeral', anterior.relatoGeral, dto.relatoGeral);
       }
       if (anterior.resultados !== resultados) {
         registrar('resultados', anterior.resultados, resultados);
       }
+      if (anterior.avaliacaoObjetivos !== avaliacaoObjetivos) {
+        registrar(
+          'avaliacaoObjetivos',
+          anterior.avaliacaoObjetivos,
+          avaliacaoObjetivos,
+          avaliacaoJustificativa,
+        );
+      }
+      if (anterior.desdobramentos !== desdobramentos) {
+        registrar('desdobramentos', anterior.desdobramentos, desdobramentos);
+      }
       await tx
         .update(s.missaoComite)
         .set({
           relatoGeral: dto.relatoGeral,
           resultados,
+          avaliacaoObjetivos,
+          avaliacaoJustificativa,
+          desdobramentos,
           atualizadoEm: new Date(),
         })
         .where(eq(s.missaoComite.id, id));
@@ -1981,29 +2056,6 @@ export class MissoesComiteService {
     });
 
     return this.detalhe(cicloId, id);
-  }
-
-  /**
-   * Relato minimo para concluir: o que aconteceu na missao como um todo e o
-   * desfecho de cada parada do roteiro. Sem isso, "concluida" nao diria nada
-   * alem de a data ter passado.
-   */
-  private exigirRelatoMinimo(missao: MissaoDetalhe): void {
-    if (!missao.relatoGeral) {
-      throw new BadRequestException(
-        'Registre o relato da missao antes de conclui-la.',
-      );
-    }
-    const pendentes = missao.atividades.filter(
-      (atividade) => atividade.status === 'PLANEJADA',
-    );
-    if (pendentes.length > 0) {
-      throw new BadRequestException(
-        `Informe o que aconteceu em cada atividade do roteiro antes de concluir. Pendentes: ${pendentes
-          .map((atividade) => atividade.titulo)
-          .join(', ')}.`,
-      );
-    }
   }
 
   private async proximoCodigo(

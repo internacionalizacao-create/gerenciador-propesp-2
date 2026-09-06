@@ -2,6 +2,8 @@ import { and, eq } from 'drizzle-orm';
 
 import type { AuthUser } from '../src/auth/auth-user';
 import { ComiteGestorService } from '../src/dominio/comite-gestor.service';
+import { EncerramentoService } from '../src/dominio/encerramento.service';
+import { ResultadosService } from '../src/dominio/resultados.service';
 import {
   atualizarMissaoComiteSchema,
   criarMissaoComiteSchema,
@@ -32,7 +34,7 @@ describe('ComiteGestorService — equipes', () => {
   beforeAll(async () => {
     ctx = await criarContextoTeste();
     service = new ComiteGestorService(ctx.db);
-    missoes = new MissoesComiteService(ctx.db);
+    missoes = new MissoesComiteService(ctx.db, new EncerramentoService(ctx.db));
   });
 
   afterAll(async () => {
@@ -358,7 +360,7 @@ describe('MissoesComiteService — criacao transacional', () => {
 
   beforeAll(async () => {
     ctx = await criarContextoTeste();
-    service = new MissoesComiteService(ctx.db);
+    service = new MissoesComiteService(ctx.db, new EncerramentoService(ctx.db));
   });
 
   afterAll(async () => {
@@ -734,7 +736,7 @@ describe('MissoesComiteService — lista e filtros', () => {
 
   beforeAll(async () => {
     ctx = await criarContextoTeste();
-    service = new MissoesComiteService(ctx.db);
+    service = new MissoesComiteService(ctx.db, new EncerramentoService(ctx.db));
     equipe = new ComiteGestorService(ctx.db);
   });
 
@@ -1093,7 +1095,7 @@ describe('MissoesComiteService — detalhe', () => {
 
   beforeAll(async () => {
     ctx = await criarContextoTeste();
-    service = new MissoesComiteService(ctx.db);
+    service = new MissoesComiteService(ctx.db, new EncerramentoService(ctx.db));
     equipe = new ComiteGestorService(ctx.db);
   });
 
@@ -1349,7 +1351,7 @@ describe('MissoesComiteService — edicao com auditoria', () => {
 
   beforeAll(async () => {
     ctx = await criarContextoTeste();
-    service = new MissoesComiteService(ctx.db);
+    service = new MissoesComiteService(ctx.db, new EncerramentoService(ctx.db));
   });
 
   afterAll(async () => {
@@ -1937,11 +1939,15 @@ describe('MissoesComiteService — ciclo de vida', () => {
   let ctx: ContextoTeste;
   let base: BaseFixture;
   let service: MissoesComiteService;
+  let encerramento: EncerramentoService;
+  let resultados: ResultadosService;
   let paisId: string;
 
   beforeAll(async () => {
     ctx = await criarContextoTeste();
-    service = new MissoesComiteService(ctx.db);
+    encerramento = new EncerramentoService(ctx.db);
+    resultados = new ResultadosService(ctx.db);
+    service = new MissoesComiteService(ctx.db, encerramento);
   });
 
   afterAll(async () => {
@@ -2000,7 +2006,7 @@ describe('MissoesComiteService — ciclo de vida', () => {
     );
   }
 
-  /** Relato minimo exigido pela CG-035 para que a missao possa ser concluida. */
+  /** Relato minimo exigido pela CG-035. Sozinho ja nao basta para encerrar. */
   async function relatarMinimo(id: string) {
     const missao = await service.detalhe(base.cicloId, id);
     await service.relatar(
@@ -2008,12 +2014,40 @@ describe('MissoesComiteService — ciclo de vida', () => {
       id,
       relatarMissaoSchema.parse({
         relatoGeral: 'A missao ocorreu conforme o roteiro previsto.',
+        avaliacaoObjetivos: 'SIM',
         atividades: missao.atividades.map((atividade) => ({
           id: atividade.id,
           status: 'REALIZADA',
           relatoRealizado: 'Atividade realizada.',
         })),
       }),
+      adminMissoes,
+    );
+  }
+
+  /**
+   * Caminho completo de encerramento depois da CG-058.
+   *
+   * Relatar deixou de ser suficiente: e preciso responder sobre produtos e
+   * resolver a prestacao. Estas missoes de teste nao gastaram nada, e prestacao
+   * sem despesa nunca chega a `VALIDADA` (CG-054) — entao o caminho e a
+   * dispensa, que foi exatamente a saida decidida para esse caso.
+   */
+  async function prepararEncerramento(id: string) {
+    await relatarMinimo(id);
+    await resultados.responderProdutos(
+      base.cicloId,
+      id,
+      { gerouProduto: false, justificativa: 'Missao de articulacao inicial.' },
+      adminMissoes,
+    );
+    await encerramento.dispensar(
+      base.cicloId,
+      id,
+      {
+        chave: 'PRESTACAO_VALIDADA',
+        justificativa: 'Missao sem despesa; nao ha prestacao a validar.',
+      },
       adminMissoes,
     );
   }
@@ -2029,7 +2063,17 @@ describe('MissoesComiteService — ciclo de vida', () => {
     );
     expect(confirmada.status).toBe('CONFIRMADA');
 
-    await relatarMinimo(missao.id);
+    // Depois da CG-058, relatar deixou de bastar: encerrar exige o checklist.
+    await expect(
+      service.transicionar(
+        base.cicloId,
+        missao.id,
+        { acao: 'CONCLUIR', justificativa: null },
+        adminMissoes,
+      ),
+    ).rejects.toMatchObject({ status: 422 });
+
+    await prepararEncerramento(missao.id);
     const concluida = await service.transicionar(
       base.cicloId,
       missao.id,
@@ -2119,7 +2163,7 @@ describe('MissoesComiteService — ciclo de vida', () => {
       { acao: 'CONFIRMAR', justificativa: null },
       adminMissoes,
     );
-    await relatarMinimo(concluida.id);
+    await prepararEncerramento(concluida.id);
     await service.transicionar(
       base.cicloId,
       concluida.id,
@@ -2183,7 +2227,7 @@ describe('MissoesComiteService — ciclo de vida', () => {
           { acao: 'CONFIRMAR', justificativa: null },
           adminMissoes,
         );
-        await relatarMinimo(id);
+        await prepararEncerramento(id);
         await service.transicionar(
           base.cicloId,
           id,
@@ -2253,11 +2297,15 @@ describe('MissoesComiteService — relato e conclusao', () => {
   let ctx: ContextoTeste;
   let base: BaseFixture;
   let service: MissoesComiteService;
+  let encerramento: EncerramentoService;
+  let resultados: ResultadosService;
   let paises: { id: string }[];
 
   beforeAll(async () => {
     ctx = await criarContextoTeste();
-    service = new MissoesComiteService(ctx.db);
+    encerramento = new EncerramentoService(ctx.db);
+    resultados = new ResultadosService(ctx.db);
+    service = new MissoesComiteService(ctx.db, encerramento);
   });
 
   afterAll(async () => {
@@ -2477,18 +2525,19 @@ describe('MissoesComiteService — relato e conclusao', () => {
     ).toBe(false);
   });
 
-  it('exige relato minimo para concluir a missao', async () => {
+  it('exige o checklist de encerramento para concluir a missao', async () => {
     const missao = await confirmada();
-
-    // Sem relato nenhum.
-    await expect(
+    const concluir = () =>
       service.transicionar(
         base.cicloId,
         missao.id,
         { acao: 'CONCLUIR', justificativa: null },
         adminMissoes,
-      ),
-    ).rejects.toMatchObject({ status: 400 });
+      );
+
+    // Sem relato nenhum. 422 e nao 400: o corpo esta correto, o que falta e
+    // estado da missao — mesmo contrato da submissao (CG-037).
+    await expect(concluir()).rejects.toMatchObject({ status: 422 });
 
     // Relato geral, mas uma parada ainda sem desfecho.
     await service.relatar(
@@ -2506,16 +2555,10 @@ describe('MissoesComiteService — relato e conclusao', () => {
       }),
       adminMissoes,
     );
-    await expect(
-      service.transicionar(
-        base.cicloId,
-        missao.id,
-        { acao: 'CONCLUIR', justificativa: null },
-        adminMissoes,
-      ),
-    ).rejects.toMatchObject({ status: 400 });
+    await expect(concluir()).rejects.toMatchObject({ status: 422 });
 
-    // Com todas as paradas resolvidas, conclui.
+    // Roteiro inteiro apurado. Antes da CG-058 isto ja bastava; agora faltam a
+    // avaliacao, a resposta sobre produtos e a prestacao.
     await service.relatar(
       base.cicloId,
       missao.id,
@@ -2532,12 +2575,58 @@ describe('MissoesComiteService — relato e conclusao', () => {
       }),
       adminMissoes,
     );
-    const concluida = await service.transicionar(
+    const parcial = await encerramento.checklist(base.cicloId, missao.id);
+    expect(parcial.podeEncerrar).toBe(false);
+    expect(
+      parcial.itens
+        .filter((item) => !item.atendido)
+        .map((item) => item.chave)
+        .sort(),
+    ).toEqual([
+      'AVALIACAO_OBJETIVOS',
+      'PRESTACAO_VALIDADA',
+      'PRODUTO_RESPONDIDO',
+    ]);
+    await expect(concluir()).rejects.toMatchObject({ status: 422 });
+
+    await service.relatar(
       base.cicloId,
       missao.id,
-      { acao: 'CONCLUIR', justificativa: null },
+      relatarMissaoSchema.parse({
+        relatoGeral: 'Relato geral registrado, roteiro integralmente apurado.',
+        avaliacaoObjetivos: 'PARCIALMENTE',
+        avaliacaoJustificativa: 'Uma das visitas foi cancelada pelo anfitriao.',
+        atividades: [
+          {
+            id: missao.atividades[0].id,
+            status: 'REALIZADA',
+            relatoRealizado: 'Visita realizada.',
+          },
+          { id: missao.atividades[1].id, status: 'NAO_REALIZADA' },
+        ],
+      }),
       adminMissoes,
     );
+    await resultados.responderProdutos(
+      base.cicloId,
+      missao.id,
+      { gerouProduto: false, justificativa: 'Articulacao sem produto formal.' },
+      adminMissoes,
+    );
+    // Falta so a prestacao — e ela e o unico item que ainda bloqueia.
+    await expect(concluir()).rejects.toMatchObject({ status: 422 });
+
+    await encerramento.dispensar(
+      base.cicloId,
+      missao.id,
+      {
+        chave: 'PRESTACAO_VALIDADA',
+        justificativa: 'Missao sem despesa; nao ha prestacao a validar.',
+      },
+      adminMissoes,
+    );
+
+    const concluida = await concluir();
     expect(concluida.status).toBe('CONCLUIDA');
   });
 
@@ -2707,7 +2796,7 @@ describe('MissoesComiteService — redes da missao', () => {
 
   beforeAll(async () => {
     ctx = await criarContextoTeste();
-    service = new MissoesComiteService(ctx.db);
+    service = new MissoesComiteService(ctx.db, new EncerramentoService(ctx.db));
   });
 
   afterAll(async () => {

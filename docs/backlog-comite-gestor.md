@@ -2554,7 +2554,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   Critério de aceite: galeria não expõe arquivo privado e substituição preserva
   a versão anterior.
 
-- [ ] **CG-058 — Implementar relatório final e checklist condicional**
+- [x] **CG-058 — Implementar relatório final e checklist condicional**
 
   Registrar:
 
@@ -2575,6 +2575,80 @@ Essa situação é calculada a partir das datas e não é persistida.
   Critério de aceite: missão só encerra quando requisitos aplicáveis estão
   satisfeitos ou dispensados por usuário autorizado; item não aplicável não
   bloqueia o fluxo.
+
+  **Concluída em 2026-09-06**, depois de três decisões do responsável:
+
+  1. **`CONCLUIR` passa a ser o encerramento**, sem estado novo. `CONCLUIDA`
+     deixa de significar "a viagem acabou" e passa a significar "encerrada e
+     acertada"; a missão fica `CONFIRMADA` enquanto a prestação corre. A
+     ressalva que levantei — que a prestação precisaria abrir pela data — **não
+     se sustentou**: `prestacao.criar` nunca dependeu do status da missão, então
+     não havia impasse e nada mudou nesse ponto.
+  2. **Cinco fatos no checklist**: relato geral, roteiro relatado, resposta
+     sobre produtos, prestação validada e avaliação dos objetivos. Mais os
+     documentos de `requisito_submissao` com `momento = 'ENCERRAMENTO'`.
+  3. **Missão sem despesa resolve pela dispensa**, caso a caso.
+
+  E, das perguntas anteriores: dispensam `admin` e Comitê, só para a missão
+  apontada; avaliação obrigatória para encerrar, com justificativa exigida
+  apenas quando `PARCIALMENTE` ou `NAO`.
+
+  **Nada do checklist é gravado.** A task proíbe persistir booleano que duplica
+  outro registro, e a proibição tem motivo prático: um `prestacao_ok` guardado
+  divergiria no dia em que a prestação fosse devolvida, e a missão encerraria
+  com base numa foto velha. Todo item é recalculado contra o registro que ele
+  descreve.
+
+  As duas metades são diferentes de propósito. **Documentos são dado** — mesma
+  decisão da CG-019, e o teste prova: inserir uma exigência de ata passa a
+  bloquear o encerramento sem deploy nenhum. **Fatos são catálogo em código**,
+  porque cada um precisa de uma consulta própria; o que continua sendo dado é
+  *se* o requisito aplica.
+
+  Quatro pontos que a implementação ingênua erra:
+
+  - **Dispensado não vira atendido.** O requisito continua constando como não
+    cumprido, com a justificativa ao lado. Pintá-lo de verde apagaria a exceção
+    exatamente onde ela precisa ficar visível.
+  - **Estado errado é impedimento, não pendência.** Não há o que anexar ou
+    preencher para resolver "esta missão já foi encerrada"; misturar os dois
+    faria a tela oferecer uma ação que não existe.
+  - **A revogação não apaga a linha.** A dispensa foi o que autorizou fechar sem
+    o requisito, e apagá-la apagaria a explicação. Daí `revogada_em` e o índice
+    de unicidade **parcial** — sem o `where`, dispensar de novo depois de
+    revogar colidiria, e a única saída seria destruir o histórico que a
+    revogação existe para manter.
+  - **A justificativa segue a avaliação.** Trocar `NAO` por `SIM` limpa o texto:
+    manter a explicação de um insucesso que não existe mais faria a tela
+    contradizer a resposta. O `check` do banco garante a mesma assimetria.
+
+  Só `admin` e Comitê dispensam, e isso **não exigiu permissão nova**:
+  `missao:decide` já é exatamente esse conjunto — quem delibera sobre a missão é
+  quem pode abrir exceção nela.
+
+  Cobertura: 13 regressões em
+  [encerramento.int-spec.ts](../apps/api/test/encerramento.int-spec.ts). **As
+  três garantias foram verificadas por mutação:** ignorar a dispensa no cálculo
+  derruba 2 casos, tratar dispensa revogada como vigente derruba 1, e ler
+  `momento = 'SUBMISSAO'` no lugar de `'ENCERRAMENTO'` derruba 3.
+
+  Quatro testes existentes mudaram, e não por acaso: eles encerravam missão só
+  com relato, que era o contrato anterior. Agora percorrem o caminho inteiro.
+
+  Verificado na aplicação, pelo BFF: recusa com as cinco pendências, relato com
+  avaliação `PARCIALMENTE`, recusa de justificativa sem resposta, declaração sem
+  produto, dispensa → revogação → validação da prestação → encerramento, e o
+  checklist da missão encerrada mostrando o impedimento em vez de pendências.
+
+  **Uma divergência de estilo que vale sua revisão:** os textos deste módulo vão
+  para a tela como rótulos de tabela, então estão **acentuados** — o resto das
+  mensagens da API está sem acento. Se quiser uniformizar, é varredura, não
+  decisão de arquitetura.
+
+  Fica de fora, por não ser decisão minha: **nenhum documento de encerramento
+  foi semeado**. A lista é dado, e quais documentos a PROPESP exige ao fechar
+  uma missão é política institucional. Enquanto ninguém cadastrar, o checklist
+  roda com os cinco fatos.
 
 - [ ] **CG-059 — Testar resultados e encerramento**
 

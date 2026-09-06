@@ -21,10 +21,11 @@ dados com a seed real, serviços de cálculo (RN-01 a RN-20), telas de planejame
 anual e o cadastro individual de bolsas/produtos existem e são verificados. As planilhas
 não fornecem beneficiários, então P03 começa vazio e será alimentado pela equipe.
 No CAPES Global não há execução financeira na UEA: a CAPES paga diretamente. Falta
-o registro histórico de movimentações externas, os produtos e o encerramento
-das missões do Comitê Gestor, relatórios, panorama/mapa de mobilidade e o
-escopo local por PPG/temática na autorização. O ciclo financeiro do Comitê
-fechou: missão, aprovação, prestação e abatimento do aporte estão de pé. Ver §9.
+o registro histórico de movimentações externas, a galeria de evidências das
+missões, relatórios, panorama/mapa de mobilidade e o escopo local por
+PPG/temática na autorização. O ciclo da missão do Comitê fechou de ponta a
+ponta: cadastro, aprovação, prestação, abatimento do aporte, produtos e
+encerramento com checklist. Ver §9.
 
 A visão de arquitetura e os fluxos de negócio/técnicos estão em
 [docs/arquitetura-sistema.md](docs/arquitetura-sistema.md). A especificação
@@ -109,6 +110,7 @@ apps/
         comite-gestor.service.ts  P17 — pessoas e equipes
         missoes-comite.service.ts P17 — criação, consulta, edição, ciclo de vida e relato de missões
         resultados.service.ts  CG-056 — produtos da missão e convênios do parceiro
+        encerramento.service.ts   CG-058 — checklist de encerramento e dispensas
         *.controller.ts       rotas REST, uma permissão por endpoint
       config/env.ts        validação de ambiente com zod (falha no boot)
       database/            schema Drizzle, migrations e seed
@@ -541,7 +543,7 @@ o ícone estiver visível.
 
 - **Autenticação/autorização**: login e logout OIDC completos, sessão renovada
   automaticamente, guards globais, catálogo de permissões, realm versionado.
-- **Modelo de dados**: 52 tabelas em 13 módulos de schema Drizzle
+- **Modelo de dados**: 53 tabelas em 13 módulos de schema Drizzle
   ([apps/api/src/database/schema/](apps/api/src/database/schema/)), com migrations.
   Segue [system-structl.md](system-structl.md) §4.
 - **Seed com os dados reais** das planilhas e respostas formais
@@ -780,6 +782,44 @@ o ícone estiver visível.
   e `modulosPendentes` ficou vazia. **A interface é leitura:** seção *Resultados*
   no Resumo da missão e duas seções no parceiro; o cadastro é a CG-046.
 
+  **Encerramento da missão (CG-058)** entrou em 2026-09-06, e mudou o
+  significado de `CONCLUIR`: a transição passa pelo **checklist inteiro**, não
+  só pelo relato, e `CONCLUIDA` deixa de dizer "a viagem acabou" para dizer
+  "encerrada e acertada" — a missão fica `CONFIRMADA` enquanto a prestação
+  corre. `GET .../missoes/:id/encerramento` devolve a lista;
+  `.../encerramento/dispensa` e `.../encerramento/revogacao` exigem
+  `missao:decide`, que já é exatamente "admin e Comitê" — nenhuma permissão
+  nova foi criada.
+
+  **Nada do checklist é gravado**, e a proibição é da própria task: um
+  `prestacao_ok` guardado divergiria no dia em que a prestação fosse devolvida,
+  e a missão encerraria com base numa foto velha. Cinco fatos vêm de consulta
+  (relato, roteiro relatado, resposta sobre produtos, prestação validada,
+  avaliação dos objetivos) e os documentos vêm de `requisito_submissao` com
+  `momento = 'ENCERRAMENTO'` — dado, não código, como na CG-019.
+
+  Quatro regras que a implementação ingênua erra: **dispensado não vira
+  atendido** (o requisito segue não cumprido, com a justificativa ao lado —
+  pintá-lo de verde apagaria a exceção onde ela precisa ser vista); **estado
+  errado é impedimento, não pendência** (não há o que preencher para resolver
+  "já foi encerrada", e misturar os dois faria a tela oferecer uma ação
+  inexistente); **revogar não apaga a linha** — daí `revogada_em` e o índice de
+  unicidade **parcial**, sem o qual dispensar de novo depois de revogar
+  colidiria; e **a justificativa segue a avaliação**, porque manter a explicação
+  de um insucesso que deixou de existir faria a tela contradizer a resposta. A
+  dispensa vale **só para a missão apontada**: por tipo seria mudança de
+  política disfarçada de exceção.
+
+  A avaliação (`SIM | PARCIALMENTE | NAO`) é opcional no relato e obrigatória
+  para encerrar — travar o relato pela avaliação impediria salvar o texto pela
+  metade. A justificativa é exigida só quando não foi plenamente alcançado;
+  `missao_comite_avaliacao_ck` garante a assimetria no banco.
+
+  **Os textos deste módulo estão acentuados** porque viram rótulo de tabela na
+  tela, ao contrário das mensagens da maior parte da API. Nenhum documento de
+  encerramento foi semeado: quais a PROPESP exige é política institucional, e a
+  lista é dado.
+
   **Cuidado ao criar helper para uma tela:** função exportada de módulo
   `"use client"` não pode ser chamada pelo Server Component. O build passa e a
   página responde 500 — foi o que aconteceu com as categorias de documento por
@@ -807,7 +847,7 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
 - **Testes**: 138 unitários/regressões (67 API + 71 na web para toast, datas,
   React Hook Form/Zod, erros do multistep, formulários de parceiro,
   acessibilidade, contraste dos tokens, cálculos monetários, montagem de série
-  do gráfico e caminhos do BFF) + 365 de integração contra Postgres
+  do gráfico e caminhos do BFF) + 378 de integração contra Postgres
   real. As duas garantias de não duplicação da linha
   histórica do parceiro foram verificadas por mutação: trocar o `exists` +
   `selectDistinct` por um `join` faz ambas falharem.

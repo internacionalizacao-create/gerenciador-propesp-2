@@ -218,6 +218,13 @@
       "when": 1788716745433,
       "tag": "0030_produtos_convenios_cg056",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1788733469766,
+      "tag": "0031_encerramento_missao_cg058",
+      "breakpoints": true
     }
   ]
 }

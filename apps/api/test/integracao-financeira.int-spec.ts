@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import type { AuthUser } from '../src/auth/auth-user';
 import * as s from '../src/database/schema';
 import { ExecucaoComiteService } from '../src/dominio/execucao-comite.service';
+import { EncerramentoService } from '../src/dominio/encerramento.service';
 import {
   filtroMissoesSchema,
   MissoesComiteService,
@@ -60,7 +61,7 @@ describe('Integracao financeira do Comite Gestor (CG-060)', () => {
     ctx = await criarContextoTeste();
     execucao = new ExecucaoComiteService(ctx.db);
     prestacao = new PrestacaoService(ctx.db);
-    missoes = new MissoesComiteService(ctx.db);
+    missoes = new MissoesComiteService(ctx.db, new EncerramentoService(ctx.db));
   });
 
   afterAll(async () => {
