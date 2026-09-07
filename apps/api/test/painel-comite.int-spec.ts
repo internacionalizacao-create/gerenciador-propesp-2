@@ -540,6 +540,143 @@ describe('Painel do Comite Gestor (CG-066)', () => {
     ]);
   });
 
+  // --- consolidado por rede (CG-067) -----------------------------------------
+
+  it('a linha da rede soma alem do consolidado quando ha missao multirrede', async () => {
+    await criarMissao('MCG-090', { redes: [base.redeId, outraRedeId] });
+    await criarMissao('MCG-091', { redes: [base.redeId] });
+
+    const dados = await montar();
+
+    // Cada rede conta a multirrede como sua, porque ela e das duas.
+    const porNome = new Map(dados.porRede.map((r) => [r.nome, r]));
+    expect(porNome.get('REDE-TESTE')!.missoes).toBe(2);
+    expect(porNome.get('REDE-DOIS')!.missoes).toBe(1);
+
+    // E o consolidado **nao** e a soma: sao 2 missoes, nao 3. O total sai de um
+    // computo proprio sobre o recorte inteiro, e nao de agregar a coluna.
+    expect(dados.porRede.reduce((total, r) => total + r.missoes, 0)).toBe(3);
+    expect(dados.missoes).toBe(2);
+  });
+
+  it('paises, parceiros e produtos da rede tambem nao somam para o consolidado', async () => {
+    const [parceira] = await ctx.db
+      .insert(s.instituicao)
+      .values({
+        nome: 'Universidade de Coimbra',
+        nomeNormalizado: normalizarNomeInstituicao('Universidade de Coimbra'),
+        tipo: 'PARCEIRA_INTERNACIONAL',
+      })
+      .returning({ id: s.instituicao.id });
+
+    // Uma unica missao, das duas redes, com uma parada em Portugal na
+    // instituicao parceira e um produto.
+    const missaoId = await criarMissao('MCG-092', {
+      redes: [base.redeId, outraRedeId],
+    });
+    await ctx.db.insert(s.atividadeMissao).values({
+      missaoId,
+      ordem: 2,
+      tipo: 'ARTICULACAO',
+      titulo: 'Visita ao parceiro',
+      paisId,
+      instituicaoId: parceira.id,
+      eventoNome: 'Congresso de Internacionalização',
+      dataInicio: '2027-05-05',
+      dataFim: '2027-05-06',
+    });
+    await ctx.db.insert(s.produtoMissao).values({
+      missaoId,
+      tipo: 'PUBLICACAO',
+      titulo: 'Artigo conjunto',
+    });
+
+    const dados = await montar();
+    for (const rede of dados.porRede) {
+      expect(rede.paises).toBe(1);
+      expect(rede.instituicoes).toBe(1);
+      expect(rede.eventos).toBe(1);
+      expect(rede.produtos).toBe(1);
+    }
+
+    // O mesmo pais, o mesmo parceiro e o mesmo produto, uma vez so no
+    // consolidado — foi uma viagem, e nao duas.
+    expect(dados.alcance.paises).toBe(1);
+    expect(dados.alcance.parceiros).toBe(1);
+    expect(dados.alcance.eventos).toBe(1);
+    expect(dados.alcance.produtos).toBe(1);
+  });
+
+  it('a despesa da missao multirrede aparece nas duas redes e uma vez no total', async () => {
+    const missaoId = await criarMissao('MCG-093', {
+      periodo: [diasAtras(20), diasAtras(15)],
+      redes: [base.redeId, outraRedeId],
+      status: 'CONFIRMADA',
+    });
+    await prestacao.criar(base.cicloId, missaoId, admin);
+    await prestacao.criarDespesa(
+      base.cicloId,
+      missaoId,
+      {
+        tipo: 'OUTRA',
+        exercicio: 2027,
+        valorTotal: '1500.00',
+        descricao: 'Inscrição',
+      } as never,
+      admin,
+    );
+
+    // Ainda em preenchimento: lancada sim, validada nao. So a validada abate o
+    // aporte (CG-009), e as duas colunas existem para que isso fique visivel.
+    const antes = await montar();
+    expect(antes.financeiro.lancada).toBe('1500.00');
+    expect(antes.financeiro.validada).toBeNull();
+    for (const rede of antes.porRede.filter((r) => r.missoes > 0)) {
+      expect(rede.despesaLancada).toBe('1500.00');
+      expect(rede.despesaValidada).toBeNull();
+    }
+
+    await prestacao.enviar(base.cicloId, missaoId, admin);
+    await prestacao.validar(base.cicloId, missaoId, {}, admin);
+
+    const depois = await montar();
+    expect(depois.financeiro.validada).toBe('1500.00');
+    // R$ 1.500 gastos uma vez. Somar as duas linhas daria R$ 3.000, que e
+    // exatamente o erro que o consolidado proprio evita.
+    const somaDasRedes = depois.porRede
+      .map((r) => Number(r.despesaValidada ?? 0))
+      .reduce((a, b) => a + b, 0);
+    expect(somaDasRedes).toBe(3000);
+    expect(depois.financeiro.validada).toBe('1500.00');
+  });
+
+  it('evento conta por nome distinto, e o gestor so ve a propria rede', async () => {
+    const missaoId = await criarMissao('MCG-094', { redes: [base.redeId] });
+    // Duas paradas no mesmo evento, escrito com espacos e caixa diferentes.
+    for (const [ordem, nome] of [
+      [2, '  Congresso Anual  '],
+      [3, 'congresso anual'],
+    ] as const) {
+      await ctx.db.insert(s.atividadeMissao).values({
+        missaoId,
+        ordem,
+        tipo: 'ARTICULACAO',
+        titulo: `Parada ${ordem}`,
+        paisId,
+        eventoNome: nome,
+        dataInicio: '2027-05-05',
+        dataFim: '2027-05-06',
+      });
+    }
+
+    // Espacos e caixa normalizados: e um evento. O que o sistema **nao** sabe
+    // resolver e o mesmo congresso com nome diferente — dai o aviso que viaja
+    // junto (D-10 deixou evento reutilizavel para a F2).
+    const dados = await montar();
+    expect(dados.alcance.eventos).toBe(1);
+    expect(dados.porRede.find((r) => r.nome === 'REDE-TESTE')!.eventos).toBe(1);
+  });
+
   it('painel de ciclo vazio nao inventa numero', async () => {
     const dados = await montar();
     expect(dados.missoes).toBe(0);
@@ -548,8 +685,12 @@ describe('Painel do Comite Gestor (CG-066)', () => {
     expect(dados.alcance).toEqual({
       paises: 0,
       parceiros: 0,
+      eventos: 0,
       convenios: 0,
       produtos: 0,
     });
+    // Nulo, e nao R$ 0,00: ninguem lancou nada, e zero seria "lancaram e deu
+    // zero" — a mesma distincao da CG-055.
+    expect(dados.financeiro).toEqual({ validada: null, lancada: null });
   });
 });

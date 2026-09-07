@@ -3359,7 +3359,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   18 testes de integração em `painel-comite.int-spec.ts` e 8 asserções no
   `smoke:telas`, ancoradas nos rótulos e **no link**, não nos números.
 
-- [ ] **CG-067 — Construir dashboard por rede**
+- [x] **CG-067 — Construir dashboard por rede**
 
   Consolidar missões, países, instituições, eventos, convênios, produtos e
   despesas para UFMG, UNESP e UNICAMP, respeitando “Minha rede” e “Todas”.
@@ -3368,6 +3368,50 @@ Essa situação é calculada a partir das datas e não é persistida.
 
   Critério de aceite: gestor vê somente redes autorizadas; Comitê e admin podem
   alternar entre rede e consolidado sem divergência de totais.
+
+  Entregue em 2026-09-07 como a tabela **Consolidado por rede**, dentro do
+  painel da CG-066 — e não como página nova: seria a terceira tela a apurar as
+  mesmas missões, e a terceira a divergir.
+
+  Cada rede traz missões, países, parceiros, eventos, convênios, produtos e
+  despesa (validada e lançada, separadas porque só a validada abate o aporte).
+
+  **A linha "Total do ciclo" não é a soma da coluna, e a tela diz isso em voz
+  alta.** A missão de duas redes pertence às duas e aparece nas duas linhas; o
+  país visitado por duas redes foi alcançado pelas duas. O total vem de um
+  cômputo próprio sobre o recorte inteiro — o mesmo que alimenta os cartões —,
+  e não de agregar a coluna. É a regra da CG-055 outra vez.
+
+  Verificado na aplicação: pondo uma segunda rede numa missão real, as linhas
+  passam a somar **3 missões e R$ 18.700** enquanto o total continua **2 missões
+  e R$ 10.550**. Sem o aviso, quem confere na calculadora concluiria que a tela
+  está errada — e é a conferência que está. Por isso a âncora do smoke é a
+  frase, não o número.
+
+  **A tabela some quando há uma rede escolhida:** não há o que consolidar, e ela
+  repetiria os cartões.
+
+  Duas coisas que a implementação ingênua erra:
+
+  - **Contagem de alcance é `distinct`.** O mesmo país visitado em três paradas
+    é um país; o mesmo parceiro, um parceiro.
+  - **Dinheiro não pode passar por `join missao_rede`.** Verificado por mutação:
+    juntar a despesa pela rede dobra o valor da missão multirrede no
+    consolidado, e o teste cai.
+
+  **Evento é contado pelo nome**, e o aviso viaja junto com o dado. D-10 deixou
+  evento reutilizável para a F2: hoje é campo de texto da atividade, então
+  espaços e caixa são normalizados, mas o mesmo congresso escrito de duas formas
+  conta duas vezes — e não há como o sistema saber. Silenciar isso faria a
+  contagem parecer exata.
+
+  A primeira metade do aceite — "gestor vê somente redes autorizadas" — já veio
+  pronta da CG-028: `porRede` usa `sobreRede`, e rede fora do alcance **não
+  aparece com zero, não aparece**. "Rede vizinha: 0 missões" seria uma afirmação
+  que o gestor não tem como saber e que é falsa.
+
+  4 testes de integração novos (22 no painel) mais uma asserção no
+  `escopo-rede.int-spec.ts`, e 4 âncoras no smoke.
 
 - [ ] **CG-068 — Implementar relatórios estratégicos**
 

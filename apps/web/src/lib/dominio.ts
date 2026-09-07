@@ -554,14 +554,42 @@ export interface PainelComite {
   alcance: {
     paises: number;
     parceiros: number;
+    /** Contados pelo nome informado na atividade; evento ainda não é cadastro. */
+    eventos: number;
     convenios: number;
     produtos: number;
   };
+  /** Despesa das missões do recorte (CG-067). Não é o orçamento — esse é a CG-055. */
+  financeiro: {
+    /** Única que abate o aporte (CG-009). */
+    validada: string | null;
+    lancada: string | null;
+  };
   porPais: { id: string; nome: string; codigoIso2: string; missoes: number }[];
-  /** A soma passa do total quando há missão de mais de uma rede — e isso está certo. */
-  porRede: { id: string; nome: string; missoes: number }[];
+  porRede: ConsolidadoDaRede[];
   pendencias: PendenciaMissao[];
   aviso: string;
+}
+
+/**
+ * Uma rede coordenadora com tudo o que o ciclo produziu nela (CG-067).
+ *
+ * **A soma destas linhas não é o consolidado**, e isso não é defeito: a missão
+ * de duas redes pertence às duas. O total sai dos campos de topo do painel,
+ * apurados sobre o recorte inteiro — cômputo diferente, não a mesma conta
+ * agregada de outro jeito.
+ */
+export interface ConsolidadoDaRede {
+  id: string;
+  nome: string;
+  missoes: number;
+  paises: number;
+  instituicoes: number;
+  eventos: number;
+  convenios: number;
+  produtos: number;
+  despesaValidada: string | null;
+  despesaLancada: string | null;
 }
 
 export type MotivoPendencia =

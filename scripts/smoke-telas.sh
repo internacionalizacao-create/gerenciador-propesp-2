@@ -112,6 +112,15 @@ if [[ "$USUARIO" == "admin" ]]; then
   # redeId invalido nao chega a API: um 400 derrubaria a pagina inteira.
   testar "/programas/capes-global/2027-2030/comite-gestor?redeId=nao-e-uuid" "Panorama das missões"
   testar_bff "/api/bff/programas/capes-global/2027-2030/comite-gestor/painel" '"pendencias"'
+  # CG-067: consolidado por rede. A ancora e o **aviso**, e nao um numero: o
+  # que a tela nao pode perder e a frase que explica por que o total nao bate
+  # com a soma da coluna. Sem ela, quem confere na calculadora conclui que a
+  # tela esta errada — e e a conferencia que esta.
+  testar "/programas/capes-global/2027-2030/comite-gestor" "Consolidado por rede"
+  testar "/programas/capes-global/2027-2030/comite-gestor" "o total não é a soma da"
+  testar "/programas/capes-global/2027-2030/comite-gestor" "Total do ciclo"
+  # Com uma rede escolhida nao ha o que consolidar, e a tabela sai da tela.
+  testar_bff "/api/bff/programas/capes-global/2027-2030/comite-gestor/painel" '"despesaValidada"'
   # CG-028: missao que nao existe — e a que existe em outra rede — respondem
   # 404 na API, e a tela precisa virar "nao encontrada" em vez de erro do
   # servidor. Era caso de URL digitada errada; com o recorte por rede virou o

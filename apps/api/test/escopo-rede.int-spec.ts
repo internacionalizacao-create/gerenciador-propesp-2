@@ -344,6 +344,9 @@ describe('Recorte por rede das missoes (CG-028)', () => {
     // Rede que a pessoa nao alcanca nao aparece com zero: nao aparece. "Rede
     // vizinha: 0 missoes" e uma afirmacao que ela nao tem como saber.
     expect(dele.porRede.map((r) => r.nome)).toEqual(['REDE-TESTE']);
+    // E a linha que sobra conta so o que e dela (CG-067): as duas missoes da
+    // rede vizinha nao entram em nenhuma coluna.
+    expect(dele.porRede[0]).toMatchObject({ missoes: 1, paises: 1 });
 
     const doComite = await painel.montar(
       base.cicloId,

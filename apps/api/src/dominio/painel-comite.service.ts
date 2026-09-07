@@ -84,6 +84,29 @@ const ANALISE_PARADA = sql`
         - ${sql.raw(String(DIAS_PARA_ANALISE_PARADA))}
 `;
 
+/**
+ * Uma rede coordenadora com tudo o que o ciclo produziu nela (CG-067).
+ *
+ * **A soma destas linhas nao e o consolidado**, e isso nao e defeito: a missao
+ * de duas redes pertence as duas, e o pais visitado por duas redes foi
+ * alcancado pelas duas. Somar a coluna contaria o mesmo fato duas vezes. O
+ * consolidado sai dos campos de topo do painel, apurados sobre o recorte
+ * inteiro — computo diferente, e nao a mesma conta agregada de outro jeito. E
+ * a mesma regra do total da CG-055.
+ */
+export interface ConsolidadoDaRede {
+  id: string;
+  nome: string;
+  missoes: number;
+  paises: number;
+  instituicoes: number;
+  eventos: number;
+  convenios: number;
+  produtos: number;
+  despesaValidada: string | null;
+  despesaLancada: string | null;
+}
+
 export interface MotivoDaPendencia {
   chave: MotivoPendencia;
   texto: string;
@@ -133,11 +156,20 @@ export interface PainelComite {
   alcance: {
     paises: number;
     parceiros: number;
+    /** Eventos distintos pelo nome; ver `AVISO_EVENTO`. */
+    eventos: number;
     convenios: number;
     produtos: number;
   };
+  /** Despesa das missoes do recorte (CG-067); nao e o orcamento, que e a CG-055. */
+  financeiro: {
+    /** Unica que abate o aporte (CG-009). */
+    validada: string | null;
+    /** Tudo o que foi lancado, em qualquer estado da prestacao. */
+    lancada: string | null;
+  };
   porPais: { id: string; nome: string; codigoIso2: string; missoes: number }[];
-  porRede: { id: string; nome: string; missoes: number }[];
+  porRede: ConsolidadoDaRede[];
   /** Uma linha por missao, com todos os motivos — nunca uma linha por motivo. */
   pendencias: PendenciaMissao[];
   aviso: string;
@@ -190,6 +222,21 @@ const AVISO =
   'uma rede coordenadora. Aprovação e execução são dimensões independentes: ' +
   'missão aprovada não é missão realizada.';
 
+/**
+ * Evento ainda nao e entidade, e a contagem carrega essa limitacao.
+ *
+ * D-10 deixou o evento reutilizavel para a F2: hoje ele e **campo de texto da
+ * atividade**, entao "eventos distintos" e a contagem de nomes distintos, com
+ * espacos e caixa normalizados. O mesmo congresso escrito de duas formas conta
+ * duas vezes, e nao ha como o sistema saber. O aviso viaja com o dado porque
+ * quem le o numero precisa saber o que ele mede — silenciar isso faria a
+ * contagem parecer exata.
+ */
+export const AVISO_EVENTO =
+  'Eventos são contados pelo nome informado em cada atividade, porque evento ' +
+  'ainda não é cadastro próprio: o mesmo congresso escrito de duas formas ' +
+  'conta duas vezes.';
+
 @Injectable()
 export class PainelComiteService {
   constructor(@Inject(DRIZZLE) private readonly db: Database) {}
@@ -220,7 +267,7 @@ export class PainelComiteService {
     return {
       recorte: { ano: filtro.ano ?? null, redeId, redeNome: rede },
       ...contagens,
-      alcance,
+      ...alcance,
       porPais,
       porRede,
       pendencias,
@@ -395,21 +442,44 @@ export class PainelComiteService {
                   from atividade_missao a
                  where a.missao_id in (select id from recorte)
                    and a.instituicao_id is not null) as parceiros,
+               (select count(distinct lower(btrim(a.evento_nome)))
+                  from atividade_missao a
+                 where a.missao_id in (select id from recorte)
+                   and btrim(coalesce(a.evento_nome, '')) <> '') as eventos,
                (select count(*)
                   from convenio c
                  where c.missao_origem_id in (select id from recorte)
                    and c.ativo) as convenios,
                (select count(*)
                   from produto_missao p
-                 where p.missao_id in (select id from recorte)) as produtos
+                 where p.missao_id in (select id from recorte)) as produtos,
+               (select sum(d.valor_total)
+                  from despesa_missao d
+                  join prestacao_contas_missao pc on pc.id = d.prestacao_id
+                 where pc.missao_id in (select id from recorte)
+                   and pc.status = 'VALIDADA') as despesa_validada,
+               (select sum(d.valor_total)
+                  from despesa_missao d
+                  join prestacao_contas_missao pc on pc.id = d.prestacao_id
+                 where pc.missao_id in (select id from recorte)) as despesa_lancada
       `,
     );
 
     return {
-      paises: Number(linha.paises),
-      parceiros: Number(linha.parceiros),
-      convenios: Number(linha.convenios),
-      produtos: Number(linha.produtos),
+      alcance: {
+        paises: Number(linha.paises),
+        parceiros: Number(linha.parceiros),
+        eventos: Number(linha.eventos),
+        convenios: Number(linha.convenios),
+        produtos: Number(linha.produtos),
+      },
+      // Nulo e "nao ha lancamento", e a interface escreve *A definir*; zero
+      // seria "lancaram e deu zero". `coalesce(...,0)` cedo demais apagaria a
+      // diferenca — a mesma regra da CG-055.
+      financeiro: {
+        validada: linha.despesa_validada ?? null,
+        lancada: linha.despesa_lancada ?? null,
+      },
     };
   }
 
@@ -465,29 +535,82 @@ export class PainelComiteService {
     cicloId: string,
     escopo: SQL,
     recorte: RecorteDeMissoes,
-  ) {
-    return (
-      await consultar<{ id: string; nome: string; missoes: string }>(
-        this.db,
-        sql`
-          select r.id,
-                 r.nome,
-                 (select count(*)
-                    from missao_rede mr
-                   where mr.rede_id = r.id
-                     and mr.missao_id in (
-                       select m.id from missao_comite m where ${escopo}
-                     )) as missoes
-            from rede_coordenadora r
-           where r.ciclo_id = ${cicloId}
-             and ${recorte.sobreRede(sql`r.id`)}
-           order by r.nome
-        `,
-      )
-    ).map((linha) => ({
-      id: linha.id,
-      nome: linha.nome,
+  ): Promise<ConsolidadoDaRede[]> {
+    const linhas = await consultar<Record<string, string | null>>(
+      this.db,
+      sql`
+        with recorte as (
+          select m.id from missao_comite m where ${escopo}
+        ),
+        -- Uma linha por (rede, missao). A missao de duas redes aparece nas
+        -- duas de proposito: ela pertence as duas, e e isso que faz a soma da
+        -- coluna passar do consolidado. Ver ConsolidadoDaRede, no contrato.
+        da_rede as (
+          select mr.rede_id, mr.missao_id
+            from missao_rede mr
+           where mr.missao_id in (select id from recorte)
+        )
+        select r.id,
+               r.nome,
+               (select count(*) from da_rede d where d.rede_id = r.id)
+                 as missoes,
+               -- distinct em toda contagem de alcance: o mesmo pais visitado
+               -- em tres paradas e um pais.
+               (select count(distinct a.pais_id)
+                  from atividade_missao a
+                  join da_rede d
+                    on d.missao_id = a.missao_id and d.rede_id = r.id
+                 where a.pais_id is not null) as paises,
+               (select count(distinct a.instituicao_id)
+                  from atividade_missao a
+                  join da_rede d
+                    on d.missao_id = a.missao_id and d.rede_id = r.id
+                 where a.instituicao_id is not null) as instituicoes,
+               (select count(distinct lower(btrim(a.evento_nome)))
+                  from atividade_missao a
+                  join da_rede d
+                    on d.missao_id = a.missao_id and d.rede_id = r.id
+                 where btrim(coalesce(a.evento_nome, '')) <> '') as eventos,
+               (select count(*)
+                  from convenio c
+                  join da_rede d
+                    on d.missao_id = c.missao_origem_id and d.rede_id = r.id
+                 where c.ativo) as convenios,
+               (select count(*)
+                  from produto_missao p
+                  join da_rede d
+                    on d.missao_id = p.missao_id and d.rede_id = r.id)
+                 as produtos,
+               (select sum(de.valor_total)
+                  from despesa_missao de
+                  join prestacao_contas_missao pc on pc.id = de.prestacao_id
+                  join da_rede d
+                    on d.missao_id = pc.missao_id and d.rede_id = r.id
+                 where pc.status = 'VALIDADA') as despesa_validada,
+               (select sum(de.valor_total)
+                  from despesa_missao de
+                  join prestacao_contas_missao pc on pc.id = de.prestacao_id
+                  join da_rede d
+                    on d.missao_id = pc.missao_id and d.rede_id = r.id)
+                 as despesa_lancada
+          from rede_coordenadora r
+         where r.ciclo_id = ${cicloId}
+           and ${recorte.sobreRede(sql`r.id`)}
+         order by r.nome
+      `,
+    );
+
+    return linhas.map((linha) => ({
+      id: linha.id as string,
+      nome: linha.nome as string,
       missoes: Number(linha.missoes),
+      paises: Number(linha.paises),
+      instituicoes: Number(linha.instituicoes),
+      eventos: Number(linha.eventos),
+      convenios: Number(linha.convenios),
+      produtos: Number(linha.produtos),
+      despesaValidada: linha.despesa_validada,
+      despesaLancada: linha.despesa_lancada,
     }));
   }
 

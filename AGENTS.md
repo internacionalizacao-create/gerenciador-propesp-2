@@ -934,7 +934,21 @@ o ícone estiver visível.
   missão de origem. A página busca os aportes **antes** do painel porque é
   deles que sai a lista de exercícios contra a qual o `?ano=` é conferido.
 
-  **Missão encerrada não volta a "resposta indefinida" (CG-059).** Encerrar
+  **O consolidado por rede (CG-067)** é uma tabela dentro do mesmo painel, e
+  não página nova — seria a terceira tela a apurar as mesmas missões, e a
+  terceira a divergir. Cada rede traz missões, países, parceiros, eventos,
+  convênios, produtos e despesa (validada e lançada em colunas separadas).
+  **A linha "Total do ciclo" não é a soma da coluna, e a tela diz isso**: a
+  missão de duas redes pertence às duas, e o total vem de um cômputo próprio
+  sobre o recorte inteiro. Na prática as linhas somam 3 missões onde o total diz
+  2 — sem o aviso, quem confere na calculadora acha que a tela erra. Contagem de
+  alcance é `distinct`, e **dinheiro nunca passa por `join missao_rede`**
+  (verificado por mutação). **Evento é contado pelo nome informado na
+  atividade**, com espaços e caixa normalizados: D-10 deixou o cadastro de
+  evento para a F2, então o mesmo congresso escrito de duas formas conta duas
+  vezes — e o aviso viaja junto com o dado.
+
+    **Missão encerrada não volta a "resposta indefinida" (CG-059).** Encerrar
   afirma que os requisitos foram atendidos, e o checklist é recalculado a cada
   leitura — remover o único produto depois faria a afirmação virar mentira em
   silêncio, deixando uma missão fechada exibindo pendência. **O congelamento é
@@ -978,7 +992,7 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
 - **Testes**: 154 unitários/regressões (68 API + 86 na web para toast, datas,
   React Hook Form/Zod, erros do multistep, formulários de parceiro,
   acessibilidade, contraste dos tokens, cálculos monetários, montagem de série
-  do gráfico e caminhos do BFF) + 437 de integração contra Postgres
+  do gráfico e caminhos do BFF) + 441 de integração contra Postgres
   real. As duas garantias de não duplicação da linha
   histórica do parceiro foram verificadas por mutação: trocar o `exists` +
   `selectDistinct` por um `join` faz ambas falharem.

@@ -563,7 +563,7 @@ function Painel({
         <Cartao
           titulo="Resultados"
           valor={inteiro(dados.alcance.produtos)}
-          nota={`${inteiro(dados.alcance.parceiros)} parceiros visitados · ${inteiro(dados.alcance.convenios)} convênios originados`}
+          nota={`${inteiro(dados.alcance.parceiros)} parceiros · ${inteiro(dados.alcance.eventos)} eventos · ${inteiro(dados.alcance.convenios)} convênios`}
         />
       </Cartoes>
 
@@ -597,9 +597,122 @@ function Painel({
       ) : null}
 
       <div className="mt-10">
+        <ConsolidadoPorRede dados={dados} base={base} />
+      </div>
+
+      <div className="mt-10">
         <Pendencias dados={dados} base={base} />
       </div>
     </Secao>
+  );
+}
+
+/**
+ * Consolidado por rede coordenadora (CG-067).
+ *
+ * **A linha "Total do ciclo" não é a soma da coluna, e a tela diz isso.** A
+ * missão de duas redes pertence às duas, e o país visitado por duas redes foi
+ * alcançado pelas duas — somar contaria o mesmo fato duas vezes. O total vem de
+ * um cômputo próprio sobre o recorte inteiro, o mesmo que alimenta os cartões
+ * acima; é a mesma regra do consolidado da CG-055.
+ *
+ * Sem o aviso, quem confere a soma na calculadora conclui que a tela está
+ * errada — e é a conferência que está.
+ *
+ * Some com o recorte por rede ativo: com uma rede escolhida não há o que
+ * consolidar, e a tabela repetiria os cartões.
+ */
+function ConsolidadoPorRede({
+  dados,
+  base,
+}: {
+  dados: PainelComite;
+  base: string;
+}) {
+  if (dados.recorte.redeId || dados.porRede.length < 2) return null;
+
+  const linkDaRede = (redeId: string) =>
+    linkDaLista(base, dados.recorte, { redeId }, "missoes");
+
+  return (
+    <>
+      <h3 className="mb-1 text-sm font-semibold text-foreground">
+        Consolidado por rede
+      </h3>
+      <p className="mb-4 text-xs leading-5 text-subtle">
+        A missão de mais de uma rede pertence às duas e aparece nas duas linhas.
+        Por isso <strong className="font-medium">o total não é a soma da
+        coluna</strong>: ele conta cada missão, país e despesa uma única vez.
+      </p>
+      <Tabela
+        rotulo="Consolidado por rede coordenadora"
+        colunas={[
+          { chave: "rede", texto: "Rede" },
+          { chave: "missoes", texto: "Missões", alinhamento: "direita" },
+          { chave: "paises", texto: "Países", alinhamento: "direita" },
+          { chave: "inst", texto: "Parceiros", alinhamento: "direita" },
+          { chave: "eventos", texto: "Eventos", alinhamento: "direita" },
+          { chave: "conv", texto: "Convênios", alinhamento: "direita" },
+          { chave: "prod", texto: "Produtos", alinhamento: "direita" },
+          { chave: "validada", texto: "Despesa validada", alinhamento: "direita" },
+          { chave: "lancada", texto: "Lançado", alinhamento: "direita" },
+        ]}
+        rodape={
+          <tr>
+            <Celula>
+              <span className="font-medium text-foreground">Total do ciclo</span>
+              <p className="mt-0.5 text-xs font-normal text-subtle">
+                não é a soma acima
+              </p>
+            </Celula>
+            <Celula direita>{inteiro(dados.missoes)}</Celula>
+            <Celula direita>{inteiro(dados.alcance.paises)}</Celula>
+            <Celula direita>{inteiro(dados.alcance.parceiros)}</Celula>
+            <Celula direita>{inteiro(dados.alcance.eventos)}</Celula>
+            <Celula direita>{inteiro(dados.alcance.convenios)}</Celula>
+            <Celula direita>{inteiro(dados.alcance.produtos)}</Celula>
+            <Celula direita>
+              <Moeda valor={dados.financeiro.validada} forte />
+            </Celula>
+            <Celula direita>
+              <Moeda valor={dados.financeiro.lancada} />
+            </Celula>
+          </tr>
+        }
+      >
+        {dados.porRede.map((rede) => (
+          <tr key={rede.id}>
+            <Celula>
+              <Link
+                href={linkDaRede(rede.id)}
+                className="font-medium text-foreground hover:text-primary hover:underline"
+              >
+                {rede.nome}
+              </Link>
+            </Celula>
+            <Celula direita>{inteiro(rede.missoes)}</Celula>
+            <Celula direita>{inteiro(rede.paises)}</Celula>
+            <Celula direita>{inteiro(rede.instituicoes)}</Celula>
+            <Celula direita>{inteiro(rede.eventos)}</Celula>
+            <Celula direita>{inteiro(rede.convenios)}</Celula>
+            <Celula direita>{inteiro(rede.produtos)}</Celula>
+            <Celula direita>
+              {/* Só a validada abate o aporte (CG-009); as duas colunas existem
+                  para que a diferença fique visível. */}
+              <Moeda valor={rede.despesaValidada} />
+            </Celula>
+            <Celula direita>
+              <Moeda valor={rede.despesaLancada} />
+            </Celula>
+          </tr>
+        ))}
+      </Tabela>
+      <p className="mt-3 text-xs leading-5 text-subtle">
+        Eventos são contados pelo nome informado em cada atividade, porque
+        evento ainda não é cadastro próprio: o mesmo congresso escrito de duas
+        formas conta duas vezes.
+      </p>
+    </>
   );
 }
 
