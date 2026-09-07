@@ -448,17 +448,17 @@ Marque cada bloco. Um bloco aceito destrava as tasks da última coluna.
 
 | Bloco | Decisão | Destrava |
 |---|---|---|
-| CG-005 — classificação das 40 seções | ☐ Aceito ☐ Ajustar ☐ Rejeitar | recorte de todas as entregas |
+| CG-005 — classificação das 40 seções | ☑ **Aceito em 2026-09-07** | recorte de todas as entregas |
 | CG-005 — arquitetura da informação (§39) | ☑ **Aceito em 2026-09-05** | CG-040, CG-045, CG-047 |
-| CG-006 — quatro dimensões de estado | ☐ Aceito ☐ Ajustar ☐ Rejeitar | CG-010, CG-016, CG-034 |
-| CG-006 — migração dos estados atuais | ☐ Aceito ☐ Ajustar ☐ Rejeitar | CG-015 |
-| CG-007 — matriz entidade–rede | ☐ Aceito ☐ Ajustar ☐ Rejeitar | CG-016, CG-017 |
-| CG-007 — matriz perfil–escopo e "Minha rede" | ☐ Aceito ☐ Ajustar ☐ Rejeitar | CG-003, CG-028 |
+| CG-006 — quatro dimensões de estado | ☑ **Aceito em 2026-09-07** | CG-010, CG-016, CG-034 |
+| CG-006 — migração dos estados atuais | ☑ **Aceito em 2026-09-07** | CG-015 |
+| CG-007 — matriz entidade–rede | ☑ **Aceito em 2026-09-07** | CG-016, CG-017 |
+| CG-007 — matriz perfil–escopo e "Minha rede" | ☑ **Aceito em 2026-09-07** | CG-003, CG-028 |
 | CG-008 — modelo B de aprovação | ☑ **Aceito em 2026-09-05, com um ajuste** | CG-019, CG-037, CG-038, CG-047, CG-048 |
-| CG-009 — tabela requisito–momento–efeito | ☐ Aceito ☐ Ajustar ☐ Rejeitar | CG-013, CG-050, CG-055 |
-| CG-009 — modelo de despesas e cotações | ☐ Aceito ☐ Ajustar ☐ Rejeitar | CG-013, CG-050 |
-| CG-009 — formatos, tamanho e retenção | ☐ Aceito ☐ Ajustar ☐ Rejeitar | CG-014, CG-051, CG-061 |
-| CG-009 — checklist condicional e dispensa | ☐ Aceito ☐ Ajustar ☐ Rejeitar | CG-058 |
+| CG-009 — tabela requisito–momento–efeito | ☑ **Aceito em 2026-09-07** | CG-013, CG-050, CG-055 |
+| CG-009 — modelo de despesas e cotações | ☑ **Aceito em 2026-09-07** | CG-013, CG-050 |
+| CG-009 — formatos, tamanho e retenção | ☑ **Aceito em 2026-09-07** | CG-014, CG-051, CG-061 |
+| CG-009 — checklist condicional e dispensa | ☑ **Aceito em 2026-09-07** | CG-058 |
 
 ### Decisões tomadas em 2026-09-05
 
@@ -510,6 +510,42 @@ Documento do Office é o vetor clássico de macro, e este projeto **ainda não t
 antivírus** — o ponto de inserção está marcado em `validarArquivo`, e até ele
 existir cada formato a menos é uma porta a menos. Arquivos já enviados
 continuam válidos e baixáveis: a validação acontece no envio, não na leitura.
+
+### Decisões tomadas em 2026-09-07 (segunda rodada)
+
+O responsável aceitou **as quatro folhas restantes como estão** — CG-005, CG-006,
+CG-007 e CG-009. Não houve ajuste, e a folha acima passou a estar inteiramente
+marcada.
+
+O que isso significa na prática: **o código já seguia todas elas**. As tasks
+foram construídas sobre as propostas deste documento desde 2026-09-01, e o que
+faltava era o registro do aceite, não a implementação. Duas consequências,
+porém, valem ser ditas em voz alta, porque afirmam coisas sobre dados que já
+existem:
+
+- **A migração de estados da CG-006** dá `CONFIRMADA → aprovação APROVADA` e
+  `CONCLUIDA → realização REALIZADA` às missões cadastradas antes das quatro
+  dimensões existirem. É uma afirmação sobre o passado, feita sem documento que
+  a comprove — e por isso precisava de aceite explícito, não de inferência.
+- **A classificação das 40 seções da CG-005** fixa o que fica fora do MVP. O
+  Participante (F2) é o caso que mais aparece: ele está na matriz perfil–escopo
+  e **não** foi implementado na CG-028, exatamente porque a folha o marca como
+  fase seguinte.
+
+Três decisões novas foram tomadas junto, e essas mudam ou dirigem código:
+
+| Ponto | Decisão | Efeito |
+|---|---|---|
+| Relatórios oficiais (CG-068) | Os quatro: **missões, parceiros, finanças e resultados** | Define o escopo da CG-068 e, por consequência, o que a CG-069 exporta |
+| Dossiê final da missão (CG-069) | **PDF único** | Foto e comprovante entram renderizados; não há pacote a montar do lado de quem recebe |
+| Visibilidade de documento `RESTRITA` | **Administrador, Comitê Gestor e quem enviou** | Fechou uma contradição: a matriz da CG-003 dá ao Comitê leitura de todos os documentos, e a regra herdada da CG-014 o deixava de fora |
+
+A visibilidade virou a permissão `documento:read-restrito`, concedida a `admin` e
+`comite-gestor`. Antes a regra era `usuario.roles.includes('admin')` **dentro do
+serviço** — papel no lugar de permissão, exatamente o que a indireção do módulo
+de autorização existe para evitar. Quem enviou continua vendo o próprio arquivo
+sem depender da permissão: é o único jeito de conferir o que acabou de subir, e
+essa pessoa já conhece o conteúdo.
 
 ### Perguntas que só a equipe pode responder
 

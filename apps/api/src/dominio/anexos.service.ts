@@ -570,13 +570,29 @@ export class AnexosService {
     }
   }
 
-  /** `RESTRITA` fica com o administrador e com quem enviou (CG-014, proposta). */
+  /**
+   * `RESTRITA` fica com quem tem `documento:read-restrito` e com quem enviou.
+   *
+   * Homologado em 2026-09-07: **o Comite Gestor passou a entrar**, porque a
+   * matriz aprovada na CG-003 lhe da leitura de todos os documentos e a regra
+   * anterior o deixava de fora — a tela dizia uma coisa e a matriz, outra.
+   *
+   * Quem enviou continua vendo o proprio arquivo sem a permissao: e o unico
+   * jeito de a pessoa conferir o que acabou de subir, e ela ja conhece o
+   * conteudo.
+   *
+   * O recorte por rede e verificado antes disto, em `exigirAcesso`: esta funcao
+   * responde so a visibilidade, e nao "de que rede e o documento".
+   */
   private podeVer(
     anexo: { visibilidade: string; enviadoPorId: string | null },
     usuario: AuthUser,
   ): boolean {
     if (anexo.visibilidade !== 'RESTRITA') return true;
-    return usuario.roles.includes('admin') || anexo.enviadoPorId === usuario.id;
+    return (
+      usuario.permissions.includes('documento:read-restrito') ||
+      anexo.enviadoPorId === usuario.id
+    );
   }
 
   private async obter(id: string) {

@@ -886,8 +886,8 @@ o ícone estiver visível.
   (`diasDesde`), e o destaque cai em **7 dias** porque a reunião é semanal —
   passar disso significa que a missão atravessou uma reunião. A fila carrega no
   máximo 100 e avisa quando há mais. **O recorte por rede do critério de aceite
-  é a CG-028** e não foi entregue; quando entrar, vale para a fila sem mudança,
-  porque ela usa o mesmo `listar`.
+  chegou com a CG-028** e valeu para a fila sem uma linha de mudança, porque ela
+  usa o mesmo `listar` — era o que essa decisão comprava.
 
   **Fotos e evidências (CG-057)** ficam numa galeria própria na aba Documentos,
   separada da tabela: misturá-las faria a foto do jantar aparecer na lista dos
@@ -902,9 +902,12 @@ o ícone estiver visível.
   escolher entre desfazer arquivos válidos e esconder a falha; um a um, o
   resultado honesto é o parcial. A foto é servida pelo próprio
   `/anexos/:id/conteudo`, sem miniatura gerada — um segundo caminho para a mesma
-  imagem seria um segundo lugar para errar a autorização. **`RESTRITA` hoje é
-  visível ao `admin` e a quem enviou**, regra herdada da CG-014 e marcada lá
-  como proposta não homologada.
+  imagem seria um segundo lugar para errar a autorização. **`RESTRITA` é visível a quem
+  tem `documento:read-restrito` — `admin` e Comitê Gestor — e a quem enviou**
+  (homologado em 2026-09-07). O Comitê entrou porque a matriz aprovada lhe dá
+  leitura de todos os documentos, e a regra herdada da CG-014 o deixava de fora.
+  A checagem era `roles.includes('admin')` dentro do serviço, papel no lugar de
+  permissão — o que a indireção do §6 existe para evitar.
 
   **O painel do Comitê (CG-066)** é a seção *Panorama das missões*, na aba
   Visão geral, servida por `GET .../comite-gestor/painel?ano=&redeId=`.

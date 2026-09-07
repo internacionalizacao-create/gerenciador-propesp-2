@@ -383,7 +383,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   Critério de aceite: fluxo validado com os campos obrigatórios e ações
   disponíveis em cada estado.
 
-- [~] **CG-005 — Homologar o novo escopo e as fases**
+- [x] **CG-005 — Homologar o novo escopo e as fases**
 
   Revisar com a equipe cada bloco do documento recebido e classificá-lo como:
 
@@ -405,11 +405,13 @@ Essa situação é calculada a partir das datas e não é persistida.
   MVP/F2/VF/FE está pronta em
   [homologacao-comite-gestor.md](homologacao-comite-gestor.md), com a
   justificativa de cada linha e uma proposta de arquitetura da informação que
-  recusa o menu de 12 grupos da §39 enquanto não houver dado. **Falta apenas o
-  aceite da equipe** — a task só fecha quando a folha de aprovação estiver
-  marcada.
+  recusa o menu de 12 grupos da §39 enquanto não houver dado.
 
-- [~] **CG-006 — Redefinir o modelo de estados da missão**
+  **Aceita em 2026-09-07**, sem ajuste. O que a classificação fixa e que vale
+  repetir: o **Participante é F2** — está na matriz perfil–escopo e não foi
+  implementado na CG-028 exatamente porque a folha o marca como fase seguinte.
+
+- [x] **CG-006 — Redefinir o modelo de estados da missão**
 
   Separar e homologar:
 
@@ -435,10 +437,14 @@ Essa situação é calculada a partir das datas e não é persistida.
   cinco status atuais, em
   [homologacao-comite-gestor.md](homologacao-comite-gestor.md). Duas escolhas da
   migração afirmam coisas sobre dados existentes (`CONFIRMADA` → `APROVADA` e
-  `CONCLUIDA` → realização `REALIZADA`) e por isso precisam de aceite explícito.
-  Falta o aceite.
+  `CONCLUIDA` → realização `REALIZADA`) e por isso precisavam de aceite
+  explícito.
 
-- [~] **CG-007 — Definir redes e escopos do módulo**
+  **Aceita em 2026-09-07.** As duas afirmações valem: são declarações sobre o
+  passado feitas sem documento que as comprove, e é por isso que não podiam ser
+  inferidas pelo desenvolvedor.
+
+- [x] **CG-007 — Definir redes e escopos do módulo**
 
   Confirmar:
 
@@ -460,9 +466,12 @@ Essa situação é calculada a partir das datas e não é persistida.
   N:N de no mínimo uma rede, “Minha rede” definida a partir de
   `membro_equipe_gestao_rede` (que já tem a carga formal) e as permissões novas
   `missao:submit`, `missao:decide`, `missao:reopen` e `parceiro:read|write`.
-  Falta o aceite.
 
-- [~] **CG-008 — Definir a governança da aprovação do Comitê**
+  **Aceita em 2026-09-07.** A matriz perfil–escopo já vinha aprovada pela CG-003
+  e implementada pela CG-028; o que faltava era o registro da matriz
+  entidade–rede, que o schema segue desde a CG-016.
+
+- [x] **CG-008 — Definir a governança da aprovação do Comitê**
 
   Decidir:
 
@@ -1497,7 +1506,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   segue um link antigo para a missão da rede vizinha, e agora vira a página
   "não encontrada".
 
-- [~] **CG-029 — Testar parceiros, contatos e escopo**
+- [x] **CG-029 — Testar parceiros, contatos e escopo**
 
   Cobrir deduplicação, conciliação, inativação, contato principal, histórico,
   missão multirrede e isolamento entre perfis/redes.
@@ -1526,12 +1535,20 @@ Essa situação é calculada a partir das datas e não é persistida.
   `exists` + `selectDistinct` por um `join` com atividade, ambos falham. Não
   passam por acidente.
 
-  **Falta apenas o isolamento horizontal** — leitura e escrita entre redes,
-  inclusive por ID adulterado. Isso não é adiamento: o escopo por rede não
-  existe (CG-028), e hoje todo o módulo é exclusivo do `admin`, então não há
-  fronteira horizontal para violar. O teste nasce junto com a regra.
+  Situação em 2026-09-07: **fechada**. O isolamento horizontal que faltava
+  nasceu junto com a regra, como previsto — a CG-028 trouxe 20 casos em
+  `escopo-rede.int-spec.ts`, incluindo o **ID adulterado** exigido pelo critério
+  de aceite: uuid de missão de outra rede responde 404, e não 403.
 
-  Resultado geral: **44 unitários da API, 35 regressões da web e 203
+  Um esclarecimento que a CG-028 obrigou: **parceiro e contato não têm fronteira
+  horizontal por rede.** A matriz aprovada dá leitura ampla de parceiros a todos
+  os perfis, e escrita ao `admin` e ao Gestor da Rede. Não é lacuna de teste —
+  é o desenho: cadastro institucional invisível seria recadastrado em
+  duplicidade pela rede vizinha, que é justamente o que as CG-025 e CG-026
+  existem para impedir. O que se recorta é a **missão**, e o documento herda o
+  recorte dela.
+
+  Resultado geral: **68 unitários da API, 86 regressões da web e 437
   integrações aprovados**.
 
 ### Épico 3 — Missões na API
@@ -2169,7 +2186,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   `CampoCombobox` ganhou seu primeiro uso real aqui (país e parceiro da
   atividade extra) — foi criado na CG-045 e até agora nenhuma tela o consumia.
 
-- [~] **CG-047 — Construir fila de análise do Comitê**
+- [x] **CG-047 — Construir fila de análise do Comitê**
 
   Exibir missões aguardando análise ou reanálise com filtros por rede, país,
   período, responsável e rodada, incluindo indicadores clicáveis que preservam
@@ -2222,12 +2239,14 @@ Essa situação é calculada a partir das datas e não é persistida.
   rodadas. Verificado na aplicação com dado real: MCG-001 na fila, 3ª rodada,
   aguardando há 1 dia.
 
-  **A segunda metade do critério de aceite não foi entregue, e não podia ser:**
-  "Gestor da Rede nunca recebe missão fora do seu escopo" é a CG-028, que você
-  adiou. Hoje o papel `gestor-rede` não é atribuído a ninguém e missões não
-  consultam escopo — a fila mostra todas as redes para todos que a alcançam, que
-  por ora é só o `admin`. Quando a CG-028 entrar, o recorte vale para a fila sem
-  mudança aqui: ela usa o mesmo `listar`.
+  **A segunda metade do critério de aceite chegou com a CG-028**, em 2026-09-07,
+  e valeu para a fila **sem uma linha de mudança aqui** — era exatamente o que a
+  decisão de reusar `listar` comprava. Um serviço próprio para a fila teria
+  exigido aplicar o recorte duas vezes, e a segunda é a que alguém esquece.
+
+  Hoje o Gestor da Rede vê na fila apenas as missões das redes do seu vínculo
+  ativo, e o Comitê continua vendo as três por causa de `missao:all-redes`. A
+  task fecha aqui.
 
 - [x] **CG-048 — Construir tela de análise e parecer**
 

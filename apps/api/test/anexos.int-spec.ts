@@ -4,6 +4,7 @@ import { join } from 'node:path';
 
 import type { AuthUser } from '../src/auth/auth-user';
 import { IdentidadeService } from '../src/auth/identidade.service';
+import { permissionsForRoles } from '../src/auth/permissions';
 import { ArmazenamentoService } from '../src/arquivos/armazenamento.service';
 import * as s from '../src/database/schema';
 import {
@@ -41,6 +42,20 @@ const somenteMissao: AuthUser = {
   name: 'Leitor de Missões',
   roles: ['coordenador'],
   permissions: ['missao:read', 'missao:all-redes'],
+};
+
+/**
+ * Membro do Comite Gestor, com as permissoes reais do papel.
+ *
+ * Montado por `permissionsForRoles`, e nao a mao: uma lista escrita aqui
+ * continuaria passando no dia em que o mapa de permissoes mudasse, e e
+ * exatamente essa mudanca que este caso precisa acompanhar.
+ */
+const comite: AuthUser = {
+  id: 'membro-comite',
+  name: 'Membro do Comite',
+  roles: ['comite-gestor'],
+  permissions: permissionsForRoles(['comite-gestor']),
 };
 
 const bytes = (hex: string, sobra = 64) =>
@@ -355,6 +370,25 @@ describe('AnexosService (CG-051)', () => {
 
     // Quem enviou continua vendo.
     expect((await service.baixar(restrito.id, admin)).nome).toBe('projeto.pdf');
+
+    // E o Comite tambem, desde 2026-09-07: a matriz aprovada na CG-003 lhe da
+    // leitura de **todos** os documentos, e a regra anterior — `admin` e quem
+    // enviou — o deixava de fora. Passou a ser `documento:read-restrito`, e nao
+    // mais um teste de papel dentro do servico.
+    expect(comite.permissions).toContain('documento:read-restrito');
+    expect((await service.baixar(restrito.id, comite)).nome).toBe(
+      'projeto.pdf',
+    );
+    expect(
+      await service.listar(
+        {
+          entidadeTipo: 'MISSAO_COMITE',
+          entidadeId: missaoId,
+          incluirInativos: false,
+        },
+        comite,
+      ),
+    ).toHaveLength(1);
   });
 
   it('inativar exige justificativa e deixa trilha, sem apagar', async () => {

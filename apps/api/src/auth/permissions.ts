@@ -69,6 +69,18 @@ export const PERMISSIONS = [
    * pelas outras permissoes, e ele nao tem `missao:write` nem `missao:edit`.
    */
   'missao:all-redes',
+  /**
+   * Abrir documento marcado como `RESTRITA` (CG-014, homologado em 2026-09-07).
+   *
+   * Antes disso a regra era `usuario.roles.includes('admin')` — papel dentro do
+   * servico, que e justamente o que a indirecao de permissoes existe para
+   * evitar. A permissao propria tambem separa duas perguntas que so por acaso
+   * tem hoje a mesma resposta: "alcanca todas as redes" e "pode abrir o que foi
+   * marcado como restrito".
+   *
+   * Quem enviou o arquivo continua vendo o proprio, sem depender dela.
+   */
+  'documento:read-restrito',
   /** Ler e conceder escopo de acesso; ato administrativo, so do `admin`. */
   'acesso:read',
   'acesso:write',
@@ -179,6 +191,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<string, readonly Permission[]>> =
       'missao:read',
       'missao:all-redes',
       'missao:decide',
+      'documento:read-restrito',
       'parceiro:read',
       'prestacao:read',
     ],
