@@ -835,6 +835,21 @@ o ícone estiver visível.
   payload, e não só na tela: o valor digitado antes continua no estado do React
   Hook Form. `AtividadeMissao.status` é o enum nos dois lados, não `string`.
 
+  **A fila de análise (CG-047)** é a quarta aba da P17 (`?aba=analise`). **O que
+  define a fila é a rodada aberta** (`encerrada_em is null`), não o
+  `status_aprovacao` sozinho: os dois andam juntos hoje, mas quem responde
+  "aguarda decisão desde quando" é a rodada. Ela reusa `listar` com dois filtros
+  novos (`statusAprovacao` e `rodada`) — um serviço próprio duplicaria a
+  superfície de filtro e divergiria na primeira mudança. **`rodada` casa com a
+  rodada em aberto, nunca com a encerrada:** missão devolvida para ajustes
+  aguarda quem a reenvie, não o Comitê. "Análise" e "reanálise" não são estados,
+  são o número da rodada. `diasEsperando` conta dias civis em `America/Manaus`
+  (`diasDesde`), e o destaque cai em **7 dias** porque a reunião é semanal —
+  passar disso significa que a missão atravessou uma reunião. A fila carrega no
+  máximo 100 e avisa quando há mais. **O recorte por rede do critério de aceite
+  é a CG-028** e não foi entregue; quando entrar, vale para a fila sem mudança,
+  porque ela usa o mesmo `listar`.
+
   **Fotos e evidências (CG-057)** ficam numa galeria própria na aba Documentos,
   separada da tabela: misturá-las faria a foto do jantar aparecer na lista dos
   documentos exigidos para aprovação. Os dois critérios de aceite já vinham da
@@ -893,7 +908,7 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
 - **Testes**: 146 unitários/regressões (67 API + 79 na web para toast, datas,
   React Hook Form/Zod, erros do multistep, formulários de parceiro,
   acessibilidade, contraste dos tokens, cálculos monetários, montagem de série
-  do gráfico e caminhos do BFF) + 392 de integração contra Postgres
+  do gráfico e caminhos do BFF) + 399 de integração contra Postgres
   real. As duas garantias de não duplicação da linha
   histórica do parceiro foram verificadas por mutação: trocar o `exists` +
   `selectDistinct` por um `join` faz ambas falharem.

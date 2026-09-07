@@ -591,6 +591,18 @@ export interface MissaoResumo {
   redes: string[];
   /** Nulo quando não há prestação; a interface nunca apresenta R$ 0,00. */
   valorPrestado: string | null;
+  /**
+   * Rodada de análise **em aberto** (CG-047). Nula fora da fila.
+   *
+   * É ela que define a fila, não o `statusAprovacao` sozinho: os dois andam
+   * juntos hoje, mas quem responde "aguarda decisão desde quando" é a rodada.
+   */
+  rodadaAberta: {
+    numero: number;
+    submetidoEm: string;
+    submetidoPor: string | null;
+    diasEsperando: number;
+  } | null;
 }
 
 /**

@@ -40,3 +40,17 @@ export function dataHojeEmManaus(data = new Date()): string {
   );
   return `${valor.year}-${valor.month}-${valor.day}`;
 }
+
+/**
+ * Dias civis decorridos desde um instante, no fuso institucional (CG-047).
+ *
+ * Conta **dias de calendario**, nao periodos de 24 horas: uma missao enviada
+ * ontem as 23h espera "1 dia", nao "0". A fila existe para responder "ha quanto
+ * tempo isto esta parado", e quem olha pensa em dias do calendario — arredondar
+ * por hora faria o numero mudar ao longo do dia sem nada ter acontecido.
+ */
+export function diasDesde(instante: Date, agora = new Date()): number {
+  const de = dataHojeEmManaus(instante);
+  const ate = dataHojeEmManaus(agora);
+  return Math.max(0, calcularDiasInclusivos(de, ate) - 1);
+}

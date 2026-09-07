@@ -6,6 +6,7 @@ import {
 } from "@/componentes/formularios/form-membro-equipe";
 import { NovaMissaoComite } from "@/componentes/formularios/form-missao-comite";
 import {
+  Aviso,
   Cartao,
   Cartoes,
   Celula,
@@ -34,7 +35,7 @@ import type {
 } from "@/lib/dominio";
 import { data, inteiro, percentual, rotulo, somarMoeda } from "@/lib/formato";
 
-type Aba = "visao-geral" | "missoes" | "equipes";
+type Aba = "visao-geral" | "missoes" | "analise" | "equipes";
 
 /** Filtros da aba Missões, exatamente como chegam da query string. */
 type ConsultaMissoes = Record<string, string | string[] | undefined>;
@@ -59,6 +60,7 @@ const CAMPOS_FILTRO = [
   "status",
   "situacaoTemporal",
   "situacaoPrestacao",
+  "rodada",
   "pagina",
 ] as const;
 
@@ -177,7 +179,7 @@ export default async function ComiteGestorPagina({
         `/programas/${programa}/${ciclo}/comite-gestor/equipes`,
       ),
       apiFetch<PessoaDisponivel[]>("/pessoas"),
-      aba === "missoes"
+      aba === "missoes" || aba === "analise"
         ? apiFetch<ReferenciasMissao>(
             `/programas/${programa}/${ciclo}/comite-gestor/referencias-missao`,
           )
@@ -239,6 +241,16 @@ export default async function ComiteGestorPagina({
           referencias={referenciasMissao}
         />
       ) : null}
+      {aba === "analise" ? (
+        <FilaDeAnalise
+          programa={programa}
+          ciclo={ciclo}
+          base={base}
+          consulta={consulta}
+          membros={membros}
+          referencias={referenciasMissao}
+        />
+      ) : null}
       {aba === "equipes" ? (
         <Equipes
           membros={membros}
@@ -253,6 +265,7 @@ function Abas({ base, ativa }: { base: string; ativa: Aba }) {
   const abas: { id: Aba; texto: string }[] = [
     { id: "visao-geral", texto: "Visão geral" },
     { id: "missoes", texto: "Missões" },
+    { id: "analise", texto: "Análise" },
     { id: "equipes", texto: "Equipes" },
   ];
 
@@ -794,6 +807,247 @@ async function Missoes({
   );
 }
 
+/**
+ * Fila de análise do Comitê (CG-047).
+ *
+ * **O que define a fila é a rodada aberta**, não o status sozinho: os dois
+ * andam juntos hoje, mas quem responde "o que aguarda decisão" é
+ * `rodada_analise.encerrada_em is null` — e é ela que carrega desde quando.
+ *
+ * A lista é a mesma da aba Missões, com mais um recorte. Um serviço próprio
+ * duplicaria a superfície de filtro (rede, país, período, responsável) e as
+ * duas divergiriam na primeira mudança.
+ */
+async function FilaDeAnalise({
+  programa,
+  ciclo,
+  base,
+  consulta,
+  membros,
+  referencias,
+}: {
+  programa: string;
+  ciclo: string;
+  base: string;
+  consulta: ConsultaMissoes;
+  membros: MembroEquipeGestao[];
+  referencias: ReferenciasMissao;
+}) {
+  const filtros = filtrosDaConsulta(consulta);
+  const parametros = new URLSearchParams(filtros);
+  parametros.set("statusAprovacao", "EM_ANALISE");
+  // A fila do Comitê é curta por natureza; os indicadores contam a fila
+  // inteira, não a página. Se um dia passar do teto, a tela avisa em vez de
+  // mentir no número — mesma decisão da lista de parceiros.
+  parametros.set("tamanho", "100");
+  parametros.set("ordenar", "PERIODO");
+  parametros.set("direcao", "ASC");
+
+  const pagina = await apiFetch<PaginaMissoes>(
+    `/programas/${programa}/${ciclo}/comite-gestor/missoes?${parametros}`,
+  );
+
+  const naFila = pagina.itens;
+  const rodadas = [
+    ...new Set(
+      naFila.map((item) => item.rodadaAberta?.numero).filter(Boolean),
+    ),
+  ].sort((a, b) => (a ?? 0) - (b ?? 0)) as number[];
+  const reanalises = naFila.filter(
+    (item) => (item.rodadaAberta?.numero ?? 1) > 1,
+  ).length;
+  const paradas = naFila.filter(
+    (item) => (item.rodadaAberta?.diasEsperando ?? 0) >= 7,
+  ).length;
+
+  const comFiltro = (campo: string, valor: string | null) => {
+    const proximos = new URLSearchParams(filtros);
+    proximos.set("aba", "analise");
+    if (valor === null) proximos.delete(campo);
+    else proximos.set(campo, valor);
+    proximos.delete("pagina");
+    return `${base}?${proximos}`;
+  };
+
+  return (
+    <>
+      <Cartoes>
+        <Cartao
+          titulo="Aguardando decisão"
+          valor={inteiro(pagina.total)}
+          nota="Missões com rodada de análise aberta"
+          href={comFiltro("rodada", null)}
+        />
+        <Cartao
+          titulo="Reanálise"
+          valor={inteiro(reanalises)}
+          nota="Já voltaram ao responsável ao menos uma vez"
+        />
+        <Cartao
+          titulo="Há 7 dias ou mais"
+          valor={inteiro(paradas)}
+          nota="Contado em dias de calendário"
+          destaque={paradas > 0}
+        />
+        <Cartao
+          titulo="Equipe do Comitê"
+          valor={inteiro(
+            membros.filter(
+              (membro) =>
+                membro.situacao === "ATIVO" &&
+                membro.tipoEquipe === "COMITE_GESTOR",
+            ).length,
+          )}
+          nota="Quem delibera"
+        />
+      </Cartoes>
+
+      <div className="mt-8" />
+
+      {/* Os chips só oferecem as rodadas que existem na fila: um "rodada 3"
+          fixo que nunca casa com nada é ruído, e some com a fila mudando. */}
+      {rodadas.length > 1 ? (
+        <div className="mb-5 flex flex-wrap items-center gap-2">
+          <span className="mr-1 text-xs font-medium text-muted">Rodada</span>
+          <Link
+            href={comFiltro("rodada", null)}
+            aria-current={filtros.rodada ? undefined : "true"}
+            className={
+              filtros.rodada
+                ? "rounded-xl border border-border-strong px-3 py-1.5 text-sm font-medium text-muted hover:border-primary hover:text-primary"
+                : "rounded-xl bg-primary px-3 py-1.5 text-sm font-medium text-on-primary"
+            }
+          >
+            Todas
+          </Link>
+          {rodadas.map((numero) => (
+            <Link
+              key={numero}
+              href={comFiltro("rodada", String(numero))}
+              aria-current={
+                filtros.rodada === String(numero) ? "true" : undefined
+              }
+              className={
+                filtros.rodada === String(numero)
+                  ? "rounded-xl bg-primary px-3 py-1.5 text-sm font-medium text-on-primary"
+                  : "rounded-xl border border-border-strong px-3 py-1.5 text-sm font-medium text-muted hover:border-primary hover:text-primary"
+              }
+            >
+              {numero === 1 ? "1ª (inicial)" : `${numero}ª`}
+            </Link>
+          ))}
+        </div>
+      ) : null}
+
+      <FiltroMissoes
+        base={base}
+        filtros={{ ...filtros, aba: "analise" }}
+        membros={membros}
+        redes={referencias.redes}
+      />
+
+      <Secao
+        titulo={`Aguardando decisão · ${pagina.total}`}
+        descricao="A decisão é registrada na tela da missão, com o parecer e a data da reunião em que o colegiado deliberou."
+      >
+        {pagina.total > naFila.length ? (
+          <Aviso tom="aviso">
+            A fila tem {inteiro(pagina.total)} missões e a tela mostra as{" "}
+            {inteiro(naFila.length)} mais antigas. Use os filtros para reduzir o
+            recorte.
+          </Aviso>
+        ) : null}
+
+        {naFila.length === 0 ? (
+          <EstadoVazio
+            titulo="Nada aguardando decisão"
+            descricao="Missão entra aqui quando o responsável a envia para análise, e sai quando o Comitê decide."
+          />
+        ) : (
+          <Tabela
+            rotulo="Fila de análise"
+            colunas={[
+              { chave: "missao", texto: "Missão" },
+              { chave: "rede", texto: "Rede" },
+              { chave: "periodo", texto: "Período" },
+              { chave: "rodada", texto: "Rodada", alinhamento: "direita" },
+              { chave: "espera", texto: "Aguardando", alinhamento: "direita" },
+              { chave: "acao", texto: <span className="sr-only">Ações</span> },
+            ]}
+          >
+            {naFila.map((missao) => (
+              <tr key={missao.id}>
+                <Celula>
+                  <Link
+                    href={`${base}/missoes/${missao.id}?aba=analise`}
+                    className="font-medium text-foreground hover:text-primary hover:underline"
+                  >
+                    {missao.titulo}
+                  </Link>
+                  <span className="mt-0.5 block text-xs text-muted">
+                    {missao.codigo}
+                    {missao.rodadaAberta?.submetidoPor
+                      ? ` · enviada por ${missao.rodadaAberta.submetidoPor}`
+                      : ""}
+                  </span>
+                </Celula>
+                <Celula>
+                  {missao.redes.length > 0 ? missao.redes.join(", ") : "—"}
+                </Celula>
+                <Celula>
+                  {data(missao.dataInicio)} — {data(missao.dataFim)}
+                </Celula>
+                <Celula direita>
+                  {missao.rodadaAberta ? (
+                    missao.rodadaAberta.numero > 1 ? (
+                      <Selo tom="aviso">{missao.rodadaAberta.numero}ª</Selo>
+                    ) : (
+                      <span className="tabular-nums">1ª</span>
+                    )
+                  ) : (
+                    "—"
+                  )}
+                </Celula>
+                <Celula direita>
+                  <Espera dias={missao.rodadaAberta?.diasEsperando ?? null} />
+                </Celula>
+                <Celula direita>
+                  <Link
+                    href={`${base}/missoes/${missao.id}?aba=analise`}
+                    className="text-sm font-medium text-primary hover:underline"
+                  >
+                    Analisar
+                    <span className="sr-only"> {missao.codigo}</span>
+                  </Link>
+                </Celula>
+              </tr>
+            ))}
+          </Tabela>
+        )}
+      </Secao>
+    </>
+  );
+}
+
+/**
+ * Tempo de espera.
+ *
+ * Sete dias é o corte porque a reunião do Comitê é semanal: passar disso
+ * significa que a missão atravessou uma reunião sem ser decidida, e é essa a
+ * informação — não o número em si.
+ */
+function Espera({ dias }: { dias: number | null }) {
+  if (dias === null) return <>—</>;
+  const texto = dias === 0 ? "hoje" : dias === 1 ? "1 dia" : `${dias} dias`;
+  return dias >= 7 ? (
+    <Selo tom="perigo" titulo="Atravessou ao menos uma reunião semanal">
+      {texto}
+    </Selo>
+  ) : (
+    <span className="tabular-nums">{texto}</span>
+  );
+}
+
 function ResumoDasMissoes({ resumo }: { resumo: ResumoMissoes }) {
   return (
     <Cartoes>
@@ -1155,7 +1409,9 @@ function maiorAporte(dados: ComiteGestor): string {
 
 function normalizarAba(valor: string | string[] | undefined): Aba {
   const aba = Array.isArray(valor) ? valor[0] : valor;
-  return aba === "missoes" || aba === "equipes" ? aba : "visao-geral";
+  return aba === "missoes" || aba === "analise" || aba === "equipes"
+    ? aba
+    : "visao-geral";
 }
 
 /** Só os campos conhecidos, e só os que vieram preenchidos. */

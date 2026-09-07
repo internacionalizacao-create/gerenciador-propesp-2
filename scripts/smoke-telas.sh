@@ -96,6 +96,13 @@ if [[ "$USUARIO" == "admin" ]]; then
   testar "/programas/capes-global/2027-2030/comite-gestor" "Não validado"
   testar "/programas/capes-global/2027-2030/comite-gestor?ano=2027" "Saldo oficial"
   testar_bff "/api/bff/programas/capes-global/2027-2030/comite-gestor/execucao" '"saldoOficial"'
+  # CG-047: fila de analise. As ancoras sao os rotulos dos indicadores, que
+  # existem mesmo com a fila vazia; o numero depende do banco.
+  testar "/programas/capes-global/2027-2030/comite-gestor?aba=analise" "Aguardando decisão"
+  testar "/programas/capes-global/2027-2030/comite-gestor?aba=analise" "Reanálise"
+  testar "/programas/capes-global/2027-2030/comite-gestor?aba=analise" "Há 7 dias ou mais"
+  # O recorte por rodada fica na URL e nao quebra a pagina quando nao casa.
+  testar "/programas/capes-global/2027-2030/comite-gestor?aba=analise&rodada=9" "Nada aguardando decisão"
   testar "/programas/capes-global/2027-2030/comite-gestor?aba=equipes" "Adicionar membro"
   # Ancora no cabecalho da coluna, e nao no rotulo "Missões" da aba: so o
   # cabecalho e alinhado a direita.

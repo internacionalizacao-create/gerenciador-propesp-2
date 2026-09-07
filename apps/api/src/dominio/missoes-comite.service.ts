@@ -10,7 +10,7 @@ import { z } from 'zod';
 
 import type { AuthUser } from '../auth/auth-user';
 import { consultar } from '../comum/consultar';
-import { calcularDiasInclusivos } from '../comum/datas';
+import { calcularDiasInclusivos, diasDesde } from '../comum/datas';
 import { DRIZZLE, type Database } from '../database/database.module';
 import * as s from '../database/schema';
 import { pessoaRapidaSchema, type PessoaRapida } from './comite-gestor.service';
@@ -529,6 +529,15 @@ export const filtroMissoesSchema = z.object({
   pessoaId: z.uuid().optional(),
   tipoEquipe: z.enum(['COMITE_GESTOR', 'ADMINISTRACAO']).optional(),
   status: z.enum(statusMissao).optional(),
+  /** Dimensao de aprovacao — e o que define a fila do Comite (CG-047). */
+  statusAprovacao: z.enum(s.statusAprovacaoMissaoEnum.enumValues).optional(),
+  /**
+   * Numero da rodada aberta. `1` e a analise inicial; acima disso, reanalise.
+   *
+   * Filtra pela rodada **em aberto**, nunca pela ultima encerrada: a fila
+   * mostra o que aguarda decisao, e a rodada ja decidida nao aguarda nada.
+   */
+  rodada: z.coerce.number().int().min(1).max(99).optional(),
   situacaoTemporal: z.enum(situacoesTemporais).optional(),
   situacaoPrestacao: z.enum(situacoesPrestacao).optional(),
   ordenar: z.enum(['PERIODO', 'CODIGO', 'TITULO', 'STATUS']).default('PERIODO'),
@@ -556,6 +565,19 @@ export interface MissaoResumo {
   redes: string[];
   /** Nulo enquanto a missao nao tiver prestacao; nunca R$ 0,00 por omissao. */
   valorPrestado: string | null;
+  /**
+   * Rodada de analise **em aberto**, quando ha uma (CG-047).
+   *
+   * Nula na missao que nao esta em analise. E ela que sustenta a fila do
+   * Comite: `numero > 1` e reanalise, e `diasEsperando` diz ha quanto tempo a
+   * missao aguarda — que e a pergunta que faz alguem abrir a fila.
+   */
+  rodadaAberta: {
+    numero: number;
+    submetidoEm: string;
+    submetidoPor: string | null;
+    diasEsperando: number;
+  } | null;
 }
 
 /**
@@ -949,6 +971,19 @@ export class MissoesComiteService {
       )`);
     }
     if (filtro.status) situacao.push(sql`m.status = ${filtro.status}`);
+    if (filtro.statusAprovacao) {
+      situacao.push(sql`m.status_aprovacao = ${filtro.statusAprovacao}`);
+    }
+    // Pela rodada **aberta**: `exists` sobre a encerrada traria de volta missao
+    // ja decidida, que e justamente o que a fila nao mostra.
+    if (filtro.rodada !== undefined) {
+      escopo.push(sql`exists (
+        select 1 from rodada_analise ra
+         where ra.missao_id = m.id
+           and ra.encerrada_em is null
+           and ra.numero = ${filtro.rodada}
+      )`);
+    }
 
     const situacaoTemporal = sql`case
       when m.data_fim < current_date then 'ENCERRADA'
@@ -989,6 +1024,13 @@ export class MissoesComiteService {
       paises: string[];
       redes: string[];
       valor_prestado: string | null;
+      rodada_numero: number | null;
+      /**
+       * Chega como **string**: `consultar` executa SQL cru, e o mapeamento de
+       * `timestamptz` para `Date` e do query builder do Drizzle, nao do driver.
+       */
+      rodada_submetido_em: string | null;
+      rodada_submetido_por: string | null;
       total: string;
     }>(
       this.db,
@@ -1023,9 +1065,17 @@ export class MissoesComiteService {
                (select sum(d.valor_total)
                   from despesa_missao d
                  where d.prestacao_id = pr.id) as valor_prestado,
+               ra.numero as rodada_numero,
+               ra.submetido_em as rodada_submetido_em,
+               ra.submetido_por as rodada_submetido_por,
                count(*) over () as total
           from missao_comite m
           left join prestacao_contas_missao pr on pr.missao_id = m.id
+          -- rodada_analise_aberta_uk garante no maximo uma rodada aberta por
+          -- missao, entao esta juncao nao multiplica linha — o que aqui
+          -- importaria porque count(*) over () da o total da pagina.
+          left join rodada_analise ra
+            on ra.missao_id = m.id and ra.encerrada_em is null
          where ${sql.join([...escopo, ...situacao], sql` and `)}
          order by ${coluna} ${direcao}, m.codigo ${direcao}
          limit ${filtro.tamanho} offset ${deslocamento}
@@ -1078,6 +1128,15 @@ export class MissoesComiteService {
         paises: [...linha.paises].sort((a, b) => a.localeCompare(b, 'pt-BR')),
         redes: linha.redes,
         valorPrestado: linha.valor_prestado,
+        rodadaAberta:
+          linha.rodada_numero === null || linha.rodada_submetido_em === null
+            ? null
+            : {
+                numero: linha.rodada_numero,
+                submetidoEm: new Date(linha.rodada_submetido_em).toISOString(),
+                submetidoPor: linha.rodada_submetido_por,
+                diasEsperando: diasDesde(new Date(linha.rodada_submetido_em)),
+              },
       })),
       total,
       pagina: filtro.pagina,

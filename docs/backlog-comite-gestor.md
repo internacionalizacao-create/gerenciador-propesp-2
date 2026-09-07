@@ -2083,7 +2083,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   `CampoCombobox` ganhou seu primeiro uso real aqui (país e parceiro da
   atividade extra) — foi criado na CG-045 e até agora nenhuma tela o consumia.
 
-- [ ] **CG-047 — Construir fila de análise do Comitê**
+- [~] **CG-047 — Construir fila de análise do Comitê**
 
   Exibir missões aguardando análise ou reanálise com filtros por rede, país,
   período, responsável e rodada, incluindo indicadores clicáveis que preservam
@@ -2093,6 +2093,55 @@ Essa situação é calculada a partir das datas e não é persistida.
 
   Critério de aceite: Comitê vê todas as redes; Gestor da Rede nunca recebe
   missão fora do seu escopo.
+
+  **Concluída em 2026-09-06** como quarta aba da P17 (`?aba=analise`).
+
+  **O que define a fila é a rodada aberta**, não o `status_aprovacao` sozinho.
+  Os dois andam juntos hoje, mas quem responde "o que aguarda decisão" é
+  `rodada_analise.encerrada_em is null` — e é ela que carrega *desde quando*. A
+  CG-019 já tinha previsto isso: o índice `rodada_analise_fila_idx` existe desde
+  lá, e o comentário do schema diz "é o que define a fila".
+
+  **A fila é a mesma lista da aba Missões, com mais um recorte.** Um serviço
+  próprio duplicaria a superfície de filtro — rede, país, período, responsável —
+  e as duas divergiriam na primeira mudança. Entraram só dois filtros novos:
+  `statusAprovacao` e `rodada`.
+
+  **`rodada` filtra pela rodada em aberto, nunca pela última encerrada.** Missão
+  que voltou para ajustes tem rodada 1 encerrada e aguarda quem a reenvie, não o
+  Comitê — um `exists` sem o `encerrada_em is null` a traria de volta à fila.
+  Há regressão para isso, e a mutação derruba dois casos.
+
+  "Análise" e "reanálise" **não são estados distintos**: são o número da rodada
+  aberta. Um enum a mais duplicaria o que a rodada já diz.
+
+  Os chips de rodada só oferecem **as rodadas que existem na fila** — um
+  "rodada 3" fixo que nunca casa com nada é ruído. E o corte de destaque é
+  **7 dias**, porque a reunião do Comitê é semanal (CG-019): passar disso
+  significa que a missão atravessou uma reunião sem ser decidida, e é essa a
+  informação, não o número.
+
+  `diasEsperando` conta **dias civis no fuso institucional**, não períodos de
+  24 horas: envio de ontem às 23h espera "1 dia", não "0" — quem olha a fila
+  pensa em dias do calendário, e arredondar por hora faria o número mudar
+  sozinho ao longo do dia. `diasDesde` entrou em
+  [comum/datas.ts](../apps/api/src/comum/datas.ts).
+
+  A fila carrega no máximo 100 e **avisa quando há mais**, em vez de mentir no
+  indicador — mesma decisão da lista de parceiros (CG-049).
+
+  Cobertura: 7 regressões em
+  [fila-analise.int-spec.ts](../apps/api/test/fila-analise.int-spec.ts),
+  incluindo a não duplicação de linha pelo `left join` numa missão com três
+  rodadas. Verificado na aplicação com dado real: MCG-001 na fila, 3ª rodada,
+  aguardando há 1 dia.
+
+  **A segunda metade do critério de aceite não foi entregue, e não podia ser:**
+  "Gestor da Rede nunca recebe missão fora do seu escopo" é a CG-028, que você
+  adiou. Hoje o papel `gestor-rede` não é atribuído a ninguém e missões não
+  consultam escopo — a fila mostra todas as redes para todos que a alcançam, que
+  por ora é só o `admin`. Quando a CG-028 entrar, o recorte vale para a fila sem
+  mudança aqui: ela usa o mesmo `listar`.
 
 - [ ] **CG-048 — Construir tela de análise e parecer**
 
