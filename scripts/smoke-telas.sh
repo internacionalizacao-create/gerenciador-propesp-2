@@ -96,6 +96,22 @@ if [[ "$USUARIO" == "admin" ]]; then
   testar "/programas/capes-global/2027-2030/comite-gestor" "Não validado"
   testar "/programas/capes-global/2027-2030/comite-gestor?ano=2027" "Saldo oficial"
   testar_bff "/api/bff/programas/capes-global/2027-2030/comite-gestor/execucao" '"saldoOficial"'
+  # CG-066: painel do Comite. Ancora nos rotulos e no link, nao nos numeros: o
+  # que precisa existir sempre e o cartao **clicavel** — um cartao que so
+  # informa obriga quem le a remontar o filtro a mao na aba ao lado, e e ai que
+  # os dois numeros passam a divergir sem ninguem notar.
+  testar "/programas/capes-global/2027-2030/comite-gestor" "Panorama das missões"
+  testar "/programas/capes-global/2027-2030/comite-gestor" "Aguardando decisão"
+  testar "/programas/capes-global/2027-2030/comite-gestor" "Países alcançados"
+  testar "/programas/capes-global/2027-2030/comite-gestor" 'href="/programas/capes-global/2027-2030/comite-gestor?aba=missoes&amp;status=CONCLUIDA"'
+  # O recorte viaja no link: perde-lo faria o clique abrir uma contagem maior
+  # do que a exibida no cartao.
+  testar "/programas/capes-global/2027-2030/comite-gestor?ano=2027" 'href="/programas/capes-global/2027-2030/comite-gestor?aba=missoes&amp;ano=2027&amp;status=CONCLUIDA"'
+  # Rede que nao e do ciclo cai em "todas", e nao num painel de zeros.
+  testar "/programas/capes-global/2027-2030/comite-gestor?redeId=00000000-0000-4000-8000-000000000000" "Panorama das missões"
+  # redeId invalido nao chega a API: um 400 derrubaria a pagina inteira.
+  testar "/programas/capes-global/2027-2030/comite-gestor?redeId=nao-e-uuid" "Panorama das missões"
+  testar_bff "/api/bff/programas/capes-global/2027-2030/comite-gestor/painel" '"pendencias"'
   # CG-047: fila de analise. As ancoras sao os rotulos dos indicadores, que
   # existem mesmo com a fila vazia; o numero depende do banco.
   testar "/programas/capes-global/2027-2030/comite-gestor?aba=analise" "Aguardando decisão"

@@ -39,6 +39,11 @@ import {
 } from './comite-gestor.service';
 import { ExecucaoComiteService } from './execucao-comite.service';
 import {
+  filtroPainelSchema,
+  PainelComiteService,
+  type FiltroPainel,
+} from './painel-comite.service';
+import {
   dispensarRequisitoSchema,
   EncerramentoService,
   revogarDispensaSchema,
@@ -126,6 +131,7 @@ export class ProgramasController {
     private readonly decisao: DecisaoService,
     private readonly prestacao: PrestacaoService,
     private readonly execucao: ExecucaoComiteService,
+    private readonly painelComite: PainelComiteService,
     private readonly encerramento: EncerramentoService,
     private readonly resultados: ResultadosService,
   ) {}
@@ -404,6 +410,29 @@ export class ProgramasController {
   ) {
     const ciclo = await this.contexto.resolver(slug, nome);
     return this.execucao.porExercicio(ciclo.cicloId);
+  }
+
+  /**
+   * P17 · painel do Comite Gestor (CG-066).
+   *
+   * Separado de `/comite-gestor` e de `/execucao` porque responde outra
+   * pergunta: aqueles dizem de onde veio o dinheiro e quanto ja virou execucao
+   * oficial; este diz em que estado estao as missoes e o que espera por
+   * alguem. Os tres compartilham o recorte por exercicio, e por isso a tela
+   * consegue mostra-los juntos sob o mesmo `?ano=`.
+   *
+   * O filtro vem por `@Query` inteiro, e nao parametro a parametro, para que o
+   * zod recuse `redeId` que nao seja UUID antes de a string chegar ao SQL.
+   */
+  @Get(':programa/:ciclo/comite-gestor/painel')
+  @RequirePermission('equipe-gestao:read')
+  async painelDoComite(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Query(new ZodValidationPipe(filtroPainelSchema)) filtro: FiltroPainel,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.painelComite.montar(ciclo.cicloId, filtro);
   }
 
   @Get(':programa/:ciclo/comite-gestor/equipes')

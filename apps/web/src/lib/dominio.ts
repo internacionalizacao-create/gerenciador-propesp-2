@@ -529,6 +529,68 @@ export interface ExecucaoComite {
   aviso: string;
 }
 
+/**
+ * Painel do Comitê Gestor (CG-066).
+ *
+ * Espelha `PainelComiteService`. Os indicadores não trazem link: a API não
+ * conhece as rotas da interface, e é a página que sabe qual filtro de URL abre
+ * a lista por trás de cada número.
+ */
+export interface PainelComite {
+  recorte: { ano: number | null; redeId: string | null; redeNome: string | null };
+  /** Missões distintas no recorte; a multirrede conta uma vez (CG-016). */
+  missoes: number;
+  analise: {
+    aguardando: number;
+    /** Aguardando decisão há mais de uma reunião semanal do colegiado. */
+    paradas: number;
+    ajustesSolicitados: number;
+    naoSubmetidas: number;
+  };
+  aprovacao: Record<StatusAprovacaoMissao, number>;
+  realizacao: Record<SituacaoTemporalMissao, number>;
+  prestacao: Record<SituacaoPrestacao, number>;
+  conclusao: { concluidas: number; canceladas: number; aEncerrar: number };
+  alcance: {
+    paises: number;
+    parceiros: number;
+    convenios: number;
+    produtos: number;
+  };
+  porPais: { id: string; nome: string; codigoIso2: string; missoes: number }[];
+  /** A soma passa do total quando há missão de mais de uma rede — e isso está certo. */
+  porRede: { id: string; nome: string; missoes: number }[];
+  pendencias: PendenciaMissao[];
+  aviso: string;
+}
+
+export type MotivoPendencia =
+  | "ANALISE_PARADA"
+  | "AJUSTES_SOLICITADOS"
+  | "PRESTACAO_NAO_INICIADA"
+  | "PRESTACAO_COM_PENDENCIA"
+  | "PRESTACAO_ENVIADA"
+  | "ENCERRAMENTO_PENDENTE";
+
+/** Uma linha por missão, com todos os motivos juntos — nunca uma por motivo. */
+export interface PendenciaMissao {
+  missaoId: string;
+  codigo: string;
+  titulo: string;
+  dataInicio: string;
+  dataFim: string;
+  status: StatusMissao;
+  statusAprovacao: StatusAprovacaoMissao;
+  situacaoPrestacao: SituacaoPrestacao;
+  redes: string[];
+  motivos: {
+    chave: MotivoPendencia;
+    texto: string;
+    responsavel: string;
+    dias: number | null;
+  }[];
+}
+
 export interface PessoaDisponivel {
   id: string;
   nome: string;

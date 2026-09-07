@@ -4,7 +4,7 @@ Documento de referência para quem (pessoa ou LLM) vai mexer neste repositório 
 tê-lo escrito. Descreve o que existe hoje, por que está assim, e o que ainda não
 existe. **Mantenha-o atualizado quando mudar arquitetura ou convenção.**
 
-Última revisão: 2026-09-06.
+Última revisão: 2026-09-07.
 
 ---
 
@@ -883,6 +883,31 @@ o ícone estiver visível.
   visível ao `admin` e a quem enviou**, regra herdada da CG-014 e marcada lá
   como proposta não homologada.
 
+  **O painel do Comitê (CG-066)** é a seção *Panorama das missões*, na aba
+  Visão geral, servida por `GET .../comite-gestor/painel?ano=&redeId=`.
+  **Nenhum número dali é novo**: cada indicador reusa as expressões da lista de
+  missões — situação temporal derivada de `current_date`, situação da prestação
+  vinda de `coalesce` sobre o `left join` —, porque dois SQL que respondem à
+  mesma pergunta divergem na primeira mudança e quem clica no cartão
+  encontraria outra contagem do lado de lá. **Todo cartão é um link** com o
+  filtro na URL, carregando o recorte ativo.
+
+  **O recorte é o mesmo objeto `SQL`**, montado uma vez e passado a cartões,
+  quebras e pendências — o critério de aceite fica garantido por construção, e
+  não por disciplina de quem escrever a próxima consulta. Rede entra por
+  `exists`, nunca por `join` (CG-016); as duas garantias foram verificadas por
+  mutação.
+
+  **Pendência é uma linha por missão, com todos os motivos juntos** — uma linha
+  por motivo faria a lista prometer mais trabalho do que existe. Cada motivo
+  diz de quem é a vez. São seis, todos da mesma forma (alguém precisa agir e
+  não agiu); prestação em preenchimento normal não entra, e missão cancelada
+  nunca entra. Rede que não é do ciclo **cai em "todas"**, não num painel de
+  zeros, que seria indistinguível de um ciclo sem missão. Parceiro é a
+  instituição cadastrada, nunca o nome digitado à mão; convênio conta pela
+  missão de origem. A página busca os aportes **antes** do painel porque é
+  deles que sai a lista de exercícios contra a qual o `?ano=` é conferido.
+
   **Missão encerrada não volta a "resposta indefinida" (CG-059).** Encerrar
   afirma que os requisitos foram atendidos, e o checklist é recalculado a cada
   leitura — remover o único produto depois faria a afirmação virar mentira em
@@ -924,7 +949,7 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
 - **Testes**: 153 unitários/regressões (67 API + 86 na web para toast, datas,
   React Hook Form/Zod, erros do multistep, formulários de parceiro,
   acessibilidade, contraste dos tokens, cálculos monetários, montagem de série
-  do gráfico e caminhos do BFF) + 399 de integração contra Postgres
+  do gráfico e caminhos do BFF) + 417 de integração contra Postgres
   real. As duas garantias de não duplicação da linha
   histórica do parceiro foram verificadas por mutação: trocar o `exists` +
   `selectDistinct` por um `join` faz ambas falharem.

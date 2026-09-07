@@ -25,6 +25,8 @@ import type {
   Me,
   MembroEquipeGestao,
   PaginaMissoes,
+  PainelComite,
+  PendenciaMissao,
   PessoaDisponivel,
   ReferenciasMissao,
   ResumoMissoes,
@@ -58,6 +60,7 @@ const CAMPOS_FILTRO = [
   "pessoaId",
   "tipoEquipe",
   "status",
+  "statusAprovacao",
   "situacaoTemporal",
   "situacaoPrestacao",
   "rodada",
@@ -172,9 +175,18 @@ export default async function ComiteGestorPagina({
     );
   }
 
-  const [dados, membros, pessoas, referenciasMissao, execucao] =
+  // Os aportes vêm antes do resto porque é deles que sai a lista de exercícios
+  // do ciclo, e o painel só pode ser apurado depois que o exercício pedido na
+  // URL foi conferido contra ela. Pedir os dois em paralelo economizaria uma
+  // ida e traria de volta um painel apurado num ano que a tela descarta —
+  // cartões de um universo, tabelas de outro.
+  const dados = await apiFetch<ComiteGestor>(
+    `/programas/${programa}/${ciclo}/comite-gestor`,
+  );
+  const exercicio = exercicioDaConsulta(consulta, dados.anos);
+
+  const [membros, pessoas, referenciasMissao, execucao, painel] =
     await Promise.all([
-      apiFetch<ComiteGestor>(`/programas/${programa}/${ciclo}/comite-gestor`),
       apiFetch<MembroEquipeGestao[]>(
         `/programas/${programa}/${ciclo}/comite-gestor/equipes`,
       ),
@@ -189,6 +201,11 @@ export default async function ComiteGestorPagina({
       aba === "visao-geral"
         ? apiFetch<ExecucaoComite>(
             `/programas/${programa}/${ciclo}/comite-gestor/execucao`,
+          )
+        : Promise.resolve(null),
+      aba === "visao-geral"
+        ? apiFetch<PainelComite>(
+            `/programas/${programa}/${ciclo}/comite-gestor/painel?${recorteDaConsulta(consulta, exercicio)}`,
           )
         : Promise.resolve(null),
     ]);
@@ -226,9 +243,10 @@ export default async function ComiteGestorPagina({
         <VisaoGeral
           dados={dados}
           execucao={execucao}
+          painel={painel}
           membros={membros}
           base={base}
-          exercicio={exercicioDaConsulta(consulta, dados.anos)}
+          exercicio={exercicio}
         />
       ) : null}
       {aba === "missoes" ? (
@@ -295,12 +313,14 @@ function Abas({ base, ativa }: { base: string; ativa: Aba }) {
 function VisaoGeral({
   dados,
   execucao,
+  painel,
   membros,
   base,
   exercicio,
 }: {
   dados: ComiteGestor;
   execucao: ExecucaoComite | null;
+  painel: PainelComite | null;
   membros: MembroEquipeGestao[];
   base: string;
   exercicio: number | null;
@@ -355,9 +375,20 @@ function VisaoGeral({
 
       <div className="mt-10" />
 
-      {/* O recorte vale para as duas tabelas, por isso ele fica acima delas e
-          não dentro de uma. */}
-      <FiltroExercicio base={base} anos={dados.anos} ativo={exercicio} />
+      {/* O exercício recorta a tela inteira — dinheiro e missões —, por isso
+          fica acima de tudo. O recorte por rede vale só para as missões e mora
+          dentro do painel: os aportes por rede já são a própria tabela de
+          baixo, e um filtro global que mudasse metade da tela mentiria sobre a
+          outra metade. */}
+      <FiltroExercicio
+        base={base}
+        anos={dados.anos}
+        ativo={exercicio}
+        redeId={painel?.recorte.redeId ?? null}
+      />
+      {painel ? (
+        <Painel dados={painel} base={base} exercicio={exercicio} />
+      ) : null}
 
       {execucao ? (
         <Execucao dados={execucao} exercicio={exercicio} />
@@ -437,6 +468,353 @@ function VisaoGeral({
     </>
   );
 }
+
+/**
+ * Painel do Comitê Gestor (CG-066).
+ *
+ * **Todo número aqui abre a lista que o produziu**, com o filtro na URL. Um
+ * cartão que só informa obriga quem o lê a reconstruir o filtro à mão na aba
+ * ao lado, e é aí que os dois números passam a divergir sem ninguém notar.
+ *
+ * Os cartões seguem as duas dimensões da CG-006 lado a lado e rotuladas:
+ * aprovação e execução são independentes, e uma linha única faria "aprovada"
+ * ser lido como "realizada".
+ */
+function Painel({
+  dados,
+  base,
+  exercicio,
+}: {
+  dados: PainelComite;
+  base: string;
+  exercicio: number | null;
+}) {
+  const { recorte } = dados;
+  const lista = (filtros: Record<string, string>, aba: "missoes" | "analise" = "missoes") =>
+    linkDaLista(base, recorte, filtros, aba);
+
+  return (
+    <Secao
+      titulo="Panorama das missões"
+      descricao={dados.aviso}
+      acoes={
+        <FiltroRede
+          base={base}
+          redes={dados.porRede}
+          ativa={recorte.redeId}
+          exercicio={exercicio}
+        />
+      }
+    >
+      <Cartoes>
+        <Cartao
+          titulo="Missões no recorte"
+          valor={inteiro(dados.missoes)}
+          nota={notaDoRecorte(recorte)}
+          href={lista({})}
+          destaque
+        />
+        <Cartao
+          titulo="Aguardando decisão"
+          valor={inteiro(dados.analise.aguardando)}
+          nota={
+            dados.analise.paradas > 0
+              ? `${inteiro(dados.analise.paradas)} há mais de 7 dias`
+              : "Nenhuma parada há mais de 7 dias"
+          }
+          href={lista({}, "analise")}
+        />
+        <Cartao
+          titulo="Aprovadas"
+          valor={inteiro(dados.aprovacao.APROVADA)}
+          nota={`${inteiro(dados.analise.ajustesSolicitados)} devolvidas para ajustes · ${inteiro(dados.analise.naoSubmetidas)} não submetidas`}
+          href={lista({ statusAprovacao: "APROVADA" })}
+        />
+        <Cartao
+          titulo="Realizadas"
+          valor={inteiro(dados.realizacao.ENCERRADA)}
+          nota={`${inteiro(dados.realizacao.EM_ANDAMENTO)} em andamento · ${inteiro(dados.realizacao.FUTURA)} futuras`}
+          href={lista({ situacaoTemporal: "ENCERRADA" })}
+        />
+        <Cartao
+          titulo="Prestação validada"
+          valor={inteiro(dados.prestacao.VALIDADA)}
+          nota={`${inteiro(dados.prestacao.ENVIADA)} aguardando validação · ${inteiro(dados.prestacao.COM_PENDENCIA)} com pendência`}
+          href={lista({ situacaoPrestacao: "VALIDADA" })}
+        />
+        <Cartao
+          titulo="Encerradas"
+          valor={inteiro(dados.conclusao.concluidas)}
+          nota={`${inteiro(dados.conclusao.aEncerrar)} a encerrar · ${inteiro(dados.conclusao.canceladas)} canceladas`}
+          href={lista({ status: "CONCLUIDA" })}
+        />
+        <Cartao
+          titulo="Países alcançados"
+          valor={inteiro(dados.alcance.paises)}
+          nota={
+            dados.porPais.length > 0
+              ? dados.porPais
+                  .slice(0, 3)
+                  .map((pais) => pais.nome)
+                  .join(", ")
+              : "Nenhuma parada com país informado"
+          }
+        />
+        <Cartao
+          titulo="Resultados"
+          valor={inteiro(dados.alcance.produtos)}
+          nota={`${inteiro(dados.alcance.parceiros)} parceiros visitados · ${inteiro(dados.alcance.convenios)} convênios originados`}
+        />
+      </Cartoes>
+
+      {dados.porPais.length > 0 ? (
+        <div className="mt-8">
+          <Tabela
+            rotulo="Missões por país"
+            colunas={[
+              { chave: "pais", texto: "País" },
+              { chave: "missoes", texto: "Missões", alinhamento: "direita" },
+            ]}
+          >
+            {dados.porPais.map((pais) => (
+              <tr key={pais.id}>
+                <Celula>
+                  <Link
+                    href={lista({ paisId: pais.id })}
+                    className="font-medium text-foreground hover:text-primary hover:underline"
+                  >
+                    {pais.nome}
+                  </Link>
+                  <span className="ml-2 text-xs text-subtle">
+                    {pais.codigoIso2}
+                  </span>
+                </Celula>
+                <Celula direita>{inteiro(pais.missoes)}</Celula>
+              </tr>
+            ))}
+          </Tabela>
+        </div>
+      ) : null}
+
+      <div className="mt-10">
+        <Pendencias dados={dados} base={base} />
+      </div>
+    </Secao>
+  );
+}
+
+/**
+ * O que espera por alguém.
+ *
+ * **Uma linha por missão, com todos os motivos juntos.** Uma linha por motivo
+ * faria a mesma missão aparecer duas vezes e a lista prometer mais trabalho do
+ * que existe — o mesmo erro que o consolidado evita ao não somar as colunas
+ * por rede.
+ *
+ * Cada linha diz de **quem** é a vez. Sem isso a lista é um inventário de
+ * problemas; com isso, é uma fila de trabalho.
+ */
+function Pendencias({ dados, base }: { dados: PainelComite; base: string }) {
+  if (dados.pendencias.length === 0) {
+    return (
+      <EstadoVazio
+        titulo="Nenhuma pendência neste recorte"
+        descricao="Nenhuma missão aguarda decisão, prestação ou encerramento com os filtros atuais."
+      />
+    );
+  }
+
+  return (
+    <>
+      <h3 className="mb-1 text-sm font-semibold text-foreground">
+        Pendências · {inteiro(dados.pendencias.length)}
+      </h3>
+      <p className="mb-4 text-xs leading-5 text-subtle">
+        Mesmo recorte dos cartões acima. Missão cancelada não aparece: não há o
+        que cobrar de uma viagem que a instituição decidiu não fazer.
+      </p>
+      <Tabela
+        rotulo="Missões com pendência"
+        colunas={[
+          { chave: "missao", texto: "Missão" },
+          { chave: "periodo", texto: "Período" },
+          { chave: "motivos", texto: "O que falta" },
+          { chave: "espera", texto: "Espera", alinhamento: "direita" },
+        ]}
+      >
+        {dados.pendencias.map((pendencia) => (
+          <LinhaPendencia
+            key={pendencia.missaoId}
+            pendencia={pendencia}
+            base={base}
+          />
+        ))}
+      </Tabela>
+    </>
+  );
+}
+
+function LinhaPendencia({
+  pendencia,
+  base,
+}: {
+  pendencia: PendenciaMissao;
+  base: string;
+}) {
+  // A maior espera entre os motivos: é ela que decide a urgência da linha, e
+  // somar ou tirar média de prazos de naturezas diferentes não significa nada.
+  const espera = pendencia.motivos.reduce<number | null>(
+    (maior, motivo) =>
+      motivo.dias === null ? maior : Math.max(maior ?? 0, motivo.dias),
+    null,
+  );
+
+  return (
+    <tr>
+      <Celula>
+        <Link
+          href={`${base}/missoes/${pendencia.missaoId}`}
+          className="font-medium text-foreground hover:text-primary hover:underline"
+        >
+          {pendencia.codigo}
+        </Link>
+        <p className="mt-0.5 text-xs text-muted">{pendencia.titulo}</p>
+        {pendencia.redes.length > 0 ? (
+          <p className="mt-0.5 text-xs text-subtle">
+            {pendencia.redes.join(" · ")}
+          </p>
+        ) : null}
+      </Celula>
+      <Celula>
+        <span className="whitespace-nowrap text-xs text-muted">
+          {data(pendencia.dataInicio)} — {data(pendencia.dataFim)}
+        </span>
+      </Celula>
+      <Celula>
+        <ul className="space-y-1.5">
+          {pendencia.motivos.map((motivo) => (
+            <li key={motivo.chave}>
+              <span className="text-sm text-foreground">{motivo.texto}</span>
+              <span className="ml-2 text-xs text-subtle">
+                {motivo.responsavel}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </Celula>
+      <Celula direita>
+        <Espera dias={espera} />
+      </Celula>
+    </tr>
+  );
+}
+
+/**
+ * Recorte por rede coordenadora.
+ *
+ * A missão de duas redes aparece nas duas e o total das linhas passa do total
+ * de missões — está correto, e por isso a soma não é oferecida em lugar
+ * nenhum. Toda rede do ciclo aparece, inclusive a sem missão: rede ausente da
+ * lista seria lida como rede sem dado carregado.
+ */
+function FiltroRede({
+  base,
+  redes,
+  ativa,
+  exercicio,
+}: {
+  base: string;
+  redes: PainelComite["porRede"];
+  ativa: string | null;
+  exercicio: number | null;
+}) {
+  if (redes.length === 0) return null;
+
+  const href = (redeId: string | null) => {
+    const query = new URLSearchParams();
+    if (exercicio) query.set("ano", String(exercicio));
+    if (redeId) query.set("redeId", redeId);
+    const texto = query.toString();
+    return texto ? `${base}?${texto}` : base;
+  };
+
+  const item = (destino: string, texto: string, selecionado: boolean) => (
+    <Link
+      key={texto}
+      href={destino}
+      aria-current={selecionado ? "true" : undefined}
+      className={
+        selecionado
+          ? "rounded-xl bg-primary px-3 py-1.5 text-xs font-medium text-on-primary"
+          : "rounded-xl border border-border-strong px-3 py-1.5 text-xs font-medium text-muted hover:border-primary hover:text-primary"
+      }
+    >
+      {texto}
+    </Link>
+  );
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="mr-1 text-xs font-medium text-muted">Rede</span>
+      {item(href(null), "Todas", ativa === null)}
+      {redes.map((rede) =>
+        item(href(rede.id), `${rede.nome} (${rede.missoes})`, ativa === rede.id),
+      )}
+    </div>
+  );
+}
+
+/**
+ * Link para a lista que produziu o número, **carregando o recorte do painel**.
+ *
+ * É o que sustenta o critério de aceite: o cartão e a lista do outro lado
+ * partem exatamente do mesmo universo. Perder `ano` ou `redeId` aqui faria o
+ * clique abrir uma contagem maior do que a exibida.
+ */
+function linkDaLista(
+  base: string,
+  recorte: PainelComite["recorte"],
+  filtros: Record<string, string>,
+  aba: "missoes" | "analise",
+): string {
+  const query = new URLSearchParams({ aba });
+  if (recorte.ano) query.set("ano", String(recorte.ano));
+  if (recorte.redeId) query.set("redeId", recorte.redeId);
+  for (const [campo, valor] of Object.entries(filtros)) query.set(campo, valor);
+  return `${base}?${query}`;
+}
+
+function notaDoRecorte(recorte: PainelComite["recorte"]): string {
+  const partes = [
+    recorte.ano ? `Exercício ${recorte.ano}` : "Ciclo inteiro",
+    recorte.redeNome ?? "Todas as redes",
+  ];
+  return partes.join(" · ");
+}
+
+/**
+ * Parâmetros do painel a partir da query string.
+ *
+ * O exercício já chega conferido contra os anos do ciclo; a rede vai crua e é
+ * a API que a descarta se não for deste ciclo, porque só ela conhece as redes
+ * antes de a página ter qualquer dado.
+ */
+function recorteDaConsulta(
+  consulta: ConsultaMissoes,
+  exercicio: number | null,
+): string {
+  const query = new URLSearchParams();
+  if (exercicio) query.set("ano", String(exercicio));
+  const rede = Array.isArray(consulta.redeId)
+    ? consulta.redeId[0]
+    : consulta.redeId;
+  if (rede && UUID.test(rede)) query.set("redeId", rede);
+  return query.toString();
+}
+
+/** Recusa antes do envio o que a API recusaria com 400 e derrubaria a página. */
+const UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Execução orçamentária do Comitê Gestor (CG-055).
@@ -612,12 +990,23 @@ function FiltroExercicio({
   base,
   anos,
   ativo,
+  redeId,
 }: {
   base: string;
   anos: number[];
   ativo: number | null;
+  /** Preservado ao trocar de exercício: os dois recortes são combináveis. */
+  redeId: string | null;
 }) {
   if (anos.length <= 1) return null;
+
+  const href = (ano: number | null) => {
+    const query = new URLSearchParams();
+    if (ano) query.set("ano", String(ano));
+    if (redeId) query.set("redeId", redeId);
+    const texto = query.toString();
+    return texto ? `${base}?${texto}` : base;
+  };
 
   const item = (href: string, texto: string, selecionado: boolean) => (
     <Link
@@ -637,8 +1026,8 @@ function FiltroExercicio({
   return (
     <div className="mb-5 flex flex-wrap items-center gap-2">
       <span className="mr-1 text-xs font-medium text-muted">Exercício</span>
-      {item(base, "Todos", ativo === null)}
-      {anos.map((ano) => item(`${base}?ano=${ano}`, String(ano), ativo === ano))}
+      {item(href(null), "Todos", ativo === null)}
+      {anos.map((ano) => item(href(ano), String(ano), ativo === ano))}
     </div>
   );
 }

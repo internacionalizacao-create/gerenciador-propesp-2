@@ -3195,7 +3195,7 @@ Essa situação é calculada a partir das datas e não é persistida.
 
 ### Épico 8 — Dashboards, relatórios e exportações
 
-- [ ] **CG-066 — Construir dashboard do Comitê Gestor**
+- [x] **CG-066 — Construir dashboard do Comitê Gestor**
 
   Exibir indicadores homologados de análise, aprovação, realização, prestação,
   conclusão, países, parceiros e convênios. Cada número deve ser clicável e
@@ -3205,6 +3205,70 @@ Essa situação é calculada a partir das datas e não é persistida.
 
   Critério de aceite: cartões e lista de pendências usam o mesmo recorte e não
   contam missão multirrede duas vezes no consolidado.
+
+  Entregue em 2026-09-07. `GET .../comite-gestor/painel?ano=&redeId=` e a seção
+  **Panorama das missões** na aba Visão geral.
+
+  **Não há número novo aqui.** Cada indicador conta a mesma coisa que a lista
+  de missões já contava, com as mesmas expressões — situação temporal derivada
+  de `current_date`, situação da prestação vinda de `coalesce` sobre o `left
+  join`. Dois SQL que respondem à mesma pergunta divergem na primeira mudança,
+  e quem clicasse no cartão encontraria outra contagem do lado de lá.
+
+  **O recorte é literalmente o mesmo objeto `SQL`**, montado uma vez e passado
+  a todas as consultas — cartões, quebras e pendências. É assim que a primeira
+  metade do critério de aceite fica garantida por construção, e não por
+  disciplina de quem escreve a próxima consulta.
+
+  A segunda metade é a de sempre: **rede entra por `exists`, nunca por `join`**
+  (CG-016). As duas foram verificadas por mutação — trocar o `exists` por um
+  `join` com `missao_rede`, ou apurar as pendências sem o recorte, derruba
+  exatamente os testes escritos para isso.
+
+  **Pendência é uma linha por missão, com todos os motivos juntos.** Uma linha
+  por motivo faria a mesma missão aparecer duas vezes e a lista prometer mais
+  trabalho do que existe — o mesmo erro que o consolidado da CG-055 evita ao
+  não somar as colunas. Cada motivo diz **de quem é a vez**; sem isso a lista é
+  um inventário de problemas, e não uma fila de trabalho.
+
+  Os seis motivos têm todos a mesma forma — alguém precisa agir e ainda não
+  agiu: análise parada há mais de sete dias (a reunião é semanal, CG-047),
+  devolvida para ajustes, viagem encerrada sem prestação, prestação devolvida,
+  prestação aguardando validação, e prestação validada com a missão ainda
+  `CONFIRMADA` (CG-058). **Prestação em preenchimento normal não entra**:
+  estaria em pendência o tempo inteiro, e uma lista onde tudo aparece não ajuda
+  ninguém a escolher o que fazer primeiro. **Missão cancelada nunca entra** —
+  não há o que cobrar de uma viagem que a instituição decidiu não fazer.
+
+  Três decisões menores que a implementação ingênua erra:
+
+  - **Rede que não é do ciclo cai em "todas"**, e não num painel de zeros: um
+    painel inteiro de zeros é indistinguível de um ciclo sem missão nenhuma, e
+    quem chegou por link antigo não teria como saber a diferença. É a mesma
+    defesa que a tela já aplicava ao exercício pedido na URL.
+  - **Parceiro é a instituição cadastrada**, nunca o `instituicao_nome` digitado
+    à mão: contar o texto livre inflaria o indicador com algo que ninguém
+    consegue abrir, porque não há ficha por trás dele.
+  - **Convênio conta pela missão de origem.** O acordo se ancora na instituição
+    e sobrevive ao ciclo (CG-056); o único que pertence a este recorte é o que
+    nasceu de uma missão dele.
+
+  O exercício recorta a tela inteira — dinheiro e missões — e por isso o filtro
+  fica acima de tudo; o recorte por rede vale só para as missões e mora dentro
+  do painel, porque os aportes por rede já são a tabela de baixo e um filtro
+  global que mudasse metade da tela mentiria sobre a outra metade.
+
+  A página passou a buscar os aportes **antes** do resto: é deles que sai a
+  lista de exercícios do ciclo, e o painel só pode ser apurado depois que o ano
+  pedido na URL foi conferido contra ela. Em paralelo economizaria uma ida e
+  traria de volta um painel apurado num ano que a tela descarta — cartões de um
+  universo, tabelas de outro.
+
+  `statusAprovacao` entrou em `CAMPOS_FILTRO` da lista: sem ele os cartões de
+  aprovação abririam a lista sem recorte nenhum.
+
+  18 testes de integração em `painel-comite.int-spec.ts` e 8 asserções no
+  `smoke:telas`, ancoradas nos rótulos e **no link**, não nos números.
 
 - [ ] **CG-067 — Construir dashboard por rede**
 
