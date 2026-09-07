@@ -16,15 +16,22 @@ const OLE2 = bytes('d0cf11e0a1b11ae1');
 const EXECUTAVEL = bytes('4d5a90000300'); // MZ — PE/EXE
 
 describe('Formatos aceitos (CG-051)', () => {
-  it('aceita os formatos homologados na CG-009', () => {
+  it('aceita os tres formatos em vigor', () => {
     expect(identificarTipo(PDF, 'projeto.pdf')?.nome).toBe('PDF');
     expect(identificarTipo(JPEG, 'foto.jpg')?.nome).toBe('JPEG');
     expect(identificarTipo(JPEG, 'foto.jpeg')?.nome).toBe('JPEG');
     expect(identificarTipo(PNG, 'grafico.png')?.nome).toBe('PNG');
-    expect(identificarTipo(ZIP, 'ata.docx')?.nome).toBe('Word');
-    expect(identificarTipo(ZIP, 'planilha.xlsx')?.nome).toBe('Excel');
-    expect(identificarTipo(OLE2, 'antigo.doc')?.nome).toBe('Word 97-2003');
-    expect(identificarTipo(OLE2, 'antiga.xls')?.nome).toBe('Excel 97-2003');
+  });
+
+  it('recusa Office, retirado da lista em 2026-09-07', () => {
+    // A CG-009 tinha homologado DOC/DOCX e XLS/XLSX; o responsavel decidiu que
+    // o PDF basta por enquanto. Documento do Office e o vetor classico de
+    // macro, e este projeto ainda nao tem antivirus — cada formato a menos e
+    // uma porta a menos ate ele existir.
+    expect(identificarTipo(ZIP, 'ata.docx')).toBeNull();
+    expect(identificarTipo(ZIP, 'planilha.xlsx')).toBeNull();
+    expect(identificarTipo(OLE2, 'antigo.doc')).toBeNull();
+    expect(identificarTipo(OLE2, 'antiga.xls')).toBeNull();
   });
 
   it('recusa executavel disfarcado de PDF', () => {
@@ -35,15 +42,15 @@ describe('Formatos aceitos (CG-051)', () => {
   });
 
   it('recusa conteudo valido com extensao de outro formato', () => {
-    // ZIP e conteudo legitimo de .docx, mas nao de .pdf. Aceitar so porque a
-    // assinatura consta na lista deixaria passar qualquer ZIP renomeado.
-    expect(identificarTipo(ZIP, 'contrato.pdf')).toBeNull();
-    expect(identificarTipo(PDF, 'contrato.docx')).toBeNull();
+    // A extensao sozinha nunca bastou, e o conteudo tambem nao: os dois
+    // precisam concordar. PNG renomeado para .jpg e conteudo real de formato
+    // aceito, e ainda assim e recusado.
     expect(identificarTipo(PNG, 'foto.jpg')).toBeNull();
+    expect(identificarTipo(JPEG, 'foto.png')).toBeNull();
   });
 
   it('recusa formato fora da lista mesmo com assinatura coerente', () => {
-    // GIF e imagem de verdade, mas nao foi homologado na CG-009.
+    // GIF e imagem de verdade e nunca esteve na lista.
     const GIF = bytes('474946383961');
     expect(identificarTipo(GIF, 'animacao.gif')).toBeNull();
   });
@@ -58,16 +65,14 @@ describe('Formatos aceitos (CG-051)', () => {
     expect(extensaoDe('semponto')).toBe('');
   });
 
-  it('a lista aceita e exatamente a homologada na CG-009', () => {
+  it('a lista aceita e exatamente PDF, JPG e PNG', () => {
+    // Fixada de proposito: acrescentar formato passa a ser mudanca visivel no
+    // teste, e nao um item que entra sem ninguem reparar.
     expect([...EXTENSOES_ACEITAS].sort()).toEqual([
-      'doc',
-      'docx',
       'jpeg',
       'jpg',
       'pdf',
       'png',
-      'xls',
-      'xlsx',
     ]);
   });
 });

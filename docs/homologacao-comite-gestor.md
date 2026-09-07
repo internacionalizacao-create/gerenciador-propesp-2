@@ -488,19 +488,47 @@ Consequências diretas de projeto:
    `AGENTS.md` §9). A coluna já está no schema; enquanto o vínculo não existir,
    quem submete é `admin`, e a restrição fica registrada como pendência.
 
+### Decisões tomadas em 2026-09-07
+
+O responsável **aceitou a matriz perfil–escopo** desta seção como está, o que
+homologa a CG-003 e destrava a CG-028. Da matriz decorre que **quem valida a
+prestação continua sendo o Administrador** — a coluna já dizia isso, e nenhuma
+permissão nova é criada.
+
+E respondeu as cinco perguntas que estavam abertas:
+
+| Pergunta | Decisão | Efeito |
+|---|---|---|
+| Qual data define o **exercício** da despesa | **Manter como está**: quem lança informa | Nenhuma mudança. O campo `exercicio` continua obrigatório e livre, e não vira derivado de `data_documento` nem da viagem |
+| **Retenção** de comprovantes e cotações | **4 anos** | Nada é apagado hoje — não existe exclusão em lugar nenhum do módulo, só inativação — então o sistema já excede o mínimo. Vira piso para o dia em que houver expurgo, e requisito da política de backup do `ARQUIVOS_DIR` |
+| **DOC/XLS obrigatórios?** | **Só PDF por enquanto** | DOC/DOCX e XLS/XLSX saíram de `TIPOS_PERMITIDOS`. JPG e PNG ficam: são a galeria de evidências (CG-057), não documento |
+| **Titular e suplente** nas equipes | **Só função em texto** | Nenhuma mudança: `membro_equipe_gestao.funcao` já é `varchar`. A ideia de modelar suplência sai do escopo |
+| **Documentos exigidos no encerramento** | **Genérico e agnóstico** | Nenhum é semeado. O mecanismo (`requisito_submissao` com `momento = 'ENCERRAMENTO'`) fica pronto e vazio, e o checklist roda com os cinco fatos. Uma exigência cadastrada passa a valer sem deploy |
+
+Sobre a retirada do Office: a restrição vale por si, não só pela simplificação.
+Documento do Office é o vetor clássico de macro, e este projeto **ainda não tem
+antivírus** — o ponto de inserção está marcado em `validarArquivo`, e até ele
+existir cada formato a menos é uma porta a menos. Arquivos já enviados
+continuam válidos e baixáveis: a validação acontece no envio, não na leitura.
+
 ### Perguntas que só a equipe pode responder
 
-Estas não têm proposta técnica possível; sem elas a implementação para:
+Todas foram respondidas. O registro fica para quem precisar reconstituir por que
+o sistema é como é:
 
 1. ~~O Comitê Gestor delibera em reunião?~~ **Respondido em 2026-09-05:**
    reunião semanal, podendo haver semana sem reunião.
-2. Qual a regra institucional para escolher o **exercício** de uma despesa: a
-   data do pagamento, a data da viagem ou o empenho?
-3. Existe exigência de **retenção mínima** dos comprovantes e das cotações?
-   Quantos anos?
-4. Documentos Office (DOC/XLS) são realmente obrigatórios ou o PDF basta?
-5. Haverá **titular e suplente** nas equipes, ou apenas função em texto?
-6. Quem valida uma prestação quando o acesso deixar de ser exclusivo de `admin`?
+2. ~~Qual a regra institucional para escolher o **exercício** de uma despesa?~~
+   **Respondido em 2026-09-07:** manter como está — quem lança informa.
+3. ~~Existe exigência de **retenção mínima** dos comprovantes e das cotações?~~
+   **Respondido em 2026-09-07:** 4 anos.
+4. ~~Documentos Office (DOC/XLS) são realmente obrigatórios ou o PDF basta?~~
+   **Respondido em 2026-09-07:** o PDF basta por enquanto.
+5. ~~Haverá **titular e suplente** nas equipes?~~ **Respondido em 2026-09-07:**
+   apenas função em texto.
+6. ~~Quem valida uma prestação quando o acesso deixar de ser exclusivo de
+   `admin`?~~ **Respondido em 2026-09-07:** o Administrador, como já previa a
+   matriz perfil–escopo.
 
 ---
 

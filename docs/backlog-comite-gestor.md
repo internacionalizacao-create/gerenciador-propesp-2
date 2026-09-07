@@ -326,7 +326,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   Critério de aceite: permissões novas mapeadas exclusivamente para `admin` e
   endpoints protegidos explicitamente.
 
-- [ ] **CG-003 — Definir matriz definitiva de acesso**
+- [x] **CG-003 — Definir matriz definitiva de acesso**
 
   Definir futuramente:
 
@@ -345,6 +345,22 @@ Essa situação é calculada a partir das datas e não é persistida.
 
   Critério de aceite: matriz papel/escopo/ação aprovada e refletida no mapa de
   permissões da API.
+
+  **Aprovada em 2026-09-07.** O responsável aceitou a matriz perfil–escopo de
+  [homologacao-comite-gestor.md](homologacao-comite-gestor.md) §CG-007 como
+  está: Administrador global; Gestor da Rede limitado às redes do seu vínculo
+  ativo; Comitê Gestor com leitura ampla e decisão; Participante restrito às
+  missões de que participa. **A prestação continua validada pelo
+  Administrador** — a matriz já dizia isso, e nenhuma permissão nova nasce daqui.
+
+  "Minha rede" = as redes do vínculo ativo em `membro_equipe_gestao_rede`. É a
+  definição mais barata e a única com dado já carregado.
+
+  A metade que falta é implementação, e é a **CG-028**: o escopo é filtro na
+  consulta, não permissão — a permissão diz *o que* a pessoa pode fazer, o
+  escopo diz *sobre quais linhas*. Até a CG-028 entrar, os papéis `gestor-rede`
+  e `comite-gestor` continuam **sem ser atribuídos a ninguém**, porque missões e
+  parceiros ainda não consultam escopo e quem os recebesse veria as três redes.
 
 - [x] **CG-004 — Validar wireflow da experiência**
 
@@ -3229,6 +3245,33 @@ Essa situação é calculada a partir das datas e não é persistida.
 
   Critério de aceite: exportação mantém filtros, moeda e datas, respeita
   autorização e não expõe caminho interno nem conteúdo privado.
+
+  **Decisões técnicas tomadas em 2026-09-07**, delegadas pelo responsável com a
+  restrição de que o projeto roda em **servidor on-premise**:
+
+  - **Síncrono, com teto de linhas.** On-premise não tem autoescala: uma
+    exportação longa ocupa um worker do Node e o resto da aplicação sente. Mas a
+    alternativa — fila de jobs — traria Redis e um processo a mais para operar,
+    infraestrutura que este projeto não tem e que alguém teria de manter no
+    servidor da instituição. O teto resolve o problema real sem criar o segundo:
+    acima dele a tela pede para reduzir o filtro, como a lista de parceiros já
+    faz.
+  - **Nenhum arquivo é gravado em disco.** O conteúdo é transmitido direto na
+    resposta. Isso responde de saída as duas perguntas que a task levanta —
+    expiração e limpeza —, porque não há o que expirar nem o que varrer. E
+    elimina a pior falha possível deste módulo: arquivo exportado que sobra no
+    disco e é servido depois a quem não podia vê-lo.
+  - **Autorização é a da consulta, não do arquivo.** A exportação reusa o mesmo
+    serviço de leitura do relatório; um caminho paralelo seria um segundo lugar
+    para errar o recorte. Documento `RESTRITA` continua fora pelo mesmo
+    `podeVer` (CG-057).
+  - **Fórmula em CSV/Excel é neutralizada na escrita.** Célula que começa com
+    `=`, `+`, `-`, `@`, tab ou CR recebe aspa simples à frente. Sem isso, um
+    título de missão digitado como `=cmd|...` vira execução ao abrir a planilha
+    — e o dado vem de campo livre preenchido por usuário.
+
+  O que continua pendente da equipe: **quais relatórios são homologados** para
+  exportar, e se o dossiê final da missão sai em PDF único ou em pacote.
 
 ## Ordem recomendada de entrega
 

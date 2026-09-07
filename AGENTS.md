@@ -633,7 +633,10 @@ o ícone estiver visível.
   e nada abate antes disso; os requisitos de encerramento são **agnósticos ao
   tipo de missão**; os tipos de despesa são passagem, diária, hospedagem,
   transporte, inscrição em evento, seguro e outros; os formatos de documento
-  aceitos são PDF, JPG, PNG, DOC/DOCX e XLS/XLSX; e a prestação abre
+  aceitos eram PDF, JPG, PNG, DOC/DOCX e XLS/XLSX — **DOC/XLS saíram em
+  2026-09-07**, por decisão do responsável de que o PDF basta por enquanto
+  (documento do Office é o vetor clássico de macro e não há antivírus ainda);
+  e a prestação abre
   **automaticamente** quando a viagem é marcada como realizada.
 
   **Modelo documental decidido na CG-014**, antes de qualquer upload:

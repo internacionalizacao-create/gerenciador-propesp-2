@@ -127,8 +127,12 @@ pessoal aqui (bilhete com nome, lista de presença, declaração).
 Por isso a `chave_armazenamento` é opaca: mesmo que um caminho vaze, ele não
 revela de quem é o documento nem permite adivinhar o vizinho.
 
-**Formatos aceitos (§15, homologado na CG-009):** PDF, JPG, PNG, DOC/DOCX,
-XLS/XLSX. A validação é por **conteúdo**, não só pela extensão — extensão é
+**Formatos aceitos:** PDF, JPG e PNG. A CG-009 tinha homologado também DOC/DOCX
+e XLS/XLSX; perguntado se eram mesmo obrigatórios, o responsável decidiu em
+2026-09-07 que **o PDF basta por enquanto**. A restrição vale por si: documento
+do Office é o vetor clássico de macro, e este projeto ainda não tem antivírus.
+Arquivos já enviados continuam válidos e baixáveis — a validação acontece no
+envio, não na leitura. A validação é por **conteúdo**, não só pela extensão — extensão é
 sugestão do cliente, e aceitar `.pdf` sem olhar os bytes é como confiar no
 `Content-Type` que o browser mandou.
 

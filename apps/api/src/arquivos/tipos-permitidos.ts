@@ -1,8 +1,18 @@
 /**
  * Formatos aceitos e a verificacao de assinatura (CG-051).
  *
- * A lista e a homologada na CG-009, secao 15 do documento da equipe: PDF, JPG,
- * PNG, DOC/DOCX e XLS/XLSX.
+ * **Somente PDF, JPG e PNG**, por decisao do responsavel em 2026-09-07. A
+ * CG-009 tinha homologado tambem DOC/DOCX e XLS/XLSX; perguntado se eram mesmo
+ * obrigatorios, o responsavel respondeu que o PDF basta por enquanto.
+ *
+ * A restricao vale a pena por si: documento do Office e o vetor classico de
+ * macro, e este projeto ainda **nao tem antivirus** — o ponto de insercao esta
+ * marcado em `validarArquivo`, e ate ele existir cada formato a menos e uma
+ * porta a menos. Arquivos ja enviados continuam validos e baixaveis: a
+ * validacao acontece no envio, nao na leitura.
+ *
+ * Voltar a aceitar Office e acrescentar as entradas de volta — as assinaturas
+ * OLE2 e ZIP ficam registradas no historico deste arquivo.
  *
  * **A extensao e o `Content-Type` nao valem nada aqui.** Os dois vem do
  * cliente: renomear `virus.exe` para `nota.pdf` muda os dois e nao muda um byte
@@ -20,10 +30,8 @@ export interface TipoPermitido {
 }
 
 /**
- * `D0CF11E0A1B11AE1` e o cabecalho OLE2, usado pelo Office antigo (.doc/.xls).
- * `504B0304` e ZIP, e o Office novo (.docx/.xlsx) e um ZIP por dentro — por
- * isso os dois compartilham assinatura e a distincao final fica na extensao
- * declarada, ja restrita a lista abaixo.
+ * Imagem entra para a galeria de evidencias (CG-057), nao como documento: e a
+ * foto da visita, da assinatura, do evento. PDF cobre o resto.
  */
 export const TIPOS_PERMITIDOS: TipoPermitido[] = [
   {
@@ -43,32 +51,6 @@ export const TIPOS_PERMITIDOS: TipoPermitido[] = [
     mimeType: 'image/png',
     extensoes: ['png'],
     assinaturas: ['89504e470d0a1a0a'],
-  },
-  {
-    nome: 'Word',
-    mimeType:
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    extensoes: ['docx'],
-    assinaturas: ['504b0304'],
-  },
-  {
-    nome: 'Word 97-2003',
-    mimeType: 'application/msword',
-    extensoes: ['doc'],
-    assinaturas: ['d0cf11e0a1b11ae1'],
-  },
-  {
-    nome: 'Excel',
-    mimeType:
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    extensoes: ['xlsx'],
-    assinaturas: ['504b0304'],
-  },
-  {
-    nome: 'Excel 97-2003',
-    mimeType: 'application/vnd.ms-excel',
-    extensoes: ['xls'],
-    assinaturas: ['d0cf11e0a1b11ae1'],
   },
 ];
 

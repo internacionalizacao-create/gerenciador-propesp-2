@@ -87,13 +87,13 @@ function FormEvidencias({
             type="file"
             multiple
             required
-            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
+            accept=".pdf,.jpg,.jpeg,.png"
             aria-describedby="arquivos-dica"
             className="mt-1.5 block w-full rounded-xl border border-border-strong bg-surface px-3 py-2 text-sm text-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-surface-muted file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-foreground"
           />
           <p id="arquivos-dica" className="mt-1.5 text-xs text-muted">
-            PDF, JPG, PNG, DOC/DOCX ou XLS/XLSX, até 20 MB cada. O tipo é
-            conferido pelo conteúdo, não pela extensão.
+            PDF, JPG ou PNG, até 20 MB cada. O tipo é conferido pelo conteúdo,
+            não pela extensão.
           </p>
         </div>
 
