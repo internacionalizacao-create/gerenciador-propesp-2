@@ -835,6 +835,19 @@ o ícone estiver visível.
   payload, e não só na tela: o valor digitado antes continua no estado do React
   Hook Form. `AtividadeMissao.status` é o enum nos dois lados, não `string`.
 
+  **O dossiê do relator (CG-048)** ocupa a aba Análise: "O que será analisado"
+  (objetivo, período, redes, participantes e roteiro, reusando as linhas do
+  Resumo), "Documentos anexados" (os arquivos, ao lado do checklist que diz o
+  que a política exige — são perguntas diferentes) e **"Alterações desde a
+  última decisão"**, que trouxe `missao.historico` para a tela pela primeira
+  vez. **A janela tem duas bordas:** da última decisão até o reenvio. Sem a de
+  baixo, a rodada já lida volta à lista; sem a de cima, entram mudanças
+  posteriores ao envio, que são de **execução** e não da proposta — os dois
+  eixos são independentes (CG-006) e a missão avança enquanto a análise corre.
+  **O corte é por tempo, não por lista de campos**, que envelheceria em
+  silêncio. A lógica vive em `lib/formularios/alteracoes-analise.ts` porque
+  `node --test` não carrega `.tsx`.
+
   **A fila de análise (CG-047)** é a quarta aba da P17 (`?aba=analise`). **O que
   define a fila é a rodada aberta** (`encerrada_em is null`), não o
   `status_aprovacao` sozinho: os dois andam juntos hoje, mas quem responde
@@ -905,7 +918,7 @@ interface é **Coordenador de Temática**, não “membro do comitê”. Ediçã
 existente exige `plano:edit` (só `admin`), preserva código/rubrica e grava uma
 entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: somente
 2027 vem composto; 2028–2030 começam vazios e nunca copiam a quantidade automaticamente.
-- **Testes**: 146 unitários/regressões (67 API + 79 na web para toast, datas,
+- **Testes**: 153 unitários/regressões (67 API + 86 na web para toast, datas,
   React Hook Form/Zod, erros do multistep, formulários de parceiro,
   acessibilidade, contraste dos tokens, cálculos monetários, montagem de série
   do gráfico e caminhos do BFF) + 399 de integração contra Postgres

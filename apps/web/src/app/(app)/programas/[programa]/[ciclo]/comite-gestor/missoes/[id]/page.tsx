@@ -61,6 +61,10 @@ import type {
   StatusMissao,
 } from "@/lib/dominio";
 import {
+  alteracoesDaRodada,
+  ultimaDecisaoEm,
+} from "@/lib/formularios/alteracoes-analise";
+import {
   CATEGORIAS_DA_COTACAO,
   CATEGORIAS_DA_MISSAO,
   categoriasDoTipo,
@@ -270,6 +274,7 @@ export default async function MissaoDetalhePagina({
           podeEnviar={podeEnviar}
           podeDecidir={podeDecidir}
           podeReabrir={podeReabrir}
+          documentos={documentos}
         />
       ) : aba === "documentos" ? (
         <>
@@ -712,6 +717,7 @@ function Analise({
   podeEnviar,
   podeDecidir,
   podeReabrir,
+  documentos,
 }: {
   missao: MissaoDetalhe;
   rodadas: RodadaAnalise[];
@@ -720,8 +726,19 @@ function Analise({
   podeEnviar: boolean;
   podeDecidir: boolean;
   podeReabrir: boolean;
+  documentos: AnexoResumo[];
 }) {
   const aberta = rodadas.find((rodada) => rodada.encerradaEm === null);
+
+  // A janela e o porque dela vivem em `alteracoes-analise.ts`: `node --test`
+  // nao carrega `.tsx`, e esta e a logica que merece teste.
+  const ultimaDecisao = ultimaDecisaoEm(rodadas);
+  const alteracoes = alteracoesDaRodada(missao.historico, {
+    ultimaDecisaoEm: ultimaDecisao,
+    submetidoEm: aberta?.submetidoEm,
+  });
+
+  const anexados = documentos.filter((documento) => documento.ativo);
 
   return (
     <>
@@ -755,6 +772,106 @@ function Analise({
         </div>
       </Secao>
 
+      {/* O dossiê existe para o relator não trocar de aba enquanto escreve o
+          parecer. É leitura, e reusa as mesmas linhas do Resumo — duas
+          renderizações da mesma tabela divergiriam na primeira mudança. */}
+      <Secao
+        titulo="O que será analisado"
+        descricao="O mesmo conteúdo do Resumo, reunido aqui para não obrigar a trocar de aba durante a leitura."
+      >
+        <div className="rounded-2xl border border-border bg-surface px-5 py-5">
+          <p className="whitespace-pre-line text-sm text-foreground">
+            {missao.objetivo}
+          </p>
+          <p className="mt-3 text-sm text-muted">
+            {data(missao.dataInicio)} — {data(missao.dataFim)} ·{" "}
+            {inteiro(missao.numeroDias)} dias ·{" "}
+            {missao.redes.length > 0
+              ? missao.redes.map((rede) => rede.nome).join(", ")
+              : "sem rede"}
+          </p>
+        </div>
+
+        <div className="mt-5" />
+
+        <Tabela
+          rotulo="Participantes da missão em análise"
+          colunas={[
+            { chave: "pessoa", texto: "Pessoa" },
+            { chave: "papel", texto: "Papel" },
+            { chave: "vinculo", texto: "Vínculo" },
+            { chave: "periodo", texto: "Período" },
+            { chave: "dias", texto: "Dias", alinhamento: "direita" },
+          ]}
+        >
+          {missao.participantes.map((pessoa) => (
+            <LinhaParticipante key={pessoa.id} pessoa={pessoa} />
+          ))}
+        </Tabela>
+
+        <div className="mt-5" />
+
+        {/* Parceiro e contato saem daqui: são o roteiro. Uma seção separada
+            para "parceiros autorizados" repetiria a mesma instituição em duas
+            listas e nada diria em qual parada ela entra. */}
+        <Tabela
+          rotulo="Roteiro da missão em análise"
+          colunas={[
+            { chave: "ordem", texto: "#" },
+            { chave: "atividade", texto: "Atividade" },
+            { chave: "destino", texto: "Destino" },
+            { chave: "periodo", texto: "Período" },
+            { chave: "dias", texto: "Dias", alinhamento: "direita" },
+            { chave: "situacao", texto: "Situação" },
+          ]}
+        >
+          {[...missao.atividades]
+            .sort((a, b) => a.ordem - b.ordem)
+            .map((atividade) => (
+              <LinhaAtividade key={atividade.id} atividade={atividade} />
+            ))}
+        </Tabela>
+      </Secao>
+
+      <Secao
+        titulo="Documentos anexados"
+        descricao="Abrir o arquivo faz parte da análise; o checklist abaixo diz o que a política exige, não o que existe."
+      >
+        {anexados.length === 0 ? (
+          <EstadoVazio
+            titulo="Nenhum documento anexado"
+            descricao="Documento restrito não aparece para quem não o enviou."
+          />
+        ) : (
+          <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
+            {anexados.map((documento) => (
+              <li
+                key={documento.id}
+                className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5"
+              >
+                <span className="text-sm">
+                  <span className="font-medium text-foreground">
+                    {documento.legenda ?? documento.nome}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-muted">
+                    {rotulo(documento.categoria)}
+                    {documento.versao > 1 ? ` · v${documento.versao}` : ""}
+                    {documento.enviadoPor ? ` · ${documento.enviadoPor}` : ""}
+                  </span>
+                </span>
+                <a
+                  href={`/api/bff/anexos/${documento.id}/conteudo`}
+                  className="text-sm font-medium text-primary hover:underline"
+                >
+                  Abrir
+                  <span className="sr-only"> {documento.nome}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Secao>
+
       {requisitos.requisitos.length > 0 ? (
         <Secao
           titulo="Documentos exigidos"
@@ -780,6 +897,59 @@ function Analise({
               </li>
             ))}
           </ul>
+        </Secao>
+      ) : null}
+
+      {aberta ? (
+        <Secao
+          titulo={
+            ultimaDecisao
+              ? "Alterações desde a última decisão"
+              : "Alterações antes do envio"
+          }
+          descricao={
+            ultimaDecisao
+              ? "O que mudou em resposta ao parecer anterior. É por aqui que se confere se o ajuste pedido foi feito."
+              : "Como a missão chegou até aqui. A edição congela enquanto a análise está aberta."
+          }
+        >
+          {alteracoes.length === 0 ? (
+            <EstadoVazio
+              titulo="Nada alterado"
+              descricao={
+                ultimaDecisao
+                  ? "A missão foi reenviada sem nenhuma alteração registrada desde o parecer anterior."
+                  : "A missão foi enviada como foi cadastrada."
+              }
+            />
+          ) : (
+            <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
+              {alteracoes.map((registro) => (
+                <li key={registro.id} className="px-5 py-3.5 text-sm">
+                  <span className="font-medium text-foreground">
+                    {registro.campo ?? "Registro"}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-muted">
+                    {dataHora(registro.ocorridoEm)}
+                    {registro.usuarioNome ? ` · ${registro.usuarioNome}` : ""}
+                  </span>
+                  {registro.valorAnterior !== registro.valorNovo ? (
+                    <p className="mt-1 text-xs text-muted">
+                      <span className="line-through">
+                        {registro.valorAnterior ?? "—"}
+                      </span>{" "}
+                      → {registro.valorNovo ?? "—"}
+                    </p>
+                  ) : null}
+                  {registro.justificativa ? (
+                    <p className="mt-1 text-xs text-subtle">
+                      {registro.justificativa}
+                    </p>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
         </Secao>
       ) : null}
 

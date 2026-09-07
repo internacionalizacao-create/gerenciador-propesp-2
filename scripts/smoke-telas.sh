@@ -189,6 +189,10 @@ if [[ "$USUARIO" == "admin" ]]; then
     # a ancora e o sufixo, que sobrevive a isso.
     testar "${MID}?aba=analise" "Situação da análise"
     testar "${MID}?aba=analise" "Documentos exigidos"
+    # CG-048: o dossie do relator. As ancoras sao os titulos das secoes, que
+    # existem em qualquer estado da missao.
+    testar "${MID}?aba=analise" "O que será analisado"
+    testar "${MID}?aba=analise" "Documentos anexados"
     testar "${MID}?aba=analise" "Histórico"
     # Fatia 3. As asserções ficam nos títulos das seções, que existem em
     # qualquer estado: "Prestação não iniciada" e "Nenhum documento anexado"

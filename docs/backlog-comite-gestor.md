@@ -2143,7 +2143,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   por ora é só o `admin`. Quando a CG-028 entrar, o recorte vale para a fila sem
   mudança aqui: ela usa o mesmo `listar`.
 
-- [ ] **CG-048 — Construir tela de análise e parecer**
+- [x] **CG-048 — Construir tela de análise e parecer**
 
   Mostrar resumo, parceiros, contatos autorizados, participantes, roteiro,
   documentos, alterações e decisões anteriores. Disponibilizar aprovar,
@@ -2154,6 +2154,51 @@ Essa situação é calculada a partir das datas e não é persistida.
 
   Critério de aceite: decisão confirmada aparece no histórico e uma falha não
   limpa o parecer digitado.
+
+  **Concluída em 2026-09-07.** Auditei antes de escrever: **os dois critérios de
+  aceite já passavam** desde a CG-045. A decisão entra no histórico de rodadas, e
+  o parecer sobrevive à falha porque `submeterSemLimpar` monta o `FormData` sem
+  resetar o formulário e o sidesheet só fecha no sucesso — `useToastDaAcao`
+  recebe `aoConcluir`, que não é chamado quando a ação falha. Aprovar, solicitar
+  ajustes e reprovar já existiam, com a justificativa dentro do próprio painel.
+
+  O que faltava era **contexto**: o relator precisava trocar de aba para ver o
+  roteiro e abrir um documento enquanto escrevia o parecer. Entraram três seções
+  na aba Análise:
+
+  - **"O que será analisado"** — objetivo, período, redes, participantes e
+    roteiro. Reusa `LinhaAtividade` e `LinhaParticipante` do Resumo; duas
+    renderizações da mesma tabela divergiriam na primeira mudança. Parceiro e
+    contato saem do roteiro, e não de uma lista própria: uma seção separada de
+    "parceiros autorizados" repetiria a instituição e nada diria em qual parada
+    ela entra.
+  - **"Documentos anexados"** — os arquivos em si, com link para abrir. O
+    checklist ao lado diz o que a política exige; esta lista diz o que existe, e
+    são perguntas diferentes.
+  - **"Alterações desde a última decisão"** — `missao.historico` **nunca havia
+    sido renderizado em tela nenhuma**. A trilha existia na API desde a CG-033 e
+    nada a mostrava.
+
+  **A janela das alterações tem duas bordas, e as duas importam.** Ela vai da
+  última decisão até o reenvio: é o que o responsável mudou *em resposta ao
+  parecer*. Sem a borda de baixo, a rodada já lida volta à lista e obriga a
+  garimpar. Sem a de cima, entram as mudanças **posteriores ao envio** — que
+  existem e são de execução, não da proposta: aprovação e execução são eixos
+  independentes (CG-006), e a missão avança de planejada a concluída enquanto a
+  análise corre. Foi o que a verificação mostrou: sem a borda de cima a seção
+  exibia `CONFIRMADA → CONCLUIDA`, que não é o que o Comitê analisa.
+
+  **O corte é por tempo, não por lista de campos.** Uma lista de "campos
+  relevantes para a aprovação" envelheceria em silêncio no dia em que um campo
+  novo aparecesse — e é justamente o silêncio que a torna perigosa.
+
+  A lógica vive em
+  [alteracoes-analise.ts](../apps/web/src/lib/formularios/alteracoes-analise.ts),
+  fora do componente, porque `node --test` não carrega `.tsx` e são duas bordas
+  fáceis de errar. Cobertura: 7 regressões, incluindo a borda **inclusiva** no
+  instante do envio — a última edição antes do clique pode cair no mesmo
+  segundo, e excluí-la esconderia justamente o ajuste que motivou o reenvio.
+  Web passou de 79 para 86.
 
 - [~] **CG-049 — Construir cadastro e histórico de parceiros**
 
