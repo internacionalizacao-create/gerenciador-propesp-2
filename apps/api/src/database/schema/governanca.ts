@@ -124,6 +124,17 @@ export const anexo = pgTable(
     legenda: varchar('legenda', { length: 300 }),
     dataEvidencia: date('data_evidencia'),
     localEvidencia: varchar('local_evidencia', { length: 240 }),
+    /**
+     * Credito da evidencia — quem fotografou, filmou ou produziu (CG-057).
+     *
+     * Nao e `enviado_por`, e a distincao importa: quem sobe o arquivo costuma
+     * ser a secretaria, e creditar a autoria a ela publicaria o nome errado. Um
+     * e rastro interno de quem mexeu no sistema; o outro e informacao da
+     * evidencia, que sai na galeria. Texto livre porque o autor frequentemente
+     * nao e usuario do sistema — pode ser a assessoria da instituicao
+     * anfitria.
+     */
+    autoria: varchar('autoria', { length: 200 }),
     ...timestamps,
   },
   (t) => [

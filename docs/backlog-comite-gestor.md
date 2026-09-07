@@ -2612,7 +2612,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   `admin`, os três estados da seção *Resultados* na tela e as duas seções novas
   do parceiro; os dados de verificação foram removidos do banco depois.
 
-- [ ] **CG-057 — Implementar fotos e evidências da missão**
+- [x] **CG-057 — Implementar fotos e evidências da missão**
 
   Permitir upload múltiplo com categoria, legenda, data, local, descrição,
   autoria e visibilidade. Incluir evidências documentais homologadas e respeitar
@@ -2622,6 +2622,63 @@ Essa situação é calculada a partir das datas e não é persistida.
 
   Critério de aceite: galeria não expõe arquivo privado e substituição preserva
   a versão anterior.
+
+  **Concluída em 2026-09-06.** Auditei antes de escrever, e **os dois critérios
+  de aceite já estavam implementados e testados** desde a CG-051: `podeVer`
+  filtra `RESTRITA` na listagem e no download, e a substituição já criava versão
+  nova preservando a anterior. O schema já trazia `visibilidade`, `legenda`,
+  `data_evidencia` e `local_evidencia`. Sobrou menos do que o texto da task
+  sugere.
+
+  O que entrou:
+
+  - **`autoria`**, coluna nova. **Não é `enviado_por`**, e a distinção é o ponto:
+    quem sobe o arquivo costuma ser a secretaria, e creditar a autoria a ela
+    publicaria o nome errado. Um é rastro interno de quem mexeu no sistema; o
+    outro é informação da evidência, que sai na galeria. Texto livre porque o
+    autor frequentemente não é usuário do sistema — pode ser a assessoria da
+    instituição anfitriã.
+  - **Upload múltiplo**, que é **N requisições, não um endpoint em lote**. Um
+    lote obrigaria a decidir o que fazer quando o terceiro arquivo falha:
+    desfazer os dois primeiros seria pior — eles subiram e são válidos — e
+    ignorar a falha esconderia dela. Um a um, o resultado honesto é o parcial, e
+    a tela diz qual arquivo ficou de fora e por quê.
+  - **Galeria** na aba Documentos, separada da tabela: misturá-las faria a foto
+    do jantar aparecer na mesma lista dos documentos exigidos para aprovação.
+  - Os campos de evidência no formulário — existiam na API desde a CG-051 e
+    nenhuma tela os oferecia.
+
+  **Os metadados valem para toda a seleção**, não por arquivo. Data, local,
+  autoria e visibilidade descrevem a ocasião, não o arquivo; e é isso que torna
+  aceitável não pedir uma legenda por foto — quem sobe trinta fotos de uma visita
+  não escreve trinta legendas, e obrigar a isso faria ninguém subir nenhuma.
+
+  A foto é renderizada pelo próprio `/anexos/:id/conteudo`, **sem miniatura
+  gerada**: o endpoint já exige sessão e permissão, e um segundo caminho para a
+  mesma imagem criaria um segundo lugar para errar a autorização. O preço é
+  baixar o arquivo inteiro — aceitável no limite de 20 MB, e o ponto de otimizar
+  é aqui quando incomodar.
+
+  Cobertura: 4 regressões novas em
+  [anexos.int-spec.ts](../apps/api/test/anexos.int-spec.ts). **As três garantias
+  foram verificadas por mutação:** não propagar `autoria` na substituição derruba
+  1 caso, não propagar `visibilidade` derruba outro (substituir uma foto privada
+  por outra a tornaria pública em silêncio — a saída mais discreta possível para
+  um vazamento), e remover o filtro de `podeVer` derruba 2.
+
+  De quebra, `ROTULOS` ganhou as categorias de documento que **faltavam desde a
+  CG-051**: a tabela vinha mostrando `LISTA_PRESENCA` e `NOTA_FISCAL` crus.
+
+  **Uma limitação honesta na verificação:** o recorte de visibilidade não foi
+  exercitado na aplicação com dois perfis reais, porque nenhum usuário do realm
+  além do `admin` tem `missao:read` — a matriz provisória dá o módulo só a ele
+  (CG-028/CG-029). Ele está coberto pela integração, com mutação. Na aplicação
+  verifiquei o resto: upload com metadados completos, a galeria com selo
+  *Restrita*, data, local, autoria e versão, e a separação das duas listas.
+
+  **Fica para sua revisão:** hoje `RESTRITA` é visível ao `admin` e a quem
+  enviou — regra herdada da CG-014 e marcada lá como **proposta, não
+  homologada**. Se o Comitê Gestor também deve ver, é uma linha em `podeVer`.
 
 - [x] **CG-058 — Implementar relatório final e checklist condicional**
 

@@ -58,3 +58,50 @@ export const CATEGORIAS_DA_COTACAO: OpcaoCategoria[] = [
   { valor: "COTACAO", texto: "Cotação" },
   { valor: "OUTRO", texto: "Outro" },
 ];
+
+/**
+ * Categorias da galeria de evidências (CG-057).
+ *
+ * Separadas das da missão de propósito: aquelas instruem a análise do Comitê e
+ * são cobradas no checklist; estas registram o que aconteceu. Misturá-las faria
+ * a foto do jantar aparecer na lista de documentos exigidos para aprovação.
+ */
+export const CATEGORIAS_FOTO: OpcaoCategoria[] = [
+  { valor: "FOTO_REUNIAO", texto: "Foto — reunião" },
+  { valor: "FOTO_EVENTO", texto: "Foto — evento" },
+  { valor: "FOTO_VISITA", texto: "Foto — visita" },
+  { valor: "FOTO_ASSINATURA", texto: "Foto — assinatura" },
+  { valor: "FOTO_INSTITUICAO", texto: "Foto — instituição" },
+  { valor: "FOTO_PARTICIPANTES", texto: "Foto — participantes" },
+];
+
+/** Evidência documental: comprova que a missão aconteceu, sem ser foto. */
+export const CATEGORIAS_EVIDENCIA: OpcaoCategoria[] = [
+  { valor: "CERTIFICADO", texto: "Certificado" },
+  { valor: "ATA", texto: "Ata" },
+  { valor: "LISTA_PRESENCA", texto: "Lista de presença" },
+  { valor: "DECLARACAO", texto: "Declaração" },
+  { valor: "NOTICIA", texto: "Notícia" },
+  { valor: "PUBLICACAO", texto: "Publicação" },
+  { valor: "APRESENTACAO", texto: "Apresentação" },
+  { valor: "OUTRO", texto: "Outro" },
+];
+
+export const CATEGORIAS_DA_GALERIA: OpcaoCategoria[] = [
+  ...CATEGORIAS_FOTO,
+  ...CATEGORIAS_EVIDENCIA,
+];
+
+const CHAVES_FOTO = new Set(CATEGORIAS_FOTO.map((opcao) => opcao.valor));
+const CHAVES_GALERIA = new Set(
+  CATEGORIAS_DA_GALERIA.map((opcao) => opcao.valor),
+);
+
+/** `OUTRO` não entra: ele é o destino de tudo que não se classificou. */
+export function ehEvidencia(categoria: string): boolean {
+  return categoria !== "OUTRO" && CHAVES_GALERIA.has(categoria);
+}
+
+export function ehFoto(categoria: string): boolean {
+  return CHAVES_FOTO.has(categoria);
+}

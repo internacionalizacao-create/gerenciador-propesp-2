@@ -188,6 +188,10 @@ if [[ "$USUARIO" == "admin" ]]; then
     # dependem do banco e virariam falso alarme no primeiro lançamento.
     testar "${MID}?aba=documentos" "Documentos da missão"
     testar "${MID}?aba=prestacao" "Prestação de contas"
+    # CG-057: galeria de fotos e evidencias. A ancora e o titulo da secao, que
+    # existe mesmo vazia; "Restrita" depende do banco e viraria falso alarme.
+    testar "${MID}?aba=documentos" "Fotos e evidências"
+    testar "${MID}?aba=documentos" "Adicionar evidências"
     # CG-053: as acoes so aparecem para quem tem `prestacao:write`, e por isso
     # ficam no bloco do admin. "Anexar documento" cobre o caminho de upload.
     testar "${MID}?aba=documentos" "Anexar documento"

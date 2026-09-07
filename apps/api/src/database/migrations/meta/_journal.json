@@ -225,6 +225,13 @@
       "when": 1788733469766,
       "tag": "0031_encerramento_missao_cg058",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1788751997115,
+      "tag": "0032_autoria_evidencia_cg057",
+      "breakpoints": true
     }
   ]
 }

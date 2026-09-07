@@ -787,6 +787,8 @@ export interface AnexoResumo {
   legenda: string | null;
   dataEvidencia: string | null;
   localEvidencia: string | null;
+  /** Crédito da evidência — quem produziu, não quem fez o upload (CG-057). */
+  autoria: string | null;
 }
 
 export interface CotacaoPassagem {

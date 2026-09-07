@@ -176,6 +176,33 @@ const ROTULOS: Record<string, string> = {
   ENTREGUE: "Entregue",
   VALIDADO: "Validado",
   ATRASADO: "Atrasado",
+  // categorias de documento da missao e da prestacao (CG-051/CG-052). Estavam
+  // faltando desde entao e a tabela mostrava a constante crua.
+  CONVITE: "Convite",
+  PROGRAMACAO: "Programação",
+  JUSTIFICATIVA: "Justificativa",
+  ORCAMENTO: "Orçamento",
+  PASSAGEM: "Passagem",
+  BILHETE: "Bilhete",
+  COMPROVANTE: "Comprovante",
+  NOTA_FISCAL: "Nota fiscal",
+  COMPROVANTE_DIARIAS: "Comprovante de diárias",
+  COTACAO: "Cotação",
+  // categorias de evidencia da galeria (CG-057). As fotos vao sem o prefixo
+  // "Foto —" porque o cartao ja e visivelmente uma imagem; repeti-lo gastaria a
+  // linha do selo dizendo o que a pessoa esta vendo.
+  FOTO_REUNIAO: "Reunião",
+  FOTO_EVENTO: "Evento",
+  FOTO_VISITA: "Visita",
+  FOTO_ASSINATURA: "Assinatura",
+  FOTO_INSTITUICAO: "Instituição",
+  FOTO_PARTICIPANTES: "Participantes",
+  CERTIFICADO: "Certificado",
+  ATA: "Ata",
+  NOTICIA: "Notícia",
+  APRESENTACAO: "Apresentação",
+  LISTA_PRESENCA: "Lista de presença",
+  DECLARACAO: "Declaração",
   // papeis na missao (CG-018)
   RESPONSAVEL: "Responsável",
   PARTICIPANTE: "Participante",

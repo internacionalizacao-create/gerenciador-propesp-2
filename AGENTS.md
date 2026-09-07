@@ -21,11 +21,11 @@ dados com a seed real, serviços de cálculo (RN-01 a RN-20), telas de planejame
 anual e o cadastro individual de bolsas/produtos existem e são verificados. As planilhas
 não fornecem beneficiários, então P03 começa vazio e será alimentado pela equipe.
 No CAPES Global não há execução financeira na UEA: a CAPES paga diretamente. Falta
-o registro histórico de movimentações externas, a galeria de evidências das
-missões, relatórios, panorama/mapa de mobilidade e o escopo local por
-PPG/temática na autorização. O ciclo da missão do Comitê fechou de ponta a
-ponta: cadastro, aprovação, prestação, abatimento do aporte, produtos e
-encerramento com checklist. Ver §9.
+o registro histórico de movimentações externas, relatórios e dashboards,
+panorama/mapa de mobilidade e o escopo local por PPG/temática na autorização.
+**O ciclo da missão do Comitê fechou de ponta a ponta**: cadastro, aprovação,
+prestação, abatimento do aporte, produtos, evidências e encerramento com
+checklist. Ver §9.
 
 A visão de arquitetura e os fluxos de negócio/técnicos estão em
 [docs/arquitetura-sistema.md](docs/arquitetura-sistema.md). A especificação
@@ -835,6 +835,23 @@ o ícone estiver visível.
   payload, e não só na tela: o valor digitado antes continua no estado do React
   Hook Form. `AtividadeMissao.status` é o enum nos dois lados, não `string`.
 
+  **Fotos e evidências (CG-057)** ficam numa galeria própria na aba Documentos,
+  separada da tabela: misturá-las faria a foto do jantar aparecer na lista dos
+  documentos exigidos para aprovação. Os dois critérios de aceite já vinham da
+  CG-051 — `podeVer` filtra `RESTRITA` na listagem **e** no download, e
+  substituir preserva a versão anterior. **`autoria` não é `enviado_por`:** quem
+  sobe o arquivo costuma ser a secretaria, e creditar a autoria a ela publicaria
+  o nome errado; um é rastro interno, o outro sai na galeria. Metadados (data,
+  local, autoria, visibilidade) valem para **toda a seleção**, porque descrevem
+  a ocasião e não o arquivo — e é isso que torna aceitável não pedir legenda por
+  foto. **Upload múltiplo é N requisições, não lote:** um lote obrigaria a
+  escolher entre desfazer arquivos válidos e esconder a falha; um a um, o
+  resultado honesto é o parcial. A foto é servida pelo próprio
+  `/anexos/:id/conteudo`, sem miniatura gerada — um segundo caminho para a mesma
+  imagem seria um segundo lugar para errar a autorização. **`RESTRITA` hoje é
+  visível ao `admin` e a quem enviou**, regra herdada da CG-014 e marcada lá
+  como proposta não homologada.
+
   **Missão encerrada não volta a "resposta indefinida" (CG-059).** Encerrar
   afirma que os requisitos foram atendidos, e o checklist é recalculado a cada
   leitura — remover o único produto depois faria a afirmação virar mentira em
@@ -876,7 +893,7 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
 - **Testes**: 146 unitários/regressões (67 API + 79 na web para toast, datas,
   React Hook Form/Zod, erros do multistep, formulários de parceiro,
   acessibilidade, contraste dos tokens, cálculos monetários, montagem de série
-  do gráfico e caminhos do BFF) + 388 de integração contra Postgres
+  do gráfico e caminhos do BFF) + 392 de integração contra Postgres
   real. As duas garantias de não duplicação da linha
   histórica do parceiro foram verificadas por mutação: trocar o `exists` +
   `selectDistinct` por um `join` faz ambas falharem.
@@ -898,8 +915,9 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
   auditoria. O Gerenciador não propõe, autoriza ou executa. A estrutura genérica de
   execução financeira permanece no schema para outros programas, mas P11 é fora do
   escopo do CAPES Global porque os pagamentos são feitos diretamente pela CAPES.
-- Relatórios (P20), importação com adaptador por programa (P21), documentos e
-  evidências (P22), convênios e produção consolidada (P18/P19). O documento novo
+- Relatórios (P20), importação com adaptador por programa (P21) e produção
+  consolidada (P18/P19). Documentos e evidências (P22) existem no escopo da
+  missão desde a CG-051/CG-057; o que falta de P22 é fora do Comitê Gestor. O documento novo
   do Comitê propõe trazer parte de P18–P20/P22 para o fluxo da missão, mas a fase
   e a prioridade ainda dependem da CG-005. Produtos individuais por bolsa
   continuam em P03 e **não** foram reutilizados como produto de missão: a

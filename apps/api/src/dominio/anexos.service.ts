@@ -127,6 +127,8 @@ export const enviarAnexoSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Use o formato AAAA-MM-DD.')
     .optional(),
   localEvidencia: z.string().trim().max(240).optional(),
+  /** Credito da evidencia; nao e quem faz o upload (CG-057). */
+  autoria: z.string().trim().max(200).optional(),
 });
 export type EnviarAnexo = z.infer<typeof enviarAnexoSchema>;
 
@@ -166,6 +168,7 @@ export interface AnexoResumo {
   legenda: string | null;
   dataEvidencia: string | null;
   localEvidencia: string | null;
+  autoria: string | null;
 }
 
 export interface ArquivoRecebido {
@@ -232,6 +235,7 @@ export class AnexosService {
         legenda: dto.legenda ?? null,
         dataEvidencia: dto.dataEvidencia ?? null,
         localEvidencia: dto.localEvidencia ?? null,
+        autoria: dto.autoria ?? null,
       })
       .returning();
     return this.resumir(criado);
@@ -275,9 +279,12 @@ export class AnexosService {
           substituiId: anterior.id,
           enviadoPorId: usuario.id,
           enviadoPor: nomeDoUsuario(usuario),
+          // Metadados de evidencia acompanham a versao nova: substituir a foto
+          // por uma de melhor resolucao nao muda quem a tirou nem onde.
           legenda: anterior.legenda,
           dataEvidencia: anterior.dataEvidencia,
           localEvidencia: anterior.localEvidencia,
+          autoria: anterior.autoria,
         })
         .returning();
       return this.resumir(novo);
@@ -480,6 +487,7 @@ export class AnexosService {
       legenda: linha.legenda,
       dataEvidencia: linha.dataEvidencia,
       localEvidencia: linha.localEvidencia,
+      autoria: linha.autoria,
     };
   }
 }

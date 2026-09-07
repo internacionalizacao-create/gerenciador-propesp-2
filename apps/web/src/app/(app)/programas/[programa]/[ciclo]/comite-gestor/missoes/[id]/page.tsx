@@ -5,6 +5,7 @@ import {
   EnviarParaAnalise,
   ReabrirAnalise,
 } from "@/componentes/formularios/acoes-analise";
+import { AnexarEvidencias } from "@/componentes/formularios/form-evidencias";
 import {
   DeclararSemProduto,
   NovaAtividadeExtra,
@@ -63,6 +64,8 @@ import {
   CATEGORIAS_DA_COTACAO,
   CATEGORIAS_DA_MISSAO,
   categoriasDoTipo,
+  ehEvidencia,
+  ehFoto,
 } from "@/lib/formularios/documentos-despesa";
 import { data, dataHora, inteiro, rotulo } from "@/lib/formato";
 
@@ -269,11 +272,18 @@ export default async function MissaoDetalhePagina({
           podeReabrir={podeReabrir}
         />
       ) : aba === "documentos" ? (
-        <Documentos
-          documentos={documentos}
-          contexto={contexto}
-          podeAnexar={me.permissions.includes("missao:edit")}
-        />
+        <>
+          <Documentos
+            documentos={documentos}
+            contexto={contexto}
+            podeAnexar={me.permissions.includes("missao:edit")}
+          />
+          <Galeria
+            documentos={documentos}
+            contexto={contexto}
+            podeAnexar={me.permissions.includes("missao:edit")}
+          />
+        </>
       ) : aba === "prestacao" ? (
         <Prestacao
           prestacao={prestacao}
@@ -922,7 +932,11 @@ function Documentos({
   contexto: { programa: string; ciclo: string; id: string };
   podeAnexar: boolean;
 }) {
-  const ativos = documentos.filter((documento) => documento.ativo);
+  // A evidência sai daqui e vai para a galeria: misturá-las faria a foto do
+  // jantar aparecer na mesma lista dos documentos exigidos para aprovação.
+  const ativos = documentos.filter(
+    (documento) => documento.ativo && !ehEvidencia(documento.categoria),
+  );
 
   return (
     <Secao
@@ -992,6 +1006,128 @@ function Documentos({
             </tr>
           ))}
         </Tabela>
+      )}
+    </Secao>
+  );
+}
+
+/**
+ * Galeria de fotos e evidências (CG-057).
+ *
+ * **Só chega aqui o que a API deixou passar.** Documento `RESTRITA` é filtrado
+ * no servidor, na listagem e no download — a galeria não decide privacidade,
+ * ela só não tem como exibir o que não recebeu. Esconder no cliente seria
+ * fachada: bastaria abrir a resposta da rede.
+ *
+ * A foto é renderizada pelo próprio endpoint autenticado, sem miniatura
+ * gerada: `/anexos/:id/conteudo` já exige sessão e permissão, e criar um
+ * segundo caminho para a mesma imagem criaria um segundo lugar para errar a
+ * autorização. O preço é baixar o arquivo inteiro — aceitável no limite de
+ * 20 MB, e o ponto de otimizar é aqui quando incomodar.
+ */
+function Galeria({
+  documentos,
+  contexto,
+  podeAnexar,
+}: {
+  documentos: AnexoResumo[];
+  contexto: { programa: string; ciclo: string; id: string };
+  podeAnexar: boolean;
+}) {
+  const evidencias = documentos.filter(
+    (documento) => documento.ativo && ehEvidencia(documento.categoria),
+  );
+
+  return (
+    <Secao
+      titulo="Fotos e evidências"
+      descricao="O que comprova que a missão aconteceu. Substituir preserva a versão anterior; nada é excluído."
+      acoes={
+        podeAnexar ? (
+          <AnexarEvidencias contexto={contexto} entidadeId={contexto.id} />
+        ) : undefined
+      }
+    >
+      {evidencias.length === 0 ? (
+        <EstadoVazio
+          titulo="Nenhuma evidência registrada"
+          descricao="Fotos, certificados, atas e listas de presença entram aqui. Documento restrito não aparece para quem não o enviou."
+        />
+      ) : (
+        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {evidencias.map((evidencia) => (
+            <li
+              key={evidencia.id}
+              className="overflow-hidden rounded-2xl border border-border bg-surface"
+            >
+              {ehFoto(evidencia.categoria) &&
+              evidencia.mimeType.startsWith("image/") ? (
+                <a
+                  href={`/api/bff/anexos/${evidencia.id}/conteudo`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block bg-surface-muted"
+                >
+                  {/* `next/image` exigiria host permitido e otimização de uma
+                      rota autenticada; a tag nativa serve e não vaza o arquivo
+                      para o otimizador. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`/api/bff/anexos/${evidencia.id}/conteudo`}
+                    alt={evidencia.legenda ?? evidencia.nome}
+                    className="h-40 w-full object-cover"
+                  />
+                </a>
+              ) : (
+                <div className="flex h-40 items-center justify-center bg-surface-muted px-4 text-center text-sm text-muted">
+                  {rotulo(evidencia.categoria)}
+                </div>
+              )}
+
+              <div className="space-y-1.5 p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Selo tom="neutro">{rotulo(evidencia.categoria)}</Selo>
+                  {evidencia.visibilidade === "RESTRITA" ? (
+                    <Selo
+                      tom="aviso"
+                      titulo="Só o administrador e quem enviou têm acesso"
+                    >
+                      Restrita
+                    </Selo>
+                  ) : null}
+                  {evidencia.versao > 1 ? (
+                    <Selo tom="neutro">v{evidencia.versao}</Selo>
+                  ) : null}
+                </div>
+                <p className="text-sm text-foreground">
+                  {evidencia.legenda ?? evidencia.nome}
+                </p>
+                <p className="text-xs text-muted">
+                  {[
+                    evidencia.dataEvidencia
+                      ? data(evidencia.dataEvidencia)
+                      : null,
+                    evidencia.localEvidencia,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ") || "Sem data ou local informados"}
+                </p>
+                {evidencia.autoria ? (
+                  <p className="text-xs text-subtle">
+                    Autoria: {evidencia.autoria}
+                  </p>
+                ) : null}
+                <a
+                  href={`/api/bff/anexos/${evidencia.id}/conteudo`}
+                  className="inline-block text-xs font-medium text-primary hover:underline"
+                >
+                  Baixar
+                  <span className="sr-only"> {evidencia.nome}</span>
+                </a>
+              </div>
+            </li>
+          ))}
+        </ul>
       )}
     </Secao>
   );

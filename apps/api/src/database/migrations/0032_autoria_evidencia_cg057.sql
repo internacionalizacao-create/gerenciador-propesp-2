@@ -1,0 +1,1 @@
+ALTER TABLE "anexo" ADD COLUMN "autoria" varchar(200);

@@ -512,4 +512,93 @@ describe('AnexosService (CG-051)', () => {
       (await service.historico(nova.id, admin)).map(({ id }) => id),
     ).toEqual([nova.id, original.id]);
   });
+
+  // ------------------------------------------- fotos e evidencias (CG-057) --
+
+  it('guarda os metadados da evidencia, e autoria nao e quem enviou', async () => {
+    const foto = await service.enviar(
+      envio({
+        categoria: 'FOTO_VISITA',
+        legenda: 'Visita ao laboratorio de clima',
+        dataEvidencia: '2027-05-02',
+        localEvidencia: 'Toulouse, Franca',
+        autoria: 'Assessoria de comunicacao da anfitria',
+      }),
+      PNG(),
+      admin,
+    );
+
+    expect(foto.autoria).toBe('Assessoria de comunicacao da anfitria');
+    // Quem sobe o arquivo costuma ser a secretaria; creditar a autoria a ela
+    // publicaria o nome errado. Os dois campos coexistem por isso.
+    expect(foto.enviadoPor).toBe('Admin de Anexos');
+    expect(foto.dataEvidencia).toBe('2027-05-02');
+    expect(foto.localEvidencia).toBe('Toulouse, Franca');
+  });
+
+  it('substituir a foto preserva autoria, data e local', async () => {
+    const original = await service.enviar(
+      envio({
+        categoria: 'FOTO_EVENTO',
+        legenda: 'Abertura do seminario',
+        dataEvidencia: '2027-05-03',
+        localEvidencia: 'Toulouse',
+        autoria: 'Marie Dupont',
+      }),
+      PNG(),
+      admin,
+    );
+
+    // Trocar por uma versao de melhor resolucao nao muda quem a tirou nem onde:
+    // perder isso na substituicao apagaria o credito de quem produziu.
+    const nova = await service.substituir(original.id, PNG(), admin);
+    expect(nova.versao).toBe(2);
+    expect(nova.autoria).toBe('Marie Dupont');
+    expect(nova.dataEvidencia).toBe('2027-05-03');
+    expect(nova.localEvidencia).toBe('Toulouse');
+    expect(nova.legenda).toBe('Abertura do seminario');
+  });
+
+  it('foto restrita nao entra na galeria de quem nao a enviou', async () => {
+    // Criterio de aceite da CG-057. O filtro e do servidor: esconder no cliente
+    // seria fachada, porque bastaria abrir a resposta da rede.
+    await service.enviar(
+      envio({ categoria: 'FOTO_PARTICIPANTES', visibilidade: 'RESTRITA' }),
+      PNG(),
+      admin,
+    );
+    const publica = await service.enviar(
+      envio({ categoria: 'FOTO_INSTITUICAO' }),
+      PNG(),
+      admin,
+    );
+
+    const galeria = await service.listar(
+      {
+        entidadeTipo: 'MISSAO_COMITE',
+        entidadeId: missaoId,
+        incluirInativos: false,
+      },
+      somenteMissao,
+    );
+
+    expect(galeria.map((item) => item.id)).toEqual([publica.id]);
+  });
+
+  it('a versao restrita fica restrita depois de substituida', async () => {
+    const original = await service.enviar(
+      envio({ categoria: 'FOTO_REUNIAO', visibilidade: 'RESTRITA' }),
+      PNG(),
+      admin,
+    );
+    const nova = await service.substituir(original.id, PNG(), admin);
+
+    // Se a visibilidade nao acompanhasse a versao, substituir uma foto privada
+    // por outra a tornaria publica em silencio — a saida mais discreta possivel
+    // para um vazamento.
+    expect(nova.visibilidade).toBe('RESTRITA');
+    await expect(service.baixar(nova.id, somenteMissao)).rejects.toThrow(
+      /restrito/i,
+    );
+  });
 });
