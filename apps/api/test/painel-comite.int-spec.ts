@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 
 import type { AuthUser } from '../src/auth/auth-user';
 import { IdentidadeService } from '../src/auth/identidade.service';
+import { RecorteDeMissoes } from '../src/auth/escopo';
 import * as s from '../src/database/schema';
 import { normalizarNomeInstituicao } from '../src/database/normalizacao';
 import { DecisaoService } from '../src/dominio/decisao.service';
@@ -128,7 +129,11 @@ describe('Painel do Comite Gestor (CG-066)', () => {
   }
 
   const montar = (filtro: Record<string, unknown> = {}) =>
-    painel.montar(base.cicloId, filtroPainelSchema.parse(filtro));
+    painel.montar(
+      base.cicloId,
+      filtroPainelSchema.parse(filtro),
+      RecorteDeMissoes.irrestrito(),
+    );
 
   /** A reuniao nao pode estar no futuro (CG-019); constante no fonte envelhece. */
   function ontem(): string {

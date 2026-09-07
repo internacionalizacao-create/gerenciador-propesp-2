@@ -6,10 +6,12 @@ import {
   NotFoundException,
   PayloadTooLargeException,
 } from '@nestjs/common';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 
 import type { AuthUser } from '../auth/auth-user';
+import { alcancaTodasAsRedes, podeVerMissao } from '../auth/escopo';
+import { IdentidadeService } from '../auth/identidade.service';
 import type { Permission } from '../auth/permissions';
 import { ArmazenamentoService } from '../arquivos/armazenamento.service';
 import {
@@ -182,13 +184,19 @@ export class AnexosService {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     private readonly armazenamento: ArmazenamentoService,
+    private readonly identidade: IdentidadeService,
   ) {}
 
   async listar(
     filtros: ListarAnexos,
     usuario: AuthUser,
   ): Promise<AnexoResumo[]> {
-    this.exigir(usuario, POLITICA[filtros.entidadeTipo].ler);
+    await this.exigirAcesso(
+      usuario,
+      filtros.entidadeTipo,
+      filtros.entidadeId,
+      'ler',
+    );
     const linhas = await this.db
       .select()
       .from(s.anexo)
@@ -254,7 +262,12 @@ export class AnexosService {
     usuario: AuthUser,
   ): Promise<AnexoResumo> {
     const anterior = await this.obter(id);
-    this.exigir(usuario, POLITICA[anterior.entidadeTipo].escrever);
+    await this.exigirAcesso(
+      usuario,
+      anterior.entidadeTipo,
+      anterior.entidadeId,
+      'escrever',
+    );
     const tipo = this.validarArquivo(arquivo);
     const { chave, hash } = await this.armazenamento.guardar(arquivo.buffer);
 
@@ -297,7 +310,12 @@ export class AnexosService {
     usuario: AuthUser,
   ): Promise<AnexoResumo> {
     const anexo = await this.obter(id);
-    this.exigir(usuario, POLITICA[anexo.entidadeTipo].escrever);
+    await this.exigirAcesso(
+      usuario,
+      anexo.entidadeTipo,
+      anexo.entidadeId,
+      'escrever',
+    );
     if (!anexo.ativo) throw new BadRequestException('O anexo ja esta inativo.');
     await this.db.transaction(async (tx) => {
       await tx
@@ -325,7 +343,12 @@ export class AnexosService {
     usuario: AuthUser,
   ): Promise<{ nome: string; mimeType: string; conteudo: Buffer }> {
     const anexo = await this.obter(id);
-    this.exigir(usuario, POLITICA[anexo.entidadeTipo].ler);
+    await this.exigirAcesso(
+      usuario,
+      anexo.entidadeTipo,
+      anexo.entidadeId,
+      'ler',
+    );
     if (!this.podeVer(anexo, usuario)) {
       throw new ForbiddenException('Documento restrito.');
     }
@@ -335,7 +358,12 @@ export class AnexosService {
 
   async historico(id: string, usuario: AuthUser): Promise<AnexoResumo[]> {
     const anexo = await this.obter(id);
-    this.exigir(usuario, POLITICA[anexo.entidadeTipo].ler);
+    await this.exigirAcesso(
+      usuario,
+      anexo.entidadeTipo,
+      anexo.entidadeId,
+      'ler',
+    );
     // Sobe até a raiz da cadeia e desce por todas as versões.
     const linhas = await this.db.execute<Record<string, unknown>>(sql`
       with recursive cadeia as (
@@ -439,6 +467,99 @@ export class AnexosService {
         `A categoria ${dto.categoria} nao e compativel com despesa ${despesa?.tipo ?? 'desconhecida'}.`,
       );
     }
+  }
+
+  /**
+   * Permissão da entidade de destino **mais** o recorte por rede (CG-028).
+   *
+   * Sem a segunda metade, o documento seria a porta lateral do recorte: quem
+   * não pode abrir a missão da rede vizinha continuaria baixando o comprovante
+   * da prestação dela, bastando conhecer o UUID. A permissão diz *o que*; o
+   * escopo diz *sobre quais linhas*, e documento nenhum tem escopo próprio —
+   * ele herda o da entidade a que se prende, exatamente como herda a permissão.
+   *
+   * Instituição e convênio ficam de fora porque não pertencem a rede nenhuma:
+   * o cadastro institucional é compartilhado, e a matriz aprovada dá leitura
+   * ampla de parceiros a todos os perfis.
+   */
+  private async exigirAcesso(
+    usuario: AuthUser,
+    tipo: (typeof s.entidadeAnexoEnum.enumValues)[number],
+    entidadeId: string,
+    acao: 'ler' | 'escrever',
+  ): Promise<void> {
+    this.exigir(usuario, POLITICA[tipo][acao]);
+
+    if (alcancaTodasAsRedes(usuario)) return;
+    const missaoId = await this.missaoDaEntidade(tipo, entidadeId);
+    if (!missaoId) return;
+
+    const redes = await this.db
+      .select({ redeId: s.missaoRede.redeId })
+      .from(s.missaoRede)
+      .where(eq(s.missaoRede.missaoId, missaoId));
+
+    const escopo = await this.identidade.escopoDe(usuario);
+    if (
+      !podeVerMissao(
+        escopo,
+        redes.map((linha) => linha.redeId),
+      )
+    ) {
+      // 404, e não 403: "existe, mas não é seu" já entrega que o documento
+      // existe — mesmo critério do PPG e da missão fora do escopo.
+      throw new NotFoundException('Documento nao encontrado.');
+    }
+  }
+
+  /**
+   * A missão a que o alvo do documento pertence, quando pertence a alguma.
+   *
+   * `null` para instituição e convênio: eles sobrevivem à viagem e não são
+   * recortados por rede.
+   */
+  private async missaoDaEntidade(
+    tipo: (typeof s.entidadeAnexoEnum.enumValues)[number],
+    entidadeId: string,
+  ): Promise<string | null> {
+    switch (POLITICA[tipo].tabela) {
+      case 'missao':
+        return entidadeId;
+      case 'atividade':
+        return this.umValor(sql`
+          select missao_id from atividade_missao where id = ${entidadeId}
+        `);
+      case 'prestacao':
+        return this.umValor(sql`
+          select missao_id from prestacao_contas_missao where id = ${entidadeId}
+        `);
+      case 'despesa':
+        return this.umValor(sql`
+          select p.missao_id
+            from despesa_missao d
+            join prestacao_contas_missao p on p.id = d.prestacao_id
+           where d.id = ${entidadeId}
+        `);
+      case 'cotacao':
+        return this.umValor(sql`
+          select p.missao_id
+            from cotacao_passagem c
+            join despesa_missao d on d.id = c.despesa_id
+            join prestacao_contas_missao p on p.id = d.prestacao_id
+           where c.id = ${entidadeId}
+        `);
+      case 'produto':
+        return this.umValor(sql`
+          select missao_id from produto_missao where id = ${entidadeId}
+        `);
+      default:
+        return null;
+    }
+  }
+
+  private async umValor(consulta: SQL): Promise<string | null> {
+    const linhas = await this.db.execute<{ missao_id: string }>(consulta);
+    return linhas.rows[0]?.missao_id ?? null;
   }
 
   private exigir(usuario: AuthUser, permissao: Permission): void {

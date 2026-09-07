@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 
 import {
   DecidirMissao,
@@ -41,7 +42,7 @@ import {
   Selo,
   Tabela,
 } from "@/componentes/ui/basicos";
-import { apiFetch } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
 import type {
   AnexoResumo,
   AtividadeMissao,
@@ -133,7 +134,14 @@ export default async function MissaoDetalhePagina({
     encerramento,
     referencias,
   ] =
-    await Promise.all([
+    // A missão que não existe **e a que existe em outra rede** respondem 404
+    // (CG-028), e as duas precisam virar a página "não encontrada" em vez de
+    // erro do servidor. Deixar o 404 subir derrubava a rota inteira em 500 —
+    // que era um caso de URL digitada errada até o recorte por rede existir, e
+    // passou a ser o de quem segue um link antigo para a missão da rede
+    // vizinha. O `catch` cobre as oito chamadas de uma vez porque todas falham
+    // juntas: elas apontam para a mesma missão.
+    await naoEncontradaVira404(Promise.all([
       apiFetch<MissaoDetalhe>(rotaMissao),
       apiFetch<RodadaAnalise[]>(`${rotaMissao}/analise`),
       apiFetch<AvaliacaoSubmissao>(`${rotaMissao}/requisitos`),
@@ -155,7 +163,7 @@ export default async function MissaoDetalhePagina({
             `/programas/${programa}/${ciclo}/comite-gestor/referencias-missao`,
           )
         : Promise.resolve({ paises: [], instituicoes: [], redes: [] }),
-    ]);
+    ]));
 
   /**
    * Missão sem prestação chega como corpo vazio, não como `null` JSON.
@@ -1817,4 +1825,19 @@ function Dado({
       <dd className="mt-1 text-sm text-foreground">{valor || "—"}</dd>
     </div>
   );
+}
+
+/**
+ * Traduz o 404 da API na página "não encontrada" do Next.
+ *
+ * Só o 404: qualquer outro erro continua subindo, porque um 500 da API
+ * disfarçado de "não encontrada" esconderia a falha de quem precisa corrigi-la.
+ */
+async function naoEncontradaVira404<T>(promessa: Promise<T>): Promise<T> {
+  try {
+    return await promessa;
+  } catch (erro) {
+    if (erro instanceof ApiError && erro.status === 404) notFound();
+    throw erro;
+  }
 }

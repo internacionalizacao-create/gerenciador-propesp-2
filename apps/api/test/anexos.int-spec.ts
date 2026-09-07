@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import type { AuthUser } from '../src/auth/auth-user';
+import { IdentidadeService } from '../src/auth/identidade.service';
 import { ArmazenamentoService } from '../src/arquivos/armazenamento.service';
 import * as s from '../src/database/schema';
 import {
@@ -26,12 +27,20 @@ const admin: AuthUser = {
   ],
 };
 
-/** Tem leitura de missao, mas nenhuma permissao de prestacao nem de parceiro. */
+/**
+ * Tem leitura de missao, mas nenhuma permissao de prestacao nem de parceiro.
+ *
+ * `missao:all-redes` entra aqui porque estes casos verificam a **permissao** e
+ * a **visibilidade** do documento, e nao o recorte por rede — que tem suite
+ * propria em `escopo-rede.int-spec.ts`. Sem ele, o recorte responderia 404
+ * antes de a regra sob teste ser alcancada, e o teste passaria a provar outra
+ * coisa (CG-028).
+ */
 const somenteMissao: AuthUser = {
   id: 'leitor-missao',
   name: 'Leitor de Missões',
   roles: ['coordenador'],
-  permissions: ['missao:read'],
+  permissions: ['missao:read', 'missao:all-redes'],
 };
 
 const bytes = (hex: string, sobra = 64) =>
@@ -62,7 +71,11 @@ describe('AnexosService (CG-051)', () => {
     ctx = await criarContextoTeste();
     raiz = await mkdtemp(join(tmpdir(), 'anexos-teste-'));
     process.env.ARQUIVOS_DIR = raiz;
-    service = new AnexosService(ctx.db, new ArmazenamentoService());
+    service = new AnexosService(
+      ctx.db,
+      new ArmazenamentoService(),
+      new IdentidadeService(ctx.db),
+    );
   });
 
   afterAll(async () => {

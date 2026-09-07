@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm';
 
 import type { AuthUser } from '../src/auth/auth-user';
+import { RecorteDeMissoes } from '../src/auth/escopo';
 import * as s from '../src/database/schema';
 import { ExecucaoComiteService } from '../src/dominio/execucao-comite.service';
 import { EncerramentoService } from '../src/dominio/encerramento.service';
@@ -200,6 +201,7 @@ describe('Integracao financeira do Comite Gestor (CG-060)', () => {
     const pagina = await missoes.listar(
       base.cicloId,
       filtroMissoesSchema.parse({ ano: 2027 }),
+      RecorteDeMissoes.irrestrito(),
     );
     expect(pagina.total).toBe(linha.missoes);
     expect(pagina.itens[0].status).toBe('CANCELADA');

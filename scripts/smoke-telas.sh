@@ -112,6 +112,19 @@ if [[ "$USUARIO" == "admin" ]]; then
   # redeId invalido nao chega a API: um 400 derrubaria a pagina inteira.
   testar "/programas/capes-global/2027-2030/comite-gestor?redeId=nao-e-uuid" "Panorama das missões"
   testar_bff "/api/bff/programas/capes-global/2027-2030/comite-gestor/painel" '"pendencias"'
+  # CG-028: missao que nao existe — e a que existe em outra rede — respondem
+  # 404 na API, e a tela precisa virar "nao encontrada" em vez de erro do
+  # servidor. Era caso de URL digitada errada; com o recorte por rede virou o
+  # de quem segue um link antigo.
+  codigo_404=""
+  codigo_404=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" \
+    "${WEB}/programas/capes-global/2027-2030/comite-gestor/missoes/00000000-0000-4000-8000-000000000000")
+  if [[ "$codigo_404" == "404" ]]; then
+    printf '  \033[1;32mok\033[0m    %-52s %s\n' "missao inexistente" "404, nao 500"
+  else
+    printf '  \033[1;31mFALHA\033[0m %-52s HTTP %s\n' "missao inexistente" "$codigo_404"
+    FALHAS=$((FALHAS + 1))
+  fi
   # CG-047: fila de analise. As ancoras sao os rotulos dos indicadores, que
   # existem mesmo com a fila vazia; o numero depende do banco.
   testar "/programas/capes-global/2027-2030/comite-gestor?aba=analise" "Aguardando decisão"

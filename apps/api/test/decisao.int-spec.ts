@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 
 import type { AuthUser } from '../src/auth/auth-user';
 import { IdentidadeService } from '../src/auth/identidade.service';
+import { RecorteDeMissoes } from '../src/auth/escopo';
 import * as s from '../src/database/schema';
 import { DecisaoService, decidirSchema } from '../src/dominio/decisao.service';
 import { EncerramentoService } from '../src/dominio/encerramento.service';
@@ -167,6 +168,7 @@ describe('DecisaoService (CG-038)', () => {
       missaoId,
       edicaoValida('Título ajustado'),
       admin,
+      RecorteDeMissoes.irrestrito(),
     );
     expect(editada.titulo).toBe('Título ajustado');
   });

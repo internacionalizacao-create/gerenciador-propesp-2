@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 
 import type { AuthUser } from '../src/auth/auth-user';
 import { IdentidadeService } from '../src/auth/identidade.service';
+import { RecorteDeMissoes } from '../src/auth/escopo';
 import * as s from '../src/database/schema';
 import { EncerramentoService } from '../src/dominio/encerramento.service';
 import { MissoesComiteService } from '../src/dominio/missoes-comite.service';
@@ -267,6 +268,7 @@ describe('SubmissaoService (CG-037)', () => {
         missaoId,
         { titulo: 'Título trocado durante a análise' } as never,
         admin,
+        RecorteDeMissoes.irrestrito(),
       ),
     ).rejects.toThrow(/em analise nao pode ser editada/i);
   });

@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
@@ -9,6 +10,7 @@ import { and, asc, desc, eq, inArray, or, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 
 import type { AuthUser } from '../auth/auth-user';
+import { RecorteDeMissoes } from '../auth/escopo';
 import { consultar } from '../comum/consultar';
 import { calcularDiasInclusivos, diasDesde } from '../comum/datas';
 import { DRIZZLE, type Database } from '../database/database.module';
@@ -739,7 +741,15 @@ export class MissoesComiteService {
    * As redes dependem do ciclo — `rede_coordenadora` e por ciclo —, por isso
    * este metodo recebe o ciclo enquanto paises e instituicoes sao globais.
    */
-  async referencias(cicloId: string) {
+  /**
+   * Listas de apoio do formulario de missao.
+   *
+   * As redes vem recortadas: oferecer no formulario uma rede que o usuario nao
+   * alcanca so produziria um erro depois do preenchimento inteiro, e ainda
+   * revelaria quais redes existem. Paises e instituicoes nao sao recortados —
+   * o cadastro institucional e compartilhado, como a matriz aprovada manda.
+   */
+  async referencias(cicloId: string, recorte: RecorteDeMissoes) {
     const [paises, instituicoes, redes] = await Promise.all([
       this.db
         .select({
@@ -766,14 +776,24 @@ export class MissoesComiteService {
           nome: s.redeCoordenadora.nome,
         })
         .from(s.redeCoordenadora)
-        .where(eq(s.redeCoordenadora.cicloId, cicloId))
+        .where(
+          and(
+            eq(s.redeCoordenadora.cicloId, cicloId),
+            recorte.sobreRede(sql`${s.redeCoordenadora.id}`),
+          ),
+        )
         .orderBy(asc(s.redeCoordenadora.nome)),
     ]);
 
     return { paises, instituicoes, redes };
   }
 
-  async criar(cicloId: string, dto: CriarMissaoComite, usuario: AuthUser) {
+  async criar(
+    cicloId: string,
+    dto: CriarMissaoComite,
+    usuario: AuthUser,
+    recorte: RecorteDeMissoes,
+  ) {
     return this.db.transaction(async (tx) => {
       const codigo = await this.proximoCodigo(cicloId, tx);
       const [missao] = await tx
@@ -829,7 +849,7 @@ export class MissoesComiteService {
       }
       await tx.insert(s.missaoParticipante).values(participantes);
 
-      await this.validarRedes(dto.redes, cicloId, tx);
+      await this.validarRedes(dto.redes, cicloId, tx, recorte);
       await tx
         .insert(s.missaoRede)
         .values(dto.redes.map((redeId) => ({ missaoId: missao.id, redeId })));
@@ -902,10 +922,22 @@ export class MissoesComiteService {
    * `VALIDADA` faria a missao em preenchimento aparecer sem valor nenhum, como
    * se ninguem tivesse lancado nada.
    */
-  async listar(cicloId: string, filtro: FiltroMissoes): Promise<PaginaMissoes> {
+  async listar(
+    cicloId: string,
+    filtro: FiltroMissoes,
+    recorte: RecorteDeMissoes,
+  ): Promise<PaginaMissoes> {
     // Escopo e situacao ficam separados de proposito: o resumo conta por
     // status e por situacao temporal, entao nao pode ser filtrado por eles.
-    const escopo: SQL[] = [sql`m.ciclo_id = ${cicloId}`];
+    //
+    // O recorte por rede entra aqui, junto do ciclo, e nao numa filtragem
+    // depois: filtrar fora do banco traria a tabela inteira para a aplicacao e
+    // vazaria a contagem real no `resumo`, que e apurado antes de qualquer
+    // corte em memoria (CG-028).
+    const escopo: SQL[] = [
+      sql`m.ciclo_id = ${cicloId}`,
+      recorte.sobre(sql`m.id`),
+    ];
     const situacao: SQL[] = [];
 
     if (filtro.busca) {
@@ -1408,6 +1440,7 @@ export class MissoesComiteService {
     id: string,
     dto: AtualizarMissaoComite,
     usuario: AuthUser,
+    recorte: RecorteDeMissoes,
   ): Promise<MissaoDetalhe> {
     const anterior = await this.detalhe(cicloId, id);
 
@@ -1483,6 +1516,7 @@ export class MissoesComiteService {
         dto,
         registrar,
         tx,
+        recorte,
       );
 
       // Trocar a rede de uma missao confirmada muda de quem e o compromisso e
@@ -2225,10 +2259,23 @@ export class MissoesComiteService {
    * a rede UFMG do ciclo 2031-2034 em uma missao de 2027-2030 — dois registros
    * validos que juntos nao fazem sentido.
    */
+  /**
+   * As redes existem neste ciclo — e o usuario alcanca cada uma delas.
+   *
+   * O guard de escopo protege a missao **que ja existe**; ele nao teria como
+   * impedir que alguem crie uma missao dentro da rede vizinha, nem que mova
+   * para la uma missao que hoje e sua. Sem esta checagem o recorte seria so de
+   * leitura, e um gestor poderia injetar registro no universo de outro.
+   *
+   * A mensagem e a mesma de rede inexistente, de proposito: distingui-las
+   * responderia "esta rede existe, mas nao e sua" a quem esta justamente
+   * tentando descobrir isso.
+   */
   private async validarRedes(
     redes: string[],
     cicloId: string,
     db: DbTransacional,
+    recorte: RecorteDeMissoes,
   ): Promise<void> {
     const encontradas = await db
       .select({ id: s.redeCoordenadora.id })
@@ -2239,7 +2286,10 @@ export class MissoesComiteService {
           eq(s.redeCoordenadora.cicloId, cicloId),
         ),
       );
-    if (encontradas.length !== redes.length) {
+    if (
+      encontradas.length !== redes.length ||
+      !redes.every((redeId) => recorte.alcanca(redeId))
+    ) {
       throw new BadRequestException(
         'Alguma rede informada nao existe neste ciclo.',
       );
@@ -2258,8 +2308,9 @@ export class MissoesComiteService {
       valorNovo: string | null,
     ) => void,
     tx: DbTransacional & Pick<Database, 'update' | 'delete'>,
+    recorte: RecorteDeMissoes,
   ): Promise<boolean> {
-    await this.validarRedes(dto.redes, cicloId, tx);
+    await this.validarRedes(dto.redes, cicloId, tx, recorte);
 
     const atuais = new Map(anterior.redes.map((rede) => [rede.id, rede.nome]));
     const desejadas = new Set(dto.redes);
@@ -2268,6 +2319,17 @@ export class MissoesComiteService {
     const remover = [...atuais.keys()].filter(
       (redeId) => !desejadas.has(redeId),
     );
+
+    // Retirar uma rede que o usuario nao alcanca seria decidir, sozinho, que a
+    // missao deixa de ser da rede vizinha — e ela sumiria da tela de quem a
+    // acompanhava, sem que ninguem de la tivesse participado da decisao. A
+    // missao multirrede pertence as duas: cada uma so mexe na propria parte.
+    const alheia = remover.find((redeId) => !recorte.alcanca(redeId));
+    if (alheia) {
+      throw new ForbiddenException(
+        'Esta missao tambem pertence a outra rede, e so quem a alcanca pode retira-la.',
+      );
+    }
     if (!incluir.length && !remover.length) return false;
 
     if (incluir.length) {

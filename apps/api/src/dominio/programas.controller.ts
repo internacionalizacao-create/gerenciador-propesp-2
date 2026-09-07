@@ -13,6 +13,7 @@ import {
 import { and, asc, eq, sql } from 'drizzle-orm';
 
 import { CurrentUser, RequirePermission } from '../auth/auth.decorators';
+import { IdentidadeService } from '../auth/identidade.service';
 import type { AuthUser } from '../auth/auth-user';
 import { ZodValidationPipe } from '../comum/zod-validation.pipe';
 import {
@@ -132,6 +133,7 @@ export class ProgramasController {
     private readonly prestacao: PrestacaoService,
     private readonly execucao: ExecucaoComiteService,
     private readonly painelComite: PainelComiteService,
+    private readonly identidade: IdentidadeService,
     private readonly encerramento: EncerramentoService,
     private readonly resultados: ResultadosService,
   ) {}
@@ -430,9 +432,14 @@ export class ProgramasController {
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
     @Query(new ZodValidationPipe(filtroPainelSchema)) filtro: FiltroPainel,
+    @CurrentUser() usuario: AuthUser,
   ) {
     const ciclo = await this.contexto.resolver(slug, nome);
-    return this.painelComite.montar(ciclo.cicloId, filtro);
+    return this.painelComite.montar(
+      ciclo.cicloId,
+      filtro,
+      await this.identidade.recorteDeMissoes(usuario),
+    );
   }
 
   @Get(':programa/:ciclo/comite-gestor/equipes')
@@ -475,22 +482,31 @@ export class ProgramasController {
   @Get(':programa/:ciclo/comite-gestor/missoes')
   @RequirePermission('missao:read')
   async listarMissoesComite(
+    @CurrentUser() usuario: AuthUser,
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
     @Query(new ZodValidationPipe(filtroMissoesSchema)) filtro: FiltroMissoes,
   ) {
     const ciclo = await this.contexto.resolver(slug, nome);
-    return this.missoesComite.listar(ciclo.cicloId, filtro);
+    return this.missoesComite.listar(
+      ciclo.cicloId,
+      filtro,
+      await this.identidade.recorteDeMissoes(usuario),
+    );
   }
 
   @Get(':programa/:ciclo/comite-gestor/referencias-missao')
   @RequirePermission('missao:read')
   async referenciasMissaoComite(
+    @CurrentUser() usuario: AuthUser,
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
   ) {
     const ciclo = await this.contexto.resolver(slug, nome);
-    return this.missoesComite.referencias(ciclo.cicloId);
+    return this.missoesComite.referencias(
+      ciclo.cicloId,
+      await this.identidade.recorteDeMissoes(usuario),
+    );
   }
 
   @Get(':programa/:ciclo/comite-gestor/missoes/:id')
@@ -655,7 +671,12 @@ export class ProgramasController {
     dto: CriarMissaoComite,
   ) {
     const ciclo = await this.contexto.resolver(slug, nome);
-    return this.missoesComite.criar(ciclo.cicloId, dto, usuario);
+    return this.missoesComite.criar(
+      ciclo.cicloId,
+      dto,
+      usuario,
+      await this.identidade.recorteDeMissoes(usuario),
+    );
   }
 
   @Patch(':programa/:ciclo/comite-gestor/missoes/:id')
@@ -669,7 +690,13 @@ export class ProgramasController {
     dto: AtualizarMissaoComite,
   ) {
     const ciclo = await this.contexto.resolver(slug, nome);
-    return this.missoesComite.atualizar(ciclo.cicloId, id, dto, usuario);
+    return this.missoesComite.atualizar(
+      ciclo.cicloId,
+      id,
+      dto,
+      usuario,
+      await this.identidade.recorteDeMissoes(usuario),
+    );
   }
 
   /** Relato do que aconteceu; nao alcanca nenhum campo de planejamento. */

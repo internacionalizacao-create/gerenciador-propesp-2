@@ -1,9 +1,10 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 
 import { DRIZZLE, type Database } from '../database/database.module';
 import * as s from '../database/schema';
 import type { AuthUser } from './auth-user';
+import { alcancaTodasAsRedes, RecorteDeMissoes } from './escopo';
 
 /**
  * Liga a identidade do Keycloak ao cadastro local e resolve o escopo de acesso.
@@ -116,6 +117,17 @@ export class IdentidadeService {
     return this.escoposDe(linha.id, usuario);
   }
 
+  /**
+   * Recorte de missoes deste usuario, pronto para entrar nas consultas.
+   *
+   * Quem alcanca todas as redes nao paga a resolucao do escopo — que e uma ida
+   * ao banco por requisicao, e nao ha o que resolver quando nao ha recorte.
+   */
+  async recorteDeMissoes(usuario: AuthUser): Promise<RecorteDeMissoes> {
+    if (alcancaTodasAsRedes(usuario)) return RecorteDeMissoes.irrestrito();
+    return new RecorteDeMissoes(await this.escopoDe(usuario), false);
+  }
+
   // -------------------------------------------------------------------------
 
   private async buscarPorSub(sub: string): Promise<Identidade | null> {
@@ -155,15 +167,65 @@ export class IdentidadeService {
         ),
       );
 
+    const global = linhas.some((l) => l.tipo === 'GLOBAL');
+
     return {
-      global: linhas.some((l) => l.tipo === 'GLOBAL'),
+      global,
       ppgIds: linhas
         .filter((l) => l.tipo === 'PPG' && l.ppgId)
         .map((l) => l.ppgId as string),
-      redeIds: linhas
-        .filter((l) => l.tipo === 'REDE' && l.redeId)
-        .map((l) => l.redeId as string),
+      redeIds: global
+        ? []
+        : [
+            ...new Set([
+              ...linhas
+                .filter((l) => l.tipo === 'REDE' && l.redeId)
+                .map((l) => l.redeId as string),
+              ...(await this.redesDoVinculo(usuarioId)),
+            ]),
+          ],
     };
+  }
+
+  /**
+   * "Minha rede": as redes do vinculo **ativo** da pessoa (CG-003/CG-028).
+   *
+   * Uniao com `escopo_acesso`, e nao substituicao. O vinculo e a fonte
+   * automatica — a unica com dado ja carregado, e a que a matriz aprovada
+   * escolheu —, e `escopo_acesso` continua como concessao explicita do
+   * administrador para quem precisa enxergar uma rede sem estar na equipe
+   * dela. Trocar uma pela outra deixaria uma das duas necessidades sem
+   * resposta.
+   *
+   * **Ativo e `data_fim is null`**, o mesmo criterio de
+   * `membro_equipe_gestao_ativo_uk`. Vinculo encerrado nao pode continuar
+   * dando acesso: quem saiu da equipe da rede saiu do recorte dela, e um
+   * historico que ainda autoriza e a falha mais silenciosa possivel aqui.
+   *
+   * A rede pertence a um ciclo (`rede_coordenadora.ciclo_id`), entao a lista
+   * ja vem separada por ciclo sem que este metodo precise saber qual: dois
+   * ciclos tem redes de `id` diferente, mesmo com o mesmo nome.
+   */
+  private async redesDoVinculo(usuarioId: string): Promise<string[]> {
+    const linhas = await this.db
+      .selectDistinct({ redeId: s.membroEquipeGestaoRede.redeId })
+      .from(s.membroEquipeGestaoRede)
+      .innerJoin(
+        s.membroEquipeGestao,
+        eq(s.membroEquipeGestao.id, s.membroEquipeGestaoRede.membroEquipeId),
+      )
+      .innerJoin(
+        s.usuarioSistema,
+        eq(s.usuarioSistema.pessoaId, s.membroEquipeGestao.pessoaId),
+      )
+      .where(
+        and(
+          eq(s.usuarioSistema.id, usuarioId),
+          isNull(s.membroEquipeGestao.dataFim),
+        ),
+      );
+
+    return linhas.map((linha) => linha.redeId);
   }
 
   private async pessoaDoUsuario(usuarioId: string): Promise<string> {

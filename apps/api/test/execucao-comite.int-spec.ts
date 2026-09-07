@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm';
 
 import type { AuthUser } from '../src/auth/auth-user';
+import { RecorteDeMissoes } from '../src/auth/escopo';
 import * as s from '../src/database/schema';
 import { ExecucaoComiteService } from '../src/dominio/execucao-comite.service';
 import { EncerramentoService } from '../src/dominio/encerramento.service';
@@ -304,7 +305,11 @@ describe('Prestacao na lista de missoes (CG-055)', () => {
   }
 
   const listar = (filtro: Record<string, unknown> = {}) =>
-    missoes.listar(base.cicloId, filtroMissoesSchema.parse(filtro));
+    missoes.listar(
+      base.cicloId,
+      filtroMissoesSchema.parse(filtro),
+      RecorteDeMissoes.irrestrito(),
+    );
 
   it('mostra o estado real da prestacao, e nao NAO_INICIADA fixo', async () => {
     const comPrestacao = await criarMissao('MCG-201');

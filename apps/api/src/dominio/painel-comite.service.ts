@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 
+import { RecorteDeMissoes } from '../auth/escopo';
 import { consultar } from '../comum/consultar';
 import { diasDesde } from '../comum/datas';
 import { DRIZZLE, type Database } from '../database/database.module';
@@ -193,22 +194,26 @@ const AVISO =
 export class PainelComiteService {
   constructor(@Inject(DRIZZLE) private readonly db: Database) {}
 
-  async montar(cicloId: string, filtro: FiltroPainel): Promise<PainelComite> {
+  async montar(
+    cicloId: string,
+    filtro: FiltroPainel,
+    recorte: RecorteDeMissoes,
+  ): Promise<PainelComite> {
     // A rede e resolvida **antes** do escopo, e um id que nao pertence a este
     // ciclo faz o recorte cair em "todas" em vez de zerar tudo. Um painel
     // inteiro de zeros e indistinguivel de um ciclo sem missao nenhuma, e quem
     // chegou por link antigo nao teria como saber a diferenca. E a mesma
     // defesa que a tela ja aplica ao exercicio pedido na URL.
-    const rede = await this.nomeDaRede(cicloId, filtro.redeId);
+    const rede = await this.nomeDaRede(cicloId, filtro.redeId, recorte);
     const redeId = rede ? (filtro.redeId ?? null) : null;
-    const escopo = this.escopo(cicloId, { ano: filtro.ano, redeId });
+    const escopo = this.escopo(cicloId, { ano: filtro.ano, redeId }, recorte);
 
     const [contagens, alcance, porPais, porRede, pendencias] =
       await Promise.all([
         this.contagens(escopo),
         this.alcance(escopo),
         this.porPais(escopo),
-        this.porRede(cicloId, escopo),
+        this.porRede(cicloId, escopo, recorte),
         this.pendencias(escopo),
       ]);
 
@@ -232,8 +237,16 @@ export class PainelComiteService {
   private escopo(
     cicloId: string,
     filtro: { ano?: number; redeId: string | null },
+    recorte: RecorteDeMissoes,
   ): SQL {
-    const condicoes: SQL[] = [sql`m.ciclo_id = ${cicloId}`];
+    // O recorte por rede do **usuario** entra junto do ciclo, e nao depois: e
+    // ele que faz cartoes, quebras e pendencias contarem so o que a pessoa
+    // alcanca. O `?redeId=` da URL e outra coisa — filtro que o usuario
+    // escolhe, dentro do que ja lhe cabe (CG-028).
+    const condicoes: SQL[] = [
+      sql`m.ciclo_id = ${cicloId}`,
+      recorte.sobre(sql`m.id`),
+    ];
 
     // Mesma regra do filtro `?ano=` da lista: a missao entra se **atravessa** o
     // exercicio, e nao apenas se comeca nele. Um criterio diferente aqui faria
@@ -448,7 +461,11 @@ export class PainelComiteService {
    * Toda rede do ciclo aparece, inclusive a que nao tem missao: rede ausente da
    * lista seria lida como rede sem dado carregado, e nao como rede sem missao.
    */
-  private async porRede(cicloId: string, escopo: SQL) {
+  private async porRede(
+    cicloId: string,
+    escopo: SQL,
+    recorte: RecorteDeMissoes,
+  ) {
     return (
       await consultar<{ id: string; nome: string; missoes: string }>(
         this.db,
@@ -463,6 +480,7 @@ export class PainelComiteService {
                      )) as missoes
             from rede_coordenadora r
            where r.ciclo_id = ${cicloId}
+             and ${recorte.sobreRede(sql`r.id`)}
            order by r.nome
         `,
       )
@@ -597,12 +615,20 @@ export class PainelComiteService {
     });
   }
 
-  /** Nome da rede do recorte, para a tela dizer de que universo esta falando. */
+  /**
+   * Nome da rede do recorte, para a tela dizer de que universo esta falando.
+   *
+   * Rede fora do alcance do usuario e tratada como rede inexistente — cai em
+   * "todas", como a de outro ciclo. Devolver o nome confirmaria a existencia
+   * de uma rede que a pessoa nao pode enxergar, e o painel passaria a exibir
+   * um recorte rotulado com ela e vazio por dentro.
+   */
   private async nomeDaRede(
     cicloId: string,
-    redeId?: string,
+    redeId: string | undefined,
+    recorte: RecorteDeMissoes,
   ): Promise<string | null> {
-    if (!redeId) return null;
+    if (!redeId || !recorte.alcanca(redeId)) return null;
     const [linha] = await consultar<{ nome: string }>(
       this.db,
       sql`

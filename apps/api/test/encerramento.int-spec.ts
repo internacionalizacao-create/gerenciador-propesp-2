@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm';
 
 import type { AuthUser } from '../src/auth/auth-user';
+import { RecorteDeMissoes } from '../src/auth/escopo';
 import * as s from '../src/database/schema';
 import { EncerramentoService } from '../src/dominio/encerramento.service';
 import {
@@ -95,6 +96,7 @@ describe('Encerramento da missao (CG-058)', () => {
         ],
       } as never,
       admin,
+      RecorteDeMissoes.irrestrito(),
     );
   }
 

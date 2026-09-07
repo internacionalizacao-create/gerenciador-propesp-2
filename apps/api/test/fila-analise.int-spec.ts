@@ -1,5 +1,6 @@
 import type { AuthUser } from '../src/auth/auth-user';
 import { IdentidadeService } from '../src/auth/identidade.service';
+import { RecorteDeMissoes } from '../src/auth/escopo';
 import * as s from '../src/database/schema';
 import { DecisaoService } from '../src/dominio/decisao.service';
 import { EncerramentoService } from '../src/dominio/encerramento.service';
@@ -95,7 +96,11 @@ describe('Fila de analise do Comite (CG-047)', () => {
   }
 
   const listar = (filtro: Record<string, unknown> = {}) =>
-    missoes.listar(base.cicloId, filtroMissoesSchema.parse(filtro));
+    missoes.listar(
+      base.cicloId,
+      filtroMissoesSchema.parse(filtro),
+      RecorteDeMissoes.irrestrito(),
+    );
 
   const codigos = async (filtro: Record<string, unknown> = {}) =>
     (await listar(filtro)).itens.map((item) => item.codigo).sort();

@@ -49,6 +49,26 @@ export const PERMISSIONS = [
   'missao:decide',
   /** Reabrir analise ja decidida; so `admin`, e sempre com justificativa. */
   'missao:reopen',
+  /**
+   * Atua sobre missao de **qualquer** rede — o desligamento do recorte (CG-028).
+   *
+   * Esta e a unica permissao do catalogo que fala de *quais linhas* em vez de
+   * *o que se pode fazer*, e a excecao e proposital. A alternativa seria o
+   * servico perguntar pelo papel, e "controller nunca menciona papel" e a
+   * indirecao que sustenta o modulo inteiro de autorizacao.
+   *
+   * Ela existe porque **quem decide precisa ver o que vai decidir**: o Comite
+   * Gestor recortado por rede receberia uma fila incompleta e aprovaria menos
+   * do que lhe cabe, sem nada na tela dizendo que falta missao. Deduzir isso
+   * do vinculo em `membro_equipe_gestao_rede` seria fragil — hoje os dois
+   * membros do Comite estao ligados as tres redes por coincidencia da carga
+   * formal, e um membro novo cadastrado com uma rede so passaria a decidir
+   * sobre um terco da fila em silencio.
+   *
+   * Ela **nao** concede escrita: o que o Comite pode fazer continua definido
+   * pelas outras permissoes, e ele nao tem `missao:write` nem `missao:edit`.
+   */
+  'missao:all-redes',
   /** Ler e conceder escopo de acesso; ato administrativo, so do `admin`. */
   'acesso:read',
   'acesso:write',
@@ -116,10 +136,14 @@ export const ROLE_PERMISSIONS: Readonly<Record<string, readonly Permission[]>> =
     /**
      * Gestor da Rede: cuida das missoes da propria rede e as submete.
      *
-     * **Nao atribua este papel a ninguem ainda.** O recorte por rede so existe
-     * para PPG; missoes e parceiros ainda nao consultam escopo, entao hoje o
-     * papel enxergaria as tres redes. Criar o papel agora e barato e nao
-     * concede nada a ninguem — atribui-lo, sim.
+     * **Recortado por rede desde a CG-028**: as missoes que ele ve e altera sao
+     * as das redes do seu vinculo ativo em `membro_equipe_gestao_rede`. Nao tem
+     * `missao:all-redes`, e e essa ausencia que o limita — o papel nao aparece
+     * em lugar nenhum do codigo que decide o recorte.
+     *
+     * `parceiro:read`/`parceiro:write` sem recorte, como a matriz aprovada
+     * manda: o cadastro institucional e compartilhado, e um parceiro invisivel
+     * seria recadastrado em duplicidade pela rede vizinha.
      */
     'gestor-rede': [
       ...SOMENTE_LEITURA,
@@ -140,16 +164,23 @@ export const ROLE_PERMISSIONS: Readonly<Record<string, readonly Permission[]>> =
      * Nao tem `missao:write` nem `missao:edit` de proposito: quem decide sobre
      * uma missao nao deveria poder alterar o que esta julgando. `missao:reopen`
      * tambem fica de fora — desfazer decisao ja tomada e ato do `admin`.
-     * Mesma ressalva de atribuicao do `gestor-rede`.
+     *
+     * **`prestacao:review` saiu em 2026-09-07.** A matriz aprovada na CG-003
+     * poe "le" na coluna de prestacao do Comite e reserva a validacao ao
+     * Administrador; a permissao estava aqui desde antes da homologacao e
+     * contradizia a decisao. Validar prestacao abate o aporte (CG-009), e quem
+     * decide sobre a missao nao e quem confere a despesa dela.
+     *
+     * `missao:all-redes` porque o Comite le e decide sobre as tres redes.
      */
     'comite-gestor': [
       ...SOMENTE_LEITURA,
       'equipe-gestao:read',
       'missao:read',
+      'missao:all-redes',
       'missao:decide',
       'parceiro:read',
       'prestacao:read',
-      'prestacao:review',
     ],
   };
 

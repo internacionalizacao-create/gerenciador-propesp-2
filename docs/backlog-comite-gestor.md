@@ -1409,7 +1409,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   web e 202 integrações aprovados**. Não houve migration: o histórico é
   leitura. A interface permanece na CG-049.
 
-- [ ] **CG-028 — Aplicar autorização com escopo por rede e missão**
+- [x] **CG-028 — Aplicar autorização com escopo por rede e missão**
 
   Implementar a matriz aprovada na CG-003/CG-007:
 
@@ -1426,6 +1426,76 @@ Essa situação é calculada a partir das datas e não é persistida.
 
   Critério de aceite: testes provam ausência de leitura e escrita entre redes,
   inclusive por ID adulterado.
+
+  Entregue em 2026-09-07. **Os papéis `gestor-rede` e `comite-gestor` passam a
+  poder ser atribuídos** — era a ressalva que acompanhava os dois desde que
+  foram criados.
+
+  **"Minha rede" vem do vínculo ativo** em `membro_equipe_gestao_rede`, como a
+  CG-003 aprovou, em **união** com `escopo_acesso`: o vínculo é a fonte
+  automática, a concessão do administrador é a exceção para quem precisa
+  enxergar uma rede sem estar na equipe dela. Trocar uma pela outra deixaria
+  uma das duas necessidades sem resposta. **Vínculo encerrado (`data_fim`) não
+  autoriza** — histórico que ainda dá acesso é a falha mais silenciosa possível
+  aqui.
+
+  **`missao:all-redes` é a permissão nova**, e é a única do catálogo que fala
+  de *quais linhas* em vez de *o que se pode fazer*. A exceção é proposital: a
+  alternativa seria o serviço perguntar pelo papel, e "controller nunca menciona
+  papel" é a indireção que sustenta o módulo de autorização inteiro. Ela existe
+  porque **quem decide precisa ver o que vai decidir** — o Comitê recortado por
+  rede receberia uma fila incompleta e aprovaria menos do que lhe cabe. Deduzir
+  isso do vínculo seria frágil: hoje os dois membros do Comitê estão ligados às
+  três redes por coincidência da carga formal, e um membro novo cadastrado com
+  uma rede só passaria a decidir sobre um terço da fila em silêncio. Ela **não**
+  concede escrita — o Comitê continua sem `missao:write` e sem `missao:edit`.
+
+  **O recorte de leitura é um guard global**, e não uma chamada em cada serviço:
+  as trinta e poucas rotas de missão têm todas a mesma forma
+  (`.../comite-gestor/missoes/:id/...`), e verificação espalhada é verificação
+  que a próxima rota esquece. **Responde 404, nunca 403** — "existe, mas não é
+  sua" já entrega que a missão existe, e é exatamente o que quem adultera o id
+  está tentando descobrir. A listagem continua se recortando **na consulta**,
+  porque filtrar depois traria a tabela inteira para a aplicação e vazaria a
+  contagem real no `resumo`.
+
+  **O recorte de escrita é separado do de leitura**, e sem ele o recorte seria
+  só de fachada: `validarRedes` recusa criar missão em rede alheia ou mover a
+  própria para lá, e retirar de uma missão multirrede a rede que o usuário não
+  alcança é 403 — a missão pertence às duas, e ela sumiria da tela de quem a
+  acompanhava sem que ninguém de lá participasse da decisão.
+
+  **Documento herda o escopo do alvo**, como já herdava a permissão. Sem isso o
+  anexo seria a porta lateral do recorte: bastaria conhecer o UUID para baixar
+  o comprovante da prestação da rede vizinha. Instituição e convênio ficam de
+  fora porque não pertencem a rede nenhuma.
+
+  **O modo permissivo do `RECORTE_OBRIGATORIO` não vale para missões.** Ele
+  existe para não cegar quem já usava o sistema antes de a PROPESP atribuir
+  escopos — pessoa que existe no mundo do PPG e não existe no das missões, já
+  que a única permissão que chega a esse caminho é a do Gestor da Rede, papel
+  nunca atribuído. Mantê-lo aqui seria só um buraco: conceder `gestor-rede` a
+  alguém sem vínculo passaria a mostrar as três redes. Sem rede no escopo, o
+  gestor vê lista vazia e a PROPESP descobre que falta cadastrar o vínculo.
+
+  **Uma divergência corrigida:** `comite-gestor` tinha `prestacao:review`. A
+  matriz aprovada põe "lê" na coluna de prestação do Comitê e reserva a
+  validação ao Administrador; a permissão estava lá desde antes da homologação.
+  Validar abate o aporte (CG-009), e quem decide sobre a missão não é quem
+  confere a despesa dela.
+
+  **O Participante continua fora**, como a matriz aprovada marca (F2). O que
+  falta dele é o escopo por missão, não por rede.
+
+  20 testes de integração em `escopo-rede.int-spec.ts`. Cinco mutações foram
+  verificadas: listagem sem recorte, `validarRedes` sem alcance, remoção de
+  rede alheia liberada, guard sempre permissivo e anexo sem escopo — cada uma
+  derruba exatamente os testes escritos para ela.
+
+  Um efeito colateral corrigido junto: missão 404 na API renderizava **500** na
+  tela. Era caso de URL digitada errada; com o recorte passou a ser o de quem
+  segue um link antigo para a missão da rede vizinha, e agora vira a página
+  "não encontrada".
 
 - [~] **CG-029 — Testar parceiros, contatos e escopo**
 

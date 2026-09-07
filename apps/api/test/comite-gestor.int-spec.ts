@@ -14,6 +14,7 @@ import {
   transicaoMissaoSchema,
   type CriarMissaoComite,
 } from '../src/dominio/missoes-comite.service';
+import { RecorteDeMissoes } from '../src/auth/escopo';
 import * as s from '../src/database/schema';
 import { criarContextoTeste, type ContextoTeste } from './db-teste';
 import { criarBase, type BaseFixture } from './fixtures';
@@ -243,8 +244,18 @@ describe('ComiteGestorService — equipes', () => {
       ],
     });
 
-    await missoes.criar(base.cicloId, missao('Primeira missao'), adminMissoes);
-    await missoes.criar(base.cicloId, missao('Segunda missao'), adminMissoes);
+    await missoes.criar(
+      base.cicloId,
+      missao('Primeira missao'),
+      adminMissoes,
+      RecorteDeMissoes.irrestrito(),
+    );
+    await missoes.criar(
+      base.cicloId,
+      missao('Segunda missao'),
+      adminMissoes,
+      RecorteDeMissoes.irrestrito(),
+    );
 
     const equipes = await service.listarEquipes(base.cicloId);
     const doCoordenador = equipes.filter(
@@ -337,6 +348,7 @@ describe('ComiteGestorService — equipes', () => {
         ],
       },
       adminMissoes,
+      RecorteDeMissoes.irrestrito(),
     );
 
     const equipes = await service.listarEquipes(base.cicloId);
@@ -429,7 +441,10 @@ describe('MissoesComiteService — criacao transacional', () => {
   }
 
   it('lista paises e instituicoes ativas para o formulario', async () => {
-    const referencias = await service.referencias(base.cicloId);
+    const referencias = await service.referencias(
+      base.cicloId,
+      RecorteDeMissoes.irrestrito(),
+    );
 
     expect(referencias.paises.map((pais) => pais.nome)).toEqual([
       'Alemanha',
@@ -447,6 +462,7 @@ describe('MissoesComiteService — criacao transacional', () => {
       base.cicloId,
       missaoValida(),
       adminMissoes,
+      RecorteDeMissoes.irrestrito(),
     );
 
     expect(missao.codigo).toBe('MCG-001');
@@ -499,17 +515,28 @@ describe('MissoesComiteService — criacao transacional', () => {
     dto.atividades[0].contatoInstituicaoId = contato.id;
 
     await expect(
-      service.criar(base.cicloId, dto, adminMissoes),
+      service.criar(
+        base.cicloId,
+        dto,
+        adminMissoes,
+        RecorteDeMissoes.irrestrito(),
+      ),
     ).rejects.toMatchObject({ status: 400 });
     expect(await ctx.db.select().from(s.missaoComite)).toHaveLength(0);
   });
 
   it('gera codigos sequenciais por ciclo', async () => {
-    await service.criar(base.cicloId, missaoValida(), adminMissoes);
+    await service.criar(
+      base.cicloId,
+      missaoValida(),
+      adminMissoes,
+      RecorteDeMissoes.irrestrito(),
+    );
     const segunda = await service.criar(
       base.cicloId,
       missaoValida(),
       adminMissoes,
+      RecorteDeMissoes.irrestrito(),
     );
     expect(segunda.codigo).toBe('MCG-002');
   });
@@ -531,7 +558,12 @@ describe('MissoesComiteService — criacao transacional', () => {
       observacoes: null,
     });
 
-    const missao = await service.criar(base.cicloId, dto, adminMissoes);
+    const missao = await service.criar(
+      base.cicloId,
+      dto,
+      adminMissoes,
+      RecorteDeMissoes.irrestrito(),
+    );
     expect(missao.participantes).toBe(2);
 
     const [criada] = await ctx.db
@@ -560,7 +592,12 @@ describe('MissoesComiteService — criacao transacional', () => {
     });
 
     await expect(
-      service.criar(base.cicloId, dto, adminMissoes),
+      service.criar(
+        base.cicloId,
+        dto,
+        adminMissoes,
+        RecorteDeMissoes.irrestrito(),
+      ),
     ).rejects.toMatchObject({ status: 404 });
 
     // Nada pode sobreviver ao rollback: nem missao, nem participante, nem a
@@ -595,7 +632,12 @@ describe('MissoesComiteService — criacao transacional', () => {
     dto.participantes[0].membroEquipeId = membro.id;
 
     await expect(
-      service.criar(base.cicloId, dto, adminMissoes),
+      service.criar(
+        base.cicloId,
+        dto,
+        adminMissoes,
+        RecorteDeMissoes.irrestrito(),
+      ),
     ).rejects.toMatchObject({ status: 400 });
     expect(await ctx.db.select().from(s.missaoComite)).toHaveLength(0);
   });
@@ -812,6 +854,7 @@ describe('MissoesComiteService — lista e filtros', () => {
         ],
       },
       adminMissoes,
+      RecorteDeMissoes.irrestrito(),
     );
 
     await service.criar(
@@ -850,6 +893,7 @@ describe('MissoesComiteService — lista e filtros', () => {
         ],
       },
       adminMissoes,
+      RecorteDeMissoes.irrestrito(),
     );
 
     await service.criar(
@@ -888,15 +932,24 @@ describe('MissoesComiteService — lista e filtros', () => {
         ],
       },
       adminMissoes,
+      RecorteDeMissoes.irrestrito(),
     );
   });
 
   function listar(filtro: Record<string, unknown> = {}) {
-    return service.listar(base.cicloId, filtroMissoesSchema.parse(filtro));
+    return service.listar(
+      base.cicloId,
+      filtroMissoesSchema.parse(filtro),
+      RecorteDeMissoes.irrestrito(),
+    );
   }
 
   it('lista todas as missoes do ciclo com contagens e paises', async () => {
-    const pagina = await service.listar(base.cicloId, filtroPadrao);
+    const pagina = await service.listar(
+      base.cicloId,
+      filtroPadrao,
+      RecorteDeMissoes.irrestrito(),
+    );
 
     expect(pagina.total).toBe(3);
     expect(pagina.paginas).toBe(1);
@@ -960,9 +1013,14 @@ describe('MissoesComiteService — lista e filtros', () => {
         ],
       },
       adminMissoes,
+      RecorteDeMissoes.irrestrito(),
     );
 
-    const pagina = await service.listar(base.cicloId, filtroPadrao);
+    const pagina = await service.listar(
+      base.cicloId,
+      filtroPadrao,
+      RecorteDeMissoes.irrestrito(),
+    );
     const porCodigo = Object.fromEntries(
       pagina.itens.map((item) => [item.codigo, item.situacaoTemporal]),
     );
@@ -1081,8 +1139,24 @@ describe('MissoesComiteService — lista e filtros', () => {
       })
       .returning({ id: s.ciclo.id });
 
-    expect((await service.listar(outro.id, filtroPadrao)).total).toBe(0);
-    expect((await service.listar(base.cicloId, filtroPadrao)).total).toBe(3);
+    expect(
+      (
+        await service.listar(
+          outro.id,
+          filtroPadrao,
+          RecorteDeMissoes.irrestrito(),
+        )
+      ).total,
+    ).toBe(0);
+    expect(
+      (
+        await service.listar(
+          base.cicloId,
+          filtroPadrao,
+          RecorteDeMissoes.irrestrito(),
+        )
+      ).total,
+    ).toBe(3);
   });
 });
 
@@ -1220,6 +1294,7 @@ describe('MissoesComiteService — detalhe', () => {
         ],
       },
       adminMissoes,
+      RecorteDeMissoes.irrestrito(),
     );
   }
 
@@ -1314,7 +1389,11 @@ describe('MissoesComiteService — detalhe', () => {
     const criada = await criarMissaoCompleta();
     const detalhe = await service.detalhe(base.cicloId, criada.id);
     const [resumo] = (
-      await service.listar(base.cicloId, filtroMissoesSchema.parse({}))
+      await service.listar(
+        base.cicloId,
+        filtroMissoesSchema.parse({}),
+        RecorteDeMissoes.irrestrito(),
+      )
     ).itens;
     expect(detalhe.situacaoTemporal).toBe(resumo.situacaoTemporal);
   });
@@ -1407,6 +1486,7 @@ describe('MissoesComiteService — edicao com auditoria', () => {
         ],
       },
       adminMissoes,
+      RecorteDeMissoes.irrestrito(),
     );
     return service.detalhe(base.cicloId, criada.id);
   }
@@ -1490,6 +1570,7 @@ describe('MissoesComiteService — edicao com auditoria', () => {
         dataFim: '2027-05-25',
       },
       adminMissoes,
+      RecorteDeMissoes.irrestrito(),
     );
 
     const auditoria = await auditoriaDe(missao.id);
@@ -1530,6 +1611,7 @@ describe('MissoesComiteService — edicao com auditoria', () => {
         ],
       },
       adminMissoes,
+      RecorteDeMissoes.irrestrito(),
     );
 
     expect(atualizada.participantes).toHaveLength(2);
@@ -1570,6 +1652,7 @@ describe('MissoesComiteService — edicao com auditoria', () => {
         ],
       },
       adminMissoes,
+      RecorteDeMissoes.irrestrito(),
     );
 
     const transferida = await service.atualizar(
@@ -1586,6 +1669,7 @@ describe('MissoesComiteService — edicao com auditoria', () => {
         })),
       },
       adminMissoes,
+      RecorteDeMissoes.irrestrito(),
     );
 
     expect(
@@ -1621,6 +1705,7 @@ describe('MissoesComiteService — edicao com auditoria', () => {
         ],
       },
       adminMissoes,
+      RecorteDeMissoes.irrestrito(),
     );
 
     await service.atualizar(
@@ -1633,6 +1718,7 @@ describe('MissoesComiteService — edicao com auditoria', () => {
         ),
       },
       adminMissoes,
+      RecorteDeMissoes.irrestrito(),
     );
 
     expect(await auditoriaDe(missao.id)).toContainEqual(
@@ -1654,6 +1740,7 @@ describe('MissoesComiteService — edicao com auditoria', () => {
       missao.id,
       payload,
       adminMissoes,
+      RecorteDeMissoes.irrestrito(),
     );
     expect(atualizada.paises).toEqual(['Portugal']);
 
@@ -1694,6 +1781,7 @@ describe('MissoesComiteService — edicao com auditoria', () => {
         ],
       },
       adminMissoes,
+      RecorteDeMissoes.irrestrito(),
     );
     expect(comDuas.atividades.map((a) => a.ordem)).toEqual([1, 2]);
     expect(comDuas.paises).toEqual(['Franca', 'Portugal']);
@@ -1706,6 +1794,7 @@ describe('MissoesComiteService — edicao com auditoria', () => {
         atividades: payloadDe(comDuas).atividades.slice(1),
       },
       adminMissoes,
+      RecorteDeMissoes.irrestrito(),
     );
     // A remocao renumera o roteiro: nao pode sobrar buraco na ordem.
     expect(semPrimeira.atividades.map((a) => a.ordem)).toEqual([1]);
@@ -1738,6 +1827,7 @@ describe('MissoesComiteService — edicao com auditoria', () => {
         ],
       },
       adminMissoes,
+      RecorteDeMissoes.irrestrito(),
     );
 
     const invertida = await service.atualizar(
@@ -1748,6 +1838,7 @@ describe('MissoesComiteService — edicao com auditoria', () => {
         atividades: [...payloadDe(comDuas).atividades].reverse(),
       },
       adminMissoes,
+      RecorteDeMissoes.irrestrito(),
     );
 
     expect(invertida.atividades.map((a) => [a.ordem, a.titulo])).toEqual([
@@ -1762,7 +1853,13 @@ describe('MissoesComiteService — edicao com auditoria', () => {
     payload.atividades[0].id = '00000000-0000-4000-8000-000000000000';
 
     await expect(
-      service.atualizar(base.cicloId, missao.id, payload, adminMissoes),
+      service.atualizar(
+        base.cicloId,
+        missao.id,
+        payload,
+        adminMissoes,
+        RecorteDeMissoes.irrestrito(),
+      ),
     ).rejects.toMatchObject({ status: 404 });
   });
 
@@ -1774,6 +1871,7 @@ describe('MissoesComiteService — edicao com auditoria', () => {
         missao.id,
         payloadDe(missao),
         adminMissoes,
+        RecorteDeMissoes.irrestrito(),
       ),
     ).rejects.toMatchObject({ status: 400 });
   });
@@ -1793,6 +1891,7 @@ describe('MissoesComiteService — edicao com auditoria', () => {
         missao.id,
         { ...payloadDe(confirmada), dataFim: '2027-05-28' },
         adminMissoes,
+        RecorteDeMissoes.irrestrito(),
       ),
     ).rejects.toMatchObject({ status: 400 });
 
@@ -1802,6 +1901,7 @@ describe('MissoesComiteService — edicao com auditoria', () => {
       missao.id,
       { ...payloadDe(confirmada), titulo: 'Titulo ajustado' },
       adminMissoes,
+      RecorteDeMissoes.irrestrito(),
     );
 
     const depois = await service.detalhe(base.cicloId, missao.id);
@@ -1814,6 +1914,7 @@ describe('MissoesComiteService — edicao com auditoria', () => {
         justificativa: 'Prorrogacao autorizada pelo comite.',
       },
       adminMissoes,
+      RecorteDeMissoes.irrestrito(),
     );
 
     const auditoria = await auditoriaDe(missao.id);
@@ -1857,6 +1958,7 @@ describe('MissoesComiteService — edicao com auditoria', () => {
           ],
         },
         adminMissoes,
+        RecorteDeMissoes.irrestrito(),
       ),
     ).rejects.toMatchObject({ status: 400 });
 
@@ -1884,6 +1986,7 @@ describe('MissoesComiteService — edicao com auditoria', () => {
           missao.id,
           { ...payloadDe(missao), titulo: 'Tentativa de edicao' },
           adminMissoes,
+          RecorteDeMissoes.irrestrito(),
         ),
       ).rejects.toMatchObject({ status: 409 });
     }
@@ -2003,6 +2106,7 @@ describe('MissoesComiteService — ciclo de vida', () => {
         ],
       },
       adminMissoes,
+      RecorteDeMissoes.irrestrito(),
     );
   }
 
@@ -2174,6 +2278,7 @@ describe('MissoesComiteService — ciclo de vida', () => {
     const pagina = await service.listar(
       base.cicloId,
       filtroMissoesSchema.parse({}),
+      RecorteDeMissoes.irrestrito(),
     );
     expect(pagina.resumo).toMatchObject({
       total: 2,
@@ -2206,6 +2311,7 @@ describe('MissoesComiteService — ciclo de vida', () => {
     const filtrada = await service.listar(
       base.cicloId,
       filtroMissoesSchema.parse({ status: 'CANCELADA' }),
+      RecorteDeMissoes.irrestrito(),
     );
     // A pagina traz so a cancelada, mas o resumo continua contando as duas.
     expect(filtrada.total).toBe(1);
@@ -2214,6 +2320,7 @@ describe('MissoesComiteService — ciclo de vida', () => {
     const foraDoEscopo = await service.listar(
       base.cicloId,
       filtroMissoesSchema.parse({ ano: 2035 }),
+      RecorteDeMissoes.irrestrito(),
     );
     expect(foraDoEscopo.resumo.total).toBe(0);
   });
@@ -2375,6 +2482,7 @@ describe('MissoesComiteService — relato e conclusao', () => {
         ],
       },
       adminMissoes,
+      RecorteDeMissoes.irrestrito(),
     );
     await service.transicionar(
       base.cicloId,
@@ -2689,6 +2797,7 @@ describe('MissoesComiteService — relato e conclusao', () => {
         })),
       },
       adminMissoes,
+      RecorteDeMissoes.irrestrito(),
     );
 
     const preservada = editada.atividades.find((a) => a.id === extra.id);
@@ -2760,6 +2869,7 @@ describe('MissoesComiteService — relato e conclusao', () => {
           })),
         },
         adminMissoes,
+        RecorteDeMissoes.irrestrito(),
       ),
     ).rejects.toMatchObject({ status: 400 });
   });
@@ -2871,6 +2981,7 @@ describe('MissoesComiteService — redes da missao', () => {
       base.cicloId,
       missao('Missao das tres redes', [redes[2].id, redes[0].id, redes[1].id]),
       adminMissoes,
+      RecorteDeMissoes.irrestrito(),
     );
 
     const detalhe = await service.detalhe(base.cicloId, criada.id);
@@ -2916,6 +3027,7 @@ describe('MissoesComiteService — redes da missao', () => {
         base.cicloId,
         missao('Missao com rede alheia', [redeDeOutroCiclo.id]),
         adminMissoes,
+        RecorteDeMissoes.irrestrito(),
       ),
     ).rejects.toMatchObject({ status: 400 });
     // A transacao inteira e desfeita: nem a missao sobrou.
@@ -2927,16 +3039,19 @@ describe('MissoesComiteService — redes da missao', () => {
       base.cicloId,
       missao('Missao conjunta', [redes[0].id, redes[1].id, redes[2].id]),
       adminMissoes,
+      RecorteDeMissoes.irrestrito(),
     );
     await service.criar(
       base.cicloId,
       missao('Missao so da UNESP', [redes[1].id]),
       adminMissoes,
+      RecorteDeMissoes.irrestrito(),
     );
 
     const todas = await service.listar(
       base.cicloId,
       filtroMissoesSchema.parse({}),
+      RecorteDeMissoes.irrestrito(),
     );
     expect(todas.total).toBe(2);
     expect(todas.itens).toHaveLength(2);
@@ -2946,12 +3061,14 @@ describe('MissoesComiteService — redes da missao', () => {
     const daUnesp = await service.listar(
       base.cicloId,
       filtroMissoesSchema.parse({ redeId: redes[1].id }),
+      RecorteDeMissoes.irrestrito(),
     );
     expect(daUnesp.total).toBe(2);
 
     const daPrimeira = await service.listar(
       base.cicloId,
       filtroMissoesSchema.parse({ redeId: redes[0].id }),
+      RecorteDeMissoes.irrestrito(),
     );
     expect(daPrimeira.itens.map((item) => item.titulo)).toEqual([
       'Missao conjunta',
@@ -2968,6 +3085,7 @@ describe('MissoesComiteService — redes da missao', () => {
       base.cicloId,
       missao('Missao a remanejar', [redes[0].id, redes[1].id]),
       adminMissoes,
+      RecorteDeMissoes.irrestrito(),
     );
     const detalhe = await service.detalhe(base.cicloId, criada.id);
 
@@ -3005,6 +3123,7 @@ describe('MissoesComiteService — redes da missao', () => {
         })),
       }),
       adminMissoes,
+      RecorteDeMissoes.irrestrito(),
     );
 
     const depois = await service.detalhe(base.cicloId, criada.id);
@@ -3040,6 +3159,7 @@ describe('MissoesComiteService — redes da missao', () => {
       base.cicloId,
       missao('Missao confirmada', [redes[0].id]),
       adminMissoes,
+      RecorteDeMissoes.irrestrito(),
     );
     await service.transicionar(
       base.cicloId,
@@ -3082,7 +3202,13 @@ describe('MissoesComiteService — redes da missao', () => {
       });
 
     await expect(
-      service.atualizar(base.cicloId, criada.id, payload(null), adminMissoes),
+      service.atualizar(
+        base.cicloId,
+        criada.id,
+        payload(null),
+        adminMissoes,
+        RecorteDeMissoes.irrestrito(),
+      ),
     ).rejects.toMatchObject({ status: 400 });
 
     // A recusa nao pode ter deixado a rede nova gravada pela metade.
@@ -3095,6 +3221,7 @@ describe('MissoesComiteService — redes da missao', () => {
       criada.id,
       payload('A UNESP passou a integrar a missao por decisao do Comite.'),
       adminMissoes,
+      RecorteDeMissoes.irrestrito(),
     );
     expect((await service.detalhe(base.cicloId, criada.id)).redes).toHaveLength(
       2,

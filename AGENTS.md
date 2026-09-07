@@ -384,6 +384,29 @@ do banco traz a tabela inteira para a aplicação e vaza a contagem real em
 qualquer soma feita antes do filtro. PPG fora do escopo responde **404, não
 403** — "existe, mas não é seu" já entrega que o PPG existe.
 
+**Escopo por rede no módulo de missões (CG-028).** Desde 2026-09-07 o recorte
+vale para missões, e não só para PPGs. Três coisas o definem:
+
+1. **"Minha rede" é o vínculo ativo** em `membro_equipe_gestao_rede`, em união
+   com `escopo_acesso`. Vínculo com `data_fim` preenchido não autoriza mais.
+2. **`missao:all-redes` desliga o recorte** e é concedida a `admin` e
+   `comite-gestor`. É a única permissão do catálogo que fala de *quais linhas*;
+   a exceção existe para não fazer o serviço perguntar pelo papel. Quem decide
+   precisa ver o que vai decidir — um Comitê recortado receberia fila
+   incompleta. Ela não concede escrita.
+3. **Aqui não há modo permissivo.** `RECORTE_OBRIGATORIO = false` poupa quem
+   ainda não tem escopo no mundo do PPG; no das missões essa pessoa não existe,
+   porque a única permissão que chega ao recorte é a do Gestor da Rede. Sem
+   rede no escopo, nenhuma missão passa.
+
+O recorte de leitura de **uma** missão é o `EscopoMissaoGuard`, global: as
+rotas de missão têm todas a mesma forma, e verificação espalhada por serviço é
+verificação que a próxima rota esquece. Ele responde **404, nunca 403**. A
+**listagem** continua se recortando na consulta. A **escrita** é separada:
+`validarRedes` recusa criar ou mover missão para rede alheia, e retirar de uma
+missão multirrede a rede que você não alcança é 403. **Documento herda o escopo
+do alvo**, senão o anexo seria a porta lateral do recorte.
+
 **Quando a granularidade apertar** (permissão direta por usuário, delegação
 temporária), o ponto de mudança é `permissionsForRoles` — e só ele. Nenhum
 controller precisa mudar, porque nenhum menciona papel. Foi por isso que a
@@ -929,9 +952,12 @@ o ícone estiver visível.
   [documentos-despesa.ts](apps/web/src/lib/formularios/documentos-despesa.ts).
   Lógica que os dois lados usam vai num `.ts` neutro.
 
-  Os papéis `gestor-rede` e `comite-gestor` existem no realm e em
-  `ROLE_PERMISSIONS`, mas **não devem ser atribuídos ainda**: missões e
-  parceiros não consultam escopo, então hoje veriam as três redes.
+  **Os papéis `gestor-rede` e `comite-gestor` já podem ser atribuídos**
+  (CG-028, 2026-09-07): missões, painel, formulário e documentos consultam o
+  escopo por rede. Um `gestor-rede` **sem vínculo de equipe vê lista vazia** —
+  não o ciclo inteiro —, e é assim que a PROPESP descobre que falta cadastrar o
+  vínculo. `comite-gestor` perdeu `prestacao:review`: a matriz aprovada reserva
+  a validação da prestação ao Administrador.
 
   **Não iniciar a antiga CG-045:** obter o aceite
   institucional de CG-005 a CG-009 antes de alterar novamente o contrato da
@@ -946,10 +972,10 @@ interface é **Coordenador de Temática**, não “membro do comitê”. Ediçã
 existente exige `plano:edit` (só `admin`), preserva código/rubrica e grava uma
 entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: somente
 2027 vem composto; 2028–2030 começam vazios e nunca copiam a quantidade automaticamente.
-- **Testes**: 153 unitários/regressões (67 API + 86 na web para toast, datas,
+- **Testes**: 154 unitários/regressões (68 API + 86 na web para toast, datas,
   React Hook Form/Zod, erros do multistep, formulários de parceiro,
   acessibilidade, contraste dos tokens, cálculos monetários, montagem de série
-  do gráfico e caminhos do BFF) + 417 de integração contra Postgres
+  do gráfico e caminhos do BFF) + 437 de integração contra Postgres
   real. As duas garantias de não duplicação da linha
   histórica do parceiro foram verificadas por mutação: trocar o `exists` +
   `selectDistinct` por um `join` faz ambas falharem.
