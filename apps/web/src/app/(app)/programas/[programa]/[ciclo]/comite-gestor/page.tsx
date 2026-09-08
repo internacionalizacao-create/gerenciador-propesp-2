@@ -1893,6 +1893,13 @@ async function Relatorios({
         referencias={referencias}
       />
 
+      <BaixarRelatorio
+        programa={programa}
+        ciclo={ciclo}
+        relatorio={qual}
+        parametros={parametros.toString()}
+      />
+
       {qual === "missoes" ? (
         <RelatorioDeMissoes
           dados={await apiFetch<RelatorioMissoes>(
@@ -2417,6 +2424,55 @@ function FiltroRelatorio({
         </Link>
       </div>
     </form>
+  );
+}
+
+/**
+ * Baixar o relatório nos três formatos (CG-069).
+ *
+ * Links, e não botões com JavaScript: o download é uma requisição GET com o
+ * mesmo filtro que já está na URL, e o navegador sabe salvar arquivo sozinho.
+ * Um botão exigiria buscar o conteúdo no cliente e recriar o salvamento à mão —
+ * mais código para fazer pior o que o `Content-Disposition` já faz.
+ *
+ * Aponta para `/api/bff/...`, e não para a API: o token nunca chega ao
+ * JavaScript da página, e o BFF injeta o `Bearer` no servidor.
+ */
+function BaixarRelatorio({
+  programa,
+  ciclo,
+  relatorio,
+  parametros,
+}: {
+  programa: string;
+  ciclo: string;
+  relatorio: Relatorio;
+  parametros: string;
+}) {
+  const rota = `/api/bff/programas/${programa}/${ciclo}/comite-gestor/relatorios/${relatorio}/exportacao`;
+  const sufixo = parametros ? `?${parametros}` : "";
+
+  return (
+    <div className="mb-6 flex flex-wrap items-center gap-2">
+      <span className="mr-1 text-xs font-medium text-muted">Baixar</span>
+      {(
+        [
+          ["pdf", "PDF"],
+          ["xlsx", "Excel"],
+          ["csv", "CSV"],
+        ] as const
+      ).map(([formato, texto]) => (
+        <a
+          key={formato}
+          href={`${rota}/${formato}${sufixo}`}
+          className={BOTAO_PAGINA}
+          // O recorte da tela vai junto: exportar sem ele devolveria um arquivo
+          // maior do que o que a pessoa está vendo.
+        >
+          {texto}
+        </a>
+      ))}
+    </div>
   );
 }
 

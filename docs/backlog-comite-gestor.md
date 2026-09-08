@@ -3491,7 +3491,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   14 testes de integração em `relatorios.int-spec.ts` e 9 âncoras no
   `smoke:telas`.
 
-- [ ] **CG-069 — Implementar exportações e relatório final em PDF**
+- [x] **CG-069 — Implementar exportações e relatório final em PDF**
 
   Exportar os relatórios homologados em PDF, Excel e CSV e gerar o dossiê final
   da missão com apenas os documentos/evidências permitidos ao solicitante.
@@ -3579,6 +3579,55 @@ Todas as pendências abaixo já possuem **proposta técnica com valor recomendad
 em [homologacao-comite-gestor.md](homologacao-comite-gestor.md). Continuam
 marcadas como pendentes porque proposta não é decisão: elas só fecham com o
 aceite da equipe.
+
+  **Concluída em 2026-09-07.** Os quatro relatórios saem em PDF, Excel e CSV por
+  `.../relatorios/:qual/exportacao/:formato`, e o dossiê por
+  `.../missoes/:id/dossie`.
+
+  **Uma planilha, três formatos.** Um caminho por formato abriria espaço para o
+  PDF mostrar uma coluna que o CSV não tem, e ninguém compararia os três para
+  notar.
+
+  **A autorização é a da própria consulta.** Cada exportação chama o mesmo
+  serviço que a tela chama, com o mesmo usuário e o mesmo recorte — o que sai no
+  arquivo é, por construção, o que a pessoa já podia ver. Uma segunda regra
+  escrita aqui divergiria da primeira, e a divergência só apareceria como
+  vazamento. Finanças exige `prestacao:read`, como o relatório correspondente.
+
+  **Neutralização de fórmula na escrita.** Célula que começa com `=`, `+`, `-`,
+  `@`, tabulação ou CR recebe aspa simples. Verificado por mutação: sem ela, três
+  testes caem — inclusive o que abre o arquivo no LibreOffice de verdade.
+
+  **XLSX escrito à mão** (ZIP + OOXML, ~200 linhas), porque `exceljs` traria uma
+  árvore de dependências inteira para escrever célula de texto e número — a
+  mesma razão que fez a exportação ser síncrona. **Validado abrindo no
+  LibreOffice**, não só por asserção de conteúdo: um `.xlsx` escrito à mão pode
+  passar em toda asserção e ainda assim o Excel recusar o arquivo.
+
+  **PDF com duas bibliotecas de papéis distintos:** `pdfkit` desenha, `pdf-lib`
+  concatena. É a concatenação que torna "PDF único" verdade — sem ela o dossiê
+  seria um índice apontando para arquivos que quem recebeu teria de baixar um a
+  um, exatamente o pacote que a decisão de 2026-09-07 recusou. Anexo corrompido
+  é **pulado, não fatal**, e volta em `X-Anexos-Ignorados`.
+
+  Dois defeitos que só a verificação na aplicação pegou:
+
+  - **Corpo JSON com cabeçalho correto.** Com `@Res({ passthrough: true })` o
+    Nest serializa o `Buffer` devolvido, e o navegador salvaria um `.pdf` cheio
+    de `{"type":"Buffer","data":[...]}`. `Content-Type` e `Content-Disposition`
+    estavam certos — só o `file` mostrou. Por isso a âncora do smoke é a
+    **assinatura do arquivo**, e não o texto da resposta.
+  - **Uma asserção que não provava nada.** O teste do documento restrito
+    procurava o nome nos bytes do PDF, e pdfkit comprime o fluxo de texto: a
+    asserção passava por vácuo, e uma mutação que desligava a visibilidade
+    continuava verde. Passou a extrair o texto com `pdftotext`, e agora a
+    mutação cai.
+
+  `Content-Disposition` reusa `disposicaoDoAnexo` da CG-061, em vez de um
+  segundo montador para o mesmo problema.
+
+  11 testes de integração em `exportacao.int-spec.ts` e 3 âncoras no
+  `smoke:telas` conferindo o tipo real do arquivo.
 
 - [ ] Matriz definitiva de acesso (CG-003).
 - [ ] Classificar as 40 seções entre MVP, fase posterior, visão futura e fora do

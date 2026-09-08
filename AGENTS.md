@@ -963,6 +963,23 @@ o ícone estiver visível.
   relatório não é o `tamanho` da lista, que protege a tabela do browser.
   Finanças usa `prestacao:read`, e não `missao:read`.
 
+    **Exportações e dossiê (CG-069)** saem por
+  `.../relatorios/:qual/exportacao/:formato` e `.../missoes/:id/dossie`.
+  **Síncronas e sem gravar em disco** — não há o que expirar nem o que varrer, e
+  não sobra exportação no servidor para ser servida depois a quem não podia
+  vê-la. **A autorização é a da própria consulta**: cada exportação chama o
+  mesmo serviço da tela, com o mesmo usuário e recorte. **Fórmula é neutralizada
+  na escrita** (`=`, `+`, `-`, `@`, tab, CR ganham aspa simples), nunca na
+  leitura — o arquivo já saiu. O **XLSX é escrito à mão** (ZIP + OOXML) para não
+  trazer `exceljs`, e é validado abrindo no LibreOffice. O **PDF usa duas
+  bibliotecas com papéis distintos**: `pdfkit` desenha, `pdf-lib` concatena os
+  anexos — é a concatenação que torna "PDF único" verdade. Anexo corrompido é
+  pulado e volta em `X-Anexos-Ignorados`. **Use `resposta.send`, nunca
+  `return`:** com `@Res({ passthrough: true })` o Nest serializa o `Buffer` como
+  JSON e o arquivo baixado fica inútil, com os cabeçalhos ainda corretos. E
+  **asserção sobre bytes de PDF passa por vácuo**, porque pdfkit comprime o
+  texto: extraia com `pdftotext`.
+
     **Missão encerrada não volta a "resposta indefinida" (CG-059).** Encerrar
   afirma que os requisitos foram atendidos, e o checklist é recalculado a cada
   leitura — remover o único produto depois faria a afirmação virar mentira em
@@ -1007,7 +1024,7 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
 - **Testes**: 154 unitários/regressões (68 API + 86 na web para toast, datas,
   React Hook Form/Zod, erros do multistep, formulários de parceiro,
   acessibilidade, contraste dos tokens, cálculos monetários, montagem de série
-  do gráfico e caminhos do BFF) + 454 de integração contra Postgres
+  do gráfico e caminhos do BFF) + 466 de integração contra Postgres
   real. As duas garantias de não duplicação da linha
   histórica do parceiro foram verificadas por mutação: trocar o `exists` +
   `selectDistinct` por um `join` faz ambas falharem.

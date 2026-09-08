@@ -55,6 +55,26 @@ testar_bff() {
   printf '  \033[1;32mok\033[0m    %-52s BFF %s\n' "$rota" "$esperado"
 }
 
+# Baixa um arquivo e confere o **tipo real** pelo `file`, e nao o texto da
+# resposta: cabecalho correto com corpo errado passaria em qualquer assercao de
+# conteudo, e foi o defeito real da primeira versao da CG-069.
+baixar_e_conferir() {
+  local rota="$1" esperado="$2" descricao="$3"
+  local destino
+  destino=$(mktemp)
+  curl -s -b "$JAR" -o "$destino" "${WEB}${rota}"
+  local tipo
+  tipo=$(file -b "$destino")
+  rm -f "$destino"
+
+  if grep -qF "$esperado" <<<"$tipo"; then
+    printf '  \033[1;32mok\033[0m    %-52s %s\n' "$descricao" "$esperado"
+  else
+    printf '  \033[1;31mFALHA\033[0m %-52s veio "%s"\n' "$descricao" "$tipo"
+    FALHAS=$((FALHAS + 1))
+  fi
+}
+
 echo "Renderizacao das telas como ${USUARIO}:"
 testar "/"                                                   "2.315.444,58"
 testar "/"                                                   "1.033.513,40"
@@ -155,6 +175,12 @@ if [[ "$USUARIO" == "admin" ]]; then
   testar "/programas/capes-global/2027-2030/comite-gestor?aba=relatorios&relatorio=financas&ano=2027" "Relatório financeiro"
   testar_bff "/api/bff/programas/capes-global/2027-2030/comite-gestor/relatorios/missoes" '"cabecalho"'
   testar_bff "/api/bff/programas/capes-global/2027-2030/comite-gestor/relatorios/financas" '"validado"'
+  # CG-069: exportacao. A ancora e a **assinatura do arquivo**, e nao o texto:
+  # cabecalho certo com corpo JSON foi exatamente o defeito da primeira versao,
+  # e um teste de texto nao o pegaria.
+  baixar_e_conferir "/api/bff/programas/capes-global/2027-2030/comite-gestor/relatorios/missoes/exportacao/pdf" "PDF document" "relatorio em PDF"
+  baixar_e_conferir "/api/bff/programas/capes-global/2027-2030/comite-gestor/relatorios/missoes/exportacao/xlsx" "Microsoft Excel" "relatorio em Excel"
+  baixar_e_conferir "/api/bff/programas/capes-global/2027-2030/comite-gestor/relatorios/financas/exportacao/csv" "text" "relatorio em CSV"
   testar "/programas/capes-global/2027-2030/comite-gestor?aba=equipes" "Adicionar membro"
   # Ancora no cabecalho da coluna, e nao no rotulo "Missões" da aba: so o
   # cabecalho e alinhado a direita.

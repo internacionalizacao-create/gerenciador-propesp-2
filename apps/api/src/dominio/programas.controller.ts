@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Inject,
   NotFoundException,
@@ -9,13 +10,16 @@ import {
   Patch,
   Post,
   Query,
+  Res,
 } from '@nestjs/common';
 import { and, asc, eq, sql } from 'drizzle-orm';
+import type { Response } from 'express';
 
 import { CurrentUser, RequirePermission } from '../auth/auth.decorators';
 import { IdentidadeService } from '../auth/identidade.service';
 import type { AuthUser } from '../auth/auth-user';
 import { ZodValidationPipe } from '../comum/zod-validation.pipe';
+import { disposicaoDoAnexo } from './anexos.service';
 import {
   atualizarPrestacaoSchema,
   criarDespesaSchema,
@@ -49,6 +53,13 @@ import {
   RelatoriosService,
   type FiltroRelatorio,
 } from './relatorios.service';
+import {
+  ExportacaoService,
+  FORMATOS,
+  RELATORIOS,
+  type Formato,
+  type NomeDeRelatorio,
+} from '../exportacao/exportacao.service';
 import {
   dispensarRequisitoSchema,
   EncerramentoService,
@@ -139,6 +150,7 @@ export class ProgramasController {
     private readonly execucao: ExecucaoComiteService,
     private readonly painelComite: PainelComiteService,
     private readonly relatorios: RelatoriosService,
+    private readonly exportacao: ExportacaoService,
     private readonly identidade: IdentidadeService,
     private readonly encerramento: EncerramentoService,
     private readonly resultados: ResultadosService,
@@ -530,6 +542,79 @@ export class ProgramasController {
       filtro,
       await this.identidade.recorteDeMissoes(usuario),
     );
+  }
+
+  /**
+   * P17 · exportacao de relatorio (CG-069).
+   *
+   * **Sincrona e sem gravar arquivo**: o conteudo vai direto na resposta. Nao
+   * ha o que expirar nem o que varrer, e nao sobra exportacao no servidor para
+   * ser servida depois a quem nao podia ve-la.
+   *
+   * A permissao e a mesma do relatorio correspondente — inclusive
+   * `prestacao:read` para financas —, porque exportar e ler noutro formato. Uma
+   * permissao propria de exportacao permitiria as duas divergirem, e a
+   * divergencia so apareceria como vazamento.
+   */
+  @Get(':programa/:ciclo/comite-gestor/relatorios/:qual/exportacao/:formato')
+  @RequirePermission('missao:read')
+  async exportarRelatorio(
+    @CurrentUser() usuario: AuthUser,
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('qual') qual: string,
+    @Param('formato') formato: string,
+    @Query(new ZodValidationPipe(filtroRelatorioSchema))
+    filtro: FiltroRelatorio,
+    @Res() resposta: Response,
+  ) {
+    if (!RELATORIOS.includes(qual as NomeDeRelatorio)) {
+      throw new NotFoundException('Relatorio nao encontrado.');
+    }
+    if (!FORMATOS.includes(formato as Formato)) {
+      throw new NotFoundException('Formato nao suportado.');
+    }
+    // Financas guarda despesa; ler o consolidado dela exige a mesma permissao
+    // que abrir a prestacao de uma missao.
+    if (
+      qual === 'financas' &&
+      !usuario.permissions.includes('prestacao:read')
+    ) {
+      throw new ForbiddenException(
+        'Acesso negado. Permissao necessaria: prestacao:read',
+      );
+    }
+
+    const ciclo = await this.contexto.resolver(slug, nome);
+    const arquivo = await this.exportacao.relatorio(
+      ciclo.cicloId,
+      qual as NomeDeRelatorio,
+      formato as Formato,
+      filtro,
+      await this.identidade.recorteDeMissoes(usuario),
+    );
+    responderArquivo(resposta, arquivo);
+  }
+
+  /**
+   * P17 · dossie final da missao em PDF unico (CG-069).
+   *
+   * Os documentos que entram sao **os que o solicitante ja podia abrir**: a
+   * lista sai de `AnexosService` com o proprio usuario, entao visibilidade
+   * `RESTRITA` e recorte por rede valem sem uma segunda regra escrita aqui.
+   */
+  @Get(':programa/:ciclo/comite-gestor/missoes/:id/dossie')
+  @RequirePermission('missao:read')
+  async dossieDaMissao(
+    @CurrentUser() usuario: AuthUser,
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('id') id: string,
+    @Res() resposta: Response,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    const arquivo = await this.exportacao.dossie(ciclo.cicloId, id, usuario);
+    responderArquivo(resposta, arquivo);
   }
 
   @Get(':programa/:ciclo/comite-gestor/equipes')
@@ -1132,4 +1217,46 @@ function rubricaValida(rubrica: string | undefined): Rubrica | undefined {
     rubrica === 'MISSOES'
     ? rubrica
     : undefined;
+}
+
+/**
+ * Devolve o arquivo gerado, sem nunca passar por disco.
+ *
+ * **`resposta.send`, e nao `return`.** Com `@Res({ passthrough: true })` o Nest
+ * serializa o valor devolvido como JSON, e um `Buffer` vira
+ * `{"type":"Buffer","data":[...]}` — cabecalhos corretos, corpo inutil. Foi o
+ * que aconteceu na primeira versao, e so a verificacao com `file` mostrou:
+ * `Content-Type` e `Content-Disposition` estavam certos, entao o navegador
+ * salvaria um `.pdf` cheio de JSON. E o mesmo caminho do download de anexo.
+ *
+ * `Content-Disposition` sai de `disposicaoDoAnexo`, o helper da CG-061: ele
+ * monta o fallback ASCII mais o `filename*` em UTF-8, e escrever um segundo
+ * aqui repetiria — mal — um problema ja resolvido.
+ *
+ * `X-Anexos-Ignorados` carrega os PDF que nao puderam ser mesclados no dossie.
+ * Cabecalho, e nao corpo, porque o corpo e o proprio arquivo; a tela le e
+ * avisa, em vez de o usuario descobrir contando paginas.
+ */
+function responderArquivo(
+  resposta: Response,
+  arquivo: {
+    nomeArquivo: string;
+    mimeType: string;
+    conteudo: Buffer;
+    ignorados?: string[];
+  },
+): void {
+  resposta.setHeader('Content-Type', arquivo.mimeType);
+  resposta.setHeader(
+    'Content-Disposition',
+    disposicaoDoAnexo(arquivo.nomeArquivo),
+  );
+  resposta.setHeader('Content-Length', arquivo.conteudo.length);
+  if (arquivo.ignorados?.length) {
+    resposta.setHeader(
+      'X-Anexos-Ignorados',
+      encodeURIComponent(arquivo.ignorados.join('|')),
+    );
+  }
+  resposta.send(arquivo.conteudo);
 }

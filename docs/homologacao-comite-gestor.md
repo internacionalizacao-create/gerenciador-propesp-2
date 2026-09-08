@@ -435,7 +435,7 @@ blocos acima e na [revisão de escopo](revisao-escopo-comite-gestor-2026-09-01.m
 | D-08 | Documentos e formatos | PDF/JPG/PNG no MVP; Office como download, se confirmado. Retenção e backup pendentes de resposta institucional. |
 | D-09 | Checklist | Calculado e condicional; dispensa só por `admin` com justificativa. |
 | D-10 | Evento reutilizável | **F2.** Permanece campo da atividade no MVP. |
-| D-11 | Notificações | Gravar **outbox durável** no MVP e exibir caixa de entrada no sistema; e-mail institucional em F2. |
+| D-11 | Notificações | ☑ **Decidido em 2026-09-07:** outbox durável **e** caixa de entrada no sistema. E-mail fica fora enquanto não houver servidor — haverá no futuro, e o ponto de inserção fica pronto. |
 | D-12 | Identidade e pessoa | Vínculo `sub` ↔ `pessoa` é **pré-requisito do perfil Participante**, portanto F2. |
 | D-13 | Dados pessoais | Comprovante financeiro e documento pessoal visíveis apenas a `admin`, ao Comitê em análise e ao próprio titular. Indicador consolidado **nunca** dá acesso ao documento de origem. |
 | D-14 | Moeda estrangeira | Valor oficial em reais no MVP; ampliação aditiva se confirmada. |
@@ -546,6 +546,38 @@ serviço** — papel no lugar de permissão, exatamente o que a indireção do m
 de autorização existe para evitar. Quem enviou continua vendo o próprio arquivo
 sem depender da permissão: é o único jeito de conferir o que acabou de subir, e
 essa pessoa já conhece o conteúdo.
+
+### D-11 — notificações, decidido em 2026-09-07
+
+Até aqui não existia **nada**: quem precisava saber que uma missão foi aprovada
+descobria abrindo a fila. Isso é o que travava metade da CG-039.
+
+| Ponto | Decisão |
+|---|---|
+| Camada | **Outbox durável + caixa de entrada no sistema.** Sem e-mail por ora. |
+| E-mail institucional | **Fora por enquanto** — não há servidor SMTP hoje. Haverá no futuro; o responsável ainda não tem a informação de acesso. |
+| Eventos que notificam | Decisão do Comitê; missão submetida para análise; prestação devolvida ou validada; **viagem encerrada sem prestação**. |
+
+**Por que outbox e não "mandar o aviso na hora".** Um envio dentro da transação
+cria um dilema sem saída boa: se falha e você aborta, o Comitê aprovou uma
+missão e o sistema esqueceu — por causa do canal de aviso; se falha e você
+ignora, alguém foi aprovado e nunca soube. O outbox desacopla: a mesma transação
+que grava a decisão grava "avisar fulano disto", e a entrega é outro passo, que
+pode ser tentado de novo. **A decisão nunca depende do canal.**
+
+**"Viagem encerrada sem prestação" é o único dos quatro que não nasce de uma
+ação.** Os outros três têm um instante e um autor; este é decorrência do
+calendário. Ele **não precisa de rotina agendada**: a lista de pendências do
+painel (CG-066) já o calcula a cada leitura, e derivar a notificação do mesmo
+cálculo evita um segundo lugar onde a regra pode divergir — e evita trazer um
+processo agendado para a instituição operar. O que a rotina traria é o *empurrão*
+sem alguém abrir a tela, e isso só faz sentido junto com o e-mail.
+
+**O ponto de inserção do e-mail fica pronto e documentado.** Como haverá
+servidor no futuro, o outbox já nasce com o registro do canal e do estado de
+entrega; ligar o SMTP depois é preencher um adaptador, não redesenhar o modelo.
+
+Implementação é a **CG-039**, que estava esperando exatamente esta decisão.
 
 ### Perguntas que só a equipe pode responder
 

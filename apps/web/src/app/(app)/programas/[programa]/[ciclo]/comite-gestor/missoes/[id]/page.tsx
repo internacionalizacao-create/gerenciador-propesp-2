@@ -286,6 +286,20 @@ export default async function MissaoDetalhePagina({
         />
       ) : aba === "documentos" ? (
         <>
+          {/* CG-069: o dossiê é um PDF único, com os anexos concatenados. Fica
+              na aba Documentos porque é daqui que sai o que entra nele — e o
+              que entra é só o que quem clica já podia abrir. */}
+          <div className="mb-6 flex flex-wrap items-center gap-2">
+            <a
+              href={`/api/bff/programas/${programa}/${ciclo}/comite-gestor/missoes/${id}/dossie`}
+              className="rounded-xl border border-border-strong px-3 py-1.5 text-sm font-medium text-foreground hover:border-primary hover:text-primary"
+            >
+              Baixar dossiê da missão (PDF)
+            </a>
+            <span className="text-xs text-subtle">
+              Inclui apenas os documentos que você pode abrir.
+            </span>
+          </div>
           <Documentos
             documentos={documentos}
             contexto={contexto}
