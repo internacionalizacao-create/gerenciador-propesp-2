@@ -592,6 +592,111 @@ export interface ConsolidadoDaRede {
   despesaLancada: string | null;
 }
 
+/**
+ * Relatórios estratégicos (CG-068).
+ *
+ * Os quatro homologados em 2026-09-07. Todos aceitam **o mesmo filtro da lista
+ * de missões** e partem da mesma base — é o que faz o total do relatório
+ * reproduzir a consulta de origem.
+ */
+export interface CabecalhoRelatorio {
+  filtro: Record<string, unknown>;
+  /** Missões distintas no recorte; a base de tudo o que vem abaixo. */
+  missoes: number;
+  geradoEm: string;
+  aviso: string;
+  truncado: boolean;
+}
+
+export interface RelatorioMissoes {
+  cabecalho: CabecalhoRelatorio;
+  linhas: {
+    id: string;
+    codigo: string;
+    titulo: string;
+    dataInicio: string;
+    dataFim: string;
+    status: StatusMissao;
+    statusAprovacao: StatusAprovacaoMissao;
+    situacaoPrestacao: SituacaoPrestacao;
+    redes: string[];
+    paises: string[];
+    participantes: number;
+    atividades: number;
+    valorPrestado: string | null;
+  }[];
+  totais: {
+    missoes: number;
+    valorPrestado: string | null;
+    porStatus: Record<string, number>;
+    porAprovacao: Record<string, number>;
+    porPrestacao: Record<string, number>;
+  };
+}
+
+export interface RelatorioParceiros {
+  cabecalho: CabecalhoRelatorio;
+  linhas: {
+    id: string;
+    nome: string;
+    sigla: string | null;
+    pais: string | null;
+    cidade: string | null;
+    missoes: number;
+    atividades: number;
+    convenios: number;
+    produtos: number;
+  }[];
+  totais: {
+    parceiros: number;
+    /** Paradas em instituição ainda não cadastrada — candidatas a cadastro. */
+    semCadastro: number;
+    convenios: number;
+  };
+}
+
+export interface RelatorioFinancas {
+  cabecalho: CabecalhoRelatorio;
+  linhas: {
+    exercicio: number;
+    tipo: string;
+    emPreenchimento: string | null;
+    comPendencia: string | null;
+    enviado: string | null;
+    validado: string | null;
+    total: string | null;
+  }[];
+  totais: {
+    emPreenchimento: string | null;
+    comPendencia: string | null;
+    enviado: string | null;
+    /** A única coluna que abate o aporte (CG-009). */
+    validado: string | null;
+    total: string | null;
+  };
+}
+
+export interface RelatorioResultados {
+  cabecalho: CabecalhoRelatorio;
+  produtos: LinhaResultado[];
+  convenios: LinhaResultado[];
+  totais: {
+    produtos: number;
+    convenios: number;
+    /** Declararam não ter gerado produto (CG-056). */
+    semProdutoDeclarado: number;
+    /** Nem produto nem declaração: ninguém respondeu ainda. */
+    semResposta: number;
+  };
+}
+
+export interface LinhaResultado {
+  tipo: string;
+  situacao: string;
+  quantidade: number;
+  missoes: number;
+}
+
 export type MotivoPendencia =
   | "ANALISE_PARADA"
   | "AJUSTES_SOLICITADOS"

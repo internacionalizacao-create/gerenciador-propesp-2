@@ -3413,7 +3413,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   4 testes de integração novos (22 no painel) mais uma asserção no
   `escopo-rede.int-spec.ts`, e 4 âncoras no smoke.
 
-- [ ] **CG-068 — Implementar relatórios estratégicos**
+- [x] **CG-068 — Implementar relatórios estratégicos**
 
   Criar relatórios de:
 
@@ -3429,6 +3429,67 @@ Essa situação é calculada a partir das datas e não é persistida.
 
   Critério de aceite: total do relatório reproduz as consultas de origem para o
   mesmo filtro e não depende de agregado manual persistido.
+
+  Entregue em 2026-09-07. Os quatro relatórios homologados no mesmo dia —
+  missões, parceiros, finanças e resultados — vivem na aba **Relatórios** da
+  P17 e em `GET .../comite-gestor/relatorios/{...}`.
+
+  **O critério de aceite é uma proibição, e ela guiou o desenho inteiro: não
+  pode haver uma segunda origem.** Por isso:
+
+  - O filtro dos relatórios **é** o filtro da lista (`filtroMissoesSchema` menos
+    os quatro campos de paginação), sem tradução no meio.
+  - O relatório de missões **chama `MissoesComiteService.listar`** em vez de
+    repetir o SQL dela.
+  - Os outros três partem de `condicaoDoRecorte`, que é a mesma função que monta
+    o `where` da lista — extraída de `listar` justamente para isso.
+
+  Um filtro próprio, ainda que escrito para dar o mesmo resultado, divergiria na
+  primeira mudança de um dos lados, e a divergência só apareceria quando alguém
+  comparasse os dois números por conta própria. **Verificado por mutação:**
+  fazer o relatório montar o próprio recorte "equivalente" derruba o teste.
+
+  Verificado também na aplicação, com quatro filtros: lista e relatório dão o
+  mesmo total, e os quatro cabeçalhos declaram a mesma base.
+
+  **Um cruzamento entre serviços independentes:** o `validado` do relatório
+  financeiro bate com o `validado` da execução orçamentária da CG-055 —
+  R$ 10.550 dos dois lados, apurados por caminhos diferentes (um agrupa por
+  exercício e tipo, o outro por exercício contra o aporte). Virou teste: se
+  divergirem, uma das duas está errada, e sem a comparação ninguém descobriria,
+  porque cada tela mostra só o próprio número.
+
+  **Nada é agregado persistido.** Tudo sai de consulta a cada leitura; um total
+  guardado envelheceria no dia em que uma prestação fosse devolvida. Dinheiro
+  continua string decimal até a apresentação.
+
+  Dois filtros novos entraram na lista para que o vocabulário fosse um só:
+  `instituicaoId` (casa pelo **cadastro**, não pelo nome livre — casar por texto
+  traria o homônimo digitado à mão) e `evento` (texto e correspondência parcial,
+  porque evento ainda não é cadastro; D-10 deixou isso para a F2).
+
+  Três decisões que a implementação ingênua erra:
+
+  - **`totais.missoes` é `pagina.total`, não `resumo.total`.** O resumo da lista
+    responde só ao escopo, de propósito — ele conta *por* status e situação
+    temporal, e filtrar por eles antes de contar zeraria as outras faixas. Num
+    relatório o status faz parte do recorte. Foi um teste que pegou isso.
+  - **Instituição digitada à mão não vira parceiro, mas não some.** Contá-la
+    inflaria o indicador com algo que ninguém abre; escondê-la faria o número
+    parecer completo. Sai numa contagem própria, "sem cadastro", que é a lista
+    de candidatas a cadastro.
+  - **O teto de linhas do relatório não é o da lista.** `tamanho` para em 100 na
+    listagem, e esse limite protege a tabela do browser — não tem nada a dizer
+    sobre quantas linhas um relatório apura. O relatório tem teto próprio,
+    decidido pelo custo da exportação síncrona da CG-069, e avisa em vez de
+    cortar em silêncio.
+
+  Finanças usa `prestacao:read`, e não `missao:read`: quem não pode abrir a
+  prestação de uma missão não deve ler o consolidado das despesas dela. Nenhuma
+  permissão nova; o recorte por rede da CG-028 vale aqui como em toda consulta.
+
+  14 testes de integração em `relatorios.int-spec.ts` e 9 âncoras no
+  `smoke:telas`.
 
 - [ ] **CG-069 — Implementar exportações e relatório final em PDF**
 

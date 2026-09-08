@@ -24,9 +24,15 @@ import type {
   ExecucaoExercicio,
   Me,
   MembroEquipeGestao,
+  CabecalhoRelatorio,
+  LinhaResultado,
   PaginaMissoes,
   PainelComite,
   PendenciaMissao,
+  RelatorioFinancas,
+  RelatorioMissoes,
+  RelatorioParceiros,
+  RelatorioResultados,
   PessoaDisponivel,
   ReferenciasMissao,
   ResumoMissoes,
@@ -37,7 +43,15 @@ import type {
 } from "@/lib/dominio";
 import { data, inteiro, percentual, rotulo, somarMoeda } from "@/lib/formato";
 
-type Aba = "visao-geral" | "missoes" | "analise" | "equipes";
+type Aba =
+  | "visao-geral"
+  | "missoes"
+  | "analise"
+  | "relatorios"
+  | "equipes";
+
+/** Os quatro relatórios homologados em 2026-09-07 (CG-068). */
+type Relatorio = "missoes" | "parceiros" | "financas" | "resultados";
 
 /** Filtros da aba Missões, exatamente como chegam da query string. */
 type ConsultaMissoes = Record<string, string | string[] | undefined>;
@@ -191,7 +205,7 @@ export default async function ComiteGestorPagina({
         `/programas/${programa}/${ciclo}/comite-gestor/equipes`,
       ),
       apiFetch<PessoaDisponivel[]>("/pessoas"),
-      aba === "missoes" || aba === "analise"
+      aba === "missoes" || aba === "analise" || aba === "relatorios"
         ? apiFetch<ReferenciasMissao>(
             `/programas/${programa}/${ciclo}/comite-gestor/referencias-missao`,
           )
@@ -269,6 +283,15 @@ export default async function ComiteGestorPagina({
           referencias={referenciasMissao}
         />
       ) : null}
+      {aba === "relatorios" ? (
+        <Relatorios
+          programa={programa}
+          ciclo={ciclo}
+          base={base}
+          consulta={consulta}
+          referencias={referenciasMissao}
+        />
+      ) : null}
       {aba === "equipes" ? (
         <Equipes
           membros={membros}
@@ -284,6 +307,7 @@ function Abas({ base, ativa }: { base: string; ativa: Aba }) {
     { id: "visao-geral", texto: "Visão geral" },
     { id: "missoes", texto: "Missões" },
     { id: "analise", texto: "Análise" },
+    { id: "relatorios", texto: "Relatórios" },
     { id: "equipes", texto: "Equipes" },
   ];
 
@@ -1776,6 +1800,636 @@ function Paginacao({
   );
 }
 
+/** Campos que os relatórios aceitam — os mesmos da lista, sem paginação. */
+const CAMPOS_RELATORIO = [
+  "busca",
+  "ano",
+  "de",
+  "ate",
+  "paisId",
+  "instituicaoId",
+  "evento",
+  "redeId",
+  "status",
+  "statusAprovacao",
+  "situacaoPrestacao",
+] as const;
+
+/**
+ * Aba Relatórios (CG-068).
+ *
+ * **Um filtro só, quatro relatórios.** Trocar de relatório preserva o recorte,
+ * porque a pergunta que se faz é "e os parceiros deste mesmo conjunto?" — não
+ * "e os parceiros de outro conjunto qualquer". O filtro fica na URL, como no
+ * resto do módulo, então um recorte pode ser mandado por link.
+ *
+ * O cabeçalho de cada relatório repete quantas missões formam a base. É a
+ * primeira coisa que um leitor compara entre dois relatórios, e ver o mesmo
+ * número nos quatro é o que dá confiança de que eles falam do mesmo universo.
+ */
+async function Relatorios({
+  programa,
+  ciclo,
+  base,
+  consulta,
+  referencias,
+}: {
+  programa: string;
+  ciclo: string;
+  base: string;
+  consulta: ConsultaMissoes;
+  referencias: ReferenciasMissao;
+}) {
+  const qual = relatorioDaConsulta(consulta);
+  const filtros: Record<string, string> = {};
+  for (const campo of CAMPOS_RELATORIO) {
+    const bruto = consulta[campo];
+    const valor = (Array.isArray(bruto) ? bruto[0] : bruto)?.trim();
+    if (valor) filtros[campo] = valor;
+  }
+  const parametros = new URLSearchParams(filtros);
+  const rota = `/programas/${programa}/${ciclo}/comite-gestor/relatorios`;
+
+  const link = (proximo: Relatorio) => {
+    const query = new URLSearchParams(filtros);
+    query.set("aba", "relatorios");
+    query.set("relatorio", proximo);
+    return `${base}?${query}`;
+  };
+
+  return (
+    <>
+      <nav
+        aria-label="Relatórios disponíveis"
+        className="mb-5 flex flex-wrap items-center gap-2"
+      >
+        {(
+          [
+            ["missoes", "Missões"],
+            ["parceiros", "Parceiros"],
+            ["financas", "Finanças"],
+            ["resultados", "Resultados"],
+          ] as const
+        ).map(([id, texto]) => (
+          <Link
+            key={id}
+            href={link(id)}
+            aria-current={qual === id ? "true" : undefined}
+            className={
+              qual === id
+                ? "rounded-xl bg-primary px-4 py-2 text-sm font-medium text-on-primary"
+                : "rounded-xl border border-border-strong px-4 py-2 text-sm font-medium text-muted hover:border-primary hover:text-primary"
+            }
+          >
+            {texto}
+          </Link>
+        ))}
+      </nav>
+
+      <FiltroRelatorio
+        base={base}
+        relatorio={qual}
+        filtros={filtros}
+        referencias={referencias}
+      />
+
+      {qual === "missoes" ? (
+        <RelatorioDeMissoes
+          dados={await apiFetch<RelatorioMissoes>(
+            `${rota}/missoes?${parametros}`,
+          )}
+          base={base}
+        />
+      ) : null}
+      {qual === "parceiros" ? (
+        <RelatorioDeParceiros
+          dados={await apiFetch<RelatorioParceiros>(
+            `${rota}/parceiros?${parametros}`,
+          )}
+        />
+      ) : null}
+      {qual === "financas" ? (
+        <RelatorioDeFinancas
+          dados={await apiFetch<RelatorioFinancas>(
+            `${rota}/financas?${parametros}`,
+          )}
+        />
+      ) : null}
+      {qual === "resultados" ? (
+        <RelatorioDeResultados
+          dados={await apiFetch<RelatorioResultados>(
+            `${rota}/resultados?${parametros}`,
+          )}
+        />
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * Cabeçalho comum aos quatro.
+ *
+ * Diz de quantas missões o relatório fala **antes** de qualquer número: sem
+ * isso, dois relatórios do mesmo recorte parecem falar de universos diferentes
+ * só porque suas linhas contam coisas diferentes.
+ */
+function CabecalhoDoRelatorio({
+  cabecalho,
+  titulo,
+  descricao,
+}: {
+  cabecalho: CabecalhoRelatorio;
+  titulo: string;
+  descricao: string;
+}) {
+  return (
+    <div className="mb-5">
+      <h3 className="text-sm font-semibold text-foreground">{titulo}</h3>
+      <p className="mt-1 text-xs leading-5 text-muted">
+        {descricao} Base: <strong className="font-medium">
+          {inteiro(cabecalho.missoes)} {cabecalho.missoes === 1 ? "missão" : "missões"}
+        </strong>{" "}
+        no recorte atual.
+      </p>
+      {cabecalho.truncado ? (
+        <div className="mt-3">
+          <Aviso tom="aviso" titulo="Recorte grande demais">
+            {cabecalho.aviso}
+          </Aviso>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function RelatorioDeMissoes({
+  dados,
+  base,
+}: {
+  dados: RelatorioMissoes;
+  base: string;
+}) {
+  if (dados.linhas.length === 0) {
+    return (
+      <EstadoVazio
+        titulo="Nenhuma missão neste recorte"
+        descricao="Ajuste os filtros acima para montar o relatório."
+      />
+    );
+  }
+
+  return (
+    <Secao titulo="Relatório de missões" descricao={dados.cabecalho.aviso}>
+      <CabecalhoDoRelatorio
+        cabecalho={dados.cabecalho}
+        titulo="Missões do recorte"
+        descricao="Uma linha por missão, com as duas dimensões da aprovação e da execução lado a lado."
+      />
+      <Tabela
+        rotulo="Relatório de missões"
+        colunas={[
+          { chave: "codigo", texto: "Missão" },
+          { chave: "periodo", texto: "Período" },
+          { chave: "redes", texto: "Redes" },
+          { chave: "paises", texto: "Países" },
+          { chave: "situacao", texto: "Situação" },
+          { chave: "valor", texto: "Lançado", alinhamento: "direita" },
+        ]}
+        rodape={
+          <tr>
+            <Celula>
+              <span className="font-medium text-foreground">
+                {inteiro(dados.totais.missoes)} missões
+              </span>
+            </Celula>
+            <Celula>—</Celula>
+            <Celula>—</Celula>
+            <Celula>—</Celula>
+            <Celula>—</Celula>
+            <Celula direita>
+              <Moeda valor={dados.totais.valorPrestado} forte />
+            </Celula>
+          </tr>
+        }
+      >
+        {dados.linhas.map((linha) => (
+          <tr key={linha.id}>
+            <Celula>
+              <Link
+                href={`${base}/missoes/${linha.id}`}
+                className="font-medium text-foreground hover:text-primary hover:underline"
+              >
+                {linha.codigo}
+              </Link>
+              <p className="mt-0.5 text-xs text-muted">{linha.titulo}</p>
+            </Celula>
+            <Celula>
+              <span className="whitespace-nowrap text-xs text-muted">
+                {data(linha.dataInicio)} — {data(linha.dataFim)}
+              </span>
+            </Celula>
+            <Celula>
+              <span className="text-xs text-muted">
+                {linha.redes.join(" · ") || "—"}
+              </span>
+            </Celula>
+            <Celula>
+              <span className="text-xs text-muted">
+                {linha.paises.join(", ") || "—"}
+              </span>
+            </Celula>
+            <Celula>
+              {/* As duas dimensões sempre juntas e rotuladas (CG-006): mostrar
+                  só uma faria "aprovada" ser lido como "realizada". */}
+              <div className="flex flex-wrap gap-1">
+                <Selo tom={TOM_STATUS[linha.status]}>
+                  {ROTULO_STATUS[linha.status]}
+                </Selo>
+                <Selo tom={TOM_APROVACAO[linha.statusAprovacao]}>
+                  {rotulo(linha.statusAprovacao)}
+                </Selo>
+                <Selo tom={TOM_PRESTACAO[linha.situacaoPrestacao]}>
+                  {ROTULO_PRESTACAO[linha.situacaoPrestacao]}
+                </Selo>
+              </div>
+            </Celula>
+            <Celula direita>
+              <Moeda valor={linha.valorPrestado} />
+            </Celula>
+          </tr>
+        ))}
+      </Tabela>
+    </Secao>
+  );
+}
+
+function RelatorioDeParceiros({ dados }: { dados: RelatorioParceiros }) {
+  return (
+    <Secao
+      titulo="Relatório de parceiros"
+      descricao="Instituições alcançadas pelas missões do recorte."
+    >
+      <CabecalhoDoRelatorio
+        cabecalho={dados.cabecalho}
+        titulo={`${inteiro(dados.totais.parceiros)} parceiros cadastrados`}
+        descricao={`${inteiro(dados.totais.semCadastro)} paradas foram registradas com instituição digitada à mão e ainda não têm cadastro — são candidatas. ${inteiro(dados.totais.convenios)} convênios nasceram destas missões.`}
+      />
+      {dados.linhas.length === 0 ? (
+        <EstadoVazio
+          titulo="Nenhum parceiro cadastrado neste recorte"
+          descricao="As missões deste recorte não registraram parada em instituição cadastrada."
+        />
+      ) : (
+        <Tabela
+          rotulo="Relatório de parceiros"
+          colunas={[
+            { chave: "nome", texto: "Instituição" },
+            { chave: "local", texto: "Local" },
+            { chave: "missoes", texto: "Missões", alinhamento: "direita" },
+            { chave: "atividades", texto: "Paradas", alinhamento: "direita" },
+            { chave: "convenios", texto: "Convênios", alinhamento: "direita" },
+          ]}
+        >
+          {dados.linhas.map((linha) => (
+            <tr key={linha.id}>
+              <Celula>
+                <span className="font-medium text-foreground">
+                  {linha.nome}
+                </span>
+                {linha.sigla ? (
+                  <span className="ml-2 text-xs text-subtle">
+                    {linha.sigla}
+                  </span>
+                ) : null}
+              </Celula>
+              <Celula>
+                <span className="text-xs text-muted">
+                  {[linha.cidade, linha.pais].filter(Boolean).join(", ") || "—"}
+                </span>
+              </Celula>
+              {/* Missões e paradas são perguntas diferentes: o parceiro visitado
+                  duas vezes na mesma viagem recebeu uma missão. */}
+              <Celula direita>{inteiro(linha.missoes)}</Celula>
+              <Celula direita>{inteiro(linha.atividades)}</Celula>
+              <Celula direita>{inteiro(linha.convenios)}</Celula>
+            </tr>
+          ))}
+        </Tabela>
+      )}
+    </Secao>
+  );
+}
+
+function RelatorioDeFinancas({ dados }: { dados: RelatorioFinancas }) {
+  return (
+    <Secao
+      titulo="Relatório financeiro"
+      descricao="Despesa das missões do recorte, por exercício e tipo. Somente a prestação validada abate o aporte."
+    >
+      <CabecalhoDoRelatorio
+        cabecalho={dados.cabecalho}
+        titulo="Despesa por exercício e tipo"
+        descricao="O exercício é o do lançamento, não o das datas da missão: uma viagem de dezembro paga em janeiro pertence ao ano que o lançamento diz."
+      />
+      {dados.linhas.length === 0 ? (
+        <EstadoVazio
+          titulo="Nenhuma despesa lançada neste recorte"
+          descricao="As missões deste recorte ainda não têm despesa registrada."
+        />
+      ) : (
+        <Tabela
+          rotulo="Relatório financeiro"
+          colunas={[
+            { chave: "ano", texto: "Exercício" },
+            { chave: "tipo", texto: "Tipo de despesa" },
+            { chave: "preench", texto: "Em preenchimento", alinhamento: "direita" },
+            { chave: "pend", texto: "Com pendência", alinhamento: "direita" },
+            { chave: "env", texto: "Enviado", alinhamento: "direita" },
+            { chave: "val", texto: "Validado", alinhamento: "direita" },
+            { chave: "total", texto: "Total", alinhamento: "direita" },
+          ]}
+          rodape={
+            <tr>
+              <Celula>Total</Celula>
+              <Celula>—</Celula>
+              <Celula direita>
+                <Moeda valor={dados.totais.emPreenchimento} />
+              </Celula>
+              <Celula direita>
+                <Moeda valor={dados.totais.comPendencia} />
+              </Celula>
+              <Celula direita>
+                <Moeda valor={dados.totais.enviado} />
+              </Celula>
+              <Celula direita>
+                <Moeda valor={dados.totais.validado} forte />
+              </Celula>
+              <Celula direita>
+                <Moeda valor={dados.totais.total} forte />
+              </Celula>
+            </tr>
+          }
+        >
+          {dados.linhas.map((linha) => (
+            <tr key={`${linha.exercicio}-${linha.tipo}`}>
+              <Celula>{linha.exercicio}</Celula>
+              <Celula>{rotulo(linha.tipo)}</Celula>
+              <Celula direita>
+                <Moeda valor={linha.emPreenchimento} />
+              </Celula>
+              <Celula direita>
+                <Moeda valor={linha.comPendencia} />
+              </Celula>
+              <Celula direita>
+                <Moeda valor={linha.enviado} />
+              </Celula>
+              <Celula direita>
+                <Moeda valor={linha.validado} />
+              </Celula>
+              <Celula direita>
+                <Moeda valor={linha.total} />
+              </Celula>
+            </tr>
+          ))}
+        </Tabela>
+      )}
+    </Secao>
+  );
+}
+
+function RelatorioDeResultados({ dados }: { dados: RelatorioResultados }) {
+  const tabela = (
+    titulo: string,
+    linhas: LinhaResultado[],
+    vazio: string,
+  ) => (
+    <div className="mt-6">
+      <h4 className="mb-3 text-sm font-semibold text-foreground">{titulo}</h4>
+      {linhas.length === 0 ? (
+        <p className="text-sm text-muted">{vazio}</p>
+      ) : (
+        <Tabela
+          rotulo={titulo}
+          colunas={[
+            { chave: "tipo", texto: "Tipo" },
+            { chave: "situacao", texto: "Situação" },
+            { chave: "qtd", texto: "Quantidade", alinhamento: "direita" },
+            { chave: "missoes", texto: "Missões", alinhamento: "direita" },
+          ]}
+        >
+          {linhas.map((linha) => (
+            <tr key={`${linha.tipo}-${linha.situacao}`}>
+              <Celula>{rotulo(linha.tipo)}</Celula>
+              <Celula>
+                <Selo>{rotulo(linha.situacao)}</Selo>
+              </Celula>
+              <Celula direita>{inteiro(linha.quantidade)}</Celula>
+              {/* Dois produtos de uma viagem são dois produtos e uma missão. */}
+              <Celula direita>{inteiro(linha.missoes)}</Celula>
+            </tr>
+          ))}
+        </Tabela>
+      )}
+    </div>
+  );
+
+  return (
+    <Secao
+      titulo="Relatório de resultados"
+      descricao="Produtos e convênios gerados pelas missões do recorte."
+    >
+      <CabecalhoDoRelatorio
+        cabecalho={dados.cabecalho}
+        titulo={`${inteiro(dados.totais.produtos)} produtos e ${inteiro(dados.totais.convenios)} convênios`}
+        descricao={`${inteiro(dados.totais.semProdutoDeclarado)} missões declararam não ter gerado produto; ${inteiro(dados.totais.semResposta)} ainda não responderam. São coisas diferentes: só a segunda é pendência.`}
+      />
+      {tabela(
+        "Produtos",
+        dados.produtos,
+        "Nenhum produto cadastrado nas missões deste recorte.",
+      )}
+      {tabela(
+        "Convênios",
+        dados.convenios,
+        "Nenhum convênio nasceu das missões deste recorte.",
+      )}
+    </Secao>
+  );
+}
+
+/**
+ * Barra de filtros dos relatórios.
+ *
+ * `<form method="get">` de verdade, como na aba Missões: o recorte fica na URL,
+ * pode ser compartilhado e recarregado, e funciona sem JavaScript. O relatório
+ * escolhido viaja num campo oculto para não se perder ao filtrar.
+ */
+function FiltroRelatorio({
+  base,
+  relatorio,
+  filtros,
+  referencias,
+}: {
+  base: string;
+  relatorio: Relatorio;
+  filtros: Record<string, string>;
+  referencias: ReferenciasMissao;
+}) {
+  return (
+    <form
+      method="get"
+      action={base}
+      className="mb-7 rounded-2xl border border-border bg-surface p-4"
+    >
+      <input type="hidden" name="aba" value="relatorios" />
+      <input type="hidden" name="relatorio" value={relatorio} />
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div>
+          <label className={ROTULO_FILTRO} htmlFor="rel-busca">
+            Busca
+          </label>
+          <input
+            id="rel-busca"
+            name="busca"
+            defaultValue={filtros.busca ?? ""}
+            placeholder="Código, título, evento ou parceiro"
+            className={ENTRADA_FILTRO}
+          />
+        </div>
+        <div>
+          <label className={ROTULO_FILTRO} htmlFor="rel-de">
+            De
+          </label>
+          <input
+            id="rel-de"
+            name="de"
+            type="date"
+            defaultValue={filtros.de ?? ""}
+            className={ENTRADA_FILTRO}
+          />
+        </div>
+        <div>
+          <label className={ROTULO_FILTRO} htmlFor="rel-ate">
+            Até
+          </label>
+          <input
+            id="rel-ate"
+            name="ate"
+            type="date"
+            defaultValue={filtros.ate ?? ""}
+            className={ENTRADA_FILTRO}
+          />
+        </div>
+        <div>
+          <label className={ROTULO_FILTRO} htmlFor="rel-rede">
+            Rede
+          </label>
+          <select
+            id="rel-rede"
+            name="redeId"
+            defaultValue={filtros.redeId ?? ""}
+            className={ENTRADA_FILTRO}
+          >
+            <option value="">Todas</option>
+            {referencias.redes.map((rede) => (
+              <option key={rede.id} value={rede.id}>
+                {rede.nome}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className={ROTULO_FILTRO} htmlFor="rel-pais">
+            País
+          </label>
+          <select
+            id="rel-pais"
+            name="paisId"
+            defaultValue={filtros.paisId ?? ""}
+            className={ENTRADA_FILTRO}
+          >
+            <option value="">Todos</option>
+            {referencias.paises.map((pais) => (
+              <option key={pais.id} value={pais.id}>
+                {pais.nome}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className={ROTULO_FILTRO} htmlFor="rel-evento">
+            Evento
+          </label>
+          <input
+            id="rel-evento"
+            name="evento"
+            defaultValue={filtros.evento ?? ""}
+            placeholder="Nome do evento"
+            className={ENTRADA_FILTRO}
+          />
+        </div>
+        <div>
+          <label className={ROTULO_FILTRO} htmlFor="rel-status">
+            Situação da missão
+          </label>
+          <select
+            id="rel-status"
+            name="status"
+            defaultValue={filtros.status ?? ""}
+            className={ENTRADA_FILTRO}
+          >
+            <option value="">Todas</option>
+            {Object.entries(ROTULO_STATUS).map(([valor, texto]) => (
+              <option key={valor} value={valor}>
+                {texto}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className={ROTULO_FILTRO} htmlFor="rel-prestacao">
+            Prestação
+          </label>
+          <select
+            id="rel-prestacao"
+            name="situacaoPrestacao"
+            defaultValue={filtros.situacaoPrestacao ?? ""}
+            className={ENTRADA_FILTRO}
+          >
+            <option value="">Todas</option>
+            {Object.entries(ROTULO_PRESTACAO).map(([valor, texto]) => (
+              <option key={valor} value={valor}>
+                {texto}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button
+          type="submit"
+          className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-on-primary"
+        >
+          Aplicar filtros
+        </button>
+        <Link href={`${base}?aba=relatorios&relatorio=${relatorio}`} className={BOTAO_PAGINA}>
+          Limpar
+        </Link>
+      </div>
+    </form>
+  );
+}
+
+/** Relatório pedido na URL; o de missões é o padrão. */
+function relatorioDaConsulta(consulta: ConsultaMissoes): Relatorio {
+  const bruto = Array.isArray(consulta.relatorio)
+    ? consulta.relatorio[0]
+    : consulta.relatorio;
+  return bruto === "parceiros" || bruto === "financas" || bruto === "resultados"
+    ? bruto
+    : "missoes";
+}
+
 function Equipes({
   membros,
   contextoFormulario,
@@ -1911,7 +2565,10 @@ function maiorAporte(dados: ComiteGestor): string {
 
 function normalizarAba(valor: string | string[] | undefined): Aba {
   const aba = Array.isArray(valor) ? valor[0] : valor;
-  return aba === "missoes" || aba === "analise" || aba === "equipes"
+  return aba === "missoes" ||
+    aba === "analise" ||
+    aba === "relatorios" ||
+    aba === "equipes"
     ? aba
     : "visao-geral";
 }

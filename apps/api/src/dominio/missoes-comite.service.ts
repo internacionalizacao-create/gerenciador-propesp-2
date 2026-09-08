@@ -528,6 +528,21 @@ export const filtroMissoesSchema = z.object({
   ate: dataCompleta.optional(),
   paisId: z.uuid().optional(),
   redeId: z.uuid().optional(),
+  /**
+   * Instituicao parceira visitada em alguma parada (CG-068).
+   *
+   * Casa pelo cadastro (`instituicao_id`), nao pelo nome livre: quem escolhe a
+   * instituicao numa lista escolheu um registro, e casar por texto traria
+   * tambem as paradas de um homonimo digitado a mao.
+   */
+  instituicaoId: z.uuid().optional(),
+  /**
+   * Nome do evento, por correspondencia parcial (CG-068).
+   *
+   * Texto, e nao id, porque evento ainda nao e cadastro — D-10 deixou isso para
+   * a F2 e hoje o nome vive na atividade.
+   */
+  evento: z.string().trim().min(1).max(300).optional(),
   pessoaId: z.uuid().optional(),
   tipoEquipe: z.enum(['COMITE_GESTOR', 'ADMINISTRACAO']).optional(),
   status: z.enum(statusMissao).optional(),
@@ -922,13 +937,29 @@ export class MissoesComiteService {
    * `VALIDADA` faria a missao em preenchimento aparecer sem valor nenhum, como
    * se ninguem tivesse lancado nada.
    */
-  async listar(
+  /**
+   * As condicoes que traduzem um filtro em `where`, sem executar nada.
+   *
+   * Extraidas de `listar` para que os relatorios (CG-068) partam **das mesmas
+   * condicoes**, e nao de uma copia escrita para dar o mesmo resultado. Uma
+   * copia daria hoje, e daria outro na primeira vez que um filtro mudasse de um
+   * dos lados — e o relatorio erraria em silencio, porque ninguem compara os
+   * dois numeros por conta propria.
+   *
+   * `escopo` e `situacao` vem separados porque o resumo da lista conta **por**
+   * status e por situacao temporal: filtrar por eles antes de contar zeraria as
+   * outras faixas. Quem quer o recorte inteiro usa `condicaoDoRecorte`.
+   */
+  private condicoes(
     cicloId: string,
     filtro: FiltroMissoes,
     recorte: RecorteDeMissoes,
-  ): Promise<PaginaMissoes> {
-    // Escopo e situacao ficam separados de proposito: o resumo conta por
-    // status e por situacao temporal, entao nao pode ser filtrado por eles.
+  ): {
+    escopo: SQL[];
+    situacao: SQL[];
+    situacaoTemporal: SQL;
+    situacaoPrestacao: SQL;
+  } {
     //
     // O recorte por rede entra aqui, junto do ciclo, e nao numa filtragem
     // depois: filtrar fora do banco traria a tabela inteira para a aplicacao e
@@ -975,6 +1006,20 @@ export class MissoesComiteService {
       escopo.push(sql`exists (
         select 1 from atividade_missao a
          where a.missao_id = m.id and a.pais_id = ${filtro.paisId}
+      )`);
+    }
+    if (filtro.instituicaoId) {
+      escopo.push(sql`exists (
+        select 1 from atividade_missao a
+         where a.missao_id = m.id
+           and a.instituicao_id = ${filtro.instituicaoId}
+      )`);
+    }
+    if (filtro.evento) {
+      const termo = `%${filtro.evento}%`;
+      escopo.push(sql`exists (
+        select 1 from atividade_missao a
+         where a.missao_id = m.id and a.evento_nome ilike ${termo}
       )`);
     }
     // `exists`, e nao join: a missao multirrede tem que aparecer uma unica vez
@@ -1034,6 +1079,40 @@ export class MissoesComiteService {
     if (filtro.situacaoPrestacao) {
       situacao.push(sql`${situacaoPrestacao} = ${filtro.situacaoPrestacao}`);
     }
+
+    return { escopo, situacao, situacaoTemporal, situacaoPrestacao };
+  }
+
+  /**
+   * O recorte inteiro como subconsulta de ids: `select m.id ... where ...`.
+   *
+   * Aqui escopo **e** situacao entram juntos, ao contrario da listagem: o
+   * relatorio nao conta por status, ele responde sobre as missoes que o filtro
+   * seleciona — as mesmas que a lista mostra.
+   */
+  condicaoDoRecorte(
+    cicloId: string,
+    filtro: FiltroMissoes,
+    recorte: RecorteDeMissoes,
+  ): SQL {
+    const { escopo, situacao } = this.condicoes(cicloId, filtro, recorte);
+    return sql`
+      select m.id
+        from missao_comite m
+        left join prestacao_contas_missao pr on pr.missao_id = m.id
+       where ${sql.join([...escopo, ...situacao], sql` and `)}
+    `;
+  }
+
+  async listar(
+    cicloId: string,
+    filtro: FiltroMissoes,
+    recorte: RecorteDeMissoes,
+  ): Promise<PaginaMissoes> {
+    // Escopo e situacao ficam separados de proposito: o resumo conta por
+    // status e por situacao temporal, entao nao pode ser filtrado por eles.
+    const { escopo, situacao, situacaoTemporal, situacaoPrestacao } =
+      this.condicoes(cicloId, filtro, recorte);
 
     // Colunas e direcao vem de listas fechadas; `sql.raw` aqui nao toca em
     // nenhum valor vindo do usuario.

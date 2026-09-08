@@ -45,6 +45,11 @@ import {
   type FiltroPainel,
 } from './painel-comite.service';
 import {
+  filtroRelatorioSchema,
+  RelatoriosService,
+  type FiltroRelatorio,
+} from './relatorios.service';
+import {
   dispensarRequisitoSchema,
   EncerramentoService,
   revogarDispensaSchema,
@@ -133,6 +138,7 @@ export class ProgramasController {
     private readonly prestacao: PrestacaoService,
     private readonly execucao: ExecucaoComiteService,
     private readonly painelComite: PainelComiteService,
+    private readonly relatorios: RelatoriosService,
     private readonly identidade: IdentidadeService,
     private readonly encerramento: EncerramentoService,
     private readonly resultados: ResultadosService,
@@ -436,6 +442,90 @@ export class ProgramasController {
   ) {
     const ciclo = await this.contexto.resolver(slug, nome);
     return this.painelComite.montar(
+      ciclo.cicloId,
+      filtro,
+      await this.identidade.recorteDeMissoes(usuario),
+    );
+  }
+
+  /**
+   * P17 · relatorios estrategicos do Comite (CG-068).
+   *
+   * Os quatro homologados em 2026-09-07: missoes, parceiros, financas e
+   * resultados. Todos aceitam **o mesmo filtro da lista de missoes**, e nao um
+   * proprio — e o que faz o total do relatorio reproduzir a consulta de origem,
+   * que e o criterio de aceite da task.
+   *
+   * `missao:read` porque relatorio e leitura das mesmas missoes; nenhuma
+   * permissao nova. O recorte por rede vale aqui como em qualquer outra
+   * consulta (CG-028).
+   */
+  @Get(':programa/:ciclo/comite-gestor/relatorios/missoes')
+  @RequirePermission('missao:read')
+  async relatorioDeMissoes(
+    @CurrentUser() usuario: AuthUser,
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Query(new ZodValidationPipe(filtroRelatorioSchema))
+    filtro: FiltroRelatorio,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.relatorios.missoesDoRecorte(
+      ciclo.cicloId,
+      filtro,
+      await this.identidade.recorteDeMissoes(usuario),
+    );
+  }
+
+  @Get(':programa/:ciclo/comite-gestor/relatorios/parceiros')
+  @RequirePermission('missao:read')
+  async relatorioDeParceiros(
+    @CurrentUser() usuario: AuthUser,
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Query(new ZodValidationPipe(filtroRelatorioSchema))
+    filtro: FiltroRelatorio,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.relatorios.parceirosDoRecorte(
+      ciclo.cicloId,
+      filtro,
+      await this.identidade.recorteDeMissoes(usuario),
+    );
+  }
+
+  /**
+   * Financas usa `prestacao:read`, e nao `missao:read`: quem nao pode abrir a
+   * prestacao de uma missao nao deve ler o consolidado das despesas dela.
+   */
+  @Get(':programa/:ciclo/comite-gestor/relatorios/financas')
+  @RequirePermission('prestacao:read')
+  async relatorioDeFinancas(
+    @CurrentUser() usuario: AuthUser,
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Query(new ZodValidationPipe(filtroRelatorioSchema))
+    filtro: FiltroRelatorio,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.relatorios.financasDoRecorte(
+      ciclo.cicloId,
+      filtro,
+      await this.identidade.recorteDeMissoes(usuario),
+    );
+  }
+
+  @Get(':programa/:ciclo/comite-gestor/relatorios/resultados')
+  @RequirePermission('missao:read')
+  async relatorioDeResultados(
+    @CurrentUser() usuario: AuthUser,
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Query(new ZodValidationPipe(filtroRelatorioSchema))
+    filtro: FiltroRelatorio,
+  ) {
+    const ciclo = await this.contexto.resolver(slug, nome);
+    return this.relatorios.resultadosDoRecorte(
       ciclo.cicloId,
       filtro,
       await this.identidade.recorteDeMissoes(usuario),

@@ -948,6 +948,21 @@ o ícone estiver visível.
   evento para a F2, então o mesmo congresso escrito de duas formas conta duas
   vezes — e o aviso viaja junto com o dado.
 
+    **Os relatórios estratégicos (CG-068)** são a aba *Relatórios* da P17 e
+  `GET .../comite-gestor/relatorios/{missoes|parceiros|financas|resultados}`.
+  **Não existe uma segunda origem**, e é isso que o critério de aceite exige: o
+  filtro dos relatórios **é** o da lista (`filtroMissoesSchema` menos a
+  paginação), o relatório de missões chama `listar`, e os outros três partem de
+  `condicaoDoRecorte` — a mesma função que monta o `where` da lista, extraída
+  dela para isso. Verificado por mutação e cruzado com a CG-055: o `validado` do
+  relatório financeiro bate com o da execução orçamentária, apurados por
+  caminhos diferentes. `totais.missoes` é `pagina.total`, **nunca**
+  `resumo.total` — o resumo responde só ao escopo porque conta *por* status.
+  Instituição digitada à mão não vira parceiro mas aparece em "sem cadastro":
+  contá-la infla, escondê-la faz o número parecer completo. O teto de linhas do
+  relatório não é o `tamanho` da lista, que protege a tabela do browser.
+  Finanças usa `prestacao:read`, e não `missao:read`.
+
     **Missão encerrada não volta a "resposta indefinida" (CG-059).** Encerrar
   afirma que os requisitos foram atendidos, e o checklist é recalculado a cada
   leitura — remover o único produto depois faria a afirmação virar mentira em
@@ -992,7 +1007,7 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
 - **Testes**: 154 unitários/regressões (68 API + 86 na web para toast, datas,
   React Hook Form/Zod, erros do multistep, formulários de parceiro,
   acessibilidade, contraste dos tokens, cálculos monetários, montagem de série
-  do gráfico e caminhos do BFF) + 441 de integração contra Postgres
+  do gráfico e caminhos do BFF) + 454 de integração contra Postgres
   real. As duas garantias de não duplicação da linha
   histórica do parceiro foram verificadas por mutação: trocar o `exists` +
   `selectDistinct` por um `join` faz ambas falharem.

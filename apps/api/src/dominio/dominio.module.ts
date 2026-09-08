@@ -16,6 +16,7 @@ import { DecisaoService } from './decisao.service';
 import { EncerramentoService } from './encerramento.service';
 import { ExecucaoComiteService } from './execucao-comite.service';
 import { PainelComiteService } from './painel-comite.service';
+import { RelatoriosService } from './relatorios.service';
 import { SubmissaoService } from './submissao.service';
 import { OrcamentoService } from './orcamento.service';
 import { PainelService } from './painel.service';
@@ -69,6 +70,7 @@ import { CatalogoController, PpgsController } from './ppgs.controller';
     MissoesComiteService,
     ExecucaoComiteService,
     PainelComiteService,
+    RelatoriosService,
     EncerramentoService,
     SubmissaoService,
     DecisaoService,

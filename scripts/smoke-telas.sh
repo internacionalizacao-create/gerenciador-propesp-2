@@ -141,6 +141,20 @@ if [[ "$USUARIO" == "admin" ]]; then
   testar "/programas/capes-global/2027-2030/comite-gestor?aba=analise" "Há 7 dias ou mais"
   # O recorte por rodada fica na URL e nao quebra a pagina quando nao casa.
   testar "/programas/capes-global/2027-2030/comite-gestor?aba=analise&rodada=9" "Nada aguardando decisão"
+  # CG-068: os quatro relatorios homologados. As ancoras sao os rotulos e o
+  # **cabecalho da base**, que e o que prova que os quatro falam do mesmo
+  # recorte; os numeros dependem do banco.
+  testar "/programas/capes-global/2027-2030/comite-gestor?aba=relatorios" "Relatório de missões"
+  testar "/programas/capes-global/2027-2030/comite-gestor?aba=relatorios" "no recorte atual"
+  testar "/programas/capes-global/2027-2030/comite-gestor?aba=relatorios&relatorio=parceiros" "Relatório de parceiros"
+  testar "/programas/capes-global/2027-2030/comite-gestor?aba=relatorios&relatorio=financas" "Relatório financeiro"
+  testar "/programas/capes-global/2027-2030/comite-gestor?aba=relatorios&relatorio=resultados" "Relatório de resultados"
+  # Relatorio inexistente cai no de missoes, sem quebrar.
+  testar "/programas/capes-global/2027-2030/comite-gestor?aba=relatorios&relatorio=inexistente" "Relatório de missões"
+  # O filtro viaja na URL e o relatorio escolhido nao se perde ao filtrar.
+  testar "/programas/capes-global/2027-2030/comite-gestor?aba=relatorios&relatorio=financas&ano=2027" "Relatório financeiro"
+  testar_bff "/api/bff/programas/capes-global/2027-2030/comite-gestor/relatorios/missoes" '"cabecalho"'
+  testar_bff "/api/bff/programas/capes-global/2027-2030/comite-gestor/relatorios/financas" '"validado"'
   testar "/programas/capes-global/2027-2030/comite-gestor?aba=equipes" "Adicionar membro"
   # Ancora no cabecalho da coluna, e nao no rotulo "Missões" da aba: so o
   # cabecalho e alinhado a direita.
