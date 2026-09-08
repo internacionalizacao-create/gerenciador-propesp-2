@@ -697,6 +697,40 @@ export interface LinhaResultado {
   missoes: number;
 }
 
+/**
+ * Caixa de entrada (D-11).
+ *
+ * Não há entrega por e-mail enquanto não houver servidor institucional; esta é
+ * a única via, e a tela diz isso.
+ */
+export type TipoNotificacao =
+  | "MISSAO_SUBMETIDA"
+  | "DECISAO_COMITE"
+  | "ANALISE_REABERTA"
+  | "PRESTACAO_DEVOLVIDA"
+  | "PRESTACAO_VALIDADA"
+  | "PRESTACAO_PENDENTE";
+
+export interface NotificacaoResumo {
+  id: string;
+  tipo: TipoNotificacao;
+  titulo: string;
+  corpo: string;
+  /** Nulo quando o fato decorre do calendário, e não de uma ação. */
+  origemPor: string | null;
+  missaoId: string;
+  missaoCodigo: string;
+  criadoEm: string;
+  lidaEm: string | null;
+}
+
+export interface CaixaDeEntrada {
+  itens: NotificacaoResumo[];
+  naoLidas: number;
+  /** Caixa vazia por falta de vínculo é diferente de caixa vazia por falta de aviso. */
+  vinculoPendente: boolean;
+}
+
 export type MotivoPendencia =
   | "ANALISE_PARADA"
   | "AJUSTES_SOLICITADOS"

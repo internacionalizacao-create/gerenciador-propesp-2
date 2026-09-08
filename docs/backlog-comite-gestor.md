@@ -1837,7 +1837,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   aprova **antes** da viagem, e a data de reunião no futuro é recusada de
   propósito. O check pegou o teste, não o contrário.
 
-- [ ] **CG-039 — Testar aprovação, concorrência e notificações**
+- [x] **CG-039 — Testar aprovação, concorrência e notificações**
 
   Cobrir submissão, aprovação, ajustes, reprovação, reenvio, reabertura,
   documentos obrigatórios, duas decisões concorrentes, perfil sem permissão e
@@ -1847,6 +1847,59 @@ Essa situação é calculada a partir das datas e não é persistida.
 
   Critério de aceite: uma decisão concorrente não produz dois estados finais e
   falha de canal externo não apaga a decisão nem a notificação pendente.
+
+  **Concluída em 2026-09-07**, depois de o D-11 ser decidido — sem notificação
+  não havia o que testar na segunda metade do aceite.
+
+  **A concorrência já estava protegida, mas respondia errado.** Dois pedidos
+  simultâneos passam os dois pela checagem de `EM_ANALISE`, que acontece fora da
+  transação; quem impede o segundo estado final é `decisao_comite_rodada_uk`, no
+  banco. Só que a violação de unicidade saía como **500** — "erro do servidor"
+  no lugar de "alguém decidiu primeiro". Agora é 409, traduzido pelo **código**
+  `23505` e não pela mensagem, que é localizável e muda entre versões. O mesmo
+  vale para dois envios simultâneos, barrados por `rodada_analise_aberta_uk`.
+
+  **O outbox (D-11).** A notificação é gravada **na mesma transação do fato** —
+  é o ponto inteiro: a decisão nunca depende do canal de aviso. Um envio dentro
+  da transação criaria um dilema sem saída boa: falhar e abortar significa que o
+  Comitê aprovou e o sistema esqueceu; falhar e ignorar significa que alguém foi
+  aprovado e nunca soube.
+
+  **Falha de canal não apaga nada, e não marca `FALHOU`.** A notificação segue
+  `PENDENTE`, com o erro e a contagem de tentativas ao lado, e a próxima passada
+  entrega. Marcá-la falha transformaria uma indisponibilidade momentânea do
+  servidor de e-mail em aviso perdido para sempre. As duas metades do aceite
+  foram verificadas por mutação.
+
+  **Não há canal externo hoje**, e as notificações nascem `NAO_APLICAVEL`. Isso
+  não é detalhe: se nascessem `PENDENTE` sem canal, o dia em que o SMTP entrasse
+  despejaria meses de aviso atrasado, e o primeiro contato da instituição com o
+  e-mail do sistema seria uma enxurrada.
+
+  **"Viagem encerrada sem prestação" não precisa de rotina agendada.** É o único
+  dos quatro fatos que não nasce de uma ação — decorre do calendário. A
+  varredura roda ao abrir a caixa de entrada, com o mesmo critério da lista de
+  pendências do painel (CG-066), e a idempotência vem do índice parcial
+  `notificacao_pendencia_uk`, não de uma checagem antes do insert: duas abas
+  abertas passariam pela checagem juntas. Verificado na aplicação — abrir a
+  caixa duas vezes não duplica.
+
+  **Envio de prestação não notifica.** Quem enviou sabe que enviou, e o revisor
+  descobre pela fila. Uma caixa que avisa de tudo vira ruído, e caixa que vira
+  ruído para de ser lida — inclusive nos avisos que importam.
+
+  A caixa de entrada fica em `/avisos`, **fora de `programas/[programa]/[ciclo]`**:
+  a notificação é da pessoa, e um aviso sobre missão de ciclo encerrado continua
+  sendo dela. Sem `@RequirePermission`, porque ler a própria caixa é identidade,
+  não permissão a conceder. Notificação alheia responde **404**, pelo mesmo
+  motivo do resto do módulo.
+
+  A página diz que **não há envio por e-mail** — sem isso, quem lê supõe que
+  também recebeu um e-mail que nunca foi enviado. É a âncora do smoke.
+
+  14 testes de integração em `notificacoes.int-spec.ts`, cobrindo o ciclo
+  completo (submissão, ajustes, reenvio, aprovação, reprovação, reabertura), as
+  duas corridas, o mapa de permissões e os dois casos de canal.
 
 ### Épico 4 — Interface de equipes e missões
 

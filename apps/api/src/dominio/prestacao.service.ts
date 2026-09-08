@@ -12,6 +12,10 @@ import { dataHojeEmManaus } from '../comum/datas';
 import type { AuthUser } from '../auth/auth-user';
 import { DRIZZLE, type Database } from '../database/database.module';
 import * as s from '../database/schema';
+import {
+  destinatariosDaMissao,
+  NotificacoesService,
+} from './notificacoes.service';
 import { categoriaPermitidaParaDespesa } from './documentos-prestacao';
 
 /**
@@ -255,9 +259,41 @@ export interface PrestacaoDetalhe {
 
 type DbOperacoes = Pick<Database, 'select' | 'insert' | 'update' | 'delete'>;
 
+/**
+ * Quais transicoes da prestacao avisam, e o que dizem.
+ *
+ * `EM_PREENCHIMENTO` e `ENVIADA` ficam de fora: quem enviou sabe que enviou, e
+ * o revisor descobre pela fila. Avisar de tudo faz a caixa virar ruido, e uma
+ * caixa que vira ruido para de ser lida — inclusive nos avisos que importam.
+ */
+const AVISO_DA_PRESTACAO: Partial<
+  Record<
+    (typeof s.statusPrestacaoMissaoEnum.enumValues)[number],
+    {
+      tipo: 'PRESTACAO_DEVOLVIDA' | 'PRESTACAO_VALIDADA';
+      titulo: string;
+      corpo: string;
+    }
+  >
+> = {
+  COM_PENDENCIA: {
+    tipo: 'PRESTACAO_DEVOLVIDA',
+    titulo: 'Prestação de contas devolvida',
+    corpo: 'A prestação foi devolvida e voltou a aceitar alteração.',
+  },
+  VALIDADA: {
+    tipo: 'PRESTACAO_VALIDADA',
+    titulo: 'Prestação de contas validada',
+    corpo: 'A prestação foi validada e passou a abater o aporte do ciclo.',
+  },
+};
+
 @Injectable()
 export class PrestacaoService {
-  constructor(@Inject(DRIZZLE) private readonly db: Database) {}
+  constructor(
+    @Inject(DRIZZLE) private readonly db: Database,
+    private readonly notificacoes: NotificacoesService,
+  ) {}
 
   /** `null` quando a missão ainda não tem prestação — não é erro (CG-013). */
   async detalhe(
@@ -416,7 +452,7 @@ export class PrestacaoService {
    * num update separado que poderia falhar no meio.
    */
   private async transicionar(
-    prestacao: { id: string; status: string },
+    prestacao: { id: string; status: string; missaoId?: string },
     novo: (typeof s.statusPrestacaoMissaoEnum.enumValues)[number],
     usuario: AuthUser,
     campos: Record<string, unknown>,
@@ -439,6 +475,29 @@ export class PrestacaoService {
         usuarioId: usuario.id,
         usuarioNome: nomeDoUsuario(usuario),
       });
+
+      // Devolucao e validacao mudam de quem e a vez, e por isso notificam
+      // (D-11). Envio nao: quem enviou sabe que enviou, e o revisor descobre
+      // pela fila — avisar todo mundo de tudo faz a caixa virar ruido.
+      const aviso = AVISO_DA_PRESTACAO[novo];
+      if (aviso && prestacao.missaoId) {
+        await this.notificacoes.registrar(
+          tx,
+          (await destinatariosDaMissao(tx, prestacao.missaoId)).map(
+            (destinatarioId) => ({
+              tipo: aviso.tipo,
+              destinatarioId,
+              missaoId: prestacao.missaoId!,
+              titulo: aviso.titulo,
+              corpo:
+                typeof campos.parecer === 'string' && campos.parecer
+                  ? campos.parecer
+                  : aviso.corpo,
+              origemPor: nomeDoUsuario(usuario),
+            }),
+          ),
+        );
+      }
     });
 
     return this.montar(prestacao.id);

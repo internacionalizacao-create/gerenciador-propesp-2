@@ -4,12 +4,28 @@ import type { AuthUser } from '../src/auth/auth-user';
 import { IdentidadeService } from '../src/auth/identidade.service';
 import { RecorteDeMissoes } from '../src/auth/escopo';
 import * as s from '../src/database/schema';
+import { NotificacoesService } from '../src/dominio/notificacoes.service';
 import { DecisaoService, decidirSchema } from '../src/dominio/decisao.service';
 import { EncerramentoService } from '../src/dominio/encerramento.service';
 import { MissoesComiteService } from '../src/dominio/missoes-comite.service';
 import { SubmissaoService } from '../src/dominio/submissao.service';
-import { criarContextoTeste, type ContextoTeste } from './db-teste';
+import {
+  criarContextoTeste,
+  type ContextoTeste,
+  type TestDatabase,
+} from './db-teste';
 import { criarBase, type BaseFixture } from './fixtures';
+
+/**
+ * Servico de notificacao sem canal externo — o mesmo estado da aplicacao hoje.
+ *
+ * Os testes de dominio verificam a regra de negocio, e nao a notificacao, que
+ * tem suite propria em `notificacoes.int-spec.ts`. Montar aqui com canal nulo e
+ * o que faz esses testes continuarem falando so do que se propoem a testar.
+ */
+function semCanal(db: TestDatabase): NotificacoesService {
+  return new NotificacoesService(db, new IdentidadeService(db), null);
+}
 
 /** So o schema, para separar validacao de payload de regra de negocio. */
 const aceita = (valor: unknown) => decidirSchema.safeParse(valor).success;
@@ -55,8 +71,8 @@ describe('DecisaoService (CG-038)', () => {
   beforeAll(async () => {
     ctx = await criarContextoTeste();
     const identidade = new IdentidadeService(ctx.db);
-    decisao = new DecisaoService(ctx.db);
-    submissao = new SubmissaoService(ctx.db, identidade);
+    decisao = new DecisaoService(ctx.db, semCanal(ctx.db));
+    submissao = new SubmissaoService(ctx.db, identidade, semCanal(ctx.db));
     missoes = new MissoesComiteService(ctx.db, new EncerramentoService(ctx.db));
   });
 

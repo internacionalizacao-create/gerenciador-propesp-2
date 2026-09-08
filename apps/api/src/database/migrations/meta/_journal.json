@@ -232,6 +232,13 @@
       "when": 1788751997115,
       "tag": "0032_autoria_evidencia_cg057",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1788829137667,
+      "tag": "0033_flowery_bruce_banner",
+      "breakpoints": true
     }
   ]
 }

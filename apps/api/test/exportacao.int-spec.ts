@@ -9,6 +9,7 @@ import { IdentidadeService } from '../src/auth/identidade.service';
 import { permissionsForRoles } from '../src/auth/permissions';
 import { ArmazenamentoService } from '../src/arquivos/armazenamento.service';
 import * as s from '../src/database/schema';
+import { NotificacoesService } from '../src/dominio/notificacoes.service';
 import { AnexosService } from '../src/dominio/anexos.service';
 import { EncerramentoService } from '../src/dominio/encerramento.service';
 import { MissoesComiteService } from '../src/dominio/missoes-comite.service';
@@ -20,7 +21,11 @@ import {
 import { ResultadosService } from '../src/dominio/resultados.service';
 import { ExportacaoService } from '../src/exportacao/exportacao.service';
 import { neutralizarFormula, paraXlsx } from '../src/exportacao/planilha';
-import { criarContextoTeste, type ContextoTeste } from './db-teste';
+import {
+  criarContextoTeste,
+  type ContextoTeste,
+  type TestDatabase,
+} from './db-teste';
 import { criarBase, type BaseFixture } from './fixtures';
 
 const admin: AuthUser = {
@@ -29,6 +34,17 @@ const admin: AuthUser = {
   roles: ['admin'],
   permissions: permissionsForRoles(['admin']),
 };
+
+/**
+ * Servico de notificacao sem canal externo — o mesmo estado da aplicacao hoje.
+ *
+ * Os testes de dominio verificam a regra de negocio, e nao a notificacao, que
+ * tem suite propria em `notificacoes.int-spec.ts`. Montar aqui com canal nulo e
+ * o que faz esses testes continuarem falando so do que se propoem a testar.
+ */
+function semCanal(db: TestDatabase): NotificacoesService {
+  return new NotificacoesService(db, new IdentidadeService(db), null);
+}
 
 /**
  * Exportacoes e dossie (CG-069).
@@ -54,7 +70,7 @@ describe('Exportacao de relatorios e dossie (CG-069)', () => {
 
     const identidade = new IdentidadeService(ctx.db);
     missoes = new MissoesComiteService(ctx.db, new EncerramentoService(ctx.db));
-    prestacao = new PrestacaoService(ctx.db);
+    prestacao = new PrestacaoService(ctx.db, semCanal(ctx.db));
     anexos = new AnexosService(ctx.db, new ArmazenamentoService(), identidade);
     exportacao = new ExportacaoService(
       new RelatoriosService(ctx.db, missoes),

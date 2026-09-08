@@ -101,6 +101,13 @@ if [[ "$USUARIO" == "admin" ]]; then
   testar "/programas/capes-global/2027-2030/orcamento?ano=2027" "Editar"
   testar "/programas/capes-global/2027-2030/plano?rede=unesp" "Editar"
   testar "/programas/capes-global/2027-2030/plano?rede=unesp" "Histórico"
+  # CG-039/D-11: caixa de entrada. As ancoras sao os rotulos, que existem com a
+  # caixa vazia; o conteudo depende do banco. A frase sobre o e-mail e a que nao
+  # pode sumir: sem ela, quem le supoe que tambem recebeu um e-mail que nunca
+  # foi enviado, porque nao ha servidor.
+  testar "/avisos" "Caixa de entrada"
+  testar "/avisos" "Não há envio por e-mail"
+  testar_bff "/api/bff/notificacoes" '"naoLidas"'
   testar "/programas/capes-global/2027-2030/comite-gestor" "381.333,00"
   # O recorte por exercicio fica na URL e vale para a tabela de aportes.
   testar "/programas/capes-global/2027-2030/comite-gestor?ano=2027" "Aporte de 2027"

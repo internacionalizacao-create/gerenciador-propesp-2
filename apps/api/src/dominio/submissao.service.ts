@@ -12,6 +12,7 @@ import type { AuthUser } from '../auth/auth-user';
 import { IdentidadeService } from '../auth/identidade.service';
 import { DRIZZLE, type Database } from '../database/database.module';
 import * as s from '../database/schema';
+import { membrosDoComite, NotificacoesService } from './notificacoes.service';
 
 /**
  * Submissao da missao para analise do Comite (CG-037).
@@ -49,6 +50,7 @@ export class SubmissaoService {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     private readonly identidade: IdentidadeService,
+    private readonly notificacoes: NotificacoesService,
   ) {}
 
   /**
@@ -144,6 +146,24 @@ export class SubmissaoService {
         usuarioNome: usuario.name ?? usuario.username ?? null,
       });
 
+      // Quem decide precisa saber que ha coisa na fila (D-11). Sem isso a
+      // fila so e vista por quem lembra de abri-la, e a missao espera a
+      // proxima reuniao por falta de aviso, nao por falta de decisao.
+      await this.notificacoes.registrar(
+        tx,
+        (await membrosDoComite(tx, missao.cicloId)).map((destinatarioId) => ({
+          tipo: 'MISSAO_SUBMETIDA' as const,
+          destinatarioId,
+          missaoId,
+          titulo: `${missao.codigo} aguarda análise do Comitê`,
+          corpo:
+            `A missão ${missao.codigo} — ${missao.titulo} foi enviada para ` +
+            `análise (rodada ${rodada.numero}).`,
+          origemPor: usuario.name ?? usuario.username ?? null,
+        })),
+        identidade?.pessoaId ?? null,
+      );
+
       return {
         rodadaId: rodada.id,
         numero: rodada.numero,
@@ -159,6 +179,8 @@ export class SubmissaoService {
     const [missao] = await this.db
       .select({
         id: s.missaoComite.id,
+        codigo: s.missaoComite.codigo,
+        titulo: s.missaoComite.titulo,
         cicloId: s.missaoComite.cicloId,
         tipo: s.missaoComite.tipo,
         status: s.missaoComite.status,

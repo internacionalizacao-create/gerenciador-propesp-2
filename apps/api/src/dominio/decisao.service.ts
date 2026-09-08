@@ -11,6 +11,10 @@ import { z } from 'zod';
 import type { AuthUser } from '../auth/auth-user';
 import { DRIZZLE, type Database } from '../database/database.module';
 import * as s from '../database/schema';
+import {
+  destinatariosDaMissao,
+  NotificacoesService,
+} from './notificacoes.service';
 
 /**
  * Decisoes do Comite e rodadas de ajuste (CG-038).
@@ -51,6 +55,13 @@ export const reabrirSchema = z.object({
 export type Reabrir = z.infer<typeof reabrirSchema>;
 
 /** Para onde cada decisao leva a dimensao de aprovacao. */
+/** O que a decisao vira no titulo do aviso. */
+const ROTULO_DECISAO = {
+  APROVAR: 'missão aprovada pelo Comitê',
+  SOLICITAR_AJUSTES: 'ajustes solicitados pelo Comitê',
+  REPROVAR: 'missão reprovada pelo Comitê',
+} as const;
+
 const DESTINO = {
   APROVAR: 'APROVADA',
   SOLICITAR_AJUSTES: 'AJUSTES_SOLICITADOS',
@@ -59,7 +70,10 @@ const DESTINO = {
 
 @Injectable()
 export class DecisaoService {
-  constructor(@Inject(DRIZZLE) private readonly db: Database) {}
+  constructor(
+    @Inject(DRIZZLE) private readonly db: Database,
+    private readonly notificacoes: NotificacoesService,
+  ) {}
 
   /**
    * Registra a decisao que encerra a rodada aberta.
@@ -93,6 +107,32 @@ export class DecisaoService {
 
     const rodada = await this.rodadaAberta(missaoId);
 
+    // A checagem de `EM_ANALISE` acima e feita fora da transacao, entao duas
+    // decisoes simultaneas passam as duas por ela. Quem de fato impede o
+    // segundo estado final e `decisao_comite_rodada_uk`, no banco — mas ele
+    // reporta violacao de unicidade, que sairia como **500**. Traduzir aqui e
+    // o que transforma "erro do servidor" em "alguem decidiu primeiro", que e
+    // o que aconteceu.
+    try {
+      return await this.gravarDecisao(missaoId, missao, rodada, dto, usuario);
+    } catch (erro) {
+      if (violouUnicidade(erro)) {
+        throw new ConflictException(
+          'Esta rodada ja recebeu decisao. Recarregue a missao para ver qual foi.',
+        );
+      }
+      throw erro;
+    }
+  }
+
+  /** O corpo transacional de `decidir`, isolado para o tratamento da corrida. */
+  private async gravarDecisao(
+    missaoId: string,
+    missao: { codigo: string; cicloId: string },
+    rodada: { id: string; numero: number },
+    dto: Decidir,
+    usuario: AuthUser,
+  ) {
     return this.db.transaction(async (tx) => {
       const [decisao] = await tx
         .insert(s.decisaoComite)
@@ -153,6 +193,24 @@ export class DecisaoService {
         usuarioId: usuario.id,
         usuarioNome: usuario.name ?? usuario.username ?? null,
       });
+
+      // Na mesma transacao do fato (D-11). Se o insert da notificacao
+      // falhasse, a decisao inteira volta atras — o que e certo: uma decisao
+      // que ninguem sera avisado de que existe e pior que uma decisao a
+      // repetir. O que **nao** pode e o contrario, e por isso a entrega
+      // externa e um passo separado.
+      await this.notificacoes.registrar(
+        tx,
+        (await destinatariosDaMissao(tx, missaoId)).map((destinatarioId) => ({
+          tipo: 'DECISAO_COMITE' as const,
+          destinatarioId,
+          missaoId,
+          titulo: `${missao.codigo}: ${ROTULO_DECISAO[dto.acao]}`,
+          corpo: dto.parecer,
+          origemPor: usuario.name ?? usuario.username ?? null,
+        })),
+        (await this.pessoaDoUsuario(usuario)) ?? null,
+      );
 
       return {
         decisaoId: decisao.id,
@@ -324,10 +382,26 @@ export class DecisaoService {
 
   // -------------------------------------------------------------------------
 
+  /** A pessoa por tras do `sub`, quando ha vinculo; usada para nao se avisar. */
+  private async pessoaDoUsuario(usuario: AuthUser): Promise<string | null> {
+    const [linha] = await this.db
+      .select({ pessoaId: s.usuarioSistema.pessoaId })
+      .from(s.usuarioSistema)
+      .where(
+        and(
+          eq(s.usuarioSistema.sub, usuario.id),
+          eq(s.usuarioSistema.ativo, true),
+        ),
+      );
+    return linha?.pessoaId ?? null;
+  }
+
   private async carregar(cicloId: string, missaoId: string) {
     const [missao] = await this.db
       .select({
         id: s.missaoComite.id,
+        codigo: s.missaoComite.codigo,
+        cicloId: s.missaoComite.cicloId,
         status: s.missaoComite.status,
         statusAprovacao: s.missaoComite.statusAprovacao,
       })
@@ -372,4 +446,18 @@ export class DecisaoService {
 /** Data de hoje em AAAA-MM-DD, para comparar com a data informada. */
 function hoje(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+/**
+ * Violacao de unicidade do Postgres (`23505`).
+ *
+ * Verificado pelo **codigo**, e nao pela mensagem: a mensagem e localizavel e
+ * muda entre versoes do servidor, e um `includes('duplicate key')` que parasse
+ * de casar devolveria 500 de novo sem ninguem notar.
+ */
+function violouUnicidade(erro: unknown): boolean {
+  if (typeof erro !== 'object' || erro === null) return false;
+  const codigo = (erro as { code?: unknown; cause?: { code?: unknown } }).code;
+  const causa = (erro as { cause?: { code?: unknown } }).cause?.code;
+  return codigo === '23505' || causa === '23505';
 }

@@ -106,6 +106,10 @@ export function menu(
     {
       titulo: "Cadastros",
       itens: [
+        // A caixa de entrada é da pessoa, não de um ciclo (D-11): fica fora
+        // de `programas/[programa]/[ciclo]` porque um aviso sobre missão de
+        // ciclo encerrado continua sendo dela.
+        { rotulo: "Avisos", href: "/avisos", disponivel: true },
         { rotulo: "PPGs", href: "/ppgs", disponivel: true },
         { rotulo: "Pendências", href: "/pendencias", disponivel: true },
         {

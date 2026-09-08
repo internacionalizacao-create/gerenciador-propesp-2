@@ -980,6 +980,20 @@ o ícone estiver visível.
   **asserção sobre bytes de PDF passa por vácuo**, porque pdfkit comprime o
   texto: extraia com `pdftotext`.
 
+    **Notificações (D-11 / CG-039)** são um **outbox durável** mais a caixa de
+  entrada em `/avisos` — fora de `programas/[programa]/[ciclo]`, porque o aviso
+  é da pessoa e sobrevive ao ciclo. **A notificação é gravada na mesma transação
+  do fato**: é o que faz a decisão nunca depender do canal de aviso. **Não há
+  e-mail** enquanto não houver servidor SMTP, e por isso as notificações nascem
+  `NAO_APLICAVEL` — se nascessem `PENDENTE`, ligar o e-mail um dia despejaria
+  meses de aviso atrasado de uma vez. **Falha de canal mantém `PENDENTE`, nunca
+  `FALHOU`:** marcar falha transformaria indisponibilidade momentânea em aviso
+  perdido. "Viagem encerrada sem prestação" é varrido ao abrir a caixa, com o
+  critério do painel, e a idempotência vem do índice parcial
+  `notificacao_pendencia_uk` — não de checar antes do insert. Envio de prestação
+  **não** notifica: caixa que avisa de tudo vira ruído. Decisão concorrente
+  responde **409**, traduzido do código `23505` e não da mensagem.
+
     **Missão encerrada não volta a "resposta indefinida" (CG-059).** Encerrar
   afirma que os requisitos foram atendidos, e o checklist é recalculado a cada
   leitura — remover o único produto depois faria a afirmação virar mentira em
@@ -1024,7 +1038,7 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
 - **Testes**: 154 unitários/regressões (68 API + 86 na web para toast, datas,
   React Hook Form/Zod, erros do multistep, formulários de parceiro,
   acessibilidade, contraste dos tokens, cálculos monetários, montagem de série
-  do gráfico e caminhos do BFF) + 466 de integração contra Postgres
+  do gráfico e caminhos do BFF) + 480 de integração contra Postgres
   real. As duas garantias de não duplicação da linha
   histórica do parceiro foram verificadas por mutação: trocar o `exists` +
   `selectDistinct` por um `join` faz ambas falharem.

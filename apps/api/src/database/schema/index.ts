@@ -16,3 +16,4 @@ export * from './prestacao';
 export * from './resultados';
 export * from './aprovacao';
 export * from './acesso';
+export * from './notificacao';

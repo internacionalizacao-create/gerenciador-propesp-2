@@ -2,7 +2,9 @@ import { eq } from 'drizzle-orm';
 
 import type { AuthUser } from '../src/auth/auth-user';
 import { RecorteDeMissoes } from '../src/auth/escopo';
+import { IdentidadeService } from '../src/auth/identidade.service';
 import * as s from '../src/database/schema';
+import { NotificacoesService } from '../src/dominio/notificacoes.service';
 import { ExecucaoComiteService } from '../src/dominio/execucao-comite.service';
 import { EncerramentoService } from '../src/dominio/encerramento.service';
 import {
@@ -10,7 +12,11 @@ import {
   MissoesComiteService,
 } from '../src/dominio/missoes-comite.service';
 import { PrestacaoService } from '../src/dominio/prestacao.service';
-import { criarContextoTeste, type ContextoTeste } from './db-teste';
+import {
+  criarContextoTeste,
+  type ContextoTeste,
+  type TestDatabase,
+} from './db-teste';
 import { criarBase, type BaseFixture } from './fixtures';
 
 const admin: AuthUser = {
@@ -26,6 +32,17 @@ const admin: AuthUser = {
     'prestacao:review',
   ],
 };
+
+/**
+ * Servico de notificacao sem canal externo — o mesmo estado da aplicacao hoje.
+ *
+ * Os testes de dominio verificam a regra de negocio, e nao a notificacao, que
+ * tem suite propria em `notificacoes.int-spec.ts`. Montar aqui com canal nulo e
+ * o que faz esses testes continuarem falando so do que se propoem a testar.
+ */
+function semCanal(db: TestDatabase): NotificacoesService {
+  return new NotificacoesService(db, new IdentidadeService(db), null);
+}
 
 /**
  * Integracao financeira do Comite Gestor (CG-060).
@@ -61,7 +78,7 @@ describe('Integracao financeira do Comite Gestor (CG-060)', () => {
   beforeAll(async () => {
     ctx = await criarContextoTeste();
     execucao = new ExecucaoComiteService(ctx.db);
-    prestacao = new PrestacaoService(ctx.db);
+    prestacao = new PrestacaoService(ctx.db, semCanal(ctx.db));
     missoes = new MissoesComiteService(ctx.db, new EncerramentoService(ctx.db));
   });
 

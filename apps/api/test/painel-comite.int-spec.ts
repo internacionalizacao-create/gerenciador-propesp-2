@@ -4,6 +4,7 @@ import type { AuthUser } from '../src/auth/auth-user';
 import { IdentidadeService } from '../src/auth/identidade.service';
 import { RecorteDeMissoes } from '../src/auth/escopo';
 import * as s from '../src/database/schema';
+import { NotificacoesService } from '../src/dominio/notificacoes.service';
 import { normalizarNomeInstituicao } from '../src/database/normalizacao';
 import { DecisaoService } from '../src/dominio/decisao.service';
 import {
@@ -12,7 +13,11 @@ import {
 } from '../src/dominio/painel-comite.service';
 import { PrestacaoService } from '../src/dominio/prestacao.service';
 import { SubmissaoService } from '../src/dominio/submissao.service';
-import { criarContextoTeste, type ContextoTeste } from './db-teste';
+import {
+  criarContextoTeste,
+  type ContextoTeste,
+  type TestDatabase,
+} from './db-teste';
 import { criarBase, type BaseFixture } from './fixtures';
 
 const admin: AuthUser = {
@@ -28,6 +33,17 @@ const admin: AuthUser = {
     'prestacao:review',
   ],
 };
+
+/**
+ * Servico de notificacao sem canal externo — o mesmo estado da aplicacao hoje.
+ *
+ * Os testes de dominio verificam a regra de negocio, e nao a notificacao, que
+ * tem suite propria em `notificacoes.int-spec.ts`. Montar aqui com canal nulo e
+ * o que faz esses testes continuarem falando so do que se propoem a testar.
+ */
+function semCanal(db: TestDatabase): NotificacoesService {
+  return new NotificacoesService(db, new IdentidadeService(db), null);
+}
 
 /**
  * Painel do Comite Gestor (CG-066).
@@ -52,9 +68,9 @@ describe('Painel do Comite Gestor (CG-066)', () => {
     ctx = await criarContextoTeste();
     const identidade = new IdentidadeService(ctx.db);
     painel = new PainelComiteService(ctx.db);
-    submissao = new SubmissaoService(ctx.db, identidade);
-    decisao = new DecisaoService(ctx.db);
-    prestacao = new PrestacaoService(ctx.db);
+    submissao = new SubmissaoService(ctx.db, identidade, semCanal(ctx.db));
+    decisao = new DecisaoService(ctx.db, semCanal(ctx.db));
+    prestacao = new PrestacaoService(ctx.db, semCanal(ctx.db));
   });
 
   afterAll(async () => {

@@ -18,6 +18,8 @@ import { ExecucaoComiteService } from './execucao-comite.service';
 import { PainelComiteService } from './painel-comite.service';
 import { RelatoriosService } from './relatorios.service';
 import { ExportacaoService } from '../exportacao/exportacao.service';
+import { NotificacoesController } from './notificacoes.controller';
+import { CANAL_DE_ENTREGA, NotificacoesService } from './notificacoes.service';
 import { SubmissaoService } from './submissao.service';
 import { OrcamentoService } from './orcamento.service';
 import { PainelService } from './painel.service';
@@ -47,6 +49,7 @@ import { CatalogoController, PpgsController } from './ppgs.controller';
 @Module({
   controllers: [
     ProgramasController,
+    NotificacoesController,
     PendenciasController,
     PpgsController,
     CatalogoController,
@@ -73,6 +76,14 @@ import { CatalogoController, PpgsController } from './ppgs.controller';
     PainelComiteService,
     RelatoriosService,
     ExportacaoService,
+    NotificacoesService,
+    /**
+     * Nao ha canal externo hoje (D-11, 2026-09-07): a caixa de entrada no
+     * sistema e o unico meio. O provider existe nulo de proposito — e o ponto
+     * de insercao do SMTP, e deixa-lo declarado evita que ligar o e-mail um dia
+     * exija mexer em cada servico que notifica.
+     */
+    { provide: CANAL_DE_ENTREGA, useValue: null },
     EncerramentoService,
     SubmissaoService,
     DecisaoService,

@@ -1,13 +1,19 @@
 import { eq } from 'drizzle-orm';
 
 import type { AuthUser } from '../src/auth/auth-user';
+import { IdentidadeService } from '../src/auth/identidade.service';
 import * as s from '../src/database/schema';
+import { NotificacoesService } from '../src/dominio/notificacoes.service';
 import {
   criarDespesaSchema,
   PrestacaoService,
   type CriarDespesa,
 } from '../src/dominio/prestacao.service';
-import { criarContextoTeste, type ContextoTeste } from './db-teste';
+import {
+  criarContextoTeste,
+  type ContextoTeste,
+  type TestDatabase,
+} from './db-teste';
 import { criarBase, type BaseFixture } from './fixtures';
 
 const admin: AuthUser = {
@@ -16,6 +22,17 @@ const admin: AuthUser = {
   roles: ['admin'],
   permissions: ['prestacao:read', 'prestacao:write'],
 };
+
+/**
+ * Servico de notificacao sem canal externo — o mesmo estado da aplicacao hoje.
+ *
+ * Os testes de dominio verificam a regra de negocio, e nao a notificacao, que
+ * tem suite propria em `notificacoes.int-spec.ts`. Montar aqui com canal nulo e
+ * o que faz esses testes continuarem falando so do que se propoem a testar.
+ */
+function semCanal(db: TestDatabase): NotificacoesService {
+  return new NotificacoesService(db, new IdentidadeService(db), null);
+}
 
 describe('PrestacaoService (CG-050)', () => {
   let ctx: ContextoTeste;
@@ -26,7 +43,7 @@ describe('PrestacaoService (CG-050)', () => {
 
   beforeAll(async () => {
     ctx = await criarContextoTeste();
-    service = new PrestacaoService(ctx.db);
+    service = new PrestacaoService(ctx.db, semCanal(ctx.db));
   });
 
   afterAll(async () => {
