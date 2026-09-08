@@ -23,9 +23,10 @@ não fornecem beneficiários, então P03 começa vazio e será alimentado pela e
 No CAPES Global não há execução financeira na UEA: a CAPES paga diretamente. Falta
 o registro histórico de movimentações externas, relatórios e dashboards,
 panorama/mapa de mobilidade e o escopo local por PPG/temática na autorização.
-**O ciclo da missão do Comitê fechou de ponta a ponta**: cadastro, aprovação,
-prestação, abatimento do aporte, produtos, evidências e encerramento com
-checklist. Ver §9.
+**O módulo do Comitê Gestor está completo**: cadastro, aprovação, prestação,
+abatimento do aporte, produtos, evidências, encerramento com checklist, escopo
+por rede, painel, relatórios, exportação e caixa de entrada. As 69 tasks do
+backlog estão fechadas, e a folha de homologação, inteiramente marcada. Ver §9.
 
 A visão de arquitetura e os fluxos de negócio/técnicos estão em
 [docs/arquitetura-sistema.md](docs/arquitetura-sistema.md). A especificação
@@ -1035,10 +1036,10 @@ interface é **Coordenador de Temática**, não “membro do comitê”. Ediçã
 existente exige `plano:edit` (só `admin`), preserva código/rubrica e grava uma
 entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: somente
 2027 vem composto; 2028–2030 começam vazios e nunca copiam a quantidade automaticamente.
-- **Testes**: 154 unitários/regressões (68 API + 86 na web para toast, datas,
+- **Testes**: 161 unitários/regressões (68 API + 93 na web para toast, datas,
   React Hook Form/Zod, erros do multistep, formulários de parceiro,
   acessibilidade, contraste dos tokens, cálculos monetários, montagem de série
-  do gráfico e caminhos do BFF) + 480 de integração contra Postgres
+  do gráfico, links do painel e caminhos do BFF) + 480 de integração contra Postgres
   real. As duas garantias de não duplicação da linha
   histórica do parceiro foram verificadas por mutação: trocar o `exists` +
   `selectDistinct` por um `join` faz ambas falharem.

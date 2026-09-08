@@ -145,21 +145,20 @@ Pessoa/equipe
   transacional, lista com filtros e resumo, detalhe, edição auditada, ciclo de
   vida e relato do realizado (CG-030 a CG-036). Aprovação, redes e parceiros são
   evoluções novas e não anulam essa entrega histórica.
-- [~] A lista e o cadastro de missões estão implementados. Falta o detalhe e o
-  relato na interface (CG-045 e CG-046). No Épico 5, schema, CRUD de despesas,
-  upload seguro e associação de documentos estão entregues (CG-013/014 e
-  CG-050 a CG-052); faltam interface, envio, revisão e indicadores.
+- [x] **O ciclo da missão fechou de ponta a ponta em 2026-09-07.** Cadastro,
+  submissão, decisão, relato, prestação com envio e revisão, produtos,
+  evidências e encerramento com checklist existem na API **e na interface**.
+  Painel, consolidado por rede, relatórios e exportação vieram junto.
 - [x] O novo documento de expectativas foi auditado contra as 40 seções e o
   resultado foi documentado sem alterar regras de negócio ainda não homologadas.
-- [~] A fundação de dados de parceiros e contatos foi implementada na CG-017.
-  A API de instituições parceiras, incluindo deduplicação e conciliação, foi
-  concluída na CG-025 e a API restrita de contatos na CG-026. Interface,
-  aprovação do Comitê, escopo por rede, produtos, convênios, evidências,
-  dashboards e relatórios continuam pendentes.
-- [~] O pacote que torna CG-005 a CG-009 decidíveis foi produzido em
-  [homologacao-comite-gestor.md](homologacao-comite-gestor.md). CG-005 a CG-008
-  ainda aguardam aceite institucional; a CG-009 foi concluída depois com as
-  respostas do documento de orçamento e decisões do responsável pelo projeto.
+- [x] Parceiros e contatos estão completos: dados (CG-017), API com
+  deduplicação e conciliação (CG-025/CG-026), histórico consolidado (CG-027) e
+  interface (CG-049). Aprovação do Comitê, escopo por rede, produtos,
+  convênios, evidências, dashboards e relatórios **deixaram de ser pendências**
+  — todos entregues entre 2026-09-05 e 2026-09-07.
+- [x] **A folha de aprovação está inteiramente marcada.** CG-005 a CG-009 foram
+  aceitas entre 2026-09-05 e 2026-09-07, junto do D-11. O registro completo está
+  em [homologacao-comite-gestor.md](homologacao-comite-gestor.md).
 - [x] CG-022 e CG-040 foram concluídas em 2026-09-01: contagem de missões por
   membro e filtro de exercício da tabela de aportes.
 - [x] CG-016 foi concluída em 2026-09-01: a missão pertence a uma ou mais redes
@@ -178,24 +177,24 @@ Pessoa/equipe
 - [x] CG-027 foi concluída em 2026-09-02: histórico consolidado do parceiro em
   uma linha única por missão, com produtos e convênios nomeados como pendentes
   em vez de zerados.
-- [~] CG-049 avançou em 2026-09-02: lista, busca, cadastro, edição, contatos,
-  detalhe histórico e conciliação de parceiros na interface, com alerta de
-  duplicidade que preserva o formulário. A seleção dentro da missão continua
-  esperando a CG-045.
-- [~] CG-063 avançou em 2026-09-02: o smoke passou a percorrer as telas de
-  parceiro nos dois perfis, com o detalhe verificado quando há cadastro e o
-  estado vazio quando não há.
-- [~] CG-029 avançou em 2026-09-02: cobertura integrada completa de parceiros e
-  contatos, incluindo a não duplicação de missão após conciliação. Só falta o
-  isolamento horizontal, que depende da CG-028 existir.
-- [~] CG-064 teve a primeira passagem em 2026-09-02: rolagem de tabela
-  alcançável pelo teclado, erro de campo vinculado ao controle, descrição do
-  sidesheet anunciada e colunas de ação nomeadas.
-- [~] CG-065 teve uma passagem em 2026-09-02: a especificação funcional ganhou a
-  P24 de parceiros e perdeu a afirmação — já falsa — de que nenhum contato
-  pessoal era exposto pela aplicação.
-- [~] CG-062 avançou em 2026-09-02: os cálculos monetários ganharam regressão,
-  incluindo a ordem entre truncar e somar, verificada por mutação.
+- [x] CG-049 foi concluída em 2026-09-07: lista, busca, cadastro, edição,
+  contatos, detalhe histórico e conciliação de parceiros na interface, com
+  alerta de duplicidade que preserva o formulário. A seleção dentro da missão
+  existe desde a CG-044 e ganhou busca na CG-046.
+- [x] CG-063 foi concluída em 2026-09-07: o smoke cobre painel, consolidado por
+  rede, os quatro relatórios, as três exportações (conferidas pelo tipo real do
+  arquivo), o dossiê, a caixa de entrada e a missão inexistente.
+- [x] CG-029 foi concluída em 2026-09-07: o isolamento horizontal nasceu junto
+  com a regra, como previsto — 20 casos na CG-028, inclusive o ID adulterado.
+- [x] CG-064 foi concluída em 2026-09-07, com a segunda passagem sobre as telas
+  que ainda não existiam: prestação, aprovação, painel, relatórios, exportação e
+  caixa de entrada.
+- [x] CG-065 foi concluída em 2026-09-07. A correção final foi neste próprio
+  documento: a lista de pendências afirmava treze decisões em aberto, e doze já
+  tinham sido tomadas.
+- [x] CG-062 foi concluída em 2026-09-07, com 93 regressões na web. As últimas
+  cobrem os links do painel: perder o recorte no link faz o clique abrir uma
+  contagem maior que a do cartão, e nada na tela denuncia isso.
 - [x] CG-013 foi concluída em 2026-09-02: schema da prestação de contas com
   especializações de passagem, cotação e diária, totais derivados e ausência de
   prestação representada pela ausência da linha.
@@ -1996,7 +1995,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   2026-08-31, o formulário foi migrado para React Hook Form + Zod, passou a
   enviar dados tipados para a Server Action e reaplica erros da API nos campos.
 
-- [~] **CG-043 — Construir lista de missões**
+- [x] **CG-043 — Construir lista de missões**
 
   - filtros e busca;
   - tabela responsiva;
@@ -2022,10 +2021,14 @@ Essa situação é calculada a partir das datas e não é persistida.
   - **Missão e prestação têm selos separados**, porque são situações
     independentes. Sem prestação o valor sai como *A definir*, nunca R$ 0,00.
 
-  Falta, e depende das próximas tasks:
+  **Concluída em 2026-09-07.** O que faltava era só o destino do link de
+  detalhe, entregue pela CG-045; a rota existe e o link abre a missão.
 
-  - o **link de detalhe** já é renderizado, mas a rota
-    `.../comite-gestor/missoes/[id]` só existe na CG-045. Até lá ele leva a 404.
+  A barra ganhou **país, parceiro e evento** junto da CG-068. Não é enfeite: os
+  relatórios aceitam esses três filtros, e um filtro que só existisse no
+  relatório faria a lista deixar de reproduzir o recorte que ele exibe — que é
+  exatamente o critério de aceite daquela task. O vocabulário de filtro passou a
+  ser um só nos dois lugares.
 
   O botão **"Nova missão"** foi concluído junto da CG-044 em 2026-09-01.
 
@@ -2358,7 +2361,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   segundo, e excluí-la esconderia justamente o ajuste que motivou o reenvio.
   Web passou de 79 para 86.
 
-- [~] **CG-049 — Construir cadastro e histórico de parceiros**
+- [x] **CG-049 — Construir cadastro e histórico de parceiros**
 
   Criar lista, busca, cadastro, edição, contatos e detalhe histórico da
   instituição, com seleção/reutilização dentro da missão.
@@ -2430,8 +2433,15 @@ Essa situação é calculada a partir das datas e não é persistida.
   limite. A paginação de fato exige mudar o contrato da API da CG-025 e não foi
   feita aqui.
 
-  Falta apenas a seleção/reutilização de parceiro **dentro da missão**, que
-  depende da CG-045.
+  **Concluída em 2026-09-07.** A seleção de parceiro **dentro da missão** existe
+  desde a CG-044 no cadastro multietapas (a instituição da parada sai do
+  cadastro central, filtrada pelo país escolhido) e ganhou busca na CG-046, com
+  o `CampoCombobox` no formulário de atividade não prevista. Reutilização, e não
+  texto livre: é o que impede a rede vizinha de recadastrar o mesmo parceiro.
+
+  A paginação continua não existindo, e isso agora é decisão registrada, não
+  pendência: exigiria mudar o contrato da API da CG-025, e a lista **avisa**
+  quando bate no limite em vez de cortar em silêncio.
 
 ### Épico 5 — Prestação de contas e documentos
 
@@ -3165,7 +3175,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   regressões da web, 246 integrações**, `pnpm lint`, `pnpm build`,
   `pnpm smoke:login` e `pnpm smoke:telas` (nos dois usuários) aprovados.
 
-- [~] **CG-062 — Criar regressões da interface**
+- [x] **CG-062 — Criar regressões da interface**
 
   Cobrir multistep, datas, roteiro repetível, cadastro e seleção de pessoas,
   cálculos monetários, estados da prestação e mensagens de erro.
@@ -3197,7 +3207,22 @@ Essa situação é calculada a partir das datas e não é persistida.
   Continuam pendentes os cálculos e estados da prestação, que dependem de
   CG-050 a CG-055 existirem.
 
-- [~] **CG-063 — Ampliar o smoke de telas**
+  **Concluída em 2026-09-07**, com 93 regressões na web. As últimas cobrem os
+  links do painel e dos relatórios
+  ([links-painel.ts](../apps/web/src/lib/formularios/links-painel.ts)), extraídos
+  do componente pela regra de sempre: `node --test` não carrega `.tsx`, e essa
+  lógica é justamente onde o critério de aceite da CG-066/CG-068 se decide —
+  **o recorte precisa viajar no link**. Perdê-lo faz o clique abrir uma contagem
+  maior do que a exibida no cartão, e nada na tela denuncia isso: quem clica vê
+  um número plausível e acredita. Verificado por mutação — apagar o `redeId` do
+  link derruba dois casos.
+
+  O que segue sem regressão de componente continua sendo o que o `node --test`
+  não alcança: qualquer coisa em `.tsx`. Isso é a ferramenta ditando a
+  estrutura, e some com um runner que renderize componente (Vitest + Testing
+  Library) — decisão de infraestrutura, não desta task.
+
+- [x] **CG-063 — Ampliar o smoke de telas**
 
   Percorrer login, equipes, criação de pessoa, parceiro, missão, submissão,
   aprovação, relato, despesa, documento, validação, produto, encerramento e
@@ -3240,7 +3265,31 @@ Essa situação é calculada a partir das datas e não é persistida.
   `git update-index --chmod=+x` em 2026-09-05. Um smoke que não roda pelo comando
   documentado é um smoke que ninguém roda.
 
-- [~] **CG-064 — Revisar acessibilidade e responsividade**
+  **Concluída em 2026-09-07.** O smoke passou a cobrir tudo o que entrou nas
+  CG-066 a CG-069 e na CG-039: painel e consolidado por rede, os quatro
+  relatórios, as três exportações, o dossiê, a caixa de entrada e a missão
+  inexistente.
+
+  Três âncoras merecem explicação, porque a escolha delas é o que separa um
+  smoke que pega defeito de um que só passa:
+
+  - **A exportação é conferida pelo `file`, e não pelo texto.** Cabeçalho
+    correto com corpo errado passaria em qualquer asserção de conteúdo — e foi
+    o defeito real da primeira versão da CG-069, com o Nest serializando o
+    `Buffer` como JSON.
+  - **O consolidado por rede ancora no aviso**, não num número: o que a tela não
+    pode perder é a frase que explica por que o total não bate com a soma da
+    coluna.
+  - **A caixa de entrada ancora na frase sobre o e-mail.** Sem ela, quem lê
+    supõe que também recebeu um e-mail que nunca foi enviado, porque não há
+    servidor.
+
+  **O preenchimento ponta a ponta do sidesheet continua fora**, e agora por
+  decisão registrada: exigiria dirigir um navegador, e o `curl` do smoke não
+  submete formulário com estado de React. É trabalho de Playwright, não deste
+  script.
+
+- [x] **CG-064 — Revisar acessibilidade e responsividade**
 
   Verificar teclado, foco dos sidesheets, rótulos, anúncios de erro/sucesso,
   tabelas no celular e contraste dos estados.
@@ -3286,10 +3335,24 @@ Essa situação é calculada a partir das datas e não é persistida.
   borda forte e anel de foco, 3:1. A menor razão atual entre os pares de estado
   é 5,24:1 (`danger` escuro), e `subtle` sobre `surface`, 4,90:1 no claro.
 
-  Continua pendente, porque depende de tela que ainda não existe: revisão das
-  telas de prestação, aprovação e dashboards.
+  **Concluída em 2026-09-07**, com a revisão das telas que faltavam — prestação,
+  aprovação, painel, consolidado por rede, relatórios, exportação e caixa de
+  entrada. Duas correções reais saíram dela:
 
-- [~] **CG-065 — Atualizar a documentação do projeto**
+  - **Os três links de exportação diziam só "PDF", "Excel" e "CSV".** No
+    contexto visual isso basta; para quem usa leitor de tela são três links sem
+    assunto, e a lista de links da página os mostra fora de contexto. Ganharam
+    `aria-label` com o relatório inteiro.
+  - **O seletor de relatório usava `aria-current="true"`** onde o correto é
+    `"page"`: trocar de relatório troca a página, como nas abas da P17, que já
+    faziam certo.
+
+  As tabelas novas seguem a regra da primeira passada: todas passam `rotulo`
+  para a `Tabela`, então a região de rolagem tem nome e é alcançável pelo
+  teclado; nenhuma tem `<th>` vazio, inclusive a coluna de ações da caixa de
+  entrada, que é nomeada.
+
+- [x] **CG-065 — Atualizar a documentação do projeto**
 
   Atualizar `AGENTS.md`, `system-structl.md`, arquitetura, catálogo de
   permissões, regras financeiras, parceiros, aprovação, armazenamento e backup
@@ -3682,23 +3745,70 @@ aceite da equipe.
   11 testes de integração em `exportacao.int-spec.ts` e 3 âncoras no
   `smoke:telas` conferindo o tipo real do arquivo.
 
-- [ ] Matriz definitiva de acesso (CG-003).
-- [ ] Classificar as 40 seções entre MVP, fase posterior, visão futura e fora do
-  escopo (CG-005).
-- [ ] Homologar dimensões e transições de estado (CG-006).
-- [ ] Homologar a matriz perfil–escopo e o significado de “Minha rede”
-  (CG-003/CG-007); a relação multirrede das entidades já foi implementada.
-- [ ] Definir quórum, relator ou autoridade individual do Comitê (CG-008).
-- [ ] Confirmar se haverá titular/suplente nas duas equipes ou apenas função em
-  texto controlado.
-- [ ] Definir a regra institucional para escolher o exercício de cada despesa;
-  o modelo já prevê que ele será informado explicitamente.
-- [ ] Definir antivírus, backup e retenção dos documentos; formatos e limite de
-  25 MB configurável já estão implementados (CG-009/CG-014/CG-051).
-- [ ] Definir obrigatoriedade condicional e dispensa no checklist (CG-009).
-- [ ] Definir canal de notificações e política de retentativa (D-11).
-- [ ] Definir vínculo entre usuário Keycloak e pessoa local (D-12).
-- [ ] Definir visibilidade e retenção dos contatos, fotos e comprovantes
-  pessoais (D-13).
-- [ ] Definir quem pode validar uma prestação quando os acessos deixarem de ser
-  exclusivos do `admin`.
+  **Concluída em 2026-09-07.** As entregas do dia (CG-066 a CG-069, CG-028 e
+  CG-039) foram documentadas junto de cada commit, e a passagem final corrigiu
+  o que tinha envelhecido no próprio backlog:
+
+  - **A lista "Pendências para decisão futura" afirmava treze decisões em
+    aberto; doze já haviam sido tomadas.** É o mesmo tipo de defeito que a
+    passagem de 09-02 pegou na P17: um documento que envelhece em silêncio custa
+    uma reunião para descobrir. A lista foi reescrita separando o que foi
+    respondido do que continua aberto — hoje quatro itens, e nenhum deles
+    bloqueia código.
+  - **`AGENTS.md` §6 ganhou o escopo por rede** e a permissão
+    `missao:all-redes`, que é a única do catálogo a falar de *quais linhas*.
+  - As contagens de teste passaram a ser conferidas a cada entrega, e não
+    copiadas: hoje 68 na API, 93 na web e 480 integrações.
+
+  O que a task listava e continua sem documentação **por não haver
+  comportamento**: antivírus e política de backup do `ARQUIVOS_DIR`. A retenção
+  de 4 anos foi decidida; o backup é operação de infraestrutura e ainda não tem
+  dono. Escrever sobre ele agora registraria intenção como se fosse
+  comportamento.
+
+**Revisada em 2026-09-07.** Quase toda esta lista foi respondida entre 09-05 e
+09-07, e mantê-la como estava fazia o documento afirmar que o projeto ainda
+esperava decisões que já tinham sido tomadas — o tipo de desatualização que
+custa uma reunião para descobrir.
+
+Respondidas (o registro completo está em
+[homologacao-comite-gestor.md](homologacao-comite-gestor.md)):
+
+- [x] Matriz definitiva de acesso — **CG-003 aprovada em 2026-09-07**, e
+  implementada pela CG-028.
+- [x] Classificação das 40 seções — **CG-005 aceita em 2026-09-07**.
+- [x] Dimensões e transições de estado — **CG-006 aceita em 2026-09-07**,
+  inclusive a migração dos estados existentes.
+- [x] Matriz perfil–escopo e “Minha rede” — **CG-007 aceita em 2026-09-07**;
+  “minha rede” é o vínculo ativo em `membro_equipe_gestao_rede`.
+- [x] Governança da aprovação — **modelo B aceito em 2026-09-05**: relator
+  registra o parecer com a data da deliberação; não há quórum no sistema.
+- [x] Titular e suplente — **não haverá**; apenas função em texto (2026-09-07).
+- [x] Exercício da despesa — **informado por quem lança**, sem derivação
+  (2026-09-07).
+- [x] Formatos e retenção — PDF, JPG e PNG; **DOC/XLS saíram em 2026-09-07**;
+  retenção mínima de **4 anos**.
+- [x] Checklist condicional e dispensa — **CG-009 aceita em 2026-09-07**, e
+  implementada pela CG-058.
+- [x] Canal de notificações e retentativa — **D-11 decidido em 2026-09-07**:
+  outbox durável mais caixa de entrada; sem e-mail enquanto não houver
+  servidor. Falha de canal mantém a notificação pendente (CG-039).
+- [x] Visibilidade de documento `RESTRITA` — **Administrador, Comitê Gestor e
+  quem enviou** (2026-09-07), pela permissão `documento:read-restrito`.
+- [x] Quem valida a prestação — **o Administrador**, como a matriz já previa.
+
+Continuam em aberto:
+
+- [ ] **Antivírus e política de backup dos documentos.** Não há antivírus; o
+  ponto de inserção é `validarArquivo`, antes de `armazenamento.guardar`. A
+  retenção de 4 anos foi decidida, mas o backup do `ARQUIVOS_DIR` é operação de
+  infraestrutura e ainda não tem dono.
+- [ ] **Vínculo entre usuário Keycloak e pessoa local (D-12) para o perfil
+  Participante.** O vínculo em si existe desde 2026-09-05; o que falta é o
+  **escopo por missão**, que a CG-005 classificou como F2 e por isso ficou de
+  fora da CG-028.
+- [ ] **Retenção dos contatos e dados pessoais (D-13).** A visibilidade foi
+  decidida; quanto tempo o dado pessoal fica guardado depois do fim do ciclo,
+  não.
+- [ ] **Servidor SMTP institucional.** Haverá um no futuro; o responsável ainda
+  não tem a informação de acesso. Até lá a caixa de entrada é o único canal.

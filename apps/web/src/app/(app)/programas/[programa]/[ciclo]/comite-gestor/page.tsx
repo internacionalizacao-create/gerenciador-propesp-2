@@ -42,6 +42,12 @@ import type {
   StatusMissao,
 } from "@/lib/dominio";
 import { data, inteiro, percentual, rotulo, somarMoeda } from "@/lib/formato";
+import {
+  linkDaLista,
+  notaDoRecorte,
+  relatorioDaConsulta,
+  type Relatorio,
+} from "@/lib/formularios/links-painel";
 
 type Aba =
   | "visao-geral"
@@ -51,7 +57,14 @@ type Aba =
   | "equipes";
 
 /** Os quatro relatórios homologados em 2026-09-07 (CG-068). */
-type Relatorio = "missoes" | "parceiros" | "financas" | "resultados";
+
+
+const ROTULO_RELATORIO: Record<Relatorio, string> = {
+  missoes: "missões",
+  parceiros: "parceiros",
+  financas: "finanças",
+  resultados: "resultados",
+};
 
 /** Filtros da aba Missões, exatamente como chegam da query string. */
 type ConsultaMissoes = Record<string, string | string[] | undefined>;
@@ -70,6 +83,8 @@ const CAMPOS_FILTRO = [
   "de",
   "ate",
   "paisId",
+  "instituicaoId",
+  "evento",
   "redeId",
   "pessoaId",
   "tipoEquipe",
@@ -88,6 +103,8 @@ const CAMPOS_ESCOPO = [
   "de",
   "ate",
   "paisId",
+  "instituicaoId",
+  "evento",
   "redeId",
   "pessoaId",
   "tipoEquipe",
@@ -901,33 +918,7 @@ function FiltroRede({
   );
 }
 
-/**
- * Link para a lista que produziu o número, **carregando o recorte do painel**.
- *
- * É o que sustenta o critério de aceite: o cartão e a lista do outro lado
- * partem exatamente do mesmo universo. Perder `ano` ou `redeId` aqui faria o
- * clique abrir uma contagem maior do que a exibida.
- */
-function linkDaLista(
-  base: string,
-  recorte: PainelComite["recorte"],
-  filtros: Record<string, string>,
-  aba: "missoes" | "analise",
-): string {
-  const query = new URLSearchParams({ aba });
-  if (recorte.ano) query.set("ano", String(recorte.ano));
-  if (recorte.redeId) query.set("redeId", recorte.redeId);
-  for (const [campo, valor] of Object.entries(filtros)) query.set(campo, valor);
-  return `${base}?${query}`;
-}
 
-function notaDoRecorte(recorte: PainelComite["recorte"]): string {
-  const partes = [
-    recorte.ano ? `Exercício ${recorte.ano}` : "Ciclo inteiro",
-    recorte.redeNome ?? "Todas as redes",
-  ];
-  return partes.join(" · ");
-}
 
 /**
  * Parâmetros do painel a partir da query string.
@@ -1223,7 +1214,7 @@ async function Missoes({
         base={base}
         filtros={filtros}
         membros={membros}
-        redes={referencias.redes}
+        referencias={referencias}
       />
 
       <Secao
@@ -1469,7 +1460,7 @@ async function FilaDeAnalise({
         base={base}
         filtros={{ ...filtros, aba: "analise" }}
         membros={membros}
-        redes={referencias.redes}
+        referencias={referencias}
       />
 
       <Secao
@@ -1607,12 +1598,12 @@ function FiltroMissoes({
   base,
   filtros,
   membros,
-  redes,
+  referencias,
 }: {
   base: string;
   filtros: Record<string, string>;
   membros: MembroEquipeGestao[];
-  redes: ReferenciasMissao["redes"];
+  referencias: ReferenciasMissao;
 }) {
   const pessoas = [
     ...new Map(membros.map((m) => [m.pessoaId, m.nome])).entries(),
@@ -1656,7 +1647,7 @@ function FiltroMissoes({
             className={ENTRADA_FILTRO}
           >
             <option value="">Todas as redes</option>
-            {redes.map((rede) => (
+            {referencias.redes.map((rede) => (
               <option key={rede.id} value={rede.id}>
                 {rede.nome}
               </option>
@@ -1674,6 +1665,50 @@ function FiltroMissoes({
             <option value="COMITE_GESTOR">Comitê Gestor</option>
             <option value="ADMINISTRACAO">Administração</option>
           </select>
+        </label>
+        {/* País, parceiro e evento entraram com a CG-068: os relatórios os
+            aceitam, e um filtro que só existe no relatório faria a lista
+            deixar de reproduzir o recorte que ele exibe. */}
+        <label className="block">
+          <span className={ROTULO_FILTRO}>País</span>
+          <select
+            name="paisId"
+            defaultValue={filtros.paisId ?? ""}
+            className={ENTRADA_FILTRO}
+          >
+            <option value="">Todos</option>
+            {referencias.paises.map((pais) => (
+              <option key={pais.id} value={pais.id}>
+                {pais.nome}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="block">
+          <span className={ROTULO_FILTRO}>Parceiro</span>
+          <select
+            name="instituicaoId"
+            defaultValue={filtros.instituicaoId ?? ""}
+            className={ENTRADA_FILTRO}
+          >
+            <option value="">Todos</option>
+            {referencias.instituicoes.map((instituicao) => (
+              <option key={instituicao.id} value={instituicao.id}>
+                {instituicao.sigla
+                  ? `${instituicao.sigla} — ${instituicao.nome}`
+                  : instituicao.nome}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="block">
+          <span className={ROTULO_FILTRO}>Evento</span>
+          <input
+            name="evento"
+            defaultValue={filtros.evento ?? ""}
+            placeholder="Nome do evento"
+            className={ENTRADA_FILTRO}
+          />
         </label>
         <label className="block">
           <span className={ROTULO_FILTRO}>Participante</span>
@@ -1840,7 +1875,7 @@ async function Relatorios({
   consulta: ConsultaMissoes;
   referencias: ReferenciasMissao;
 }) {
-  const qual = relatorioDaConsulta(consulta);
+  const qual = relatorioDaConsulta(consulta.relatorio);
   const filtros: Record<string, string> = {};
   for (const campo of CAMPOS_RELATORIO) {
     const bruto = consulta[campo];
@@ -1874,7 +1909,7 @@ async function Relatorios({
           <Link
             key={id}
             href={link(id)}
-            aria-current={qual === id ? "true" : undefined}
+            aria-current={qual === id ? "page" : undefined}
             className={
               qual === id
                 ? "rounded-xl bg-primary px-4 py-2 text-sm font-medium text-on-primary"
@@ -2466,8 +2501,11 @@ function BaixarRelatorio({
           key={formato}
           href={`${rota}/${formato}${sufixo}`}
           className={BOTAO_PAGINA}
-          // O recorte da tela vai junto: exportar sem ele devolveria um arquivo
-          // maior do que o que a pessoa está vendo.
+          // O rótulo visível é só "PDF"; quem usa leitor de tela ouviria três
+          // links sem saber do que são. O `aria-label` diz o relatório inteiro
+          // (CG-064). O recorte da tela vai na URL: exportar sem ele devolveria
+          // um arquivo maior do que o que a pessoa está vendo.
+          aria-label={`Baixar relatório de ${ROTULO_RELATORIO[relatorio]} em ${texto}`}
         >
           {texto}
         </a>
@@ -2476,15 +2514,6 @@ function BaixarRelatorio({
   );
 }
 
-/** Relatório pedido na URL; o de missões é o padrão. */
-function relatorioDaConsulta(consulta: ConsultaMissoes): Relatorio {
-  const bruto = Array.isArray(consulta.relatorio)
-    ? consulta.relatorio[0]
-    : consulta.relatorio;
-  return bruto === "parceiros" || bruto === "financas" || bruto === "resultados"
-    ? bruto
-    : "missoes";
-}
 
 function Equipes({
   membros,
