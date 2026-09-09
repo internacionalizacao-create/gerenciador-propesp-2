@@ -1,6 +1,8 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { startTransition, useActionState, useMemo, type FormEvent } from "react";
+import { useForm, useWatch } from "react-hook-form";
 
 import { atualizarLinhaDePlano, criarLinhaDePlano } from "@/acoes/plano";
 import {
@@ -12,7 +14,7 @@ import {
   Texto,
 } from "@/componentes/ui/campos";
 import { Multistep, type Passo } from "@/componentes/ui/multistep";
-import { submeterSemLimpar } from "@/componentes/ui/formulario";
+import { useErrosDaAcao } from "@/componentes/ui/formulario";
 import { useToastDaAcao } from "@/componentes/ui/toast";
 import { ESTADO_INICIAL } from "@/lib/acao-tipos";
 import type {
@@ -22,6 +24,7 @@ import type {
   Rubrica,
 } from "@/lib/dominio";
 import { meses as formatarMeses, moeda, rotulo } from "@/lib/formato";
+import { formularioLinhaPlanoSchema, type DadosFormularioLinhaPlano } from "@/lib/formularios/plano";
 
 const MESES = [
   "JANEIRO",
@@ -88,14 +91,17 @@ export function FormLinhaPlano({
       })
     : criarLinhaDePlano.bind(null, { programa, ciclo });
   const [estado, executar, enviando] = useActionState(acao, ESTADO_INICIAL);
+  const { setValue, trigger, getValues, setError, control } = useForm<DadosFormularioLinhaPlano>({
+    resolver: zodResolver(formularioLinhaPlanoSchema),
+    defaultValues: { rubrica: linha?.rubrica ?? "BOLSAS", ppgId: linha?.ppgId ?? "", areaTematicaId: linha?.areaTematicaId ?? "", ano: String(linha?.anoPlanejamento ?? anoInicial), quantidadeAnual: String(linha?.quantidadeAnual ?? 1), mesImplementacao: linha?.mesImplementacao ?? "", descricao: linha?.descricao ?? "", textoFonte: linha?.textoFonte ?? "", destino: linha?.destino ?? "EXTERIOR", modalidadeId: linha?.modalidadeId ?? "", vigenciaMeses: linha?.vigenciaMeses ?? "", fluxo: linha?.fluxo ?? "", tipoDespesa: linha?.tipoDespesa ?? "", tipoMissao: linha?.tipoMissao ?? "", numeroParticipantes: String(linha?.numeroParticipantes ?? ""), numeroDiarias: String(linha?.numeroDiarias ?? ""), incluiPassagem: linha?.incluiPassagem ?? false, valorUnitarioInformado: linha?.valorUnitario ?? "", justificativaEstimativa: linha?.justificativaEstimativa ?? "", status: linha?.status ?? "PROGRAMADO", justificativaEdicao: "" },
+  });
+  useErrosDaAcao(estado, setError, { ppgId: "ppgId", modalidadeId: "modalidadeId", vigenciaMeses: "vigenciaMeses", quantidadeAnual: "quantidadeAnual" });
 
-  const [rubrica, setRubrica] = useState<Rubrica>(linha?.rubrica ?? "BOLSAS");
-  const [destino, setDestino] = useState<"BRASIL" | "EXTERIOR">(
-    linha?.destino ?? "EXTERIOR",
-  );
-  const [modalidadeId, setModalidadeId] = useState(linha?.modalidadeId ?? "");
-  const [vigencia, setVigencia] = useState(linha?.vigenciaMeses ?? "");
-  const [ppgId, setPpgId] = useState(linha?.ppgId ?? "");
+  const rubrica = useWatch({ control, name: "rubrica" });
+  const destino = useWatch({ control, name: "destino" });
+  const modalidadeId = useWatch({ control, name: "modalidadeId" });
+  const vigencia = useWatch({ control, name: "vigenciaMeses" });
+  const ppgId = useWatch({ control, name: "ppgId" });
 
   useToastDaAcao(estado, aoConcluir);
 
@@ -164,7 +170,7 @@ export function FormLinhaPlano({
               rotulo="Rubrica"
               nome="rubrica"
               padrao="BOLSAS"
-              aoMudar={(valor) => setRubrica(valor as Rubrica)}
+              aoMudar={(valor) => setValue("rubrica", valor as Rubrica)}
               dica="Bolsas usa o catálogo oficial. Manutenção e missões usam valor estimado."
               opcoes={[
                 { valor: "BOLSAS", texto: "Bolsas" },
@@ -179,7 +185,7 @@ export function FormLinhaPlano({
             obrigatorio
             vazio="Selecione…"
             padrao={linha?.ppgId}
-            aoMudar={setPpgId}
+            aoMudar={(valor) => setValue("ppgId", valor)}
             dica="A rede e a área temática são derivadas do PPG."
             opcoes={ppgs.map((p) => ({
               valor: p.id,
@@ -234,9 +240,9 @@ export function FormLinhaPlano({
               nome="destino"
               padrao={linha?.destino ?? "EXTERIOR"}
               aoMudar={(valor) => {
-                setDestino(valor as "BRASIL" | "EXTERIOR");
-                setModalidadeId("");
-                setVigencia("");
+                setValue("destino", valor);
+                setValue("modalidadeId", "");
+                setValue("vigenciaMeses", "");
               }}
               dica="Brasil traz alguém para a UEA (IN); exterior leva alguém daqui para fora (OUT)."
               opcoes={[
@@ -250,8 +256,8 @@ export function FormLinhaPlano({
               vazio="Selecione…"
               padrao={linha?.modalidadeId ?? ""}
               aoMudar={(valor) => {
-                setModalidadeId(valor);
-                setVigencia("");
+                setValue("modalidadeId", valor);
+                setValue("vigenciaMeses", "");
               }}
               opcoes={modalidades}
               dica="Só aparecem as modalidades que o catálogo cobre para este destino."
@@ -263,7 +269,7 @@ export function FormLinhaPlano({
                 modalidadeId ? "Selecione…" : "Escolha a modalidade primeiro"
               }
               padrao={linha?.vigenciaMeses ?? ""}
-              aoMudar={setVigencia}
+              aoMudar={(valor) => setValue("vigenciaMeses", valor)}
               opcoes={vigencias}
               dica="Só as vigências existentes no catálogo. Bolsa de até 15 dias vale 0,5 mês (RN-02)."
             />
@@ -462,7 +468,15 @@ export function FormLinhaPlano({
 
   return (
     <form
-      onSubmit={(evento) => submeterSemLimpar(evento, executar)}
+      onSubmit={async (evento: FormEvent<HTMLFormElement>) => {
+        evento.preventDefault();
+        const dados = new FormData(evento.currentTarget);
+        for (const [campo, valor] of dados.entries()) {
+          if (typeof valor === "string" && campo in getValues()) setValue(campo as keyof DadosFormularioLinhaPlano, valor as never);
+        }
+        setValue("incluiPassagem", dados.getAll("incluiPassagem").includes("true"));
+        if (await trigger()) startTransition(() => executar(getValues()));
+      }}
       className="flex min-h-0 flex-1 flex-col"
     >
       <Multistep

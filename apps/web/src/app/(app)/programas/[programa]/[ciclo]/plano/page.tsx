@@ -13,6 +13,7 @@ import {
 } from "@/componentes/ui/basicos";
 import { AcoesLinhaPlano } from "@/componentes/formularios/acoes-linha-plano";
 import { NovaLinhaDePlano } from "@/componentes/formularios/nova-linha-plano";
+import { Botao } from "@/componentes/ui/botao";
 import { apiFetch } from "@/lib/api";
 import type {
   Ciclo,
@@ -253,18 +254,20 @@ function ExerciciosDoPlano({
         }
         const ativo = ano === anoSelecionado;
         return (
-          <Link
+          <Botao
             key={ano}
-            href={`${rotaPlano}?${parametros.toString()}`}
-            aria-current={ativo ? "page" : undefined}
-            className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
-              ativo
-                ? "border-primary bg-primary text-on-primary"
-                : "border-border bg-surface text-muted hover:border-border-strong hover:text-foreground"
-            }`}
+            comoFilho
+            variante={ativo ? "primario" : "contorno"}
+            tamanho="pequeno"
+            className="rounded-full px-4"
           >
-            {ano}
-          </Link>
+            <Link
+              href={`${rotaPlano}?${parametros.toString()}`}
+              aria-current={ativo ? "page" : undefined}
+            >
+              {ano}
+            </Link>
+          </Botao>
         );
       })}
     </nav>

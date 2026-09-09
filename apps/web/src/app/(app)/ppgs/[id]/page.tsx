@@ -1,8 +1,11 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 
 import { CadastroPpg } from "@/componentes/formularios/cadastro-ppg";
 import {
   Aviso,
+  Cartao,
+  Cartoes,
   Celula,
   EstadoVazio,
   Moeda,
@@ -11,7 +14,7 @@ import {
   Selo,
   Tabela,
 } from "@/componentes/ui/basicos";
-import { apiFetch } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
 import type { Me, PpgDetalhe } from "@/lib/dominio";
 import { inteiro, meses, rotulo, somarMoeda } from "@/lib/formato";
 
@@ -22,10 +25,7 @@ export default async function DetalheDoPpg({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [ppg, me] = await Promise.all([
-    apiFetch<PpgDetalhe>(`/ppgs/${id}`),
-    apiFetch<Me>("/me"),
-  ]);
+  const [ppg, me] = await Promise.all([buscarPpg(id), apiFetch<Me>("/me")]);
   const podeEditar = me.permissions.includes("ppg:write");
 
   return (
@@ -49,20 +49,27 @@ export default async function DetalheDoPpg({
       ) : null}
 
       <Secao titulo="Dados institucionais">
-        <dl className="grid gap-4 rounded-xl border border-border bg-surface p-5 sm:grid-cols-3">
-          <Dado rotulo="Nível" valor={rotulo(ppg.nivel)} />
-          <Dado rotulo="Modalidade" valor={rotulo(ppg.modalidade)} />
-          <Dado
-            rotulo="Conceito CAPES"
+        <Cartoes>
+          <Cartao titulo="Nível" valor={rotulo(ppg.nivel)} />
+          <Cartao titulo="Modalidade" valor={rotulo(ppg.modalidade)} />
+          <Cartao
+            titulo="Conceito CAPES"
             valor={ppg.notaCapes ? String(ppg.notaCapes) : "—"}
           />
-          <Dado rotulo="Área CAPES" valor={ppg.areaCapes ?? "—"} />
-          <Dado rotulo="Situação" valor={rotulo(ppg.situacao)} />
-          <Dado
-            rotulo="Rede nacional"
+          <Cartao titulo="Área CAPES" valor={ppg.areaCapes ?? "—"} />
+          <Cartao
+            titulo="Situação"
+            valor={
+              <Selo tom={ppg.situacao === "ATIVO" ? "sucesso" : "neutro"}>
+                {rotulo(ppg.situacao)}
+              </Selo>
+            }
+          />
+          <Cartao
+            titulo="Rede nacional"
             valor={ppg.emRede ? (ppg.redeAcademica ?? "Sim") : "Não"}
           />
-        </dl>
+        </Cartoes>
 
         {ppg.observacoes ? (
           <p className="mt-3 text-sm text-muted">{ppg.observacoes}</p>
@@ -228,11 +235,13 @@ export default async function DetalheDoPpg({
   );
 }
 
-function Dado({ rotulo: nome, valor }: { rotulo: string; valor: string }) {
-  return (
-    <div>
-      <dt className="text-xs uppercase tracking-wide text-subtle">{nome}</dt>
-      <dd className="mt-0.5 text-sm text-foreground">{valor}</dd>
-    </div>
-  );
+async function buscarPpg(id: string): Promise<PpgDetalhe> {
+  try {
+    return await apiFetch<PpgDetalhe>(`/ppgs/${id}`);
+  } catch (erro) {
+    // O detalhe de um PPG fora do escopo também responde 404. O mesmo estado
+    // não revela se o id existe para quem não pode consultá-lo.
+    if (erro instanceof ApiError && erro.status === 404) notFound();
+    throw erro;
+  }
 }

@@ -412,21 +412,30 @@ export function Chips({
   padrao = [],
   dica,
   placeholder,
+  valor,
+  aoMudar,
 }: {
   rotulo: string;
   nome: string;
   padrao?: string[];
   dica?: string;
   placeholder?: string;
+  valor?: string[];
+  aoMudar?: (itens: string[]) => void;
 }) {
   const id = useId();
-  const [itens, setItens] = useState<string[]>(padrao);
+  const [itensInternos, setItensInternos] = useState<string[]>(padrao);
+  const itens = valor ?? itensInternos;
+  const definirItens = (proximos: string[]) => {
+    setItensInternos(proximos);
+    aoMudar?.(proximos);
+  };
   const [rascunho, setRascunho] = useState("");
 
   function adicionar() {
     const valor = rascunho.trim();
     if (!valor || itens.includes(valor)) return;
-    setItens([...itens, valor]);
+    definirItens([...itens, valor]);
     setRascunho("");
   }
 
@@ -484,7 +493,7 @@ export function Chips({
               <button
                 type="button"
                 aria-label={`Remover ${item}`}
-                onClick={() => setItens(itens.filter((i) => i !== item))}
+                onClick={() => definirItens(itens.filter((i) => i !== item))}
                 className="text-on-primary-soft/70 hover:text-on-primary-soft"
               >
                 ✕

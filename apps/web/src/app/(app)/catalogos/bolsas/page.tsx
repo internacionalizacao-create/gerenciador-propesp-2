@@ -1,23 +1,11 @@
 import type { Metadata } from "next";
 
-import {
-  EditarItemCatalogo,
-  NovoItemCatalogo,
-  RemoverItemCatalogo,
-} from "@/componentes/formularios/form-item-catalogo";
-import {
-  Cartao,
-  Cartoes,
-  Celula,
-  Moeda,
-  Pagina,
-  Secao,
-  Selo,
-  Tabela,
-} from "@/componentes/ui/basicos";
+import { NovoItemCatalogo } from "@/componentes/formularios/form-item-catalogo";
+import { ListaItensCatalogo } from "@/componentes/consultas/lista-itens-catalogo";
+import { Cartao, Cartoes, Pagina } from "@/componentes/ui/basicos";
 import { apiFetch } from "@/lib/api";
 import type { Me, Modalidade, TabelaVigente } from "@/lib/dominio";
-import { data, inteiro, meses } from "@/lib/formato";
+import { data, inteiro } from "@/lib/formato";
 
 export const metadata: Metadata = {
   title: "Catálogo de bolsas — Gerenciador PROPESP",
@@ -39,9 +27,9 @@ export const metadata: Metadata = {
 export default async function CatalogoDeBolsas({
   searchParams,
 }: {
-  searchParams: Promise<{ programa?: string }>;
+  searchParams: Promise<{ programa?: string; q?: string; destino?: string }>;
 }) {
-  const { programa = "capes-global" } = await searchParams;
+  const { programa = "capes-global", q = "", destino } = await searchParams;
   const [tabela, modalidades, me] = await Promise.all([
     apiFetch<TabelaVigente>(
       `/catalogo/bolsas?programa=${encodeURIComponent(programa)}`,
@@ -51,8 +39,8 @@ export default async function CatalogoDeBolsas({
   ]);
   const podeEditar = me.permissions.includes("catalogo:write");
 
-  const brasil = tabela.itens.filter((i) => i.destino === "BRASIL");
-  const exterior = tabela.itens.filter((i) => i.destino === "EXTERIOR");
+  const destinoInicial =
+    destino === "BRASIL" || destino === "EXTERIOR" ? destino : "TODOS";
 
   return (
     <Pagina
@@ -75,8 +63,6 @@ export default async function CatalogoDeBolsas({
         <Cartao titulo="Itens" valor={inteiro(tabela.itens.length)} />
       </Cartoes>
 
-      <div className="mt-6" />
-
       {tabela.referenciaNormativa ? (
         <p className="mb-8 text-sm text-muted">
           <strong className="text-foreground">Referência normativa:</strong>{" "}
@@ -84,118 +70,15 @@ export default async function CatalogoDeBolsas({
         </p>
       ) : null}
 
-      <Secao
-        titulo="Bolsas com destino Brasil"
-        descricao="Trazem alguém para a UEA — fluxo IN. Bolsa de até 15 dias vale 0,5 mês (RN-02)."
-      >
-        <TabelaDeItens
-          itens={brasil}
-          modalidades={modalidades}
-          podeEditar={podeEditar}
-        />
-      </Secao>
-
-      <Secao
-        titulo="Bolsas com destino exterior"
-        descricao="Levam alguém da UEA para fora — fluxo OUT. O valor em reais já inclui o adicional de cidade de alto custo, estimado para 70% das bolsas."
-      >
-        <TabelaDeItens
-          itens={exterior}
-          modalidades={modalidades}
-          podeEditar={podeEditar}
-          mostrarDolar
-        />
-      </Secao>
+      <ListaItensCatalogo
+        key={`${programa}:${q}:${destinoInicial}`}
+        itens={tabela.itens}
+        modalidades={modalidades}
+        podeEditar={podeEditar}
+        programa={programa}
+        buscaInicial={q}
+        destinoInicial={destinoInicial}
+      />
     </Pagina>
-  );
-}
-
-function TabelaDeItens({
-  itens,
-  modalidades,
-  podeEditar,
-  mostrarDolar,
-}: {
-  itens: TabelaVigente["itens"];
-  modalidades: Modalidade[];
-  podeEditar: boolean;
-  mostrarDolar?: boolean;
-}) {
-  return (
-    <Tabela
-      colunas={[
-        { chave: "codigo", texto: "Código" },
-        { chave: "modalidade", texto: "Modalidade" },
-        { chave: "vigencia", texto: "Vigência" },
-        ...(mostrarDolar
-          ? [
-              {
-                chave: "usd",
-                texto: "Valor US$",
-                alinhamento: "direita" as const,
-              },
-            ]
-          : []),
-        { chave: "brl", texto: "Valor R$", alinhamento: "direita" as const },
-        { chave: "fonte", texto: "Fonte" },
-        { chave: "obs", texto: "Observação" },
-        ...(podeEditar
-          ? [
-              { chave: "usos", texto: "Em uso", alinhamento: "direita" as const },
-              { chave: "acoes", texto: <span className="sr-only">Ações</span> },
-            ]
-          : []),
-      ]}
-    >
-      {itens.map((item) => (
-        <tr key={item.id}>
-          <Celula>
-            <span className="font-mono text-xs">{item.codigo}</span>
-          </Celula>
-          <Celula>{item.modalidade}</Celula>
-          <Celula>
-            {meses(item.vigenciaMeses)}
-            {Number(item.vigenciaMeses) === 0.5 ? (
-              <span className="ml-2">
-                <Selo tom="info" titulo="Regra dos 15 dias (RN-02)">
-                  até 15 dias
-                </Selo>
-              </span>
-            ) : null}
-          </Celula>
-          {mostrarDolar ? (
-            <Celula direita>
-              {item.valorUsd
-                ? `US$ ${Number(item.valorUsd).toLocaleString("pt-BR", {
-                    minimumFractionDigits: 2,
-                  })}`
-                : "—"}
-            </Celula>
-          ) : null}
-          <Celula direita>
-            <Moeda valor={item.valorBrl} forte />
-          </Celula>
-          <Celula className="max-w-[12rem] text-xs text-subtle">
-            {item.fonte ?? "—"}
-          </Celula>
-          <Celula className="max-w-sm text-xs text-muted">
-            {item.observacao ?? "—"}
-          </Celula>
-          {podeEditar ? (
-            <>
-              <Celula direita className="text-xs text-muted">
-                {item.usos > 0 ? `${inteiro(item.usos)} linha(s)` : "—"}
-              </Celula>
-              <Celula>
-                <div className="flex items-center gap-1">
-                  <EditarItemCatalogo item={item} modalidades={modalidades} />
-                  <RemoverItemCatalogo item={item} />
-                </div>
-              </Celula>
-            </>
-          ) : null}
-        </tr>
-      ))}
-    </Tabela>
   );
 }

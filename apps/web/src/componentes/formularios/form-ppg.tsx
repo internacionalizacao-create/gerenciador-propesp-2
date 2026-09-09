@@ -1,6 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { startTransition, useActionState } from "react";
+import { useForm, useWatch } from "react-hook-form";
 
 import { atualizarPpg, criarPpg } from "@/acoes/ppgs";
 import {
@@ -12,10 +14,11 @@ import {
   Texto,
 } from "@/componentes/ui/campos";
 import { Multistep, type Passo } from "@/componentes/ui/multistep";
-import { submeterSemLimpar } from "@/componentes/ui/formulario";
+import { useErrosDaAcao } from "@/componentes/ui/formulario";
 import { useToastDaAcao } from "@/componentes/ui/toast";
 import { ESTADO_INICIAL } from "@/lib/acao-tipos";
 import type { PpgDetalhe } from "@/lib/dominio";
+import { formularioPpgSchema, type DadosFormularioPpg } from "@/lib/formularios/ppg";
 
 /**
  * Cadastro de PPG em três etapas (P14).
@@ -37,12 +40,17 @@ export function FormPpg({
 }) {
   const acao = ppg ? atualizarPpg.bind(null, ppg.id) : criarPpg;
   const [estado, executar, enviando] = useActionState(acao, ESTADO_INICIAL);
+  const { register, handleSubmit, setError, setValue, control, formState: { errors } } = useForm<DadosFormularioPpg>({
+    resolver: zodResolver(formularioPpgSchema),
+    defaultValues: { nome: ppg?.nome ?? "", sigla: ppg?.sigla ?? "", unidade: ppg?.unidade ?? "", nivel: (ppg?.nivel as DadosFormularioPpg["nivel"]) ?? "", modalidade: (ppg?.modalidade as DadosFormularioPpg["modalidade"]) ?? "", notaCapes: ppg?.notaCapes ? String(ppg.notaCapes) : "", areaCapes: ppg?.areaCapes ?? "", situacao: (ppg?.situacao as DadosFormularioPpg["situacao"]) ?? "ATIVO", emRede: ppg?.emRede ?? false, redeAcademica: ppg?.redeAcademica ?? "", observacoes: ppg?.observacoes ?? "", linhasPesquisa: ppg?.linhasPesquisa.map((linha) => linha.nome) ?? [] },
+  });
+  const linhasPesquisa = useWatch({ control, name: "linhasPesquisa" }) ?? [];
+  useErrosDaAcao(estado, setError, { nome: "nome", sigla: "sigla", notaCapes: "notaCapes", situacao: "situacao" });
 
   // Fechar so depois de gravar; fechar no clique esconderia o erro do servidor.
   useToastDaAcao(estado, aoConcluir);
 
-  const erroDe = (campo: string) =>
-    estado.erros?.find((e) => e.campo === campo)?.mensagem;
+  const erroDe = (campo: keyof DadosFormularioPpg) => errors[campo]?.message;
 
   const passos: Passo[] = [
     {
@@ -63,7 +71,7 @@ export function FormPpg({
             rotulo="Nome do PPG"
             nome="nome"
             obrigatorio
-            padrao={ppg?.nome}
+            registro={register("nome")}
             placeholder="Programa de Pós-Graduação em…"
             erro={erroDe("nome")}
           />
@@ -72,14 +80,14 @@ export function FormPpg({
               rotulo="Sigla"
               nome="sigla"
               obrigatorio
-              padrao={ppg?.sigla}
+            registro={register("sigla")}
               placeholder="PPGCLIAMB"
               erro={erroDe("sigla")}
             />
             <Texto
               rotulo="Unidade / campus"
               nome="unidade"
-              padrao={ppg?.unidade ?? undefined}
+            registro={register("unidade")}
               placeholder="Escola Superior de Ciências da Saúde"
             />
           </Grade>
@@ -88,7 +96,7 @@ export function FormPpg({
               rotulo="Nível"
               nome="nivel"
               vazio="Não informado"
-              padrao={ppg?.nivel ?? ""}
+              registro={register("nivel")}
               opcoes={[
                 { valor: "MESTRADO", texto: "Mestrado" },
                 { valor: "DOUTORADO", texto: "Doutorado" },
@@ -103,7 +111,7 @@ export function FormPpg({
               rotulo="Modalidade"
               nome="modalidade"
               vazio="Não informada"
-              padrao={ppg?.modalidade ?? ""}
+              registro={register("modalidade")}
               opcoes={[
                 { valor: "ACADEMICO", texto: "Acadêmico" },
                 { valor: "PROFISSIONAL", texto: "Profissional" },
@@ -134,7 +142,7 @@ export function FormPpg({
               tipo="number"
               minimo="1"
               maximo="7"
-              padrao={ppg?.notaCapes ? String(ppg.notaCapes) : undefined}
+              registro={register("notaCapes")}
               // O protótipo sugeria até 5, e o PPG em Medicina Tropical tem 7 —
               // o limite errado teria transformado um dado real em erro.
               dica="De 1 a 7."
@@ -143,7 +151,7 @@ export function FormPpg({
             <Selecao
               rotulo="Situação"
               nome="situacao"
-              padrao={ppg?.situacao ?? "ATIVO"}
+              registro={register("situacao")}
               opcoes={[
                 { valor: "ATIVO", texto: "Ativo" },
                 { valor: "EM_IMPLANTACAO", texto: "Em implantação" },
@@ -154,19 +162,19 @@ export function FormPpg({
           <Texto
             rotulo="Área CAPES"
             nome="areaCapes"
-            padrao={ppg?.areaCapes ?? undefined}
+            registro={register("areaCapes")}
             placeholder="Ciências Ambientais"
           />
           <Marcador
             rotulo="Participa de rede nacional"
             nome="emRede"
-            padrao={ppg?.emRede}
+            registro={register("emRede")}
             dica="BIONORTE, REAMEC, PROFMAT, PROFSAÚDE… O recurso pode ser compartilhado com outras instituições."
           />
           <Texto
             rotulo="Rede acadêmica"
             nome="redeAcademica"
-            padrao={ppg?.redeAcademica ?? undefined}
+            registro={register("redeAcademica")}
             placeholder="BIONORTE"
             dica="Preencha se o programa marcar a opção acima."
           />
@@ -183,14 +191,15 @@ export function FormPpg({
           <Chips
             rotulo="Linhas de pesquisa"
             nome="linhasPesquisa"
-            padrao={ppg?.linhasPesquisa.map((l) => l.nome)}
+            valor={linhasPesquisa}
+            aoMudar={(itens) => setValue("linhasPesquisa", itens, { shouldValidate: true })}
             placeholder="Ecologia de ecossistemas amazônicos"
             dica="Enter também adiciona."
           />
           <AreaTexto
             rotulo="Observações"
             nome="observacoes"
-            padrao={ppg?.observacoes ?? undefined}
+            registro={register("observacoes")}
             placeholder="Qualquer informação que ajude quem for consultar este cadastro depois."
           />
         </>
@@ -200,7 +209,7 @@ export function FormPpg({
 
   return (
     <form
-      onSubmit={(evento) => submeterSemLimpar(evento, executar)}
+      onSubmit={handleSubmit((dados) => startTransition(() => executar(dados)))}
       className="flex min-h-0 flex-1 flex-col"
     >
       <Multistep
@@ -214,9 +223,7 @@ export function FormPpg({
   );
 }
 
-/** Ver a nota em `form-linha-plano.tsx` sobre `RadioNodeList`. */
 function valor(formulario: HTMLFormElement, campo: string): string {
   const elemento = formulario.elements.namedItem(campo);
-  if (elemento && "value" in elemento) return String(elemento.value).trim();
-  return "";
+  return elemento && "value" in elemento ? String(elemento.value).trim() : "";
 }

@@ -1,26 +1,21 @@
 "use server";
 
-import {
-  enviar,
-  lista,
-  numero,
-  texto,
-  type EstadoDaAcao,
-} from "@/lib/acao";
+import { enviar, lista, numero, texto, type EstadoDaAcao } from "@/lib/acao";
+import { payloadLinhaPlano, type DadosFormularioLinhaPlano } from "@/lib/formularios/plano";
 
 /** Server Actions do plano de aplicação (P10). */
 
 export async function criarLinhaDePlano(
   contexto: { programa: string; ciclo: string },
   _anterior: EstadoDaAcao,
-  formulario: FormData,
+  dados: DadosFormularioLinhaPlano | FormData,
 ): Promise<EstadoDaAcao> {
   const rota = `/programas/${contexto.programa}/${contexto.ciclo}/plano`;
 
   return enviar(
     rota,
     "POST",
-    corpoDaLinha(formulario),
+    dados instanceof FormData ? corpoDaLinha(dados) : payloadLinhaPlano(dados),
     [rota, "/", `/programas/${contexto.programa}/${contexto.ciclo}`],
     "Linha de planejamento criada.",
   );
@@ -29,7 +24,7 @@ export async function criarLinhaDePlano(
 export async function atualizarLinhaDePlano(
   contexto: { programa: string; ciclo: string; id: string },
   _anterior: EstadoDaAcao,
-  formulario: FormData,
+  dados: DadosFormularioLinhaPlano | FormData,
 ): Promise<EstadoDaAcao> {
   const rota = `/programas/${contexto.programa}/${contexto.ciclo}/plano`;
 
@@ -37,9 +32,9 @@ export async function atualizarLinhaDePlano(
     `${rota}/${contexto.id}`,
     "PATCH",
     {
-      ...corpoDaLinha(formulario),
-      status: texto(formulario, "status"),
-      justificativaEdicao: texto(formulario, "justificativaEdicao"),
+      ...(dados instanceof FormData ? corpoDaLinha(dados) : payloadLinhaPlano(dados)),
+      status: dados instanceof FormData ? texto(dados, "status") : dados.status || undefined,
+      justificativaEdicao: dados instanceof FormData ? texto(dados, "justificativaEdicao") : dados.justificativaEdicao || undefined,
     },
     [rota, "/", `/programas/${contexto.programa}/${contexto.ciclo}`],
     "Linha de planejamento atualizada.",

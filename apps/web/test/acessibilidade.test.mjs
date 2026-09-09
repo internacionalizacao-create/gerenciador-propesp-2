@@ -71,8 +71,8 @@ test("nenhuma coluna fica sem cabecalho legivel", async () => {
   // Cabecalho vazio deixa a coluna anonima para quem navega celula a celula.
   for (const caminho of [
     "src/app/(app)/programas/[programa]/[ciclo]/parceiros/[id]/page.tsx",
-    "src/app/(app)/catalogos/bolsas/page.tsx",
-    "src/app/(app)/catalogos/modalidades/page.tsx",
+    "src/componentes/consultas/lista-itens-catalogo.tsx",
+    "src/componentes/consultas/lista-modalidades.tsx",
   ]) {
     const fonte = await readFile(raiz(caminho), "utf8");
     assert.equal(

@@ -4,7 +4,7 @@ Documento de referência para quem (pessoa ou LLM) vai mexer neste repositório 
 tê-lo escrito. Descreve o que existe hoje, por que está assim, e o que ainda não
 existe. **Mantenha-o atualizado quando mudar arquitetura ou convenção.**
 
-Última revisão: 2026-09-08.
+Última revisão: 2026-09-09.
 
 ---
 
@@ -173,6 +173,7 @@ scripts/
   smoke-telas.sh           abre cada tela logado e confere os números
 docs/
   autenticacao.md          detalhamento da arquitetura de auth
+  migracao-ui.md           inventário e padrões da migração da UI local
 ```
 
 ---

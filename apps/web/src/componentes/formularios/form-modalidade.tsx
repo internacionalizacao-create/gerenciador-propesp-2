@@ -5,6 +5,7 @@ import { startTransition, useActionState } from "react";
 import { useForm } from "react-hook-form";
 
 import { atualizarModalidade, criarModalidade } from "@/acoes/catalogo";
+import { Botao } from "@/componentes/ui/botao";
 import { Marcador, Selecao, Texto } from "@/componentes/ui/campos";
 import { useErrosDaAcao } from "@/componentes/ui/formulario";
 import { AbrirSidesheet } from "@/componentes/ui/sidesheet";
@@ -128,24 +129,25 @@ function FormModalidade({
           </p>
         ) : null}
         <div className="flex justify-end gap-2">
-          <button
+          <Botao
             type="button"
             onClick={aoConcluir}
-            className="rounded-lg px-3 py-2 text-sm font-medium text-muted hover:text-foreground"
+            variante="fantasma"
+            tamanho="pequeno"
           >
             Cancelar
-          </button>
-          <button
+          </Botao>
+          <Botao
             type="submit"
             disabled={enviando}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary hover:bg-primary-hover disabled:opacity-60"
+            tamanho="pequeno"
           >
             {enviando
               ? "Salvando…"
               : modalidade
                 ? "Salvar alterações"
                 : "Cadastrar"}
-          </button>
+          </Botao>
         </div>
       </div>
     </form>

@@ -281,6 +281,20 @@ export function EstadoVazio({
   );
 }
 
+/** Reserva visual de conteudo que ainda esta sendo consultado no browser. */
+export function Esqueleto({
+  className = "",
+}: {
+  className?: string;
+}) {
+  return (
+    <div
+      aria-hidden="true"
+      className={`animate-pulse rounded-xl bg-surface-muted ${className}`}
+    />
+  );
+}
+
 /**
  * Aviso fixo de tela.
  *
@@ -304,7 +318,10 @@ export function Aviso({
   } as const;
 
   return (
-    <div className={`mb-6 rounded-2xl border-l-4 px-4 py-3.5 text-sm shadow-[0_10px_25px_-26px_var(--border-strong)] ${tons[tom]}`}>
+    <div
+      role={tom === "perigo" ? "alert" : undefined}
+      className={`mb-6 rounded-2xl border-l-4 px-4 py-3.5 text-sm shadow-[0_10px_25px_-26px_var(--border-strong)] ${tons[tom]}`}
+    >
       {titulo ? <p className="font-semibold">{titulo}</p> : null}
       <div className={titulo ? "mt-1" : ""}>{children}</div>
     </div>
@@ -315,5 +332,47 @@ export function Aviso({
 export function Cartoes({ children }: { children: ReactNode }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{children}</div>
+  );
+}
+
+/** Navegacao de paginas para listas cujo recorte esta representado na URL. */
+export function Paginacao({
+  pagina,
+  totalDePaginas,
+  href,
+}: {
+  pagina: number;
+  totalDePaginas: number;
+  /** Recebe a pagina de destino e devolve uma URL com os filtros preservados. */
+  href: (pagina: number) => string;
+}) {
+  if (totalDePaginas <= 1) return null;
+
+  return (
+    <nav aria-label="Paginação" className="mt-5 flex items-center justify-between gap-3">
+      {pagina > 1 ? (
+        <Link
+          href={href(pagina - 1)}
+          className="rounded-xl border border-border-strong bg-surface px-3 py-2 text-sm font-medium text-foreground hover:bg-surface-muted"
+        >
+          Anterior
+        </Link>
+      ) : (
+        <span aria-hidden="true" />
+      )}
+      <span className="text-sm text-muted">
+        Página {pagina} de {totalDePaginas}
+      </span>
+      {pagina < totalDePaginas ? (
+        <Link
+          href={href(pagina + 1)}
+          className="rounded-xl border border-border-strong bg-surface px-3 py-2 text-sm font-medium text-foreground hover:bg-surface-muted"
+        >
+          Próxima
+        </Link>
+      ) : (
+        <span aria-hidden="true" />
+      )}
+    </nav>
   );
 }

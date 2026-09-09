@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
+import { Aviso, Selo } from "@/componentes/ui/basicos";
+import { Botao } from "@/componentes/ui/botao";
 import { getSession } from "@/lib/auth";
 import { normalizarReturnTo } from "@/lib/auth-transaction";
 
@@ -121,9 +123,7 @@ export default async function LoginPage({
             </div>
 
             <div className="rounded-3xl border border-border bg-surface p-7 shadow-[0_24px_70px_-32px_var(--border-strong)] sm:p-10">
-              <span className="inline-flex rounded-full bg-primary-soft px-3 py-1 text-xs font-semibold text-on-primary-soft">
-                Ambiente institucional
-              </span>
+              <Selo tom="primario">Ambiente institucional</Selo>
               <h2 className="mt-5 text-3xl font-semibold tracking-[-0.035em] text-foreground">
                 Boas-vindas
               </h2>
@@ -133,48 +133,33 @@ export default async function LoginPage({
               </p>
 
               {erro ? (
-                <div
-                  role="alert"
-                  className="mt-6 flex gap-3 rounded-xl bg-danger-soft px-4 py-3 text-sm leading-5 text-on-danger-soft"
-                >
-                  <svg
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    className="mt-0.5 size-5 shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <circle cx="12" cy="12" r="9" />
-                    <path d="M12 7v6m0 4h.01" />
-                  </svg>
-                  <span>
+                <div className="mt-6">
+                  <Aviso tom="perigo" titulo="Não foi possível entrar">
                     {MENSAGENS_DE_ERRO[erro] ??
                       "Ocorreu um erro inesperado no login."}
-                  </span>
+                  </Aviso>
                 </div>
               ) : null}
 
               {/* Link e nao formulario: iniciar o login e uma navegacao GET, sem
                   efeito colateral no servidor alem do cookie da transacao. */}
-              <a
-                href={destinoLogin}
-                className="mt-8 flex w-full items-center justify-center gap-3 rounded-xl bg-primary px-5 py-3.5 text-sm font-semibold text-on-primary shadow-sm transition-[background-color,transform,box-shadow] hover:-translate-y-0.5 hover:bg-primary-hover hover:shadow-md active:translate-y-0"
-              >
-                Entrar com conta institucional
-                <svg
-                  aria-hidden="true"
-                  viewBox="0 0 24 24"
-                  className="size-4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M5 12h14m-5-5 5 5-5 5" />
-                </svg>
-              </a>
+              <Botao comoFilho className="mt-8 h-12 w-full">
+                <a href={destinoLogin}>
+                  Entrar com conta institucional
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    className="size-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M5 12h14m-5-5 5 5-5 5" />
+                  </svg>
+                </a>
+              </Botao>
 
               <div className="mt-6 flex items-start gap-3 border-t border-border pt-6">
                 <svg
