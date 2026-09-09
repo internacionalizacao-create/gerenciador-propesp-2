@@ -25,10 +25,9 @@ construído.
 | 6 | PPGs (lista + detalhe) | `/ppgs`, `/ppgs/[id]` | Média | [ ] |
 | 7 | Visão do ciclo | `.../[ciclo]` | Média | [ ] |
 | 8 | Comitê Gestor | `.../comite-gestor` | Baixa-média | [ ] |
-| 9 | Pendências | `/pendencias` | Baixa-média | [ ] |
-| 10 | Catálogo de bolsas | `/catalogos/bolsas` | Baixa | [ ] |
-| 11 | Modalidades e Configurações | `/catalogos/modalidades`, `/configuracoes` | Baixa | [ ] |
-| 12 | Parceiros (lista + histórico) | `.../parceiros`, `.../parceiros/[id]` | Média | [ ] |
+| 9 | Catálogo de bolsas | `/catalogos/bolsas` | Baixa | [ ] |
+| 10 | Modalidades e Configurações | `/catalogos/modalidades`, `/configuracoes` | Baixa | [ ] |
+| 11 | Parceiros (lista + histórico) | `.../parceiros`, `.../parceiros/[id]` | Média | [ ] |
 
 ---
 
@@ -152,7 +151,8 @@ A mais complexa. É a "tela mais importante do sistema" segundo a própria spec.
   quase tudo).
 - **Pontos finos:** `notaCapes` vai até 7 (não limitar a 5 — tem PPG com nota
   7); PPG de rede nacional (BIONORTE, REAMEC etc.) precisa do sinalizador de
-  recurso compartilhado.
+  recurso compartilhado. Desde 2026-09-08 o botão de cadastro/edição só aparece
+  para quem tem `ppg:write`, que é só o `admin`.
 
 **Observações:**
 
@@ -165,7 +165,7 @@ A mais complexa. É a "tela mais importante do sistema" segundo a própria spec.
 **Status da validação:** [ ] Validado
 
 - **Objetivo:** página-índice do ciclo, cartões de atalho com "número vivo"
-  (ex.: "Pendências · 13 abertas") para as demais telas.
+  (ex.: "PPGs participantes · 24 programas") para as demais telas.
 - **Base:** substitui a aba `Premissas` no papel de navegação central.
 - **Resolve:** menos cálculo próprio, mais "pra onde eu vou" — mas cada número
   vivo depende de outro serviço, então um número errado aqui geralmente é
@@ -204,27 +204,7 @@ A mais complexa. É a "tela mais importante do sistema" segundo a própria spec.
 
 ---
 
-## 9. Pendências
-
-**Rota** `/pendencias` · [page.tsx](../apps/web/src/app/(app)/pendencias/page.tsx)
-
-**Status da validação:** [ ] Validado
-
-- **Objetivo:** lista de trabalho da equipe (hoje 14 itens) com responsável,
-  prazo, status.
-- **Base:** substitui a aba `Pendencias` — que, segundo a spec, está
-  desatualizada até na própria planilha (ainda anuncia 10 itens).
-- **Resolve:** "decisão vira comentário solto" — aqui vira item de trabalho
-  rastreável.
-- **Pontos finos:** pendências de origem `AUTOMATICA` (geradas por divergência
-  de saldo, catálogo sem match, PPG duplicado) não podem ser excluídas, só
-  resolvidas — vale testar essa trava.
-
-**Observações:**
-
----
-
-## 10. Catálogo de bolsas
+## 9. Catálogo de bolsas
 
 **Rota** `/catalogos/bolsas` · [page.tsx](../apps/web/src/app/(app)/catalogos/bolsas/page.tsx)
 
@@ -235,15 +215,19 @@ A mais complexa. É a "tela mais importante do sistema" segundo a própria spec.
 - **Base:** substitui `Catálogo Bolsas`, `Bolsas Destino Brasil`,
   `Bolsas p Exterior`.
 - **Resolve:** é **a fonte de verdade de todo cálculo do sistema** (RN-01).
-  Validar essa tela é, na prática, validar a raiz de tudo que depende dela —
-  mas ela mesma é só leitura hoje, sem lógica própria além de mostrar os 60
-  valores certos.
+  Validar essa tela é, na prática, validar a raiz de tudo que depende dela.
+- **Pontos finos:** o `admin` publica e edita item (`catalogo:write`); os demais
+  perfis só leem, e nem veem os botões. Item **já usado** por linha de plano
+  mostra a contagem em "Em uso", abre o formulário com destino, modalidade,
+  vigência e valor como texto travado, e não oferece "Remover" — a API recusa
+  as duas coisas. Vale testar: publicar item novo destrava a combinação que a
+  P10 recusava com 422, e o valor de um item em uso continua intocável.
 
 **Observações:**
 
 ---
 
-## 11. Modalidades e Configurações
+## 10. Modalidades e Configurações
 
 **Rotas** `/catalogos/modalidades` · [page.tsx](../apps/web/src/app/(app)/catalogos/modalidades/page.tsx) — e `/configuracoes` · [page.tsx](../apps/web/src/app/(app)/configuracoes/page.tsx)
 
@@ -252,14 +236,17 @@ A mais complexa. É a "tela mais importante do sistema" segundo a própria spec.
 - **Objetivo:** catálogo auxiliar de modalidades de bolsa + conta do usuário
   (papéis e permissões).
 - **Base:** parte da P23 da spec (`/catalogos/modalidades` e `/configuracoes`).
-- **Resolve:** suporte às outras telas (não tem processo de negócio próprio) —
-  mais fácil de validar porque é essencialmente estática.
+- **Resolve:** suporte às outras telas (não tem processo de negócio próprio).
+- **Pontos finos:** cadastro e edição de modalidade são do `admin`. Os destinos
+  cobertos **não se editam à mão**: passam a valer quando o primeiro item de
+  catálogo daquele destino é publicado. Não há exclusão — desmarcar "ativa"
+  tira de circulação sem quebrar item nem bolsa que a citam.
 
 **Observações:**
 
 ---
 
-## 12. Parceiros (lista + histórico)
+## 11. Parceiros (lista + histórico)
 
 **Rotas** `.../parceiros` · [page.tsx](../apps/web/src/app/(app)/programas/[programa]/[ciclo]/parceiros/page.tsx) — e `.../parceiros/[id]` · [page.tsx](../apps/web/src/app/(app)/programas/[programa]/[ciclo]/parceiros/[id]/page.tsx)
 

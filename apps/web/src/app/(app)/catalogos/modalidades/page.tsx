@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 
 import {
+  EditarModalidade,
+  NovaModalidade,
+} from "@/componentes/formularios/form-modalidade";
+import {
   Celula,
   Pagina,
   Secao,
@@ -8,7 +12,7 @@ import {
   Tabela,
 } from "@/componentes/ui/basicos";
 import { apiFetch } from "@/lib/api";
-import type { Modalidade } from "@/lib/dominio";
+import type { Me, Modalidade } from "@/lib/dominio";
 import { inteiro, rotulo } from "@/lib/formato";
 
 export const metadata: Metadata = {
@@ -21,14 +25,22 @@ export const metadata: Metadata = {
  * Os destinos permitidos vêm do que o catálogo de fato cobre, e não de uma
  * marcação manual. É o que impede o formulário de oferecer uma combinação que a
  * tabela oficial não tem — e que resultaria num 422 evitável.
+ *
+ * Cadastro e edição são do `admin` (`catalogo:write`): a modalidade atravessa
+ * todos os PPGs, e quem planeja não decide o que existe para planejar.
  */
 export default async function Modalidades() {
-  const modalidades = await apiFetch<Modalidade[]>("/catalogo/modalidades");
+  const [modalidades, me] = await Promise.all([
+    apiFetch<Modalidade[]>("/catalogo/modalidades"),
+    apiFetch<Me>("/me"),
+  ]);
+  const podeEditar = me.permissions.includes("catalogo:write");
 
   return (
     <Pagina
       titulo="Modalidades de bolsa"
-      descricao="Lista fechada do CAPES Global, com os destinos cobertos pelo catálogo oficial. Não é permitido cadastrar novas modalidades."
+      descricao="As modalidades do CAPES Global, com os destinos cobertos pelo catálogo oficial."
+      acoes={podeEditar ? <NovaModalidade /> : undefined}
     >
       <Secao titulo="Modalidades">
         <Tabela
@@ -38,6 +50,14 @@ export default async function Modalidades() {
             { chave: "destinos", texto: "Destinos com valor publicado" },
             { chave: "itens", texto: "Itens no catálogo", alinhamento: "direita" },
             { chave: "ativa", texto: "Situação" },
+            ...(podeEditar
+              ? [
+                  {
+                    chave: "acoes",
+                    texto: <span className="sr-only">Ações</span>,
+                  },
+                ]
+              : []),
           ]}
         >
           {modalidades.map((m) => (
@@ -63,6 +83,11 @@ export default async function Modalidades() {
                   {m.ativa ? "Ativa" : "Inativa"}
                 </Selo>
               </Celula>
+              {podeEditar ? (
+                <Celula>
+                  <EditarModalidade modalidade={m} />
+                </Celula>
+              ) : null}
             </tr>
           ))}
         </Tabela>

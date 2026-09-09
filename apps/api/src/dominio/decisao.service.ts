@@ -9,6 +9,7 @@ import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 import type { AuthUser } from '../auth/auth-user';
+import { violouUnicidade } from '../comum/postgres';
 import { DRIZZLE, type Database } from '../database/database.module';
 import * as s from '../database/schema';
 import {
@@ -446,18 +447,4 @@ export class DecisaoService {
 /** Data de hoje em AAAA-MM-DD, para comparar com a data informada. */
 function hoje(): string {
   return new Date().toISOString().slice(0, 10);
-}
-
-/**
- * Violacao de unicidade do Postgres (`23505`).
- *
- * Verificado pelo **codigo**, e nao pela mensagem: a mensagem e localizavel e
- * muda entre versoes do servidor, e um `includes('duplicate key')` que parasse
- * de casar devolveria 500 de novo sem ninguem notar.
- */
-function violouUnicidade(erro: unknown): boolean {
-  if (typeof erro !== 'object' || erro === null) return false;
-  const codigo = (erro as { code?: unknown; cause?: { code?: unknown } }).code;
-  const causa = (erro as { cause?: { code?: unknown } }).cause?.code;
-  return codigo === '23505' || causa === '23505';
 }

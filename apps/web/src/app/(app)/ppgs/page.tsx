@@ -13,7 +13,7 @@ import {
   Tabela,
 } from "@/componentes/ui/basicos";
 import { apiFetch } from "@/lib/api";
-import type { LinhaPpg } from "@/lib/dominio";
+import type { LinhaPpg, Me } from "@/lib/dominio";
 import { inteiro, rotulo, somarMoeda } from "@/lib/formato";
 
 export const metadata: Metadata = {
@@ -25,9 +25,17 @@ export const metadata: Metadata = {
  *
  * As colunas de bolsas e custo são calculadas: a pergunta que a equipe faz
  * olhando um PPG nunca é "quais os dados dele", e sim "quanto ele recebe".
+ *
+ * Cadastro e edição são do `admin` (`ppg:write`): renomear ou reenquadrar um
+ * PPG muda o recorte de quem enxerga o quê e o plano de todos que apontam
+ * para ele.
  */
 export default async function Ppgs() {
-  const ppgs = await apiFetch<LinhaPpg[]>("/ppgs");
+  const [ppgs, me] = await Promise.all([
+    apiFetch<LinhaPpg[]>("/ppgs"),
+    apiFetch<Me>("/me"),
+  ]);
+  const podeEditar = me.permissions.includes("ppg:write");
 
   const semBolsa = ppgs.filter((p) => p.bolsasAno === 0);
   const emRede = ppgs.filter((p) => p.emRede);
@@ -36,7 +44,7 @@ export default async function Ppgs() {
     <Pagina
       titulo="Programas de Pós-Graduação"
       descricao="Todos os PPGs da UEA mapeados no sistema, com o que cada um recebe por ano."
-      acoes={<CadastroPpg />}
+      acoes={podeEditar ? <CadastroPpg /> : undefined}
     >
       <Cartoes>
         <Cartao titulo="PPGs mapeados" valor={inteiro(ppgs.length)} />

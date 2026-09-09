@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 
 import {
+  EditarItemCatalogo,
+  NovoItemCatalogo,
+  RemoverItemCatalogo,
+} from "@/componentes/formularios/form-item-catalogo";
+import {
   Cartao,
   Cartoes,
   Celula,
@@ -11,7 +16,7 @@ import {
   Tabela,
 } from "@/componentes/ui/basicos";
 import { apiFetch } from "@/lib/api";
-import type { TabelaVigente } from "@/lib/dominio";
+import type { Me, Modalidade, TabelaVigente } from "@/lib/dominio";
 import { data, inteiro, meses } from "@/lib/formato";
 
 export const metadata: Metadata = {
@@ -24,6 +29,12 @@ export const metadata: Metadata = {
  * **É a fonte de verdade de todo cálculo do sistema.** Nenhum custo de bolsa
  * nasce fora daqui: o plano de aplicação busca nesta tabela por
  * (destino, modalidade, vigência) e recusa o que não encontrar (RN-01).
+ *
+ * Publicar item é do `admin` (`catalogo:write`) e é o que destrava o cadastro
+ * manual das composições: sem item, a linha de plano não tem preço e a API a
+ * recusa. Item já usado por alguma linha tem chave e valor travados — a tabela
+ * é versionada justamente para que um planejamento aprovado não mude de custo
+ * por baixo.
  */
 export default async function CatalogoDeBolsas({
   searchParams,
@@ -31,9 +42,14 @@ export default async function CatalogoDeBolsas({
   searchParams: Promise<{ programa?: string }>;
 }) {
   const { programa = "capes-global" } = await searchParams;
-  const tabela = await apiFetch<TabelaVigente>(
-    `/catalogo/bolsas?programa=${encodeURIComponent(programa)}`,
-  );
+  const [tabela, modalidades, me] = await Promise.all([
+    apiFetch<TabelaVigente>(
+      `/catalogo/bolsas?programa=${encodeURIComponent(programa)}`,
+    ),
+    apiFetch<Modalidade[]>("/catalogo/modalidades"),
+    apiFetch<Me>("/me"),
+  ]);
+  const podeEditar = me.permissions.includes("catalogo:write");
 
   const brasil = tabela.itens.filter((i) => i.destino === "BRASIL");
   const exterior = tabela.itens.filter((i) => i.destino === "EXTERIOR");
@@ -42,6 +58,9 @@ export default async function CatalogoDeBolsas({
     <Pagina
       titulo="Catálogo de bolsas"
       descricao="A tabela oficial de valores. Todo custo de bolsa do sistema sai daqui."
+      acoes={
+        podeEditar ? <NovoItemCatalogo modalidades={modalidades} /> : undefined
+      }
     >
       <Cartoes>
         <Cartao titulo="Versão vigente" valor={tabela.versao} />
@@ -69,14 +88,23 @@ export default async function CatalogoDeBolsas({
         titulo="Bolsas com destino Brasil"
         descricao="Trazem alguém para a UEA — fluxo IN. Bolsa de até 15 dias vale 0,5 mês (RN-02)."
       >
-        <TabelaDeItens itens={brasil} />
+        <TabelaDeItens
+          itens={brasil}
+          modalidades={modalidades}
+          podeEditar={podeEditar}
+        />
       </Secao>
 
       <Secao
         titulo="Bolsas com destino exterior"
         descricao="Levam alguém da UEA para fora — fluxo OUT. O valor em reais já inclui o adicional de cidade de alto custo, estimado para 70% das bolsas."
       >
-        <TabelaDeItens itens={exterior} mostrarDolar />
+        <TabelaDeItens
+          itens={exterior}
+          modalidades={modalidades}
+          podeEditar={podeEditar}
+          mostrarDolar
+        />
       </Secao>
     </Pagina>
   );
@@ -84,9 +112,13 @@ export default async function CatalogoDeBolsas({
 
 function TabelaDeItens({
   itens,
+  modalidades,
+  podeEditar,
   mostrarDolar,
 }: {
   itens: TabelaVigente["itens"];
+  modalidades: Modalidade[];
+  podeEditar: boolean;
   mostrarDolar?: boolean;
 }) {
   return (
@@ -107,6 +139,12 @@ function TabelaDeItens({
         { chave: "brl", texto: "Valor R$", alinhamento: "direita" as const },
         { chave: "fonte", texto: "Fonte" },
         { chave: "obs", texto: "Observação" },
+        ...(podeEditar
+          ? [
+              { chave: "usos", texto: "Em uso", alinhamento: "direita" as const },
+              { chave: "acoes", texto: <span className="sr-only">Ações</span> },
+            ]
+          : []),
       ]}
     >
       {itens.map((item) => (
@@ -143,6 +181,19 @@ function TabelaDeItens({
           <Celula className="max-w-sm text-xs text-muted">
             {item.observacao ?? "—"}
           </Celula>
+          {podeEditar ? (
+            <>
+              <Celula direita className="text-xs text-muted">
+                {item.usos > 0 ? `${inteiro(item.usos)} linha(s)` : "—"}
+              </Celula>
+              <Celula>
+                <div className="flex items-center gap-1">
+                  <EditarItemCatalogo item={item} modalidades={modalidades} />
+                  <RemoverItemCatalogo item={item} />
+                </div>
+              </Celula>
+            </>
+          ) : null}
         </tr>
       ))}
     </Tabela>

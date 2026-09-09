@@ -323,6 +323,11 @@ export interface ItemCatalogo {
   observacao: string | null;
 }
 
+/** Item da listagem: `usos` diz quantas linhas de plano custeiam por ele. */
+export interface ItemCatalogoListado extends ItemCatalogo {
+  usos: number;
+}
+
 export interface TabelaVigente {
   id: string;
   versao: string;
@@ -332,7 +337,7 @@ export interface TabelaVigente {
   vigenteDe: string;
   vigenteAte: string | null;
   observacoes: string | null;
-  itens: ItemCatalogo[];
+  itens: ItemCatalogoListado[];
 }
 
 export interface RegistroAuditoriaPlano {
@@ -348,7 +353,7 @@ export interface RegistroAuditoriaPlano {
 export interface Modalidade {
   id: string;
   nome: string;
-  publicoAlvo: string;
+  publicoAlvo: "DOCENTE" | "DISCENTE" | "POS_DOC" | "AMBOS";
   permiteBrasil: boolean;
   permiteExterior: boolean;
   ativa: boolean;
@@ -412,23 +417,6 @@ export interface PpgDetalhe {
     tematica: string | null;
   }[];
   alertaTematicaDuplicada: string | null;
-}
-
-export interface Pendencia {
-  id: string;
-  codigo: string;
-  escopoTipo: string;
-  escopoDescricao: string | null;
-  assunto: string;
-  descricao: string;
-  impacto: string | null;
-  nivelImpacto: string | null;
-  responsavelSugerido: string | null;
-  prazoMomento: string | null;
-  status: "PENDENTE" | "EM_ANALISE" | "MONITORAR" | "RESOLVIDA";
-  origem: "MANUAL" | "AUTOMATICA";
-  resolucao: string | null;
-  resolvidaEm: string | null;
 }
 
 export interface Premissa {

@@ -71,11 +71,7 @@ export default async function RedesETematicas({
           {divergentes.map((a) => a.codigo).join(", ")} — o saldo calculado a
           partir do plano não bate com o valor de referência registrado. As
           linhas estão marcadas abaixo; abra a temática pelo código para
-          conferir os valores.{" "}
-          <Link href="/pendencias" className="font-medium underline">
-            Registrar pendência
-          </Link>
-          .
+          conferir os valores.
         </Aviso>
       ) : null}
 

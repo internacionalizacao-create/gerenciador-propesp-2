@@ -111,7 +111,6 @@ export function menu(
         // ciclo encerrado continua sendo dela.
         { rotulo: "Avisos", href: "/avisos", disponivel: true },
         { rotulo: "PPGs", href: "/ppgs", disponivel: true },
-        { rotulo: "Pendências", href: "/pendencias", disponivel: true },
         {
           rotulo: "Catálogo de bolsas",
           href: "/catalogos/bolsas",

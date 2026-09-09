@@ -1,8 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -11,7 +14,17 @@ import {
 import type { AuthUser } from '../auth/auth-user';
 import { CurrentUser, RequirePermission } from '../auth/auth.decorators';
 import { ZodValidationPipe } from '../comum/zod-validation.pipe';
-import { CatalogoService } from './catalogo.service';
+import {
+  atualizarItemCatalogoSchema,
+  atualizarModalidadeSchema,
+  CatalogoService,
+  criarItemCatalogoSchema,
+  criarModalidadeSchema,
+  type AtualizarItemCatalogo,
+  type AtualizarModalidade,
+  type CriarItemCatalogo,
+  type CriarModalidade,
+} from './catalogo.service';
 import {
   ppgParcialSchema,
   ppgSchema,
@@ -73,5 +86,63 @@ export class CatalogoController {
   @RequirePermission('catalogo:read')
   modalidades() {
     return this.catalogo.modalidades();
+  }
+
+  /**
+   * Publica um item na tabela vigente.
+   *
+   * `catalogo:write` e so do `admin`: o valor daqui e o preco de toda bolsa do
+   * sistema, e quem planeja nao deveria poder mexer no proprio preco.
+   */
+  @Post('bolsas')
+  @RequirePermission('catalogo:write')
+  criarItem(
+    @Body(new ZodValidationPipe(criarItemCatalogoSchema))
+    dto: CriarItemCatalogo,
+    @CurrentUser() usuario: AuthUser,
+    @Query('programa') programa = 'capes-global',
+  ) {
+    return this.catalogo.criarItem(programa, dto, usuario);
+  }
+
+  @Patch('bolsas/:id')
+  @RequirePermission('catalogo:write')
+  atualizarItem(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(atualizarItemCatalogoSchema))
+    dto: AtualizarItemCatalogo,
+    @CurrentUser() usuario: AuthUser,
+  ) {
+    return this.catalogo.atualizarItem(id, dto, usuario);
+  }
+
+  @Delete('bolsas/:id')
+  @HttpCode(204)
+  @RequirePermission('catalogo:write')
+  removerItem(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() usuario: AuthUser,
+  ) {
+    return this.catalogo.removerItem(id, usuario);
+  }
+
+  @Post('modalidades')
+  @RequirePermission('catalogo:write')
+  criarModalidade(
+    @Body(new ZodValidationPipe(criarModalidadeSchema)) dto: CriarModalidade,
+    @CurrentUser() usuario: AuthUser,
+  ) {
+    return this.catalogo.criarModalidade(dto, usuario);
+  }
+
+  @Patch('modalidades/:id')
+  @RequirePermission('catalogo:write')
+  atualizarModalidade(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(atualizarModalidadeSchema))
+    dto: AtualizarModalidade,
+    @CurrentUser() usuario: AuthUser,
+  ) {
+    return this.catalogo.atualizarModalidade(id, dto, usuario);
   }
 }

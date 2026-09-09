@@ -193,7 +193,6 @@ export function MenuLateral({ grupos }: { grupos: GrupoMenu[] }) {
 
 function IconeDaRota({ href }: { href: string }) {
   if (href === "/") return <IconePainel />;
-  if (href.includes("pendencias")) return <IconePendencia />;
   if (href.includes("ppgs")) return <IconePessoas />;
   if (href.includes("catalogos")) return <IconeCatalogo />;
   if (href.includes("orcamento") || href.includes("execucao")) return <IconeMoeda />;
@@ -210,7 +209,6 @@ function Svg({ children }: { children: ReactNode }) {
 
 function IconeMarca() { return <Svg><path d="M3 15c4 0 6.7-2.7 6.7-6.7"/><path d="M6.3 17.5c0-6 3-10 9.2-11.7"/><path d="M10.5 5.8c.8-2.3 3.1-3.3 5.8-3.3 0 3-1.3 5.3-4.2 6.2"/></Svg>; }
 function IconePainel() { return <Svg><path d="M3 10a7 7 0 1 1 14 0"/><path d="m10 10 3.5-3.5"/><path d="M4.5 15.5h11"/></Svg>; }
-function IconePendencia() { return <Svg><path d="M10 3 18 17H2L10 3Z"/><path d="M10 8v3.5m0 2.5v.01"/></Svg>; }
 function IconePessoas() { return <Svg><circle cx="7" cy="7" r="2.5"/><path d="M2.5 16c.5-3 2-4.5 4.5-4.5s4 1.5 4.5 4.5"/><path d="M12.5 5.3a2.5 2.5 0 0 1 0 4.4M14 11.5c2 0 3.2 1.5 3.5 4.5"/></Svg>; }
 function IconeCatalogo() { return <Svg><path d="M4 3h10a2 2 0 0 1 2 2v12H6a2 2 0 0 1-2-2V3Z"/><path d="M4 14.5c0-1.4.8-2.5 2.5-2.5H16M7 6h6"/></Svg>; }
 function IconeMoeda() { return <Svg><circle cx="10" cy="10" r="7"/><path d="M12.5 7.5H9a1.5 1.5 0 0 0 0 3h2a1.5 1.5 0 0 1 0 3H7.5M10 5.5v9"/></Svg>; }

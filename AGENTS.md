@@ -4,7 +4,7 @@ Documento de referência para quem (pessoa ou LLM) vai mexer neste repositório 
 tê-lo escrito. Descreve o que existe hoje, por que está assim, e o que ainda não
 existe. **Mantenha-o atualizado quando mudar arquitetura ou convenção.**
 
-Última revisão: 2026-09-07.
+Última revisão: 2026-09-08.
 
 ---
 
@@ -107,7 +107,7 @@ apps/
         bolsistas.service.ts  P03 — concessões, datas, alertas e produtos individuais
         ciclo.service.ts      P06/P07/P08/P17 e dados internos de premissas/fontes
         ppgs.service.ts       P14
-        pendencias.service.ts P13
+        pendencias.service.ts P13 (sem tela; consulta e resolucao pela API)
         comite-gestor.service.ts  P17 — pessoas e equipes
         missoes-comite.service.ts P17 — criação, consulta, edição, ciclo de vida e relato de missões
         resultados.service.ts  CG-056 — produtos da missão e convênios do parceiro
@@ -132,7 +132,7 @@ apps/
         dominio.ts         espelho dos tipos da API
         formato.ts         moeda, percentual, rótulos de enum, somarMoeda
         navegacao.ts       menu, incluindo o que ainda não existe
-      acoes/               Server Actions (ppgs, plano, bolsistas, pendencias)
+      acoes/               Server Actions (ppgs, plano, bolsistas, catalogo)
       componentes/
         layout/            menu lateral, sub-nav do ciclo, troca de tema
         ui/sidesheet.tsx   painel lateral sobre <dialog> nativo
@@ -154,8 +154,7 @@ apps/
           page.tsx                    P01 painel executivo
           programas/                  P05 e as telas do ciclo (P06..P10, P17)
           ppgs/                       P14 lista e detalhe
-          pendencias/                 P13
-          catalogos/                  P15 e P23
+          catalogos/                  P15 e P23, com cadastro e edicao (admin)
           configuracoes/              conta, papéis e permissões
         api/auth/login|callback|logout/route.ts   fluxo OIDC
         api/bff/[...path]/route.ts                proxy browser -> API
@@ -574,14 +573,48 @@ o ícone estiver visível.
   ([apps/api/src/database/seed/](apps/api/src/database/seed/)): 24 PPGs, 60 itens
   de catálogo, 23 linhas de plano (18 aprovadas, 4 UFMG pendentes e 1 cancelada),
   48 orçamentos anuais e 14 pendências históricas (5 abertas).
+  **A produção sobe com essa mesma seed completa** (decisão de 2026-09-08) e a
+  equipe corrige pela interface — é o que mantém o teste de aceite valendo
+  contra a base que de fato é carregada. As correções confirmadas depois da
+  extração ficam em
+  [dados-capes-global.ts](apps/api/src/database/seed/dados-capes-global.ts), e
+  não no arquivo gerado pelo `extrair-planilhas.py`: uma nova extração não pode
+  apagar decisão de negócio que não estava na planilha.
 - **Serviços de cálculo**: RN-01 a RN-20 em
   [apps/api/src/dominio/](apps/api/src/dominio/), todos em SQL e sem nenhum
   derivado persistido. A API expõe programas, ciclo, redes, temáticas, orçamento,
   plano, bolsas concedidas e produtos individuais, comitê gestor, premissas,
   PPGs, pendências e catálogo.
-- **Telas de planejamento**: P01, P05, P06, P07, P08, P09, P10, P13, P14, P15,
+- **Telas de planejamento**: P01, P05, P06, P07, P08, P09, P10, P14, P15,
   P17, Parceiros e as configurações da conta. Cadastro de PPG e de linha de plano em
-  sidesheet com formulário em etapas; pendência em sidesheet simples.
+  sidesheet com formulário em etapas.
+- **Cadastro institucional é do `admin`** (decisão de 2026-09-08). Catálogo de
+  bolsas, modalidades e PPGs têm cadastro e edição pela interface, e as três
+  telas escondem os botões de quem não tem a permissão. `ppg:write` **saiu do
+  `coordenador`** na mesma decisão: renomear ou reenquadrar um PPG mexe no
+  recorte de quem vê o quê e no plano de todos que apontam para ele.
+  - **Publicar item de catálogo é livre; alterar item em uso não é.** Se a
+    combinação (destino, modalidade, vigência) não existia, nenhuma linha de
+    plano podia estar usando-a — item novo não muda custo nenhum já calculado,
+    e é ele que destrava o cadastro manual da composição, que antes morria no
+    422 de RN-01 sem saída que não fosse migração. Já um item citado por linha
+    de plano tem destino, modalidade, vigência e valor **travados**: reescrever
+    o preço mudaria, em silêncio, o custo de um planejamento aprovado — é para
+    isso que a tabela é versionada. Fonte, observação e valor em dólar seguem
+    editáveis porque nenhum cálculo os lê. A tela mostra a contagem de usos
+    antes de abrir o formulário, e o campo travado vira texto em vez de input
+    desabilitado (React Hook Form devolve `undefined` para campo desabilitado, e
+    o payload chegaria sem destino nem valor).
+  - Não há exclusão de item **em uso**, só do que nunca foi usado — o erro de
+    digitação recém-cometido. Modalidade não se exclui nunca: `ativa = false`.
+  - `permiteBrasil`/`permiteExterior` continuam **derivados do catálogo**, e o
+    serviço os atualiza ao publicar o primeiro item de cada destino. Marcá-los à
+    mão ofereceria, na P10, combinação que `resolverItem` recusaria depois.
+- **P13 não tem mais tela** (decisão de 2026-09-08). As pendências continuam na
+  seed, no banco e na API (`GET/POST /:programa/:ciclo/pendencias`,
+  `PATCH /pendencias/:id`) para consulta e resolução; o que saiu foi a página,
+  o item de menu e o cartão do painel do ciclo. O smoke de login usa `/ppgs`
+  como rota protegida de referência.
 - **Edição anual de orçamento**: P09 permite ao `admin` alterar as três rubricas
   de uma área temática em um exercício, registrar fonte, situação, justificativa
   e auditoria por campo. O consolidado da rede continua calculado.
@@ -1039,8 +1072,10 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
 - **Testes**: 161 unitários/regressões (68 API + 93 na web para toast, datas,
   React Hook Form/Zod, erros do multistep, formulários de parceiro,
   acessibilidade, contraste dos tokens, cálculos monetários, montagem de série
-  do gráfico, links do painel e caminhos do BFF) + 480 de integração contra Postgres
-  real. As duas garantias de não duplicação da linha
+  do gráfico, links do painel e caminhos do BFF) + 488 de integração contra Postgres
+  real — os oito últimos são a escrita do catálogo
+  ([catalogo.int-spec.ts](apps/api/test/catalogo.int-spec.ts)), incluindo a
+  recusa de alterar item que já custeia linha de plano. As duas garantias de não duplicação da linha
   histórica do parceiro foram verificadas por mutação: trocar o `exists` +
   `selectDistinct` por um `join` faz ambas falharem.
 - **Base de interface para o que vem**: `Recharts` com o primeiro gráfico na P09

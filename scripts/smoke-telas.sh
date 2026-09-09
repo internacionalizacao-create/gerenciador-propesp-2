@@ -227,7 +227,6 @@ else
 fi
 testar "/mobilidade/bolsistas"                              "Bolsistas e bolsas concedidas"
 testar "/ppgs"                                               "PPG CLIAMB"
-testar "/pendencias"                                         "PEND-001"
 testar "/catalogos/bolsas"                                   "CAT-053"
 testar "/catalogos/bolsas"                                   "82.902,20"
 testar "/catalogos/modalidades"                              "Doutorado Sanduíche"

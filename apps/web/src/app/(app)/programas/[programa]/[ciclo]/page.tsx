@@ -94,12 +94,6 @@ export default async function VisaoDoCiclo({
             numero={`${inteiro(resumo.ppgs)} programas de pós-graduação`}
           />
           <Atalho
-            href="/pendencias"
-            titulo="Pendências"
-            numero={`${inteiro(resumo.pendenciasAbertas)} em aberto`}
-            aviso={resumo.pendenciasAbertas > 0 ? "aguardando decisão" : undefined}
-          />
-          <Atalho
             href={`${base}/comite-gestor`}
             titulo="Comitê Gestor"
             numero="Orçamento paralelo, não somável"

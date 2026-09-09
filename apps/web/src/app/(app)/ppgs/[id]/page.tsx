@@ -12,7 +12,7 @@ import {
   Tabela,
 } from "@/componentes/ui/basicos";
 import { apiFetch } from "@/lib/api";
-import type { PpgDetalhe } from "@/lib/dominio";
+import type { Me, PpgDetalhe } from "@/lib/dominio";
 import { inteiro, meses, rotulo, somarMoeda } from "@/lib/formato";
 
 /** P14 · detalhe do PPG. */
@@ -22,7 +22,11 @@ export default async function DetalheDoPpg({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const ppg = await apiFetch<PpgDetalhe>(`/ppgs/${id}`);
+  const [ppg, me] = await Promise.all([
+    apiFetch<PpgDetalhe>(`/ppgs/${id}`),
+    apiFetch<Me>("/me"),
+  ]);
+  const podeEditar = me.permissions.includes("ppg:write");
 
   return (
     <Pagina
@@ -36,7 +40,7 @@ export default async function DetalheDoPpg({
           </Link>
         </>
       }
-      acoes={<CadastroPpg ppg={ppg} />}
+      acoes={podeEditar ? <CadastroPpg ppg={ppg} /> : undefined}
     >
       {ppg.alertaTematicaDuplicada ? (
         <Aviso tom="aviso" titulo="Participação duplicada">

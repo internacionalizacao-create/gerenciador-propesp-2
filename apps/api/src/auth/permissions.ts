@@ -121,10 +121,15 @@ export const ROLE_PERMISSIONS: Readonly<Record<string, readonly Permission[]>> =
     /**
      * Coordenacao de PPG: lanca o que e do seu PPG e le o consolidado.
      * Nao edita orcamento nem catalogo — sao atos que atravessam PPGs (§3.5).
+     *
+     * **`ppg:write` saiu em 2026-09-08**, por decisao do responsavel: o
+     * cadastro institucional (PPGs, modalidades e catalogo de bolsas) e ato do
+     * administrador do sistema. Um PPG renomeado ou reenquadrado pela propria
+     * coordenacao mudaria o recorte de quem enxerga o que, e o plano de todo
+     * mundo que aponta para ele.
      */
     coordenador: [
       ...SOMENTE_LEITURA,
-      'ppg:write',
       'plano:write',
       'bolsa:write',
       'produto:write',

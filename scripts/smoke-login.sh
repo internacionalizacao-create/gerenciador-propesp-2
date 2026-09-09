@@ -30,7 +30,7 @@ contem() { grep -q -- "$2" <<<"$1" && echo sim || echo nao; }
 
 titulo "1. Inicio do fluxo — GET /api/auth/login"
 AUTH_URL=$(curl -s -o /dev/null -w '%{redirect_url}' -c "$JAR" \
-  "${WEB}/api/auth/login?returnTo=/pendencias")
+  "${WEB}/api/auth/login?returnTo=/ppgs")
 if [[ -z "$AUTH_URL" ]]; then
   falha "a app nao redirecionou para o Keycloak (ela esta rodando?)"
   exit 1
@@ -52,7 +52,7 @@ checa "$(contem "$CALLBACK" 'code=')" "Keycloak devolveu um authorization code"
 
 titulo "3. Troca do code por tokens — GET /api/auth/callback"
 DESTINO=$(curl -s -o /dev/null -w '%{redirect_url}' -c "$JAR" -b "$JAR" "$CALLBACK")
-checa "$(contem "$DESTINO" '/pendencias')" "redirecionou para o returnTo"
+checa "$(contem "$DESTINO" '/ppgs')" "redirecionou para o returnTo"
 checa "$(grep -q 'gr_session.0' "$JAR" && echo sim || echo nao)" "sessao gravada em cookie"
 checa "$(grep -q '#HttpOnly_' "$JAR" && echo sim || echo nao)" "cookie marcado HttpOnly"
 
@@ -107,8 +107,8 @@ checa "$([[ "$SEM" == "401" ]] && echo sim || echo nao)" "GET /me direto na API 
 titulo "8. Logout"
 SAIDA=$(curl -s -o /dev/null -w '%{redirect_url}' -b "$JAR" -c "$JAR" -X POST "${WEB}/api/auth/logout")
 checa "$(contem "$SAIDA" 'protocol/openid-connect/logout')" "logout tambem encerra a sessao no Keycloak"
-APOS=$(curl -s -o /dev/null -w '%{redirect_url}' -b "$JAR" "${WEB}/pendencias")
-checa "$(contem "$APOS" '/login')" "/pendencias volta a exigir login"
+APOS=$(curl -s -o /dev/null -w '%{redirect_url}' -b "$JAR" "${WEB}/ppgs")
+checa "$(contem "$APOS" '/login')" "/ppgs volta a exigir login"
 
 titulo "Resultado"
 if [[ "$FALHAS" -eq 0 ]]; then

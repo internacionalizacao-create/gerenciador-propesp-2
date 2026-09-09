@@ -56,15 +56,23 @@ describe('permissionsForRoles', () => {
     }
   });
 
-  it('reserva orcamento e catalogo a PROPESP', () => {
+  it('reserva orcamento, catalogo e cadastro de PPG a PROPESP', () => {
     // §3.5: acoes que atravessam PPGs — definir orcamento, publicar catalogo —
     // nao pertencem a quem coordena um PPG so. Este teste e o que impede a
     // regra de se perder num ajuste distraido do mapa.
+    //
+    // `ppg:write` entrou na lista em 2026-09-08: o cadastro institucional
+    // (PPG, modalidade e catalogo) passou a ser exclusivo do administrador.
     for (const papel of ['coordenador', 'secretaria', 'docente', 'discente']) {
       const permissoes = permissionsForRoles([papel]);
       expect(permissoes).not.toContain('orcamento:write');
       expect(permissoes).not.toContain('catalogo:write');
+      expect(permissoes).not.toContain('ppg:write');
     }
+
+    expect(permissionsForRoles(['admin'])).toEqual(
+      expect.arrayContaining(['ppg:write', 'catalogo:write']),
+    );
   });
 
   it('reserva comite gestor, missoes e prestacoes ao admin nesta etapa', () => {
