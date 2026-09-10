@@ -64,7 +64,7 @@ export class EscopoMissaoGuard implements CanActivate {
     )
       return true;
 
-    throw new NotFoundException('Missao nao encontrada neste ciclo');
+    throw new NotFoundException('Missão não encontrada neste ciclo');
   }
 
   /**

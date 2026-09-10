@@ -119,28 +119,28 @@ export class PainelService {
           rotulo: 'Aporte anual conhecido',
           valor: aporteAnual,
           formato: 'moeda',
-          nota: `Exercicio ${anoBase}. Nao inclui redes sem orcamento definido.`,
+          nota: `Exercício ${anoBase}. Não inclui redes sem orçamento definido.`,
         },
         {
           chave: 'projecao-ciclo',
-          rotulo: 'Projecao do ciclo',
+          rotulo: 'Projeção do ciclo',
           valor: aporteCiclo,
           formato: 'moeda',
-          nota: `${ciclo.anos.length} exercicios, valor nominal repetido (RN-09).`,
+          nota: `${ciclo.anos.length} exercícios, valor nominal repetido (RN-09).`,
         },
         {
           chave: 'bolsas-ano',
           rotulo: 'Bolsas programadas/ano',
           valor: bolsasAno,
           formato: 'inteiro',
-          nota: 'Soma de quantidades, nao de linhas de planejamento (RN-11).',
+          nota: 'Soma de quantidades, não de linhas de planejamento (RN-11).',
         },
         {
           chave: 'custo-bolsas-ano',
           rotulo: 'Custo anual das bolsas',
           valor: custoAnual,
           formato: 'moeda',
-          nota: 'Quantidade x valor do catalogo vigente (RN-01, RN-04).',
+          nota: 'Quantidade x valor do catálogo vigente (RN-01, RN-04).',
         },
         {
           chave: 'ppgs',
@@ -159,11 +159,11 @@ export class PainelService {
           rotulo: 'Saldo potencial/ano',
           valor: saldoAnual,
           formato: 'moeda',
-          nota: 'Orcamento de bolsas menos o custo programado (RN-06).',
+          nota: 'Orçamento de bolsas menos o custo programado (RN-06).',
         },
         {
           chave: 'pendencias',
-          rotulo: 'Pendencias abertas',
+          rotulo: 'Pendências abertas',
           valor: contagens.pendenciasAbertas,
           formato: 'inteiro',
         },
@@ -341,10 +341,10 @@ export class PainelService {
       alertas.push({
         chave: 'tematicas-sem-orcamento',
         nivel: 'ALTA',
-        titulo: 'Areas tematicas sem orcamento definido',
+        titulo: 'Áreas temáticas sem orçamento definido',
         detalhe:
-          'Ficam de fora de todo indicador financeiro. Nao entram como zero — ' +
-          'entrariam distorcendo medias e percentuais.',
+          'Ficam de fora de todo indicador financeiro. Não entram como zero — ' +
+          'entrariam distorcendo médias e percentuais.',
         quantidade: contagens.tematicasSemOrcamento,
         destino: `${base}/redes`,
       });
@@ -367,7 +367,7 @@ export class PainelService {
       alertas.push({
         chave: 'divergencia-saldo',
         nivel: 'ALTA',
-        titulo: 'Divergencia entre saldo calculado e saldo informado',
+        titulo: 'Divergência entre saldo calculado e saldo informado',
         detalhe:
           `Em ${divergentes.map((d) => d.codigo).join(', ')}. ` +
           'O sistema calculou um saldo diferente do que o anexo da rede alegava (RN-08).',
@@ -382,7 +382,7 @@ export class PainelService {
         nivel: 'MEDIA',
         titulo: 'PPGs sem nenhuma bolsa programada',
         detalhe:
-          'Estao mapeados e participam de uma tematica, mas nao tem linha de ' +
+          'Estão mapeados e participam de uma temática, mas não têm linha de ' +
           'planejamento programada neste ciclo.',
         quantidade: contagens.ppgsSemBolsa,
         destino: '/ppgs',
@@ -393,26 +393,20 @@ export class PainelService {
       alertas.push({
         chave: 'apoio-nao-programado',
         nivel: 'MEDIA',
-        titulo: 'Manutencao e missoes sem plano de aplicacao',
+        titulo: 'Manutenção e missões sem plano de aplicação',
         detalhe:
-          `R$ ${deCentavos(apoioNaoProgramado)} por ano com orcamento e sem ` +
+          `R$ ${deCentavos(apoioNaoProgramado)} por ano com orçamento e sem ` +
           'item planejado. Os anexos informam o valor global das rubricas, mas ' +
-          'nao detalham em que sera gasto.',
+          'não detalham em que será gasto.',
         quantidade: 1,
         destino: `${base}/plano`,
       });
     }
 
-    if (contagens.pendenciasAbertas > 0) {
-      alertas.push({
-        chave: 'pendencias',
-        nivel: 'BAIXA',
-        titulo: 'Pendencias em aberto',
-        detalhe: 'Decisoes e confirmacoes que travam parte do planejamento.',
-        quantidade: contagens.pendenciasAbertas,
-        destino: '/pendencias',
-      });
-    }
+    // A P13 perdeu a tela na decisao de 2026-09-08, e o alerta ficou orfao
+    // apontando para `/pendencias`, rota que nao existe mais: o card era um
+    // link para 404. A contagem continua visivel no indicador "Pendencias
+    // abertas", que nao navega. Se a tela voltar, o alerta volta com ela.
 
     return alertas;
   }

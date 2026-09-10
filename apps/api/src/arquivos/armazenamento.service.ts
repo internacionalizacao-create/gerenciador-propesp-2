@@ -55,7 +55,7 @@ export class ArmazenamentoService {
     const alvo = resolve(join(this.raiz, chave));
     if (alvo !== this.raiz && !alvo.startsWith(this.raiz + sep)) {
       this.log.error(`Chave de armazenamento fora da raiz: ${chave}`);
-      throw new Error('Chave de armazenamento invalida.');
+      throw new Error('Chave de armazenamento inválida.');
     }
     return alvo;
   }

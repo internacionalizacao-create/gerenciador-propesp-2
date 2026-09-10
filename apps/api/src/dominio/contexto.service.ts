@@ -61,7 +61,7 @@ export class ContextoService {
 
     if (!linha) {
       throw new NotFoundException(
-        `Ciclo "${cicloNome}" do programa "${programaSlug}" nao encontrado.`,
+        `Ciclo "${cicloNome}" do programa "${programaSlug}" não encontrado.`,
       );
     }
 

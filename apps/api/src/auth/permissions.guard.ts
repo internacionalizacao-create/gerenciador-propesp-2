@@ -48,7 +48,7 @@ export class PermissionsGuard implements CanActivate {
       // A mensagem diz o que faltou, nao o que o usuario tem: ajuda o suporte
       // sem expor o desenho de permissoes de quem nao deveria ve-lo.
       throw new ForbiddenException(
-        `Acesso negado. Permissao necessaria: ${faltando.join(', ')}`,
+        `Acesso negado. Permissão necessária: ${faltando.join(', ')}`,
       );
     }
 

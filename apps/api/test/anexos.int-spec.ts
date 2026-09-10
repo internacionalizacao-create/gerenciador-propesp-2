@@ -206,7 +206,7 @@ describe('AnexosService (CG-051)', () => {
   it('recusa executavel com extensao de PDF', async () => {
     // O criterio de aceite: arquivo invalido e recusado.
     await expect(service.enviar(envio(), EXE(), admin)).rejects.toThrow(
-      /Formato nao aceito/i,
+      /Formato não aceito/i,
     );
     // E nada foi gravado em disco nem no banco.
     expect(await ctx.db.select().from(s.anexo)).toEqual([]);
@@ -232,7 +232,7 @@ describe('AnexosService (CG-051)', () => {
         arquivo('comprovante.pdf\r\nX-Injetado: sim', PDF().buffer),
         admin,
       ),
-    ).rejects.toThrow(/Nome de arquivo invalido/i);
+    ).rejects.toThrow(/Nome de arquivo inválido/i);
     expect(await ctx.db.select().from(s.anexo)).toEqual([]);
   });
 
@@ -245,7 +245,7 @@ describe('AnexosService (CG-051)', () => {
         PDF(),
         admin,
       ),
-    ).rejects.toThrow(/nao existe/i);
+    ).rejects.toThrow(/não existe/i);
   });
 
   it('id existente de documento financeiro nao amplia permissao por referencia direta', async () => {
@@ -267,7 +267,7 @@ describe('AnexosService (CG-051)', () => {
     );
     await expect(
       service.baixar('11111111-1111-4111-8111-111111111111', admin),
-    ).rejects.toThrow(/nao encontrado/i);
+    ).rejects.toThrow(/não encontrado/i);
   });
 
   it('aplica a permissao da entidade de destino, nao uma do documento', async () => {
@@ -491,7 +491,7 @@ describe('AnexosService (CG-051)', () => {
         PDF(),
         admin,
       ),
-    ).rejects.toThrow(/nao e compativel/i);
+    ).rejects.toThrow(/não é compatível/i);
   });
 
   it('mantem o documento individual de cada cotacao', async () => {
@@ -533,7 +533,7 @@ describe('AnexosService (CG-051)', () => {
         PDF(),
         admin,
       ),
-    ).rejects.toThrow(/categoria COTACAO/i);
+    ).rejects.toThrow(/categoria Cotação/i);
   });
 
   it('substitui documento de cotacao sem perder o vinculo nem a versao', async () => {

@@ -230,7 +230,7 @@ describe('Documentos do bolsista (BOL-021)', () => {
         PDF(),
         admin,
       ),
-    ).rejects.toThrow('nao e aceita em documento de bolsista');
+    ).rejects.toThrow('não é aceita em documento de bolsista');
   });
 
   it('PESSOAL nao vale fora de bolsista', async () => {
@@ -261,7 +261,7 @@ describe('Documentos do bolsista (BOL-021)', () => {
     // Conhecer o UUID da bolsa alheia nao basta — nem para ler, nem para subir.
     await expect(
       enviar('CARTA_ACEITE', coordenador, bolsaDeForaId),
-    ).rejects.toThrow('Documento nao encontrado.');
+    ).rejects.toThrow('Documento não encontrado.');
 
     await expect(
       service.listar(
@@ -272,7 +272,7 @@ describe('Documentos do bolsista (BOL-021)', () => {
         },
         coordenador,
       ),
-    ).rejects.toThrow('Documento nao encontrado.');
+    ).rejects.toThrow('Documento não encontrado.');
   });
   it('a decisao do Comite aceita somente ata (BOL-052)', async () => {
     const [missao] = await ctx.db

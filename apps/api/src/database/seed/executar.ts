@@ -16,7 +16,7 @@ import { bancoTemDados, executarSeed } from './seed';
  */
 async function main(): Promise<void> {
   const url = process.env.DATABASE_URL;
-  if (!url) throw new Error('DATABASE_URL nao definida.');
+  if (!url) throw new Error('DATABASE_URL não definida.');
 
   const reset = process.argv.includes('--reset');
   const pool = new Pool({ connectionString: url, max: 2 });
@@ -26,7 +26,7 @@ async function main(): Promise<void> {
     if (await bancoTemDados(db)) {
       if (!reset) {
         throw new Error(
-          'O banco ja tem dados. Use --reset para APAGAR tudo e semear de novo.',
+          'O banco já tem dados. Use --reset para APAGAR tudo e semear de novo.',
         );
       }
       console.log('Apagando dados de dominio...');

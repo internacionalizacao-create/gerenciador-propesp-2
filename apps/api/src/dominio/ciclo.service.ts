@@ -88,7 +88,7 @@ export class CicloService {
     const doCodigo = anos.filter((t) => t.codigo === codigo);
 
     if (doCodigo.length === 0) {
-      throw new NotFoundException(`Area tematica "${codigo}" nao encontrada.`);
+      throw new NotFoundException(`Área temática "${codigo}" não encontrada.`);
     }
 
     const base = doCodigo.find((t) => t.ano === ciclo.anoInicio) ?? doCodigo[0];
@@ -187,8 +187,8 @@ export class CicloService {
       ),
       totalCiclo: somarMoeda(linhas.map((l) => l.valorAnual)),
       aviso:
-        'Este orcamento nao integra o orcamento de bolsas do CAPES Global ' +
-        '(RN-14). Somar os dois superestima o recurso disponivel para bolsas.',
+        'Este orçamento não integra o orçamento de bolsas do CAPES Global ' +
+        '(RN-14). Somar os dois superestima o recurso disponível para bolsas.',
     };
   }
 

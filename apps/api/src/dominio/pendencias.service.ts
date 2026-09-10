@@ -50,7 +50,7 @@ export const atualizarPendenciaSchema = z
     {
       // Resolver sem dizer como e o que transformava a planilha num cemiterio de
       // itens "OK" que ninguem sabia explicar meses depois.
-      message: 'Resolver exige o texto da resolucao (minimo 10 caracteres).',
+      message: 'Resolver exige o texto da resolução (mínimo 10 caracteres).',
       path: ['resolucao'],
     },
   );
@@ -114,7 +114,7 @@ export class PendenciasService {
       .where(eq(s.pendencia.id, id))
       .limit(1);
 
-    if (!existente) throw new NotFoundException('Pendencia nao encontrada.');
+    if (!existente) throw new NotFoundException('Pendência não encontrada.');
 
     const [atualizada] = await this.db
       .update(s.pendencia)
@@ -140,11 +140,11 @@ export class PendenciasService {
       .where(eq(s.pendencia.id, id))
       .limit(1);
 
-    if (!pendencia) throw new NotFoundException('Pendencia nao encontrada.');
+    if (!pendencia) throw new NotFoundException('Pendência não encontrada.');
 
     if (pendencia.origem === 'AUTOMATICA') {
       throw new ForbiddenException(
-        `${pendencia.codigo} foi detectada pelo sistema e nao pode ser excluida. ` +
+        `${pendencia.codigo} foi detectada pelo sistema e não pode ser excluída. ` +
           'Resolva-a, informando o que foi feito.',
       );
     }

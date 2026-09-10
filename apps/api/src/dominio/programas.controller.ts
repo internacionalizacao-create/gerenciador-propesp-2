@@ -238,7 +238,7 @@ export class ProgramasController {
       .where(and(eq(s.programa.slug, slug), eq(s.programa.ativo, true)))
       .limit(1);
 
-    if (!programa) throw new NotFoundException('Programa nao encontrado.');
+    if (!programa) throw new NotFoundException('Programa não encontrado.');
 
     const ciclos = await this.db
       .select({
@@ -569,10 +569,10 @@ export class ProgramasController {
     @Res() resposta: Response,
   ) {
     if (!RELATORIOS.includes(qual as NomeDeRelatorio)) {
-      throw new NotFoundException('Relatorio nao encontrado.');
+      throw new NotFoundException('Relatório não encontrado.');
     }
     if (!FORMATOS.includes(formato as Formato)) {
-      throw new NotFoundException('Formato nao suportado.');
+      throw new NotFoundException('Formato não suportado.');
     }
     // Financas guarda despesa; ler o consolidado dela exige a mesma permissao
     // que abrir a prestacao de uma missao.
@@ -581,7 +581,7 @@ export class ProgramasController {
       !usuario.permissions.includes('prestacao:read')
     ) {
       throw new ForbiddenException(
-        'Acesso negado. Permissao necessaria: prestacao:read',
+        'Acesso negado. Permissão necessária: prestacao:read',
       );
     }
 

@@ -55,21 +55,21 @@ function refinarParticipante(
       contexto.addIssue({
         code: 'custom',
         path: ['membroEquipeId'],
-        message: 'Pessoa nova ainda nao possui vinculo de equipe.',
+        message: 'Pessoa nova ainda não possui vínculo de equipe.',
       });
     }
     if (Boolean(valor.dataInicio) !== Boolean(valor.dataFim)) {
       contexto.addIssue({
         code: 'custom',
         path: [valor.dataInicio ? 'dataFim' : 'dataInicio'],
-        message: 'Informe o inicio e o fim da participacao.',
+        message: 'Informe o início e o fim da participação.',
       });
     }
     if (valor.dataInicio && valor.dataFim && valor.dataFim < valor.dataInicio) {
       contexto.addIssue({
         code: 'custom',
         path: ['dataFim'],
-        message: 'O fim da participacao nao pode ser anterior ao inicio.',
+        message: 'O fim da participação não pode ser anterior ao início.',
       });
     }
   }
@@ -123,21 +123,21 @@ function refinarAtividade(
       contexto.addIssue({
         code: 'custom',
         path: ['dataFim'],
-        message: 'A data final nao pode ser anterior a data inicial.',
+        message: 'A data final não pode ser anterior à data inicial.',
       });
     }
     if (valor.instituicaoId && valor.instituicaoNome) {
       contexto.addIssue({
         code: 'custom',
         path: ['instituicaoNome'],
-        message: 'Escolha a instituicao do catalogo ou informe o nome livre.',
+        message: 'Escolha a instituição do catálogo ou informe o nome livre.',
       });
     }
     if (valor.contatoInstituicaoId && !valor.instituicaoId) {
       contexto.addIssue({
         code: 'custom',
         path: ['contatoInstituicaoId'],
-        message: 'Selecione a instituicao cadastrada desse contato.',
+        message: 'Selecione a instituição cadastrada desse contato.',
       });
     }
     if (valor.tipo === 'EVENTO' && !valor.eventoNome) {
@@ -176,7 +176,7 @@ function refinarMissao(
     contexto.addIssue({
       code: 'custom',
       path: ['dataFim'],
-      message: 'A data final nao pode ser anterior a data inicial.',
+      message: 'A data final não pode ser anterior à data inicial.',
     });
   }
 
@@ -187,7 +187,7 @@ function refinarMissao(
     contexto.addIssue({
       code: 'custom',
       path: ['participantes'],
-      message: 'A mesma pessoa nao pode aparecer duas vezes na missao.',
+      message: 'A mesma pessoa não pode aparecer duas vezes na missão.',
     });
   }
 
@@ -199,7 +199,7 @@ function refinarMissao(
     contexto.addIssue({
       code: 'custom',
       path: ['participantes'],
-      message: 'A missao deve possuir exatamente uma pessoa responsavel.',
+      message: 'A missão deve possuir exatamente uma pessoa responsável.',
     });
   }
 
@@ -213,7 +213,7 @@ function refinarMissao(
       contexto.addIssue({
         code: 'custom',
         path: ['participantes', indice, 'dataInicio'],
-        message: 'A participacao precisa estar dentro do periodo da missao.',
+        message: 'A participação precisa estar dentro do período da missão.',
       });
     }
   });
@@ -226,7 +226,7 @@ function refinarMissao(
       contexto.addIssue({
         code: 'custom',
         path: ['atividades', indice, 'dataInicio'],
-        message: 'A atividade precisa estar dentro do periodo da missao.',
+        message: 'A atividade precisa estar dentro do período da missão.',
       });
     }
   });
@@ -1304,7 +1304,7 @@ export class MissoesComiteService {
         redes: { with: { rede: true } },
       },
     });
-    if (!missao) throw new NotFoundException('Missao nao encontrada.');
+    if (!missao) throw new NotFoundException('Missão não encontrada.');
 
     const historico = await this.db
       .select({
@@ -1525,7 +1525,7 @@ export class MissoesComiteService {
 
     if (anterior.status === 'CONCLUIDA' || anterior.status === 'CANCELADA') {
       throw new ConflictException(
-        'Missao concluida ou cancelada nao pode ser editada.',
+        'Missão concluída ou cancelada não pode ser editada.',
       );
     }
 
@@ -1535,7 +1535,7 @@ export class MissoesComiteService {
     // devolve a edicao, que e justamente o proposito daquela decisao.
     if (anterior.statusAprovacao === 'EM_ANALISE') {
       throw new ConflictException(
-        'Missao em analise nao pode ser editada. Aguarde a decisao do Comite.',
+        'Missão em análise não pode ser editada. Aguarde a decisão do Comitê.',
       );
     }
 
@@ -1615,7 +1615,7 @@ export class MissoesComiteService {
         !mudancaAtividades &&
         !mudancaRedes
       ) {
-        throw new BadRequestException('Nenhum dado da missao foi alterado.');
+        throw new BadRequestException('Nenhum dado da missão foi alterado.');
       }
 
       // Depois de confirmada a missao ja e compromisso institucional: mexer em
@@ -1626,7 +1626,7 @@ export class MissoesComiteService {
         !dto.justificativa
       ) {
         throw new BadRequestException(
-          'Informe a justificativa para alterar datas, redes, participantes ou roteiro de uma missao confirmada.',
+          'Informe a justificativa para alterar datas, redes, participantes ou roteiro de uma missão confirmada.',
         );
       }
 
@@ -1819,7 +1819,7 @@ export class MissoesComiteService {
     );
     for (const id of enviados) {
       if (!atuais.has(id)) {
-        throw new NotFoundException('Atividade nao pertence a esta missao.');
+        throw new NotFoundException('Atividade não pertence a esta missão.');
       }
     }
 
@@ -1834,7 +1834,7 @@ export class MissoesComiteService {
     for (const id of enviados) {
       if (doRelato.has(id)) {
         throw new BadRequestException(
-          'Atividade nao prevista e alterada pelo relato, nao pela edicao da missao.',
+          'Atividade não prevista e alterada pelo relato, não pela edição da missão.',
         );
       }
     }
@@ -1980,7 +1980,7 @@ export class MissoesComiteService {
 
     if (!origens.includes(missao.status)) {
       throw new ConflictException(
-        `Missao ${rotuloStatus(missao.status)} nao aceita a acao ${dto.acao.toLowerCase()}.`,
+        `Missão ${rotuloStatus(missao.status)} não aceita a ação ${dto.acao.toLowerCase()}.`,
       );
     }
     // CONCLUIR passa a ser o **encerramento** (CG-058, decisao de 2026-09-06):
@@ -1992,7 +1992,7 @@ export class MissoesComiteService {
     }
     if (dto.acao === 'CANCELAR' && !dto.justificativa) {
       throw new BadRequestException(
-        'Informe a justificativa do cancelamento da missao.',
+        'Informe a justificativa do cancelamento da missão.',
       );
     }
 
@@ -2021,7 +2021,7 @@ export class MissoesComiteService {
     const missao = await this.detalhe(cicloId, id);
     if (missao.status !== 'CONCLUIDA' && missao.status !== 'CANCELADA') {
       throw new ConflictException(
-        'Apenas missao concluida ou cancelada pode ser reaberta.',
+        'Apenas missão concluída ou cancelada pode ser reaberta.',
       );
     }
 
@@ -2080,7 +2080,7 @@ export class MissoesComiteService {
   ): Promise<MissaoDetalhe> {
     const anterior = await this.detalhe(cicloId, id);
     if (anterior.status === 'CANCELADA') {
-      throw new ConflictException('Missao cancelada nao recebe relato.');
+      throw new ConflictException('Missão cancelada não recebe relato.');
     }
 
     const conhecidas = new Map(
@@ -2088,7 +2088,7 @@ export class MissoesComiteService {
     );
     for (const atividade of dto.atividades) {
       if (!conhecidas.has(atividade.id)) {
-        throw new NotFoundException('Atividade nao pertence a esta missao.');
+        throw new NotFoundException('Atividade não pertence a esta missão.');
       }
     }
     await this.validarReferenciasAtividades(
@@ -2267,7 +2267,7 @@ export class MissoesComiteService {
         .limit(1);
       if (existente) {
         throw new ConflictException(
-          'Ja existe uma pessoa cadastrada com este CPF ou e-mail.',
+          'Já existe uma pessoa cadastrada com este CPF ou e-mail.',
         );
       }
     }
@@ -2304,7 +2304,7 @@ export class MissoesComiteService {
       .from(s.pessoa)
       .where(and(eq(s.pessoa.id, pessoaId), eq(s.pessoa.ativo, true)))
       .limit(1);
-    if (!pessoa) throw new NotFoundException('Pessoa nao encontrada.');
+    if (!pessoa) throw new NotFoundException('Pessoa não encontrada.');
   }
 
   private async validarMembroEquipe(
@@ -2326,7 +2326,7 @@ export class MissoesComiteService {
       .limit(1);
     if (!membro) {
       throw new BadRequestException(
-        'O vinculo de equipe nao pertence a esta pessoa e ciclo.',
+        'O vínculo de equipe não pertence a esta pessoa e ciclo.',
       );
     }
   }
@@ -2370,7 +2370,7 @@ export class MissoesComiteService {
       !redes.every((redeId) => recorte.alcanca(redeId))
     ) {
       throw new BadRequestException(
-        'Alguma rede informada nao existe neste ciclo.',
+        'Alguma rede informada não existe neste ciclo.',
       );
     }
   }
@@ -2406,7 +2406,7 @@ export class MissoesComiteService {
     const alheia = remover.find((redeId) => !recorte.alcanca(redeId));
     if (alheia) {
       throw new ForbiddenException(
-        'Esta missao tambem pertence a outra rede, e so quem a alcanca pode retira-la.',
+        'Esta missão também pertence a outra rede, e só quem a alcança pode retirá-la.',
       );
     }
     if (!incluir.length && !remover.length) return false;
@@ -2456,7 +2456,7 @@ export class MissoesComiteService {
       .from(s.pais)
       .where(inArray(s.pais.id, paises));
     if (paisesExistentes.length !== paises.length) {
-      throw new NotFoundException('Pais do roteiro nao encontrado.');
+      throw new NotFoundException('País do roteiro não encontrado.');
     }
 
     const instituicoes = [
@@ -2472,7 +2472,7 @@ export class MissoesComiteService {
         .from(s.instituicao)
         .where(inArray(s.instituicao.id, instituicoes));
       if (instituicoesExistentes.length !== instituicoes.length) {
-        throw new NotFoundException('Instituicao do roteiro nao encontrada.');
+        throw new NotFoundException('Instituição do roteiro não encontrada.');
       }
     }
 
@@ -2498,7 +2498,7 @@ export class MissoesComiteService {
         ),
       );
     if (contatosExistentes.length !== contatos.length) {
-      throw new NotFoundException('Contato do roteiro nao encontrado.');
+      throw new NotFoundException('Contato do roteiro não encontrado.');
     }
 
     const instituicaoDoContato = new Map(
@@ -2511,7 +2511,7 @@ export class MissoesComiteService {
           atividade.instituicaoId
       ) {
         throw new BadRequestException(
-          'O contato informado nao pertence a instituicao da atividade.',
+          'O contato informado não pertence à instituição da atividade.',
         );
       }
     }

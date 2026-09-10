@@ -183,7 +183,7 @@ export class ExportacaoService {
     usuario: AuthUser,
   ): Promise<Exportacao> {
     const missao = await this.missoes.detalhe(cicloId, missaoId);
-    if (!missao) throw new NotFoundException('Missao nao encontrada.');
+    if (!missao) throw new NotFoundException('Missão não encontrada.');
 
     const [prestacao, resultados, checklist, documentos] = await Promise.all([
       this.prestacao.detalhe(cicloId, missaoId).catch(() => null),

@@ -50,7 +50,7 @@ export const CurrentUser = createParamDecorator(
     if (!request.user) {
       // So acontece se alguem usar @CurrentUser em rota marcada como @Public.
       throw new UnauthorizedException(
-        'Nenhum usuario autenticado na requisicao',
+        'Nenhum usuário autenticado na requisição',
       );
     }
 

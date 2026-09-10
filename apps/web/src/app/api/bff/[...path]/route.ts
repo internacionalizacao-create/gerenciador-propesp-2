@@ -45,13 +45,13 @@ async function handler(
   if (!METODOS_SEM_EFEITO.has(request.method)) {
     const origin = request.headers.get("origin");
     if (origin && origin !== env.APP_BASE_URL) {
-      return NextResponse.json({ message: "Origem nao permitida" }, { status: 403 });
+      return NextResponse.json({ message: "Origem não permitida" }, { status: 403 });
     }
   }
 
   const session = await getSession();
   if (!session) {
-    return NextResponse.json({ message: "Nao autenticado" }, { status: 401 });
+    return NextResponse.json({ message: "Não autenticado" }, { status: 401 });
   }
 
   const { path } = await context.params;

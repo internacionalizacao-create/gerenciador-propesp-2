@@ -307,8 +307,8 @@ export class IdentidadeService {
 
         if (jaVinculada) {
           this.logger.warn(
-            `Conta ${usuario.username ?? usuario.id} tem o e-mail de uma pessoa ja ` +
-              `vinculada ao sub ${jaVinculada.sub}. O vinculo ficou pendente: ` +
+            `Conta ${usuario.username ?? usuario.id} tem o e-mail de uma pessoa já ` +
+              `vinculada ao sub ${jaVinculada.sub}. O vínculo ficou pendente: ` +
               'um administrador precisa reassociar por POST /acesso/usuarios/:id/pessoa.',
           );
           return null;

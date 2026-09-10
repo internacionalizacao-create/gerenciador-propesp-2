@@ -83,8 +83,8 @@ export class SubmissaoService {
     ) {
       throw new ConflictException(
         missao.statusAprovacao === 'EM_ANALISE'
-          ? 'Esta missao ja esta em analise.'
-          : `Missao ${rotulo(missao.statusAprovacao)} nao pode ser enviada; reabra a analise antes.`,
+          ? 'Esta missão já está em análise.'
+          : `Missão ${rotulo(missao.statusAprovacao)} não pode ser enviada; reabra a análise antes.`,
       );
     }
 
@@ -99,7 +99,7 @@ export class SubmissaoService {
       // 422 e nao 400: o corpo da requisicao esta correto; o que falta e estado
       // da missao. A lista vai junto para a tela dizer o que anexar.
       throw new UnprocessableEntityException({
-        message: 'A missao nao atende aos requisitos de submissao.',
+        message: 'A missão não atende aos requisitos de submissão.',
         pendencias: avaliacao.pendencias,
       });
     }
@@ -194,9 +194,9 @@ export class SubmissaoService {
         ),
       );
 
-    if (!missao) throw new NotFoundException('Missao nao encontrada.');
+    if (!missao) throw new NotFoundException('Missão não encontrada.');
     if (missao.status === 'CANCELADA') {
-      throw new ConflictException('Missao cancelada nao vai a analise.');
+      throw new ConflictException('Missão cancelada não vai à análise.');
     }
     return missao;
   }
@@ -220,7 +220,7 @@ export class SubmissaoService {
     const identidade = await this.identidade.resolver(usuario);
     if (!identidade) {
       throw new ForbiddenException(
-        'Sua conta ainda nao esta vinculada a uma pessoa do cadastro. ' +
+        'Sua conta ainda não está vinculada a uma pessoa do cadastro. ' +
           'Peca a um administrador para fazer a associacao.',
       );
     }
@@ -238,7 +238,7 @@ export class SubmissaoService {
 
     if (!responsavel) {
       throw new ForbiddenException(
-        'Somente o responsavel pela missao pode envia-la para analise.',
+        'Somente o responsável pela missão pode enviá-la para análise.',
       );
     }
   }

@@ -24,7 +24,7 @@ export async function consultar<T>(db: Database, query: SQL): Promise<T[]> {
 export async function consultarUma<T>(db: Database, query: SQL): Promise<T> {
   const [linha] = await consultar<T>(db, query);
   if (!linha) {
-    throw new Error('A consulta nao devolveu nenhuma linha.');
+    throw new Error('A consulta não devolveu nenhuma linha.');
   }
   return linha;
 }

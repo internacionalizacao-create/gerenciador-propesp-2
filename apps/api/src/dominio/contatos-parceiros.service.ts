@@ -178,7 +178,7 @@ export class ContatosParceirosService {
 
   async detalhar(id: string): Promise<ContatoParceiro> {
     const [contato] = await this.listarPorIds([id]);
-    if (!contato) throw new NotFoundException('Contato nao encontrado.');
+    if (!contato) throw new NotFoundException('Contato não encontrado.');
     return contato;
   }
 
@@ -253,7 +253,7 @@ export class ContatosParceirosService {
         const atual = await this.obterContato(id, tx);
         if (!atual.ativo) {
           throw new BadRequestException(
-            'Contato inativo nao pode ser editado.',
+            'Contato inativo não pode ser editado.',
           );
         }
         const combinado = {
@@ -327,11 +327,11 @@ export class ContatosParceirosService {
       const contato = await this.obterContato(id, tx);
       if (!contato.ativo) {
         throw new BadRequestException(
-          'Contato inativo nao pode ser definido como principal.',
+          'Contato inativo não pode ser definido como principal.',
         );
       }
       if (contato.principal) {
-        throw new BadRequestException('Este contato ja e o principal.');
+        throw new BadRequestException('Este contato já e o principal.');
       }
       const anterior = await this.desmarcarPrincipal(
         contato.instituicaoId,
@@ -363,7 +363,7 @@ export class ContatosParceirosService {
     await this.db.transaction(async (tx) => {
       const contato = await this.obterContato(id, tx);
       if (!contato.ativo) {
-        throw new BadRequestException('O contato ja esta inativo.');
+        throw new BadRequestException('O contato já está inativo.');
       }
       await tx
         .update(s.contatoInstituicao)
@@ -404,7 +404,7 @@ export class ContatosParceirosService {
     await this.db.transaction(async (tx) => {
       const contato = await this.obterContato(id, tx);
       if (contato.ativo) {
-        throw new BadRequestException('O contato ja esta ativo.');
+        throw new BadRequestException('O contato já está ativo.');
       }
       const [instituicao] = await tx
         .select({ ativo: s.instituicao.ativo })
@@ -413,7 +413,7 @@ export class ContatosParceirosService {
         .limit(1);
       if (!instituicao?.ativo) {
         throw new BadRequestException(
-          'Nao e possivel reativar contato de parceiro inativo.',
+          'Não e possível reativar contato de parceiro inativo.',
         );
       }
       await tx
@@ -476,7 +476,7 @@ export class ContatosParceirosService {
       .from(s.contatoInstituicao)
       .where(eq(s.contatoInstituicao.id, id))
       .limit(1);
-    if (!contato) throw new NotFoundException('Contato nao encontrado.');
+    if (!contato) throw new NotFoundException('Contato não encontrado.');
     return contato;
   }
 
@@ -497,7 +497,7 @@ export class ContatosParceirosService {
       )
       .limit(1);
     if (!instituicao) {
-      throw new NotFoundException('Parceiro ativo nao encontrado.');
+      throw new NotFoundException('Parceiro ativo não encontrado.');
     }
     if (!paisId) return;
     const [pais] = await db
@@ -505,7 +505,7 @@ export class ContatosParceirosService {
       .from(s.pais)
       .where(eq(s.pais.id, paisId))
       .limit(1);
-    if (!pais) throw new NotFoundException('Pais nao encontrado.');
+    if (!pais) throw new NotFoundException('País não encontrado.');
   }
 
   private async validarDuplicidade(
@@ -522,7 +522,7 @@ export class ContatosParceirosService {
     );
     if (candidatos.some((item) => item.classificacao === 'INEQUIVOCA')) {
       throw new ConflictException({
-        message: 'Ja existe um contato com a mesma identidade na instituicao.',
+        message: 'Já existe um contato com a mesma identidade na instituição.',
         candidatos,
       });
     }

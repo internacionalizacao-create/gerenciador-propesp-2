@@ -186,7 +186,7 @@ export class NotificacoesService {
    */
   async marcarLida(id: string, usuario: AuthUser): Promise<void> {
     const identidade = await this.identidade.resolver(usuario);
-    if (!identidade) throw new NotFoundException('Notificacao nao encontrada.');
+    if (!identidade) throw new NotFoundException('Notificação não encontrada.');
 
     const [linha] = await this.db
       .update(s.notificacao)
@@ -308,7 +308,7 @@ export class NotificacoesService {
           eq(s.notificacao.destinatarioId, pessoaId),
         ),
       );
-    if (!existe) throw new NotFoundException('Notificacao nao encontrada.');
+    if (!existe) throw new NotFoundException('Notificação não encontrada.');
   }
 }
 

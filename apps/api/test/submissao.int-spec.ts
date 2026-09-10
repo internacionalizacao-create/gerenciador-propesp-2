@@ -219,7 +219,7 @@ describe('SubmissaoService (CG-037)', () => {
     // A regra so e verificavel porque existe o vinculo `sub` -> `pessoa`.
     await expect(
       submissao.submeter(base.cicloId, missaoId, outro),
-    ).rejects.toThrow(/somente o responsavel/i);
+    ).rejects.toThrow(/somente o responsável/i);
 
     await expect(
       submissao.submeter(base.cicloId, missaoId, responsavel),
@@ -269,7 +269,7 @@ describe('SubmissaoService (CG-037)', () => {
 
     await expect(
       submissao.submeter(base.cicloId, missaoId, admin),
-    ).rejects.toThrow(/ja esta em analise/i);
+    ).rejects.toThrow(/já está em análise/i);
   });
 
   it('missao em analise nao pode ser editada', async () => {
@@ -286,7 +286,7 @@ describe('SubmissaoService (CG-037)', () => {
         admin,
         RecorteDeMissoes.irrestrito(),
       ),
-    ).rejects.toThrow(/em analise nao pode ser editada/i);
+    ).rejects.toThrow(/em análise não pode ser editada/i);
   });
 
   it('reenvio depois de ajustes cria rodada nova sem apagar a anterior', async () => {
@@ -327,7 +327,7 @@ describe('SubmissaoService (CG-037)', () => {
     // Reabrir e ato do `admin` com justificativa (CG-038), nao um reenvio.
     await expect(
       submissao.submeter(base.cicloId, missaoId, admin),
-    ).rejects.toThrow(/reabra a analise/i);
+    ).rejects.toThrow(/reabra a análise/i);
   });
 
   it('missao cancelada nao vai a analise', async () => {
@@ -349,6 +349,6 @@ describe('SubmissaoService (CG-037)', () => {
         missaoId,
         admin,
       ),
-    ).rejects.toThrow(/nao encontrada/i);
+    ).rejects.toThrow(/não encontrada/i);
   });
 });

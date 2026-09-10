@@ -445,7 +445,7 @@ export class AnexosService {
       anexo.entidadeId,
       'escrever',
     );
-    if (!anexo.ativo) throw new BadRequestException('O anexo ja esta inativo.');
+    if (!anexo.ativo) throw new BadRequestException('O anexo já está inativo.');
     await this.db.transaction(async (tx) => {
       await tx
         .update(s.anexo)
@@ -519,7 +519,7 @@ export class AnexosService {
     ) {
       // CR/LF no nome pode virar injecao de cabecalho no download. O nome nao
       // participa da chave do storage, mas ainda chega ao Content-Disposition.
-      throw new BadRequestException('Nome de arquivo invalido.');
+      throw new BadRequestException('Nome de arquivo inválido.');
     }
     if (arquivo.buffer.length > TAMANHO_MAXIMO) {
       throw new PayloadTooLargeException(
@@ -531,7 +531,7 @@ export class AnexosService {
       // A mensagem nao diz "assinatura invalida": para quem envia, o que
       // importa e a lista aceita, nao o motivo interno da recusa.
       throw new BadRequestException(
-        `Formato nao aceito. Envie um destes: ${EXTENSOES_ACEITAS.join(', ')}.`,
+        `Formato não aceito. Envie um destes: ${EXTENSOES_ACEITAS.join(', ')}.`,
       );
     }
     return tipo;
@@ -578,7 +578,7 @@ export class AnexosService {
 
     if (!(CATEGORIAS_DE_BOLSA as readonly string[]).includes(dto.categoria)) {
       throw new BadRequestException(
-        `A categoria ${dto.categoria} nao e aceita em documento de bolsista.`,
+        `A categoria ${dto.categoria} não é aceita em documento de bolsista.`,
       );
     }
 
@@ -630,7 +630,7 @@ export class AnexosService {
       .limit(1);
     if (!existe) {
       throw new BadRequestException(
-        'A entidade de destino do documento nao existe.',
+        'A entidade de destino do documento não existe.',
       );
     }
   }
@@ -643,7 +643,7 @@ export class AnexosService {
     if (dto.entidadeTipo === 'COTACAO_PASSAGEM') {
       if (dto.categoria !== 'COTACAO') {
         throw new BadRequestException(
-          'Documento de cotacao deve usar a categoria COTACAO.',
+          'Documento de cotação deve usar a categoria Cotação.',
         );
       }
       return;
@@ -660,7 +660,7 @@ export class AnexosService {
       !categoriaPermitidaParaDespesa(despesa.tipo, dto.categoria)
     ) {
       throw new BadRequestException(
-        `A categoria ${dto.categoria} nao e compativel com despesa ${despesa?.tipo ?? 'desconhecida'}.`,
+        `A categoria ${dto.categoria} não é compatível com despesa ${despesa?.tipo ?? 'desconhecida'}.`,
       );
     }
   }
@@ -713,7 +713,7 @@ export class AnexosService {
     ) {
       // 404, e não 403: "existe, mas não é seu" já entrega que o documento
       // existe — mesmo critério do PPG e da missão fora do escopo.
-      throw new NotFoundException('Documento nao encontrado.');
+      throw new NotFoundException('Documento não encontrado.');
     }
   }
 
@@ -736,7 +736,7 @@ export class AnexosService {
 
     const escopo = await this.identidade.escopoDe(usuario);
     if (!bolsa || !podeVerPpg(escopo, bolsa.ppgId)) {
-      throw new NotFoundException('Documento nao encontrado.');
+      throw new NotFoundException('Documento não encontrado.');
     }
   }
 
@@ -802,7 +802,7 @@ export class AnexosService {
   private exigir(usuario: AuthUser, permissao: Permission): void {
     if (!usuario.permissions.includes(permissao)) {
       throw new ForbiddenException(
-        `Acesso negado. Permissao necessaria: ${permissao}`,
+        `Acesso negado. Permissão necessária: ${permissao}`,
       );
     }
   }
@@ -852,7 +852,7 @@ export class AnexosService {
       .from(s.anexo)
       .where(eq(s.anexo.id, id))
       .limit(1);
-    if (!anexo) throw new NotFoundException('Documento nao encontrado.');
+    if (!anexo) throw new NotFoundException('Documento não encontrado.');
     return anexo;
   }
 

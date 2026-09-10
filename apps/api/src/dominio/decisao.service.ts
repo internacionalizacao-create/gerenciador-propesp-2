@@ -45,7 +45,7 @@ export const decidirSchema = z
   })
   .refine((v) => (v.acao === 'SOLICITAR_AJUSTES') === !v.reuniaoData, {
     message:
-      'Aprovar e reprovar exigem a data da reuniao; solicitar ajustes nao a aceita.',
+      'Aprovar e reprovar exigem a data da reunião; solicitar ajustes não a aceita.',
     path: ['reuniaoData'],
   });
 export type Decidir = z.infer<typeof decidirSchema>;
@@ -95,14 +95,14 @@ export class DecisaoService {
 
     if (missao.statusAprovacao !== 'EM_ANALISE') {
       throw new ConflictException(
-        'Somente missao em analise recebe decisao. Envie-a para analise antes.',
+        'Somente missão em análise recebe decisão. Envie-a para análise antes.',
       );
     }
     if (dto.reuniaoData && dto.reuniaoData > hoje()) {
       // A data e informada, nunca derivada — mas nao pode ser de uma reuniao
       // que ainda nao aconteceu.
       throw new BadRequestException(
-        'A data da reuniao nao pode estar no futuro.',
+        'A data da reunião não pode estar no futuro.',
       );
     }
 
@@ -119,7 +119,7 @@ export class DecisaoService {
     } catch (erro) {
       if (violouUnicidade(erro)) {
         throw new ConflictException(
-          'Esta rodada ja recebeu decisao. Recarregue a missao para ver qual foi.',
+          'Esta rodada já recebeu decisão. Recarregue a missão para ver qual foi.',
         );
       }
       throw erro;
@@ -244,7 +244,7 @@ export class DecisaoService {
       missao.statusAprovacao !== 'REPROVADA'
     ) {
       throw new ConflictException(
-        'So se reabre analise ja decidida (aprovada ou reprovada).',
+        'Só se reabre análise já decidida (aprovada ou reprovada).',
       );
     }
 
@@ -414,7 +414,7 @@ export class DecisaoService {
         ),
       );
 
-    if (!missao) throw new NotFoundException('Missao nao encontrada.');
+    if (!missao) throw new NotFoundException('Missão não encontrada.');
     return missao;
   }
 
@@ -437,7 +437,7 @@ export class DecisaoService {
 
     if (!rodada) {
       throw new ConflictException(
-        'Nao ha rodada de analise aberta para esta missao.',
+        'Não há rodada de análise aberta para esta missão.',
       );
     }
     return rodada;

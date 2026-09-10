@@ -110,7 +110,7 @@ describe('PrestacaoService (CG-050)', () => {
     expect(criada.total).toBeNull();
 
     await expect(service.criar(base.cicloId, missaoId, admin)).rejects.toThrow(
-      /ja tem prestacao/i,
+      /já tem prestação/i,
     );
   });
 
@@ -124,7 +124,7 @@ describe('PrestacaoService (CG-050)', () => {
         valorTotal: '1000.00',
         diaria: { dataInicio: '2027-03-02', dataFim: '2027-03-04' },
       }),
-    ).toThrow(/nao corresponde/i);
+    ).toThrow(/não corresponde/i);
   });
 
   it('aceita despesa avulsa que informa so o total', async () => {
@@ -290,7 +290,7 @@ describe('PrestacaoService (CG-050)', () => {
         tipo: 'SEGURO',
         passagem: { empresa: 'X', cotacoes: [] },
       }),
-    ).toThrow(/nao tem especializacao/i);
+    ).toThrow(/não tem especialização/i);
   });
 
   it('recusa participante de outra missao', async () => {
@@ -329,7 +329,7 @@ describe('PrestacaoService (CG-050)', () => {
         despesa({ participanteId: alheio.id }),
         admin,
       ),
-    ).rejects.toThrow(/nao pertence a esta missao/i);
+    ).rejects.toThrow(/não pertence a esta missão/i);
   });
 
   it('trocar o tipo na edicao nao deixa especializacao orfa', async () => {
@@ -434,7 +434,7 @@ describe('PrestacaoService (CG-050)', () => {
 
     await expect(
       service.removerDespesa(base.cicloId, missaoId, despesaId, admin),
-    ).rejects.toThrow(/preservada no historico/i);
+    ).rejects.toThrow(/preservada no histórico/i);
     expect(
       await ctx.db
         .select()
@@ -485,7 +485,7 @@ describe('PrestacaoService (CG-050)', () => {
         }),
         admin,
       ),
-    ).rejects.toThrow(/cotacao com documento/i);
+    ).rejects.toThrow(/cotação com documento/i);
     expect(
       await ctx.db
         .select()
@@ -506,7 +506,7 @@ describe('PrestacaoService (CG-050)', () => {
 
     await expect(
       service.criarDespesa(base.cicloId, missaoId, despesa(), admin),
-    ).rejects.toThrow(/em analise nao aceita alteracao/i);
+    ).rejects.toThrow(/em análise não aceita alteração/i);
   });
 
   it('nao enxerga missao de outro ciclo', async () => {
@@ -520,7 +520,7 @@ describe('PrestacaoService (CG-050)', () => {
       })
       .returning({ id: s.ciclo.id });
     await expect(service.detalhe(outroCiclo.id, missaoId)).rejects.toThrow(
-      /Missao nao encontrada/i,
+      /Missão não encontrada/i,
     );
   });
 

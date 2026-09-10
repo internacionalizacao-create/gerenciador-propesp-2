@@ -203,7 +203,7 @@ describe('Identidade e escopo de acesso', () => {
 
     // 404 e nao 403: "existe, mas nao e seu" ja entrega que o PPG existe.
     await expect(ppgs.detalhar(outro.id, usuario())).rejects.toThrow(
-      /nao encontrado/i,
+      /não encontrado/i,
     );
     await expect(ppgs.detalhar(base.ppgId, usuario())).resolves.toBeDefined();
   });

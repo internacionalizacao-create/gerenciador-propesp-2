@@ -99,7 +99,7 @@ export const criarDespesaSchema = z
           code: 'custom',
           path: ['valorTotal'],
           message:
-            'O total nao corresponde a quantidade multiplicada pelo valor unitario.',
+            'O total não corresponde à quantidade multiplicada pelo valor unitário.',
         });
       }
     }
@@ -107,14 +107,14 @@ export const criarDespesaSchema = z
       contexto.addIssue({
         code: 'custom',
         path: ['diaria'],
-        message: 'Despesa de passagem nao recebe dados de diaria.',
+        message: 'Despesa de passagem não recebe dados de diária.',
       });
     }
     if (valor.tipo === 'DIARIA' && valor.passagem) {
       contexto.addIssue({
         code: 'custom',
         path: ['passagem'],
-        message: 'Despesa de diaria nao recebe dados de passagem.',
+        message: 'Despesa de diária não recebe dados de passagem.',
       });
     }
     // Hospedagem, transporte, inscricao, seguro e outros se descrevem com os
@@ -127,14 +127,14 @@ export const criarDespesaSchema = z
       contexto.addIssue({
         code: 'custom',
         path: ['tipo'],
-        message: 'Este tipo de despesa nao tem especializacao propria.',
+        message: 'Este tipo de despesa não tem especialização própria.',
       });
     }
     if (valor.diaria && valor.diaria.dataFim < valor.diaria.dataInicio) {
       contexto.addIssue({
         code: 'custom',
         path: ['diaria', 'dataFim'],
-        message: 'O fim da diaria nao pode ser antes do inicio.',
+        message: 'O fim da diária não pode ser antes do início.',
       });
     }
   });
@@ -323,7 +323,7 @@ export class PrestacaoService {
         .where(eq(s.prestacaoContasMissao.missaoId, missaoId))
         .limit(1);
       if (existente) {
-        throw new BadRequestException('Esta missao ja tem prestacao iniciada.');
+        throw new BadRequestException('Esta missão já tem prestação iniciada.');
       }
       const [criada] = await tx
         .insert(s.prestacaoContasMissao)
@@ -369,7 +369,7 @@ export class PrestacaoService {
       .where(eq(s.despesaMissao.prestacaoId, prestacao.id));
     if (quantas === 0) {
       throw new BadRequestException(
-        'Lance ao menos uma despesa antes de enviar a prestacao.',
+        'Lance ao menos uma despesa antes de enviar a prestação.',
       );
     }
 
@@ -432,13 +432,13 @@ export class PrestacaoService {
       .limit(1);
 
     if (!prestacao) {
-      throw new NotFoundException('Esta missao ainda nao tem prestacao.');
+      throw new NotFoundException('Esta missão ainda não tem prestação.');
     }
     if (prestacao.status !== 'ENVIADA') {
       throw new BadRequestException(
         prestacao.status === 'VALIDADA'
-          ? 'Esta prestacao ja foi validada.'
-          : 'Somente prestacao enviada pode ser revisada.',
+          ? 'Esta prestação já foi validada.'
+          : 'Somente prestação enviada pode ser revisada.',
       );
     }
     return prestacao;
@@ -691,7 +691,7 @@ export class PrestacaoService {
       .from(s.prestacaoContasMissao)
       .where(eq(s.prestacaoContasMissao.id, prestacaoId))
       .limit(1);
-    if (!prestacao) throw new NotFoundException('Prestacao nao encontrada.');
+    if (!prestacao) throw new NotFoundException('Prestação não encontrada.');
 
     const linhas = await this.db
       .select({
@@ -978,7 +978,7 @@ export class PrestacaoService {
     if (dto.tipo === 'DIARIA') {
       if (!dto.diaria) {
         throw new BadRequestException(
-          'Despesa de diaria exige periodo, pais e cidade.',
+          'Despesa de diária exige período, país e cidade.',
         );
       }
       await tx.insert(s.despesaDiaria).values({
@@ -1011,7 +1011,7 @@ export class PrestacaoService {
         .limit(1);
       if (!participante) {
         throw new BadRequestException(
-          'O participante informado nao pertence a esta missao.',
+          'O participante informado não pertence a esta missão.',
         );
       }
     }
@@ -1021,7 +1021,7 @@ export class PrestacaoService {
         .from(s.pais)
         .where(eq(s.pais.id, dto.diaria.paisId))
         .limit(1);
-      if (!pais) throw new BadRequestException('Pais nao encontrado.');
+      if (!pais) throw new BadRequestException('País não encontrado.');
     }
   }
 
@@ -1050,7 +1050,7 @@ export class PrestacaoService {
       )
     ) {
       throw new BadRequestException(
-        'O novo tipo da despesa nao e compativel com os documentos anexados.',
+        'O novo tipo da despesa não é compatível com os documentos anexados.',
       );
     }
 
@@ -1075,7 +1075,7 @@ export class PrestacaoService {
       .limit(1);
     if (documento) {
       throw new BadRequestException(
-        'A passagem possui cotacao com documento e nao pode substituir suas cotacoes.',
+        'A passagem possui cotação com documento e não pode substituir suas cotações.',
       );
     }
   }
@@ -1110,7 +1110,7 @@ export class PrestacaoService {
       .limit(1);
     if (documento) {
       throw new BadRequestException(
-        'A despesa possui documentos e deve ser preservada no historico.',
+        'A despesa possui documentos e deve ser preservada no histórico.',
       );
     }
   }
@@ -1130,7 +1130,7 @@ export class PrestacaoService {
         ),
       )
       .limit(1);
-    if (!missao) throw new NotFoundException('Missao nao encontrada.');
+    if (!missao) throw new NotFoundException('Missão não encontrada.');
     return missao;
   }
 
@@ -1146,7 +1146,7 @@ export class PrestacaoService {
       .where(eq(s.prestacaoContasMissao.missaoId, missaoId))
       .limit(1);
     if (!prestacao) {
-      throw new NotFoundException('Esta missao ainda nao tem prestacao.');
+      throw new NotFoundException('Esta missão ainda não tem prestação.');
     }
     // `COM_PENDENCIA` volta a aceitar alteracao: devolver para correcao sem
     // reabrir a edicao deixaria o responsavel sem como atender a pendencia.
@@ -1156,8 +1156,8 @@ export class PrestacaoService {
     if (!ESTADOS_EDITAVEIS.includes(prestacao.status)) {
       throw new BadRequestException(
         prestacao.status === 'VALIDADA'
-          ? 'Prestacao validada nao aceita alteracao. Ela ja abateu o aporte.'
-          : 'Prestacao em analise nao aceita alteracao. Aguarde a revisao.',
+          ? 'Prestação validada não aceita alteração. Ela já abateu o aporte.'
+          : 'Prestação em análise não aceita alteração. Aguarde a revisão.',
       );
     }
     return prestacao;
@@ -1178,7 +1178,7 @@ export class PrestacaoService {
         ),
       )
       .limit(1);
-    if (!despesa) throw new NotFoundException('Despesa nao encontrada.');
+    if (!despesa) throw new NotFoundException('Despesa não encontrada.');
     return despesa;
   }
 }

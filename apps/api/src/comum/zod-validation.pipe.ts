@@ -26,7 +26,7 @@ export class ZodValidationPipe<T> implements PipeTransform<unknown, T> {
       // campo — erro de formulario sem o nome do campo obriga o usuario a
       // adivinhar qual dos doze inputs esta errado.
       throw new BadRequestException({
-        message: 'Dados invalidos',
+        message: 'Dados inválidos',
         erros: resultado.error.issues.map((issue) => ({
           campo: issue.path.join('.') || '(raiz)',
           mensagem: issue.message,

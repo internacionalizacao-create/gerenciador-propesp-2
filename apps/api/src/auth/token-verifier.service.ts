@@ -51,13 +51,13 @@ export class TokenVerifierService {
     } catch (error) {
       const motivo = error instanceof Error ? error.message : String(error);
       this.logger.debug(`Token rejeitado: ${motivo}`);
-      throw new UnauthorizedException('Token invalido ou expirado');
+      throw new UnauthorizedException('Token inválido ou expirado');
     }
 
     const claims = accessTokenClaimsSchema.safeParse(payload);
     if (!claims.success) {
       this.logger.warn('Token assinado, porem sem as claims esperadas');
-      throw new UnauthorizedException('Token invalido ou expirado');
+      throw new UnauthorizedException('Token inválido ou expirado');
     }
 
     // Um ID token tambem e assinado pelo mesmo realm e passa no jwtVerify; ele

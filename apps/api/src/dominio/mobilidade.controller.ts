@@ -76,7 +76,7 @@ export class MobilidadeController {
     @Res() resposta: Response,
   ) {
     if (!FORMATOS.includes(formato as Formato)) {
-      throw new NotFoundException('Formato nao suportado.');
+      throw new NotFoundException('Formato não suportado.');
     }
     responderArquivo(
       resposta,

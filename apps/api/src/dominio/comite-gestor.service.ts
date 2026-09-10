@@ -58,7 +58,7 @@ const dadosVinculoSchema = z
       contexto.addIssue({
         code: 'custom',
         path: ['dataFim'],
-        message: 'A data final nao pode ser anterior a data inicial.',
+        message: 'A data final não pode ser anterior à data inicial.',
       });
     }
   });
@@ -272,7 +272,7 @@ export class ComiteGestorService {
         .from(s.pessoa)
         .where(and(eq(s.pessoa.id, pessoaId), eq(s.pessoa.ativo, true)))
         .limit(1);
-      if (!pessoaExiste) throw new NotFoundException('Pessoa nao encontrada.');
+      if (!pessoaExiste) throw new NotFoundException('Pessoa não encontrada.');
 
       await this.validarSobreposicao(
         cicloId,
@@ -334,7 +334,7 @@ export class ComiteGestorService {
         ),
       )
       .limit(1);
-    if (!anterior) throw new NotFoundException('Membro nao encontrado.');
+    if (!anterior) throw new NotFoundException('Membro não encontrado.');
 
     await this.validarSobreposicao(
       cicloId,
@@ -402,7 +402,7 @@ export class ComiteGestorService {
       .limit(1);
     if (existente) {
       throw new ConflictException(
-        'Ja existe uma pessoa cadastrada com este CPF ou e-mail.',
+        'Já existe uma pessoa cadastrada com este CPF ou e-mail.',
       );
     }
   }
@@ -436,7 +436,7 @@ export class ComiteGestorService {
 
     if (sobreposto) {
       throw new ConflictException(
-        'Esta pessoa ja possui um vinculo sobreposto na mesma equipe.',
+        'Esta pessoa já possui um vínculo sobreposto na mesma equipe.',
       );
     }
   }

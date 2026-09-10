@@ -221,7 +221,7 @@ describe('Produtos da missao e convenios (CG-056)', () => {
       .returning({ id: s.ciclo.id });
     await expect(
       service.resultadosDaMissao(outro.id, missaoId),
-    ).rejects.toThrow(/nao encontrada/i);
+    ).rejects.toThrow(/não encontrada/i);
   });
 
   it('produto do tipo convenio exige o acordo, e o inverso tambem', async () => {

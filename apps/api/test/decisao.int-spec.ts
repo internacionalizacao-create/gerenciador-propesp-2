@@ -233,7 +233,7 @@ describe('DecisaoService (CG-038)', () => {
         { acao: 'APROVAR', parecer: 'Ok.', reuniaoData: REUNIAO },
         relator,
       ),
-    ).rejects.toThrow(/somente missao em analise/i);
+    ).rejects.toThrow(/somente missão em análise/i);
   });
 
   it('recusa duas decisoes na mesma rodada', async () => {
@@ -253,7 +253,7 @@ describe('DecisaoService (CG-038)', () => {
         { acao: 'REPROVAR', parecer: 'Mudei de ideia.', reuniaoData: REUNIAO },
         relator,
       ),
-    ).rejects.toThrow(/somente missao em analise/i);
+    ).rejects.toThrow(/somente missão em análise/i);
 
     expect(await ctx.db.select().from(s.decisaoComite)).toHaveLength(1);
   });
@@ -351,7 +351,7 @@ describe('DecisaoService (CG-038)', () => {
         { justificativa: 'Tentativa indevida.' },
         admin,
       ),
-    ).rejects.toThrow(/ja decidida/i);
+    ).rejects.toThrow(/já decidida/i);
   });
 
   // -------------------------------------------------------------------------
@@ -398,6 +398,6 @@ describe('DecisaoService (CG-038)', () => {
   it('missao de outro ciclo nao e alcancada', async () => {
     await expect(
       decisao.historico('11111111-1111-4111-8111-111111111111', missaoId),
-    ).rejects.toThrow(/nao encontrada/i);
+    ).rejects.toThrow(/não encontrada/i);
   });
 });

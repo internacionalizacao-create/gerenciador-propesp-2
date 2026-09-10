@@ -158,7 +158,7 @@ export class CatalogoService {
 
     if (!tabela) {
       throw new NotFoundException(
-        `O programa "${programaSlug}" ainda nao tem tabela de valores publicada.`,
+        `O programa "${programaSlug}" ainda não tem tabela de valores publicada.`,
       );
     }
 
@@ -252,9 +252,9 @@ export class CatalogoService {
     if (!item) {
       throw new UnprocessableEntityException({
         message:
-          'Nao existe item no catalogo vigente para esta combinacao de ' +
-          'destino, modalidade e vigencia. O valor nao pode ser estimado: ' +
-          'registre uma pendencia para que a PROPESP publique o item (RN-01).',
+          'Não existe item no catálogo vigente para esta combinação de ' +
+          'destino, modalidade e vigência. O valor não pode ser estimado: ' +
+          'registre uma pendência para que a PROPESP publique o item (RN-01).',
         codigo: 'CATALOGO_SEM_CORRESPONDENCIA',
         destino,
         modalidadeId,
@@ -310,8 +310,8 @@ export class CatalogoService {
       // planejamento render custos diferentes conforme a ordem de leitura.
       if (violouUnicidade(erro)) {
         throw new ConflictException(
-          'A tabela vigente ja tem um item para esta combinacao de destino, ' +
-            'modalidade e vigencia. Edite o item existente.',
+          'A tabela vigente já tem um item para esta combinação de destino, ' +
+            'modalidade e vigência. Edite o item existente.',
         );
       }
       throw erro;
@@ -370,9 +370,9 @@ export class CatalogoService {
       const usos = await this.usosDoItem(id);
       if (usos > 0) {
         throw new ConflictException(
-          `${anterior.codigo} ja e usado por ${usos} linha(s) do plano. ` +
-            'Alterar destino, modalidade, vigencia ou valor mudaria o custo ' +
-            'de um planejamento ja calculado. Publique um item novo com os ' +
+          `${anterior.codigo} já é usado por ${usos} linha(s) do plano. ` +
+            'Alterar destino, modalidade, vigência ou valor mudaria o custo ' +
+            'de um planejamento já calculado. Publique um item novo com os ' +
             'valores corretos, ou corrija as linhas antes.',
         );
       }
@@ -416,8 +416,8 @@ export class CatalogoService {
     } catch (erro) {
       if (violouUnicidade(erro)) {
         throw new ConflictException(
-          'A tabela vigente ja tem um item para esta combinacao de destino, ' +
-            'modalidade e vigencia.',
+          'A tabela vigente já tem um item para esta combinação de destino, ' +
+            'modalidade e vigência.',
         );
       }
       throw erro;
@@ -459,7 +459,7 @@ export class CatalogoService {
 
     if (usos > 0) {
       throw new ConflictException(
-        `${item.codigo} ja e usado por ${usos} linha(s) do plano e nao pode ` +
+        `${item.codigo} já é usado por ${usos} linha(s) do plano e não pode ` +
           'ser excluido. Corrija as linhas antes.',
       );
     }
@@ -510,7 +510,7 @@ export class CatalogoService {
     } catch (erro) {
       if (violouUnicidade(erro)) {
         throw new ConflictException(
-          `Ja existe uma modalidade chamada "${dto.nome}".`,
+          `Já existe uma modalidade chamada "${dto.nome}".`,
         );
       }
       throw erro;
@@ -537,7 +537,7 @@ export class CatalogoService {
       .where(eq(s.modalidade.id, id))
       .limit(1);
 
-    if (!anterior) throw new NotFoundException('Modalidade nao encontrada.');
+    if (!anterior) throw new NotFoundException('Modalidade não encontrada.');
 
     const novos = {
       nome: dto.nome,
@@ -566,7 +566,7 @@ export class CatalogoService {
     } catch (erro) {
       if (violouUnicidade(erro)) {
         throw new ConflictException(
-          `Ja existe uma modalidade chamada "${dto.nome}".`,
+          `Já existe uma modalidade chamada "${dto.nome}".`,
         );
       }
       throw erro;
@@ -599,7 +599,7 @@ export class CatalogoService {
       .where(eq(s.itemCatalogoBolsa.id, id))
       .limit(1);
 
-    if (!item) throw new NotFoundException('Item do catalogo nao encontrado.');
+    if (!item) throw new NotFoundException('Item do catálogo não encontrado.');
     return item;
   }
 
@@ -610,10 +610,10 @@ export class CatalogoService {
       .where(eq(s.modalidade.id, id))
       .limit(1);
 
-    if (!modalidade) throw new NotFoundException('Modalidade nao encontrada.');
+    if (!modalidade) throw new NotFoundException('Modalidade não encontrada.');
     if (!modalidade.ativa) {
       throw new UnprocessableEntityException(
-        'Modalidade inativa nao recebe item de catalogo. Reative-a antes.',
+        'Modalidade inativa não recebe item de catálogo. Reative-a antes.',
       );
     }
   }

@@ -139,7 +139,7 @@ export class PpgsService {
     if (!podeVerPpg(escopo, id)) {
       // 404 e nao 403: dizer "existe, mas nao e seu" ja entrega que o PPG
       // existe, e a lista nem sequer o mostrou.
-      throw new NotFoundException('PPG nao encontrado.');
+      throw new NotFoundException('PPG não encontrado.');
     }
     return this.carregarDetalhe(id);
   }
@@ -158,7 +158,7 @@ export class PpgsService {
       .where(eq(s.ppg.id, id))
       .limit(1);
 
-    if (!ppg) throw new NotFoundException('PPG nao encontrado.');
+    if (!ppg) throw new NotFoundException('PPG não encontrado.');
 
     const [linhas, participacoes, plano] = await Promise.all([
       this.db

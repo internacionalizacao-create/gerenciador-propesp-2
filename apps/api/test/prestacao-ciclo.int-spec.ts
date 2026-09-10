@@ -115,13 +115,13 @@ describe('Ciclo de vida da prestacao (CG-054)', () => {
     // Sem isto o revisor validaria um valor diferente do que leu.
     await expect(
       service.criarDespesa(base.cicloId, missaoId, despesa(), admin),
-    ).rejects.toThrow(/em analise nao aceita alteracao/i);
+    ).rejects.toThrow(/em análise não aceita alteração/i);
   });
 
   it('recusa enviar duas vezes', async () => {
     await enviada();
     await expect(service.enviar(base.cicloId, missaoId, admin)).rejects.toThrow(
-      /em analise nao aceita alteracao/i,
+      /em análise não aceita alteração/i,
     );
   });
 
@@ -150,7 +150,7 @@ describe('Ciclo de vida da prestacao (CG-054)', () => {
     // validacao que abate o aporte.
     await expect(
       service.validar(base.cicloId, missaoId, {}, admin),
-    ).rejects.toThrow(/somente prestacao enviada/i);
+    ).rejects.toThrow(/somente prestação enviada/i);
   });
 
   it('nao valida prestacao devolvida sem novo envio', async () => {
@@ -164,7 +164,7 @@ describe('Ciclo de vida da prestacao (CG-054)', () => {
 
     await expect(
       service.validar(base.cicloId, missaoId, {}, admin),
-    ).rejects.toThrow(/somente prestacao enviada/i);
+    ).rejects.toThrow(/somente prestação enviada/i);
   });
 
   it('prestacao validada congela em definitivo', async () => {
@@ -174,13 +174,13 @@ describe('Ciclo de vida da prestacao (CG-054)', () => {
     // Alterar despesa depois mudaria o saldo do aporte sem passar por revisao.
     await expect(
       service.criarDespesa(base.cicloId, missaoId, despesa(), admin),
-    ).rejects.toThrow(/validada nao aceita alteracao/i);
+    ).rejects.toThrow(/validada não aceita alteração/i);
     await expect(
       service.devolver(base.cicloId, missaoId, { parecer: 'Mudei' }, admin),
-    ).rejects.toThrow(/ja foi validada/i);
+    ).rejects.toThrow(/já foi validada/i);
     await expect(
       service.validar(base.cicloId, missaoId, {}, admin),
-    ).rejects.toThrow(/ja foi validada/i);
+    ).rejects.toThrow(/já foi validada/i);
   });
 
   // -------------------------------------------------------------------------
@@ -263,6 +263,6 @@ describe('Ciclo de vida da prestacao (CG-054)', () => {
     await enviada();
     await expect(
       service.enviar('11111111-1111-4111-8111-111111111111', missaoId, admin),
-    ).rejects.toThrow(/nao encontrada/i);
+    ).rejects.toThrow(/não encontrada/i);
   });
 });

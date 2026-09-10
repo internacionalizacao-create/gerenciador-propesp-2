@@ -361,7 +361,10 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
       expect(alerta('composicoes-a-definir')?.quantidade).toBe(4);
       expect(alerta('divergencia-saldo')).toBeUndefined();
       expect(alerta('ppgs-sem-bolsa')?.quantidade).toBe(10);
-      expect(alerta('pendencias')?.quantidade).toBe(5);
+      // A P13 perdeu a tela em 2026-09-08 e o alerta apontava para
+      // `/pendencias`, rota inexistente: era um card que levava a 404. A
+      // contagem continua no indicador homonimo, conferido acima.
+      expect(alerta('pendencias')).toBeUndefined();
       // R$ 69.751,14/ano de manutencao e missoes sem nenhum item planejado.
       expect(alerta('apoio-nao-programado')?.detalhe).toContain('69751.14');
       // Alerta que nao leva ao registro e decoracao.
@@ -880,7 +883,7 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
       expect(cg.porRede).toHaveLength(3);
       // O aviso viaja com o dado: quem consumir a API por outro caminho tambem
       // precisa saber que este orcamento nao se soma ao de bolsas.
-      expect(cg.aviso).toContain('nao integra');
+      expect(cg.aviso).toContain('não integra');
     });
 
     it('lista as premissas e as quatro fontes documentais (P16)', async () => {
@@ -1062,7 +1065,7 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
         .returning();
 
       await expect(pendencias.remover(automatica.id)).rejects.toThrow(
-        /nao pode ser excluida/,
+        /não pode ser excluída/,
       );
 
       await ctx.db.delete(s.pendencia).where(eq(s.pendencia.id, automatica.id));

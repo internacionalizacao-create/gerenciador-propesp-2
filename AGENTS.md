@@ -418,8 +418,15 @@ indireção existe desde o começo.
 ## 7. Convenções de código
 
 - **Idioma.** Domínio, mensagens de erro ao usuário e comentários em português.
-  Comentários **sem acentuação** (padrão do repositório). Identificadores de
-  código e nomes de permissão em inglês minúsculo (`plano:write`).
+  Comentários **sem acentuação** (padrão do repositório); **texto que o usuário
+  lê é sempre acentuado**. A distinção importa porque a fronteira não é óbvia:
+  a mensagem de uma exceção da API chega inteira à tela, repassada por
+  `traduzirErro` ([acao.ts](apps/web/src/lib/acao.ts)), e por isso conta como
+  texto de interface, não como comentário. Em 2026-09-09 as mensagens e rótulos que
+  ainda estavam sem acento foram corrigidos (197 strings, 26 arquivos de
+  `apps/api/src`), junto das asserções de teste que casavam com o texto antigo. Identificadores de código e nomes de
+  permissão seguem em inglês minúsculo (`plano:write`) e **não se acentuam nem
+  dentro de uma mensagem** — `Permissão necessária: prestacao:read`.
 - **Comentários explicam o porquê, não o quê.** Densidade alta nos arquivos de
   auth é proposital: são decisões de segurança que ninguém adivinha relendo.
 - **Validação com zod, em toda fronteira** — ambiente, claims de token, payload de
@@ -716,7 +723,10 @@ o ícone estiver visível.
   - `permiteBrasil`/`permiteExterior` continuam **derivados do catálogo**, e o
     serviço os atualiza ao publicar o primeiro item de cada destino. Marcá-los à
     mão ofereceria, na P10, combinação que `resolverItem` recusaria depois.
-- **P13 não tem mais tela** (decisão de 2026-09-08). As pendências continuam na
+- **P13 não tem mais tela** (decisão de 2026-09-08). O alerta *Pendências em
+  aberto* da P01 sobreviveu à remoção apontando para `/pendencias` e virou um
+  card que levava a 404; saiu em 2026-09-09. A contagem continua no indicador
+  homônimo, que não navega. As pendências continuam na
   seed, no banco e na API (`GET/POST /:programa/:ciclo/pendencias`,
   `PATCH /pendencias/:id`) para consulta e resolução; o que saiu foi a página,
   o item de menu e o cartão do painel do ciclo. O smoke de login usa `/ppgs`
@@ -1027,8 +1037,8 @@ o ícone estiver visível.
   metade. A justificativa é exigida só quando não foi plenamente alcançado;
   `missao_comite_avaliacao_ck` garante a assimetria no banco.
 
-  **Os textos deste módulo estão acentuados** porque viram rótulo de tabela na
-  tela, ao contrário das mensagens da maior parte da API. Nenhum documento de
+  **Os textos deste módulo estão acentuados**, como os de toda a API desde
+  2026-09-09 — ver §7. Nenhum documento de
   encerramento foi semeado: quais a PROPESP exige é política institucional, e a
   lista é dado.
 

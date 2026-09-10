@@ -89,7 +89,7 @@ export class AcessoController {
   @Post('usuarios/:id/escopos')
   @RequirePermission('acesso:write')
   async conceder(
-    @Param('id', new ZodValidationPipe(z.uuid('Usuario invalido.')))
+    @Param('id', new ZodValidationPipe(z.uuid('Usuário inválido.')))
     usuarioId: string,
     @Body(new ZodValidationPipe(concederEscopoSchema)) dto: ConcederEscopo,
     @CurrentUser() usuario: AuthUser,
@@ -98,7 +98,7 @@ export class AcessoController {
       .select({ id: s.usuarioSistema.id })
       .from(s.usuarioSistema)
       .where(eq(s.usuarioSistema.id, usuarioId));
-    if (!conta) throw new NotFoundException('Usuario nao encontrado.');
+    if (!conta) throw new NotFoundException('Usuário não encontrado.');
 
     // Reconceder um escopo ja existente reativa em vez de duplicar: o indice
     // parcial recusaria a segunda linha, e o erro de unicidade nao explica ao
@@ -149,7 +149,7 @@ export class AcessoController {
   @Delete('escopos/:id')
   @RequirePermission('acesso:write')
   async revogar(
-    @Param('id', new ZodValidationPipe(z.uuid('Escopo invalido.')))
+    @Param('id', new ZodValidationPipe(z.uuid('Escopo inválido.')))
     escopoId: string,
   ) {
     const atualizados = await this.db
@@ -159,7 +159,7 @@ export class AcessoController {
       .returning({ id: s.escopoAcesso.id });
 
     if (atualizados.length === 0) {
-      throw new NotFoundException('Escopo nao encontrado.');
+      throw new NotFoundException('Escopo não encontrado.');
     }
     return { revogado: true };
   }
@@ -173,7 +173,7 @@ export class AcessoController {
   @Post('usuarios/:id/pessoa')
   @RequirePermission('acesso:write')
   async reassociar(
-    @Param('id', new ZodValidationPipe(z.uuid('Usuario invalido.')))
+    @Param('id', new ZodValidationPipe(z.uuid('Usuário inválido.')))
     usuarioId: string,
     @Body(new ZodValidationPipe(z.object({ pessoaId: z.uuid() })))
     dto: { pessoaId: string },
@@ -183,7 +183,7 @@ export class AcessoController {
       .select({ id: s.pessoa.id })
       .from(s.pessoa)
       .where(eq(s.pessoa.id, dto.pessoaId));
-    if (!pessoa) throw new NotFoundException('Pessoa nao encontrada.');
+    if (!pessoa) throw new NotFoundException('Pessoa não encontrada.');
 
     const [jaVinculada] = await this.db
       .select({ id: s.usuarioSistema.id })
@@ -191,7 +191,7 @@ export class AcessoController {
       .where(eq(s.usuarioSistema.pessoaId, dto.pessoaId));
     if (jaVinculada && jaVinculada.id !== usuarioId) {
       throw new BadRequestException(
-        'Esta pessoa ja esta vinculada a outra conta.',
+        'Esta pessoa já está vinculada a outra conta.',
       );
     }
 
@@ -206,7 +206,7 @@ export class AcessoController {
       .returning({ id: s.usuarioSistema.id });
 
     if (atualizados.length === 0) {
-      throw new NotFoundException('Usuario nao encontrado.');
+      throw new NotFoundException('Usuário não encontrado.');
     }
     return { vinculado: true };
   }

@@ -378,7 +378,7 @@ export class PlanoService {
       (l) => l.id === criado.id,
     );
     if (!linha) {
-      throw new NotFoundException('Linha criada, mas nao pode ser relida.');
+      throw new NotFoundException('Linha criada, mas não pode ser relida.');
     }
     return linha;
   }
@@ -397,7 +397,7 @@ export class PlanoService {
     const anoPlanejamento = dto.ano ?? ciclo.anoInicio;
     this.exigirAnoDoCiclo(ciclo, anoPlanejamento);
     if (ciclo.status === 'ENCERRADO') {
-      throw new BadRequestException('Ciclo encerrado nao pode ser editado.');
+      throw new BadRequestException('Ciclo encerrado não pode ser editado.');
     }
     if (
       ciclo.status === 'VIGENTE' &&
@@ -420,11 +420,11 @@ export class PlanoService {
       .limit(1);
 
     if (!anterior) {
-      throw new NotFoundException('Linha de planejamento nao encontrada.');
+      throw new NotFoundException('Linha de planejamento não encontrada.');
     }
     if (anterior.rubrica !== dto.rubrica) {
       throw new BadRequestException(
-        'A rubrica de uma linha nao pode ser alterada.',
+        'A rubrica de uma linha não pode ser alterada.',
       );
     }
 
@@ -549,7 +549,7 @@ export class PlanoService {
       )
       .limit(1);
     if (!item)
-      throw new NotFoundException('Linha de planejamento nao encontrada.');
+      throw new NotFoundException('Linha de planejamento não encontrada.');
 
     return this.db
       .select({
@@ -592,10 +592,10 @@ export class PlanoService {
       .limit(1);
 
     if (!item)
-      throw new NotFoundException('Linha de planejamento nao encontrada.');
+      throw new NotFoundException('Linha de planejamento não encontrada.');
     if (justificativa.trim().length < 10) {
       throw new BadRequestException(
-        'Cancelar exige justificativa (minimo 10 caracteres).',
+        'Cancelar exige justificativa (mínimo 10 caracteres).',
       );
     }
 
@@ -618,7 +618,7 @@ export class PlanoService {
       .where(eq(s.ppg.id, ppgId))
       .limit(1);
 
-    if (!existe) throw new NotFoundException('PPG nao encontrado.');
+    if (!existe) throw new NotFoundException('PPG não encontrado.');
   }
 
   private exigirAnoDoCiclo(ciclo: CicloResolvido, ano: number): void {
@@ -646,7 +646,7 @@ export class PlanoService {
       .limit(1);
     if (!participacao) {
       throw new BadRequestException(
-        'O PPG selecionado nao participa desta area tematica.',
+        'O PPG selecionado não participa desta área temática.',
       );
     }
   }

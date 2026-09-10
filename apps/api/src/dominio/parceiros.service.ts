@@ -463,7 +463,7 @@ export class ParceirosService {
 
   async detalhar(id: string): Promise<Parceiro> {
     const parceiros = await this.listarPorIds([id]);
-    if (!parceiros[0]) throw new NotFoundException('Parceiro nao encontrado.');
+    if (!parceiros[0]) throw new NotFoundException('Parceiro não encontrado.');
     return parceiros[0];
   }
 
@@ -724,7 +724,7 @@ export class ParceirosService {
         const atual = await this.obterParceiro(id, tx);
         if (!atual.ativo) {
           throw new BadRequestException(
-            'Parceiro inativo nao pode ser editado.',
+            'Parceiro inativo não pode ser editado.',
           );
         }
         const redeIdsAtuais = await this.obterRedeIds(id, tx);
@@ -854,7 +854,7 @@ export class ParceirosService {
     await this.db.transaction(async (tx) => {
       const atual = await this.obterParceiro(id, tx);
       if (!atual.ativo) {
-        throw new BadRequestException('O parceiro ja esta inativo.');
+        throw new BadRequestException('O parceiro já está inativo.');
       }
       await tx
         .update(s.instituicao)
@@ -882,7 +882,7 @@ export class ParceirosService {
   ): Promise<Parceiro> {
     if (origemId === dto.destinoId) {
       throw new BadRequestException(
-        'A origem e o destino da conciliacao devem ser diferentes.',
+        'A origem e o destino da conciliação devem ser diferentes.',
       );
     }
 
@@ -896,13 +896,13 @@ export class ParceirosService {
       const origem = instituicoes.find((item) => item.id === origemId);
       const destino = instituicoes.find((item) => item.id === dto.destinoId);
       if (!origem || origem.tipo !== 'PARCEIRA_INTERNACIONAL') {
-        throw new NotFoundException('Parceiro de origem nao encontrado.');
+        throw new NotFoundException('Parceiro de origem não encontrado.');
       }
       if (!destino || destino.tipo !== 'PARCEIRA_INTERNACIONAL') {
-        throw new NotFoundException('Parceiro de destino nao encontrado.');
+        throw new NotFoundException('Parceiro de destino não encontrado.');
       }
       if (!origem.ativo) {
-        throw new BadRequestException('O parceiro de origem ja esta inativo.');
+        throw new BadRequestException('O parceiro de origem já está inativo.');
       }
       if (!destino.ativo) {
         throw new BadRequestException(
@@ -1276,7 +1276,7 @@ export class ParceirosService {
         ),
       )
       .limit(1);
-    if (!parceiro) throw new NotFoundException('Parceiro nao encontrado.');
+    if (!parceiro) throw new NotFoundException('Parceiro não encontrado.');
     return parceiro;
   }
 
@@ -1299,7 +1299,7 @@ export class ParceirosService {
         .from(s.pais)
         .where(eq(s.pais.id, paisId))
         .limit(1);
-      if (!pais) throw new NotFoundException('Pais nao encontrado.');
+      if (!pais) throw new NotFoundException('País não encontrado.');
     }
     const ids = unicos(redeIds);
     if (!ids.length) return;
@@ -1308,7 +1308,7 @@ export class ParceirosService {
       .from(s.redeCoordenadora)
       .where(inArray(s.redeCoordenadora.id, ids));
     if (existentes.length !== ids.length) {
-      throw new NotFoundException('Rede coordenadora nao encontrada.');
+      throw new NotFoundException('Rede coordenadora não encontrada.');
     }
   }
 
@@ -1323,7 +1323,7 @@ export class ParceirosService {
     );
     if (inequivoco) {
       throw new ConflictException({
-        message: 'Ja existe uma instituicao com este nome normalizado.',
+        message: 'Já existe uma instituição com este nome normalizado.',
         candidatos,
       });
     }

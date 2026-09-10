@@ -109,14 +109,14 @@ function refinarProduto(
       code: 'custom',
       path: ['convenioId'],
       message:
-        'Produto do tipo convenio exige o acordo cadastrado no parceiro.',
+        'Produto do tipo convênio exige o acordo cadastrado no parceiro.',
     });
   }
   if (valor.tipo !== 'CONVENIO' && valor.convenioId) {
     contexto.addIssue({
       code: 'custom',
       path: ['convenioId'],
-      message: 'Somente produto do tipo convenio aponta para um acordo.',
+      message: 'Somente produto do tipo convênio aponta para um acordo.',
     });
   }
 }
@@ -413,12 +413,12 @@ export class ResultadosService {
       // schema sozinho nao conhece o convenio que ja estava apontado.
       if (tipo === 'CONVENIO' && !convenioId) {
         throw new BadRequestException(
-          'Produto do tipo convenio exige o acordo cadastrado no parceiro.',
+          'Produto do tipo convênio exige o acordo cadastrado no parceiro.',
         );
       }
       if (tipo !== 'CONVENIO' && convenioId) {
         throw new BadRequestException(
-          'Somente produto do tipo convenio aponta para um acordo.',
+          'Somente produto do tipo convênio aponta para um acordo.',
         );
       }
       await this.validarReferenciasProduto(
@@ -497,7 +497,7 @@ export class ResultadosService {
         .limit(1);
       if (documento) {
         throw new ConflictException(
-          'Produto com documento anexado nao pode ser removido. Remova o documento antes.',
+          'Produto com documento anexado não pode ser removido. Remova o documento antes.',
         );
       }
 
@@ -542,7 +542,7 @@ export class ResultadosService {
         .limit(1);
       if (produto) {
         throw new ConflictException(
-          'A missao tem produto cadastrado; remova-o antes de declarar que nao houve produto.',
+          'A missão tem produto cadastrado; remova-o antes de declarar que não houve produto.',
         );
       }
 
@@ -642,7 +642,7 @@ export class ResultadosService {
       )
       .where(eq(s.convenio.id, id))
       .limit(1);
-    if (!linha) throw new NotFoundException('Convenio nao encontrado.');
+    if (!linha) throw new NotFoundException('Convênio não encontrado.');
 
     const [redes, produtos, documentos] = await Promise.all([
       this.redesPorConvenio([id], this.db),
@@ -816,7 +816,7 @@ export class ResultadosService {
       const atual = await this.exigirConvenio(id, tx);
       if (atual.ativo === ativo) {
         throw new ConflictException(
-          ativo ? 'Convenio ja esta ativo.' : 'Convenio ja esta inativo.',
+          ativo ? 'Convênio já está ativo.' : 'Convênio já está inativo.',
         );
       }
       await tx
@@ -1055,7 +1055,7 @@ export class ResultadosService {
         ),
       )
       .limit(1);
-    if (!missao) throw new NotFoundException('Missao nao encontrada.');
+    if (!missao) throw new NotFoundException('Missão não encontrada.');
     return missao;
   }
 
@@ -1112,8 +1112,8 @@ export class ResultadosService {
     if (ignorarProdutoId && missao.semProdutoDeclaradoEm) return;
 
     throw new ConflictException(
-      'Missao encerrada nao pode ficar sem resposta sobre produtos. ' +
-        'Reabra a missao antes de desfazer a resposta.',
+      'Missão encerrada não pode ficar sem resposta sobre produtos. ' +
+        'Reabra a missão antes de desfazer a resposta.',
     );
   }
 
@@ -1124,7 +1124,7 @@ export class ResultadosService {
   ) {
     const missao = await this.exigirMissao(cicloId, missaoId, db);
     if (missao.status === 'CANCELADA') {
-      throw new ConflictException('Missao cancelada nao recebe resultados.');
+      throw new ConflictException('Missão cancelada não recebe resultados.');
     }
     return missao;
   }
@@ -1146,7 +1146,7 @@ export class ResultadosService {
       .limit(1);
     // 404 e nao 403 quando o produto e de outra missao: "existe, mas nao e
     // desta missao" ja entregaria a existencia do registro.
-    if (!produto) throw new NotFoundException('Produto nao encontrado.');
+    if (!produto) throw new NotFoundException('Produto não encontrado.');
     return produto;
   }
 
@@ -1156,7 +1156,7 @@ export class ResultadosService {
       .from(s.convenio)
       .where(eq(s.convenio.id, id))
       .limit(1);
-    if (!convenio) throw new NotFoundException('Convenio nao encontrado.');
+    if (!convenio) throw new NotFoundException('Convênio não encontrado.');
     return convenio;
   }
 
@@ -1174,7 +1174,7 @@ export class ResultadosService {
       const convenio = await this.exigirConvenio(dto.convenioId, db);
       if (!convenio.ativo) {
         throw new BadRequestException(
-          'Convenio inativo nao pode ser apontado por um produto.',
+          'Convênio inativo não pode ser apontado por um produto.',
         );
       }
     }
@@ -1191,7 +1191,7 @@ export class ResultadosService {
         .from(s.pessoa)
         .where(inArray(s.pessoa.id, ids));
       if (encontradas.length !== ids.length) {
-        throw new BadRequestException('Pessoa responsavel nao encontrada.');
+        throw new BadRequestException('Pessoa responsável não encontrada.');
       }
     }
   }
@@ -1206,7 +1206,7 @@ export class ResultadosService {
       .from(s.instituicao)
       .where(inArray(s.instituicao.id, unicos));
     if (encontradas.length !== unicos.length) {
-      throw new BadRequestException('Instituicao nao encontrada.');
+      throw new BadRequestException('Instituição não encontrada.');
     }
   }
 
@@ -1231,7 +1231,7 @@ export class ResultadosService {
       .from(s.redeCoordenadora)
       .where(inArray(s.redeCoordenadora.id, unicos));
     if (encontradas.length !== unicos.length) {
-      throw new BadRequestException('Rede coordenadora nao encontrada.');
+      throw new BadRequestException('Rede coordenadora não encontrada.');
     }
     if (cicloId && encontradas.some((rede) => rede.cicloId !== cicloId)) {
       throw new BadRequestException(
@@ -1251,7 +1251,7 @@ export class ResultadosService {
       .where(eq(s.missaoComite.id, missaoOrigemId))
       .limit(1);
     if (!missao) {
-      throw new BadRequestException('Missao de origem nao encontrada.');
+      throw new BadRequestException('Missão de origem não encontrada.');
     }
     return missao.cicloId;
   }

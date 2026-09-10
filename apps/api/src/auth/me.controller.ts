@@ -51,7 +51,7 @@ export class MeController {
   @RequirePermission('plano:write')
   exemploRestrito(@CurrentUser('username') username: string | undefined) {
     return {
-      mensagem: `${username ?? 'usuario'} pode lancar plano de aplicacao.`,
+      mensagem: `${username ?? 'usuario'} pode lançar plano de aplicação.`,
     };
   }
 }
