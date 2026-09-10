@@ -203,6 +203,29 @@ const ROTULOS: Record<string, string> = {
   APRESENTACAO: "Apresentação",
   LISTA_PRESENCA: "Lista de presença",
   DECLARACAO: "Declaração",
+  // produtos de cooperacao cientifica (BOL-050). `TESE_COTUTELA` ja esta mais
+  // abaixo, entre os produtos da missao: os dois dominios reusam o rotulo.
+  ORIENTACAO_CONJUNTA: "Orientação conjunta",
+  // relacionamento institucional (BOL-030/BOL-031)
+  RECEBEU_BOLSISTA: "Recebeu bolsista CAPES Global.Edu",
+  INDICACAO_PESQUISADOR: "Indicação de pesquisador/docente UEA",
+  CONTATO_PPG: "Contato realizado pelo PPG",
+  EVENTO_INTERNACIONAL: "Evento internacional",
+  PROSPECCAO_INSTITUCIONAL: "Prospecção institucional",
+  IDENTIFICADA: "Instituição identificada",
+  CONTATO_INICIADO: "Contato institucional iniciado",
+  COOPERACAO_EM_AVALIACAO: "Cooperação em avaliação",
+  DESTINO: "Destino",
+  ORIGEM: "Origem",
+  // documentos do bolsista (BOL-021)
+  CARTA_ACEITE: "Carta de aceite",
+  PLANO_TRABALHO: "Plano de trabalho",
+  // `RELATORIO` ja esta acima, entre os tipos de produto de bolsa: a categoria
+  // do anexo reusa o mesmo rotulo de proposito.
+  DOCUMENTO_IDENTIDADE: "Documento de identidade",
+  PASSAPORTE: "Passaporte",
+  COMPROVANTE_RESIDENCIA: "Comprovante de residência",
+  PESSOAL: "Pessoal",
   // papeis na missao (CG-018)
   RESPONSAVEL: "Responsável",
   PARTICIPANTE: "Participante",

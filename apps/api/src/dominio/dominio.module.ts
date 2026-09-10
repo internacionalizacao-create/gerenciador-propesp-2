@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 
 import { CatalogoService } from './catalogo.service';
 import { BolsistasController } from './bolsistas.controller';
+import { MobilidadeController } from './mobilidade.controller';
+import { MobilidadeService } from './mobilidade.service';
 import { BolsistasService } from './bolsistas.service';
 import { CicloService } from './ciclo.service';
 import { PessoasController } from './comite-gestor.controller';
@@ -54,6 +56,7 @@ import { CatalogoController, PpgsController } from './ppgs.controller';
     PpgsController,
     CatalogoController,
     BolsistasController,
+    MobilidadeController,
     PessoasController,
     ParceirosController,
     AnexosController,
@@ -70,6 +73,7 @@ import { CatalogoController, PpgsController } from './ppgs.controller';
     PpgsService,
     PendenciasService,
     BolsistasService,
+    MobilidadeService,
     ComiteGestorService,
     MissoesComiteService,
     ExecucaoComiteService,

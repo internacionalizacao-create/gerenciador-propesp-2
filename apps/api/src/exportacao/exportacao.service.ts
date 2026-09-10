@@ -6,6 +6,11 @@ import { dataHojeEmManaus } from '../comum/datas';
 import { AnexosService } from '../dominio/anexos.service';
 import { EncerramentoService } from '../dominio/encerramento.service';
 import { MissoesComiteService } from '../dominio/missoes-comite.service';
+import {
+  MobilidadeService,
+  type FiltroMobilidade,
+} from '../dominio/mobilidade.service';
+import { ParceirosService } from '../dominio/parceiros.service';
 import { PrestacaoService } from '../dominio/prestacao.service';
 import {
   RelatoriosService,
@@ -63,6 +68,22 @@ const MIME: Record<Formato, string> = {
 /** Tipos que a galeria consegue embutir no dossie como imagem. */
 const IMAGEM = ['image/jpeg', 'image/png'];
 
+/** Rotulos do relacionamento institucional (BOL-030/BOL-031). */
+const ORIGEM: Record<string, string> = {
+  RECEBEU_BOLSISTA: 'Recebeu bolsista CAPES Global.Edu',
+  INDICACAO_PESQUISADOR: 'Indicação de pesquisador/docente UEA',
+  CONTATO_PPG: 'Contato realizado pelo PPG',
+  EVENTO_INTERNACIONAL: 'Evento internacional',
+  PROSPECCAO_INSTITUCIONAL: 'Prospecção institucional',
+  OUTRO: 'Outro',
+};
+
+const ESTAGIO: Record<string, string> = {
+  IDENTIFICADA: 'Instituição identificada',
+  CONTATO_INICIADO: 'Contato institucional iniciado',
+  COOPERACAO_EM_AVALIACAO: 'Cooperação em avaliação',
+};
+
 /** Os tres estados da resposta sobre produto (CG-056), por extenso. */
 const ROTULO_RESPOSTA: Record<string, string> = {
   SIM: 'Sim',
@@ -79,6 +100,8 @@ export class ExportacaoService {
     private readonly resultados: ResultadosService,
     private readonly encerramento: EncerramentoService,
     private readonly anexos: AnexosService,
+    private readonly parceiros: ParceirosService,
+    private readonly mobilidade: MobilidadeService,
   ) {}
 
   /**
@@ -218,7 +241,303 @@ export class ExportacaoService {
     };
   }
 
+  /**
+   * Relatorio de mobilidade nos tres formatos (BOL-044).
+   *
+   * **Chama o mesmo servico da tela, com o mesmo filtro e o mesmo usuario.** A
+   * autorizacao e o recorte por PPG vem de la, e nao de uma checagem escrita
+   * aqui — duas regras de acesso para a mesma pergunta divergem, e a
+   * divergencia so aparece como vazamento (CG-069).
+   *
+   * Uma planilha para os tres formatos: um caminho por formato abriria espaco
+   * para o PDF mostrar coluna que o CSV nao tem, e ninguem compararia os tres
+   * para notar.
+   */
+  async relatorioDeMobilidade(
+    usuario: AuthUser,
+    filtro: FiltroMobilidade,
+    formato: Formato,
+  ): Promise<Exportacao> {
+    const linhas = await this.mobilidade.relatorio(usuario, filtro);
+    const planilha: Planilha = {
+      titulo: 'Mobilidade',
+      colunas: [
+        'Bolsista',
+        'CPF',
+        'ORCID',
+        'PPG',
+        'Programa',
+        'Ciclo',
+        'Rede',
+        'Área temática',
+        'Modalidade',
+        'Nível',
+        'Fluxo',
+        'País de destino',
+        'Instituição de destino',
+        'Início',
+        'Fim',
+        'Situação',
+        'Valor (BRL)',
+        'Produtos',
+      ],
+      linhas: linhas.map((linha) => [
+        linha.bolsista,
+        linha.cpf,
+        linha.orcid,
+        linha.ppg,
+        linha.programa,
+        linha.ciclo,
+        linha.rede,
+        linha.areaTematica,
+        linha.modalidade,
+        linha.nivel,
+        linha.fluxo,
+        linha.paisDestino,
+        linha.instituicaoDestino,
+        linha.dataInicio,
+        linha.dataFim,
+        linha.status,
+        linha.valor,
+        String(linha.produtos),
+      ]),
+    };
+
+    const nome = `relatorio-mobilidade-${dataHojeEmManaus()}`;
+    if (formato === 'csv') {
+      return {
+        nomeArquivo: `${nome}.csv`,
+        mimeType: MIME.csv,
+        conteudo: paraCsv(planilha),
+      };
+    }
+    if (formato === 'xlsx') {
+      return {
+        nomeArquivo: `${nome}.xlsx`,
+        mimeType: MIME.xlsx,
+        conteudo: paraXlsx(planilha),
+      };
+    }
+    return {
+      nomeArquivo: `${nome}.pdf`,
+      mimeType: MIME.pdf,
+      conteudo: await gerarPdf({
+        titulo: 'Relatório de mobilidade',
+        subtitulo: `Emitido em ${dataHojeEmManaus()} · ${linhas.length} concessão(ões)`,
+        rodape: 'Mobilidade · Gerenciador PROPESP',
+        secoes: [
+          {
+            titulo: 'Concessões',
+            // O PDF so aceita texto; a planilha permite numero, e aqui todas
+            // as celulas ja sao string por construcao.
+            tabela: {
+              colunas: planilha.colunas,
+              linhas: planilha.linhas as (string | null)[][],
+            },
+          },
+        ],
+      }),
+    };
+  }
+
+  /**
+   * Ficha consolidada do parceiro (BOL-034).
+   *
+   * **PDF apenas**, e nao os tres formatos dos relatorios. A ficha e um
+   * documento — seis secoes de natureza diferente, para circular fora do
+   * sistema —, e nao uma tabela: espremer contatos, mobilidades, missoes e
+   * convenios num CSV unico produziria uma planilha que nao responde nenhuma
+   * das perguntas inteiras. E a mesma razao pela qual o dossie da missao e so
+   * PDF.
+   *
+   * **A autorizacao e a da propria consulta**: chama `historico`, o mesmo
+   * metodo da tela, com nada de checagem paralela.
+   */
+  async fichaDoParceiro(id: string): Promise<Exportacao> {
+    const historico = await this.parceiros.historico(id);
+    const { parceiro } = historico;
+
+    const conteudo = await gerarPdf({
+      titulo: parceiro.nome,
+      subtitulo: `Ficha de relacionamento institucional · emitida em ${dataHojeEmManaus()}`,
+      rodape: `${parceiro.sigla ?? parceiro.nome} · Gerenciador PROPESP`,
+      secoes: this.secoesDaFicha(historico),
+    });
+
+    return {
+      nomeArquivo: `ficha-${(parceiro.sigla ?? parceiro.nome)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')}.pdf`,
+      mimeType: MIME.pdf,
+      conteudo,
+    };
+  }
+
   // -------------------------------------------------------------------------
+
+  private secoesDaFicha(
+    historico: Awaited<ReturnType<ParceirosService['historico']>>,
+  ): SecaoPdf[] {
+    const { parceiro, contatos, mobilidades, missoes, convenios, produtos } =
+      historico;
+
+    /**
+     * Pesquisadores envolvidos, deduzidos das mobilidades.
+     *
+     * Nao ha cadastro de "pesquisador desta instituicao", e inventar um seria
+     * criar um vinculo que ninguem declarou. Quem esteve envolvido e quem
+     * aparece nas acoes registradas — e essa e a unica afirmacao que os dados
+     * sustentam.
+     */
+    const pesquisadores = [
+      ...new Set(mobilidades.map((mobilidade) => mobilidade.bolsista)),
+    ].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+    return [
+      {
+        titulo: 'Dados institucionais',
+        campos: [
+          { rotulo: 'Nome', valor: parceiro.nome },
+          { rotulo: 'Sigla', valor: parceiro.sigla },
+          { rotulo: 'Tipo de organização', valor: parceiro.tipoOrganizacao },
+          {
+            rotulo: 'Local',
+            valor:
+              [parceiro.cidade, parceiro.estadoRegiao, parceiro.pais]
+                .filter(Boolean)
+                .join(', ') || null,
+          },
+          { rotulo: 'Site', valor: parceiro.site },
+          { rotulo: 'E-mail', valor: parceiro.emailInstitucional },
+          { rotulo: 'Telefone', valor: parceiro.telefone },
+          {
+            rotulo: 'Faculdade ou departamento',
+            valor: parceiro.faculdadeDepartamento,
+          },
+          {
+            rotulo: 'Programa relacionado',
+            valor: parceiro.programaRelacionado,
+          },
+          { rotulo: 'Grupo de pesquisa', valor: parceiro.grupoPesquisa },
+          {
+            rotulo: 'Redes da UEA',
+            valor: parceiro.redes.map((rede) => rede.nome).join(', ') || null,
+          },
+        ],
+      },
+      {
+        titulo: 'Situação do relacionamento',
+        campos: [
+          {
+            rotulo: 'Como foi identificada',
+            valor: parceiro.origemRelacionamento
+              ? (ORIGEM[parceiro.origemRelacionamento] ??
+                parceiro.origemRelacionamento)
+              : null,
+          },
+          {
+            rotulo: 'Estágio declarado',
+            valor: ESTAGIO[parceiro.estagioRelacionamento],
+          },
+          {
+            rotulo: 'Mobilidade realizada',
+            valor: parceiro.mobilidadeRealizada
+              ? 'Sim — há bolsa registrada'
+              : 'Não há bolsa registrada',
+          },
+          {
+            rotulo: 'Parceria formalizada',
+            valor: parceiro.parceriaFormalizada
+              ? 'Sim — há convênio vigente'
+              : 'Não há convênio vigente',
+          },
+        ],
+        paragrafos: [
+          parceiro.origemObservacao,
+          parceiro.areasAtuacao
+            ? `Áreas de atuação: ${parceiro.areasAtuacao}`
+            : null,
+          // Exigencia do documento da equipe (BOL-035). Vai na ficha porque e
+          // ela que circula fora do sistema, onde o contexto se perde.
+          'O histórico registrado representa ações já realizadas e não implica disponibilidade futura de vagas ou concessão automática de bolsas.',
+        ].filter((texto): texto is string => Boolean(texto)),
+      },
+      {
+        titulo: 'Histórico de mobilidades',
+        tabela: {
+          colunas: ['Ano', 'Bolsista', 'PPG', 'Modalidade', 'Papel', 'Período'],
+          linhas: mobilidades.map((mobilidade) => [
+            String(mobilidade.ano),
+            mobilidade.bolsista,
+            mobilidade.ppgSigla,
+            mobilidade.modalidade,
+            mobilidade.ponta === 'DESTINO' ? 'Recebeu' : 'Enviou',
+            `${mobilidade.dataInicio} a ${mobilidade.dataFim}`,
+          ]),
+        },
+      },
+      {
+        titulo: 'Pesquisadores envolvidos',
+        paragrafos: [
+          pesquisadores.length > 0
+            ? pesquisadores.join(' · ')
+            : 'Nenhum pesquisador consta das ações registradas.',
+        ],
+      },
+      {
+        titulo: 'Contatos registrados',
+        tabela: {
+          colunas: ['Nome', 'Cargo', 'Departamento', 'E-mail', 'Situação'],
+          linhas: contatos.map((contato) => [
+            contato.nome,
+            contato.cargo,
+            contato.departamento,
+            contato.email,
+            contato.ativo ? 'Ativo' : 'Inativo',
+          ]),
+        },
+      },
+      {
+        titulo: 'Missões do Comitê Gestor',
+        tabela: {
+          colunas: ['Código', 'Título', 'Período', 'Situação'],
+          linhas: missoes.map((missao) => [
+            missao.codigo,
+            missao.titulo,
+            `${missao.dataInicio} a ${missao.dataFim}`,
+            missao.status,
+          ]),
+        },
+      },
+      {
+        titulo: 'Convênios',
+        tabela: {
+          colunas: ['Título', 'Tipo', 'Situação', 'Vigência'],
+          linhas: convenios.map((convenio) => [
+            convenio.titulo,
+            convenio.tipoAcordo,
+            convenio.situacao,
+            [convenio.dataInicio, convenio.dataFim]
+              .filter(Boolean)
+              .join(' a ') || 'Indeterminada',
+          ]),
+        },
+      },
+      {
+        titulo: 'Produtos',
+        tabela: {
+          colunas: ['Título', 'Tipo', 'Situação', 'Ano'],
+          linhas: produtos.map((produto) => [
+            produto.titulo,
+            produto.tipo,
+            produto.situacao,
+            produto.ano === null ? null : String(produto.ano),
+          ]),
+        },
+      },
+    ];
+  }
 
   private secoesDoDossie(
     missao: Awaited<ReturnType<MissoesComiteService['detalhe']>>,

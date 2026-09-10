@@ -28,7 +28,7 @@ import {
   tipoProdutoBolsaEnum,
 } from './comum';
 import { itemCatalogoBolsa, modalidade } from './catalogo';
-import { instituicao, pais, pessoa, ppg } from './institucional';
+import { instituicao, linhaPesquisa, pais, pessoa, ppg } from './institucional';
 import { areaTematica, ciclo, programa } from './programa';
 
 /**
@@ -195,9 +195,33 @@ export const bolsaConcedida = pgTable(
     ppgId: uuid('ppg_id')
       .notNull()
       .references(() => ppg.id),
+    /**
+     * Area tematica da concessao (BOL-011).
+     *
+     * Ate aqui a tematica so existia via `item_planejado`, e `itemPlanejadoId` e
+     * **nulo** para bolsa que chega sem planejamento nesta ferramenta — GCUB e
+     * Erasmus. O resultado era a concessao ficar fora de todo agrupamento por
+     * rede e por tematica, sem nada na tela dizendo que ela existia.
+     *
+     * Guarda a tematica, e nao a rede: rede se deriva de `area_tematica.rede_id`
+     * e gravar as duas criaria a chance de discordarem.
+     */
+    areaTematicaId: uuid('area_tematica_id').references(() => areaTematica.id),
     pessoaId: uuid('pessoa_id')
       .notNull()
       .references(() => pessoa.id),
+    /**
+     * Contexto academico da concessao (BOL-013).
+     *
+     * Ficam aqui, e nao em `pessoa`, porque descrevem **esta** bolsa: a linha
+     * de pesquisa pertence ao PPG desta concessao, e a mesma pessoa pode ser
+     * bolsista aqui e docente em outro programa. Em `pessoa` os dois campos
+     * teriam de valer para todos os vinculos ao mesmo tempo.
+     */
+    linhaPesquisaId: uuid('linha_pesquisa_id').references(
+      () => linhaPesquisa.id,
+    ),
+    orientadorId: uuid('orientador_id').references(() => pessoa.id),
     modalidadeId: uuid('modalidade_id')
       .notNull()
       .references(() => modalidade.id),
@@ -235,6 +259,7 @@ export const bolsaConcedida = pgTable(
     index('bolsa_concedida_pessoa_idx').on(t.pessoaId),
     index('bolsa_concedida_ciclo_idx').on(t.cicloId),
     index('bolsa_concedida_item_idx').on(t.itemPlanejadoId),
+    index('bolsa_concedida_tematica_idx').on(t.areaTematicaId),
     check('bolsa_concedida_periodo_ck', sql`${t.dataFim} >= ${t.dataInicio}`),
     check('bolsa_concedida_valor_ck', sql`${t.valorConcedido} >= 0`),
   ],
@@ -321,6 +346,20 @@ export const bolsaConcedidaRelations = relations(
     pessoa: one(pessoa, {
       fields: [bolsaConcedida.pessoaId],
       references: [pessoa.id],
+      relationName: 'bolsista',
+    }),
+    orientador: one(pessoa, {
+      fields: [bolsaConcedida.orientadorId],
+      references: [pessoa.id],
+      relationName: 'orientador',
+    }),
+    areaTematica: one(areaTematica, {
+      fields: [bolsaConcedida.areaTematicaId],
+      references: [areaTematica.id],
+    }),
+    linhaPesquisa: one(linhaPesquisa, {
+      fields: [bolsaConcedida.linhaPesquisaId],
+      references: [linhaPesquisa.id],
     }),
     paisDestino: one(pais, {
       fields: [bolsaConcedida.paisDestinoId],

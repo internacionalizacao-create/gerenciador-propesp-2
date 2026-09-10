@@ -6,11 +6,15 @@ import {
   Patch,
   Post,
   Query,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 
 import { CurrentUser, RequirePermission } from '../auth/auth.decorators';
 import type { AuthUser } from '../auth/auth-user';
+import { responderArquivo } from '../comum/resposta-arquivo';
 import { ZodValidationPipe } from '../comum/zod-validation.pipe';
+import { ExportacaoService } from '../exportacao/exportacao.service';
 import {
   atualizarParceiroSchema,
   candidatosParceiroSchema,
@@ -30,7 +34,10 @@ import {
 /** Parceiros institucionais reutilizaveis por redes e missoes. */
 @Controller('parceiros')
 export class ParceirosController {
-  constructor(private readonly parceiros: ParceirosService) {}
+  constructor(
+    private readonly parceiros: ParceirosService,
+    private readonly exportacao: ExportacaoService,
+  ) {}
 
   @Get()
   @RequirePermission('parceiro:read')
@@ -48,6 +55,19 @@ export class ParceirosController {
     filtros: CandidatosParceiro,
   ) {
     return this.parceiros.buscarCandidatos(filtros);
+  }
+
+  /**
+   * Ficha de relacionamento institucional em PDF (BOL-034).
+   *
+   * `parceiro:read`, a mesma do historico: exportar e ler noutro formato. Uma
+   * permissao propria de exportacao permitiria as duas divergirem, e a
+   * divergencia so apareceria como vazamento (CG-069).
+   */
+  @Get(':id/ficha')
+  @RequirePermission('parceiro:read')
+  async ficha(@Param('id') id: string, @Res() resposta: Response) {
+    responderArquivo(resposta, await this.exportacao.fichaDoParceiro(id));
   }
 
   @Get(':id')

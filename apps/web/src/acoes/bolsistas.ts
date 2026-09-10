@@ -1,6 +1,10 @@
 "use server";
 
 import { enviar, texto, type EstadoDaAcao } from "@/lib/acao";
+import {
+  payloadBolsaConcedida,
+  type DadosFormularioBolsaConcedida,
+} from "@/lib/formularios/bolsa-concedida";
 import { dataBrParaIso } from "@/lib/formato";
 
 function dataDoFormulario(formulario: FormData, campo: string) {
@@ -9,53 +13,48 @@ function dataDoFormulario(formulario: FormData, campo: string) {
   return dataBrParaIso(informada) ?? informada;
 }
 
-function corpoDaBolsa(formulario: FormData) {
-  return {
-    itemPlanejadoId: texto(formulario, "itemPlanejadoId"),
-    nome: texto(formulario, "nome"),
-    email: texto(formulario, "email"),
-    cpf: texto(formulario, "cpf"),
-    nivelBeneficiario: texto(formulario, "nivelBeneficiario"),
-    paisOrigem: texto(formulario, "paisOrigem"),
-    instituicaoOrigem: texto(formulario, "instituicaoOrigem"),
-    paisDestino: texto(formulario, "paisDestino"),
-    instituicaoDestino: texto(formulario, "instituicaoDestino"),
-    dataInicio: dataDoFormulario(formulario, "dataInicio"),
-    dataFim: dataDoFormulario(formulario, "dataFim"),
-    status: texto(formulario, "status") ?? "SELECIONADO",
-    processo: texto(formulario, "processo"),
-    observacoes: texto(formulario, "observacoes"),
-  };
-}
-
+/**
+ * Cadastro da concessão (BOL-010).
+ *
+ * Recebe objeto tipado do React Hook Form, não `FormData`. A conversão de data
+ * e a escolha entre catálogo e texto livre ficam em `payloadBolsaConcedida`,
+ * ao lado do schema que as valida — aqui não há regra de negócio nenhuma.
+ */
 export async function criarBolsaConcedida(
   _anterior: EstadoDaAcao,
-  formulario: FormData,
+  dados: DadosFormularioBolsaConcedida,
 ): Promise<EstadoDaAcao> {
   return enviar(
     "/bolsistas",
     "POST",
-    corpoDaBolsa(formulario),
+    payloadBolsaConcedida(dados),
     ["/mobilidade/bolsistas"],
     "Bolsa concedida cadastrada.",
   );
 }
 
+/**
+ * Edição da concessão: só período e situação administrativa.
+ *
+ * Continua em `FormData` de propósito. O §7 do AGENTS.md manda migrar o
+ * formulário legado **quando ele for alterado**, e a BOL-010 não o altera —
+ * origem e destino não são editáveis aqui. Migrar junto seria reescrita ampla
+ * sem necessidade, que é exatamente o que a convenção exclui.
+ */
 export async function atualizarBolsaConcedida(
   id: string,
   _anterior: EstadoDaAcao,
   formulario: FormData,
 ): Promise<EstadoDaAcao> {
-  const corpo = corpoDaBolsa(formulario);
   return enviar(
     `/bolsistas/${id}`,
     "PATCH",
     {
-      dataInicio: corpo.dataInicio,
-      dataFim: corpo.dataFim,
-      status: corpo.status,
-      processo: corpo.processo,
-      observacoes: corpo.observacoes,
+      dataInicio: dataDoFormulario(formulario, "dataInicio"),
+      dataFim: dataDoFormulario(formulario, "dataFim"),
+      status: texto(formulario, "status") ?? "SELECIONADO",
+      processo: texto(formulario, "processo"),
+      observacoes: texto(formulario, "observacoes"),
     },
     ["/mobilidade/bolsistas", `/mobilidade/bolsistas/${id}`],
     "Situação da bolsa atualizada.",

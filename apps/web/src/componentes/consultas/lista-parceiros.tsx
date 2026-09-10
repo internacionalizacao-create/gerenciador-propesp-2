@@ -14,6 +14,7 @@ import {
   Selo,
   Tabela,
 } from "@/componentes/ui/basicos";
+import { useDebounce } from "@/componentes/consultas/debounce";
 import { buscarNoBff, caminhoBff } from "@/lib/bff";
 import type { Parceiro } from "@/lib/dominio";
 import { inteiro } from "@/lib/formato";
@@ -321,13 +322,3 @@ function Filtros({
 }
 
 /** Adia o valor para nao consultar a cada tecla digitada. */
-function useDebounce<T>(valor: T, milissegundos: number): T {
-  const [adiado, definirAdiado] = useState(valor);
-
-  useEffect(() => {
-    const id = setTimeout(() => definirAdiado(valor), milissegundos);
-    return () => clearTimeout(id);
-  }, [valor, milissegundos]);
-
-  return adiado;
-}

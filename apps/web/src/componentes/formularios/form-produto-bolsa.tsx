@@ -19,6 +19,9 @@ const TIPOS = [
   { valor: "CAPITULO_LIVRO", texto: "Capítulo de livro" },
   { valor: "PATENTE", texto: "Patente" },
   { valor: "EVENTO", texto: "Evento" },
+  // BOL-050: cooperação científica do documento da equipe.
+  { valor: "TESE_COTUTELA", texto: "Tese em cotutela" },
+  { valor: "ORIENTACAO_CONJUNTA", texto: "Orientação conjunta" },
   { valor: "OUTRO", texto: "Outro" },
 ];
 

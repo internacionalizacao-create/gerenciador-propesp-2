@@ -567,6 +567,111 @@ o ícone estiver visível.
 
 - **Autenticação/autorização**: login e logout OIDC completos, sessão renovada
   automaticamente, guards globais, catálogo de permissões, realm versionado.
+- **Documentos do bolsista (BOL-021/BOL-022, 2026-09-09)**: `BOLSA_CONCEDIDA`
+  em `entidade_anexo`, com as categorias do bolsista e a política de
+  visibilidade. **A categoria decide a visibilidade, nunca o cliente** — o
+  serviço sobrescreve, senão bastaria enviar `INTERNA` junto de um passaporte.
+  Acadêmico (carta de aceite, plano de trabalho, relatório, declaração,
+  publicação) é `INTERNA` e segue o recorte por PPG; pessoal
+  (`DOCUMENTO_IDENTIDADE`, `PASSAPORTE`, `COMPROVANTE_RESIDENCIA`) é `PESSOAL`.
+  - **`PESSOAL` e `RESTRITA` não são níveis, são públicos diferentes.** O Comitê
+    Gestor abre `RESTRITA` e não abre `PESSOAL`; a `secretaria` abre `PESSOAL` e
+    não abre `RESTRITA`. Por isso `documento:read-pessoal` é permissão própria,
+    e `podeVer` mapeia visibilidade → permissão com um `if` explícito: um `||`
+    entre as duas daria a cada uma o alcance da outra.
+  - **A retenção é derivada, nunca gravada** — fim da concessão + 5 anos,
+    calculada na leitura. `data_fim` é editável, e coluna gravada divergiria na
+    primeira correção de período. **Não há expurgo automático** em lugar nenhum
+    do sistema; o campo torna a política conferível, executá-la é ato humano.
+  - **A tela é a seção *Documentos do bolsista*** em
+    `/mobilidade/bolsistas/[id]`, com envio em sidesheet (RHF + Zod) e download
+    por `/anexos/:id/conteudo`. **Não há seletor de visibilidade** — quem decide
+    é a categoria, e oferecer a escolha faria quem marcasse "interna" achar que
+    publicou. **A tela não refiltra** o que a API já filtrou. A categoria
+    pessoal só é *oferecida* a quem tem `documento:read-pessoal`, e **a API
+    recusa o envio de quem não a tem** (homologado em 2026-09-09): enviar
+    documento pessoal exige a mesma permissão de abri-lo. Sem essa simetria, o
+    coordenador coletava passaporte de aluno que só ele próprio reabriria
+    depois. **403 e não 404** — a concessão é visível, o que se recusa é a ação.
+  - **`enviar` passou a usar `exigirAcesso`** (permissão **mais** recorte).
+    Antes usava só `exigir`, enquanto todas as outras operações já checavam o
+    recorte — quem não alcançava uma missão de outra rede conseguia *pendurar*
+    documento nela conhecendo o UUID. Não dava para ler de volta; dava para
+    injetar. A correção vale para todos os tipos de entidade.
+- **Relacionamento institucional (BOL-030 a BOL-033/035, 2026-09-09)**:
+  `instituicao` ganhou origem, estágio, áreas de atuação, programa relacionado e
+  grupo de pesquisa. **A origem é imutável** — `atualizarParceiroSchema` não a
+  tem, e o campo enviado a mais é descartado; reescrevê-la apagaria a memória de
+  como o relacionamento começou. É obrigatória no cadastro e nula no banco, para
+  não inventar resposta para as instituições anteriores ao campo.
+  - **Só três dos cinco estados do documento são gravados.** "Mobilidade
+    realizada" e "parceria formalizada" são **derivados** por `exists` sobre
+    `bolsa_concedida` e `convenio` vigente, e aparecem ao lado do estágio
+    declarado, nunca no lugar dele. Gravá-los criaria a divergência do dia
+    seguinte — a ficha dizendo "apenas identificada" sobre quem recebeu três
+    bolsistas. `exists` e não `join`, senão a instituição apareceria uma vez por
+    bolsa (CG-016).
+  - **O histórico de mobilidades é uma linha por concessão**, com a ponta
+    (recebeu/enviou) resolvida por `case`: a instituição pode ser origem *e*
+    destino da mesma bolsa numa dupla titulação, e um `or` dentro de `join` a
+    traria duas vezes.
+  - **Áreas de atuação é texto livre de propósito**: sem taxonomia mantida, duas
+    grafias viram duas áreas e a contagem sai errada — o mesmo defeito do evento
+    contado pelo nome (CG-067). O campo descreve, não conta.
+- **Panorama de mobilidade (P02, BOL-040, 2026-09-09)**: `/mobilidade` e
+  `GET /mobilidade/panorama`. É a tela que responde *o que a internacionalização
+  produziu*; a P01 responde *o plano cabe no orçamento*, e por isso as duas
+  coexistem. **Um filtro só, montado uma vez**, servindo cartões, sete quebras e
+  a série — a lição da CG-066 aplicada de saída, com regressão que falha se
+  alguma quebra ganhar `where` próprio. **O recorte por PPG entra no mesmo
+  objeto**, então nenhuma quebra pode esquecê-lo. `item_planejado` entra por
+  `left join` em toda consulta que precisa de rede: um `join` excluiria a bolsa
+  vinda de fora do planejamento. **Concessão com destino digitado à mão entra no
+  total e fica fora das quebras por país e instituição**, com o aviso na tela —
+  sem ele, quem somasse as linhas acharia que a tela erra (CG-067).
+  - **A P01 mostra os mesmos números** numa seção própria (BOL-041), buscando o
+    panorama filtrado por `cicloId` — não recalcula. **Ao lado** dos indicadores
+    financeiros, nunca no lugar: são perguntas diferentes, e fundi-las faria
+    compromisso parecer execução. O cartão se chama *Custo das bolsas
+    concedidas* (D-B07), nunca "executado".
+  - **O consolidado por rede (BOL-043)** tem método próprio, não a quebra
+    genérica: alcance é `distinct` e produto entra por **subconsulta**, porque
+    um `join` com `produto_bolsa` faria a bolsa de três produtos virar três
+    linhas e inflar mobilidades e valor. Concessão sem temática cai em "Sem rede
+    vinculada" em vez de sumir.
+  - **O relatório exportável (BOL-044)** usa a mesma função `condicao` do
+    panorama — não existe segunda origem, e a regressão cruza o total do
+    panorama com a contagem das linhas.
+- **Ata da decisão (BOL-052)**: `DECISAO_COMITE` em `entidade_anexo`, aceitando
+  **somente** a categoria `ATA`. A exclusão anterior era sobre *documento
+  analisado*, que se prende à missão (CG-019); a ata é o registro do ato que a
+  decisão descreve. Escrever exige `missao:decide` — quem registra a decisão é
+  quem anexa a ata dela —, e o recorte por rede a alcança por duas junções até a
+  missão. **Não substitui o modelo B**: o colegiado segue deliberando fora do
+  sistema.
+- **Mapa e destinos (P04, BOL-042)**: `/mobilidade/mapa`, com `react-simple-maps`
+  e o topojson do `world-atlas` — as duas primeiras dependências de visualização
+  geográfica. **O casamento é pelo código ISO 3166-1 numérico**, que `pais`
+  ganhou na migration `0038`, gerado da base `iso-codes` e conferido contra os
+  249 pares ISO2/ISO3 existentes. Casar por nome em inglês falharia em silêncio
+  ("W. Sahara" no arquivo × "Western Sahara" no ICU), e país sem cor é
+  indistinguível de país sem mobilidade. **A seed virou upsert** para as linhas
+  antigas receberem o campo. A cor sai de `var(--token)` no SVG, nunca resolvida
+  em JavaScript. O SVG é `aria-hidden`: quem serve leitor de tela é a tabela.
+- **Produção consolidada (P18/P19, BOL-051)**: `/producao` e
+  `GET /mobilidade/producao`. **`union all`, não `join`** — as duas tabelas de
+  produto não se relacionam, e o que existe é a pergunta comum. A coluna
+  *Origem* marca cada linha para a soma não apagar a diferença que a CG-056
+  preservou. Exige `bolsa:read` **e** `produto:read`; produto de missão só entra
+  para quem tem `missao:read`.
+- **Ficha do parceiro (BOL-034)**: `GET /parceiros/:id/ficha`, PDF único pelo
+  `gerarPdf` da CG-069. **PDF apenas**, porque a ficha é documento e não tabela.
+  A autorização é a da própria consulta — chama `historico`, o mesmo método da
+  tela. "Pesquisadores envolvidos" é deduzido das mobilidades: não há cadastro
+  de pesquisador da instituição, e inventá-lo criaria vínculo que ninguém
+  declarou. `responderArquivo` mora em
+  [comum/resposta-arquivo.ts](apps/api/src/comum/resposta-arquivo.ts) desde
+  então — duplicá-lo duplicaria a armadilha do `resposta.send`.
 - **Modelo de dados**: 53 tabelas em 13 módulos de schema Drizzle
   ([apps/api/src/database/schema/](apps/api/src/database/schema/)), com migrations.
   Segue [system-structl.md](system-structl.md) §4.
@@ -626,6 +731,49 @@ o ícone estiver visível.
   vaga por exercício, CPF, origem e destino, datas completas, alertas temporais, regra de uma
   modalidade por CPF/ciclo e cadastro/acompanhamento de produtos por pessoa. Não há
   seed de beneficiários porque a planilha não os traz.
+  - **As duas pontas da mobilidade saem do cadastro central desde a BOL-010**
+    (2026-09-09). País é **sempre** do catálogo ISO; instituição vem do
+    catálogo **ou** digitada, espelhando `missao_atividade` — exigir catálogo
+    travaria o cadastro, porque a base nasce com a UEA e as três redes e quem
+    tem `bolsa:write` não tem `parceiro:write`. **Exatamente uma coluna por
+    ponta é gravada**: a FK quando veio do catálogo, o texto quando foi
+    digitada; gravar as duas as faria discordar na primeira conciliação
+    (CG-025). A leitura usa `coalesce(join, texto)`, com o join primeiro, para
+    que renomear ou conciliar um parceiro se propague à bolsa já registrada.
+  - O formulário é o seletor com busca: país filtra **no cliente** (lista ISO
+    fechada, já carregada pelo Server Component) e instituição filtra **no
+    servidor** (`GET /bolsistas/instituicoes?busca=`, com TanStack Query), porque
+    o cadastro institucional existe para crescer e o filtro no cliente deixaria
+    de funcionar em silêncio, cortado pelo teto do serviço.
+  - **`GET /bolsistas/referencias` é endpoint próprio, com `bolsa:read`**, e não
+    um reuso de `/parceiros`: quem cadastra bolsa é `coordenador` ou
+    `secretaria`, e nenhum dos dois tem `parceiro:read` — que governa também os
+    contatos, com dados pessoais que essas funções não precisam ver para
+    escolher uma universidade.
+  - **Contexto acadêmico na concessão (BOL-011 a BOL-013)**: temática, linha de
+    pesquisa e orientador ficam em `bolsa_concedida`, não em `pessoa` — descrevem
+    *esta* bolsa, e a mesma pessoa pode ser bolsista aqui e docente em outro
+    programa. A API recusa linha de pesquisa de outro PPG (a FK sozinha
+    aceitaria). O orientador é informado por nome e criado como `DOCENTE` se não
+    existir: exigir cadastro prévio faria a equipe deixar o campo vazio.
+    Telefone e ORCID ficam em `pessoa`; o ORCID aceita `X` no último caractere,
+    que é o dígito verificador do padrão.
+  - **P03 é recortada por PPG desde a BOL-020** (2026-09-09), em leitura e em
+    escrita, sempre **na consulta** e nunca em memória. Concessão fora do escopo
+    responde **404, nunca 403**: a existência da bolsa já é o dado protegido —
+    dizer "existe, mas não é sua" entrega que aquela pessoa tem uma concessão.
+    **O produto herda o recorte da bolsa** e não tem recorte próprio; sem isso
+    `produto:write` seria a porta lateral, e conhecer o UUID bastaria para
+    escrever na bolsa de outro PPG.
+  - **A escrita de bolsa usa o modo permissivo de `RECORTE_OBRIGATORIO`**, e
+    não a regra estrita de `RecorteDeMissoes.alcanca`. Os dois casos só parecem
+    iguais: `gestor-rede` nunca foi atribuído a ninguém, então fechar a escrita
+    de missão não tira nada de ninguém; `bolsa:write` é do `coordenador`, que
+    trabalha hoje sem escopo cadastrado, e fechar pararia o cadastro de bolsa no
+    mesmo instante para todo mundo. Quando a flag virar `true`, leitura e
+    escrita fecham juntas. Os dois modos têm teste em
+    [escopo-bolsas.int-spec.ts](apps/api/test/escopo-bolsas.int-spec.ts), e seis
+    dos oito casos foram verificados por mutação: remover o recorte os derruba.
 - **Comitê Gestor e Administração (P17, equipes e cadastro de missões)**:
   cadastro de vínculos por ciclo, separação entre as duas equipes, criação
   reutilizável de pessoas, vigência, auditoria e acesso provisório exclusivo de
@@ -1070,10 +1218,11 @@ interface é **Coordenador de Temática**, não “membro do comitê”. Ediçã
 existente exige `plano:edit` (só `admin`), preserva código/rubrica e grava uma
 entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: somente
 2027 vem composto; 2028–2030 começam vazios e nunca copiam a quantidade automaticamente.
-- **Testes**: 161 unitários/regressões (68 API + 93 na web para toast, datas,
+- **Testes**: 185 unitários/regressões (69 API + 127 na web para toast, datas,
   React Hook Form/Zod, erros do multistep, formulários de parceiro,
   acessibilidade, contraste dos tokens, cálculos monetários, montagem de série
-  do gráfico, links do painel e caminhos do BFF) + 488 de integração contra Postgres
+  do gráfico, links do painel, pontas da mobilidade e caminhos do BFF)
+  + 503 de integração contra Postgres
   real — os oito últimos são a escrita do catálogo
   ([catalogo.int-spec.ts](apps/api/test/catalogo.int-spec.ts)), incluindo a
   recusa de alterar item que já custeia linha de plano. As duas garantias de não duplicação da linha
@@ -1088,10 +1237,26 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
 
 **Não existe ainda:**
 
-- **Mapa (P04) e panorama de mobilidade (P02).** P03 já permite cadastrar as
-  concessões, mas as planilhas de origem não têm o dado individual: sabe-se que
-  há "1 bolsa de Doutorado Sanduíche de 6 meses para o PPGCLIAMB", não quem foi
-  nem se voltou. As visões consolidadas dependem desse cadastro começar.
+- **Dado individual de mobilidade.** As telas de P01 a P04, produção e
+  relatórios existem desde 2026-09-09, mas ficam vazias: as planilhas de origem
+  não trazem o beneficiário — sabe-se que há "1 bolsa de Doutorado Sanduíche de
+  6 meses para o PPGCLIAMB", não quem foi nem se voltou. Nada disso é bug; é a
+  equipe que precisa cadastrar as concessões em P03.
+  Em 2026-09-09 a equipe entregou a *Proposta de estruturação do módulo
+  Bolsistas* (8 módulos), que reescreve P01–P04, P20 e P24 sob outro
+  vocabulário e acrescenta origem/situação do relacionamento institucional,
+  histórico de mobilidade por instituição e documentos do bolsista. A auditoria
+  integral, as sete decisões bloqueantes e o backlog `BOL-` estão em
+  [docs/revisao-escopo-bolsistas-2026-09-09.md](docs/revisao-escopo-bolsistas-2026-09-09.md),
+  e a folha de homologação das sete decisões em
+  [docs/homologacao-bolsistas.md](docs/homologacao-bolsistas.md).
+  **As sete decisões (D-B01 a D-B07) foram homologadas em 2026-09-09**,
+  conforme a proposta de cada uma. As que já viraram código estão nas BOL-010,
+  BOL-020, BOL-021 e BOL-022; D-B04, D-B05 e D-B07 destravam trabalho ainda não
+  iniciado. Duas valem como regra permanente: **`bolsa_concedida` é a
+  mobilidade** — não existe, nem deve existir, uma tabela separada para ela —, e
+  **`missao_comite` não é reusada para mobilidade de bolsista**, pelo mesmo
+  argumento que a CG-056 registrou sobre `produto_bolsa`.
 - **Registro de movimentações externas (P12).** Deve aceitar apenas origem/destino
   da mesma temática e registrar o que já aconteceu na CAPES, com status manual e
   auditoria. O Gerenciador não propõe, autoriza ou executa. A estrutura genérica de
@@ -1109,10 +1274,11 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
   (lista, busca, cadastro, edição, contatos e histórico); o que falta dela
   depende da CG-045, ainda bloqueada. A visibilidade por rede é a CG-028 —
   hoje parceiros e contatos são exclusivos do `admin`.
-- **Escopo aplicado além de PPGs.** O recorte já existe e funciona (ver §6),
-  mas por enquanto só a listagem e o detalhe de PPG o consultam. Plano, bolsas,
-  orçamento, missões e parceiros continuam sem recorte — é trabalho mecânico,
-  uma consulta por vez, e cada uma precisa de regressão própria.
+- **Escopo aplicado além de PPGs e bolsas.** O recorte já existe e funciona
+  (ver §6). **As bolsas concedidas entraram na BOL-020** (2026-09-09): listagem,
+  detalhe, opções de planejamento, concessão, edição e produtos. Plano,
+  orçamento e parceiros continuam sem recorte — é trabalho mecânico, uma
+  consulta por vez, e cada uma precisa de regressão própria.
 - Cobertura ampla de componentes na `web`. O `node --test` carrega TypeScript em
   modo strip-only: não lê `.tsx` e recusa *parameter property*
   (`constructor(readonly x: number)`). Por isso a lógica testável mora em `.ts`

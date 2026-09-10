@@ -67,7 +67,16 @@ export async function executarSeed(
   const d = dadosCapesGlobal;
 
   // --- Paises -------------------------------------------------------------
-  await db.insert(s.pais).values(paisesIso).onConflictDoNothing();
+  // Upsert, e nao `onConflictDoNothing`: o catalogo ISO ja estava carregado
+  // quando o codigo numerico entrou (BOL-042), e ignorar o conflito deixaria
+  // as 249 linhas antigas sem o campo — o mapa ficaria em branco sem erro.
+  await db
+    .insert(s.pais)
+    .values(paisesIso)
+    .onConflictDoUpdate({
+      target: s.pais.codigoIso2,
+      set: { codigoNumerico: sql`excluded.codigo_numerico` },
+    });
   const paises = await db
     .select({ id: s.pais.id, codigoIso2: s.pais.codigoIso2 })
     .from(s.pais);

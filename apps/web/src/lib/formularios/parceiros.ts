@@ -26,6 +26,21 @@ export const formularioParceiroSchema = z.object({
   estadoRegiao: opcional(120),
   tipoOrganizacao: opcional(120),
   faculdadeDepartamento: opcional(240),
+  areasAtuacao: opcional(2000),
+  programaRelacionado: opcional(240),
+  grupoPesquisa: opcional(240),
+  /**
+   * Obrigatória no cadastro; a API a recusa vazia e **não a aceita na edição**,
+   * porque a origem é fato histórico e não se reescreve (BOL-030). No
+   * formulário de edição o campo aparece como texto, não como seletor.
+   */
+  origemRelacionamento: z.string(),
+  origemObservacao: opcional(2000),
+  estagioRelacionamento: z.enum([
+    "IDENTIFICADA",
+    "CONTATO_INICIADO",
+    "COOPERACAO_EM_AVALIACAO",
+  ]),
   site: opcional(240).refine(
     (valor) => valor === "" || z.url().safeParse(valor).success,
     "Informe uma URL válida, começando com https://",
@@ -93,6 +108,11 @@ export function payloadParceiro(dados: DadosFormularioParceiro) {
     estadoRegiao: textoOuNulo(dados.estadoRegiao),
     tipoOrganizacao: textoOuNulo(dados.tipoOrganizacao),
     faculdadeDepartamento: textoOuNulo(dados.faculdadeDepartamento),
+    areasAtuacao: textoOuNulo(dados.areasAtuacao),
+    programaRelacionado: textoOuNulo(dados.programaRelacionado),
+    grupoPesquisa: textoOuNulo(dados.grupoPesquisa),
+    origemObservacao: textoOuNulo(dados.origemObservacao),
+    estagioRelacionamento: dados.estagioRelacionamento,
     site: textoOuNulo(dados.site),
     emailInstitucional: textoOuNulo(dados.emailInstitucional),
     telefone: textoOuNulo(dados.telefone),
@@ -101,6 +121,35 @@ export function payloadParceiro(dados: DadosFormularioParceiro) {
     cadastroProvisorio: dados.cadastroProvisorio,
     redeIds: dados.redeIds,
     confirmarPossivelDuplicidade: dados.confirmarPossivelDuplicidade,
+  };
+}
+
+export const ORIGENS_RELACIONAMENTO = [
+  { valor: "RECEBEU_BOLSISTA", texto: "Recebeu bolsista CAPES Global.Edu" },
+  { valor: "INDICACAO_PESQUISADOR", texto: "Indicação de pesquisador/docente UEA" },
+  { valor: "CONTATO_PPG", texto: "Contato realizado pelo PPG" },
+  { valor: "EVENTO_INTERNACIONAL", texto: "Evento internacional" },
+  { valor: "PROSPECCAO_INSTITUCIONAL", texto: "Prospecção institucional" },
+  { valor: "OUTRO", texto: "Outro" },
+] as const;
+
+export const ESTAGIOS_RELACIONAMENTO = [
+  { valor: "IDENTIFICADA", texto: "Instituição identificada" },
+  { valor: "CONTATO_INICIADO", texto: "Contato institucional iniciado" },
+  { valor: "COOPERACAO_EM_AVALIACAO", texto: "Cooperação em avaliação" },
+] as const;
+
+/**
+ * Corpo do **cadastro**, que é o único que carrega a origem.
+ *
+ * A edição usa `payloadParceiro` puro: a API não aceita a origem lá, e mandá-la
+ * seria escrever no corpo um campo que o schema do outro lado descarta — o tipo
+ * de coisa que funciona por acidente até alguém "corrigir" o schema.
+ */
+export function payloadParceiroNovo(dados: DadosFormularioParceiro) {
+  return {
+    ...payloadParceiro(dados),
+    origemRelacionamento: dados.origemRelacionamento,
   };
 }
 

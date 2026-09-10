@@ -35,10 +35,14 @@ export function menu(
         {
           rotulo: "Mobilidade",
           href: "/mobilidade",
-          disponivel: false,
-          motivo:
-            "Depende de bolsas concedidas a pessoas — nenhuma foi registrada ainda.",
+          disponivel: true,
         },
+        {
+          rotulo: "Mapa e destinos",
+          href: "/mobilidade/mapa",
+          disponivel: true,
+        },
+        { rotulo: "Produção", href: "/producao", disponivel: true },
         {
           rotulo: "Bolsistas",
           href: "/mobilidade/bolsistas",
@@ -132,13 +136,7 @@ export function menu(
           disponivel: false,
           motivo: "Fase 2 — nenhum convênio foi levantado ainda.",
         },
-        {
-          rotulo: "Produção",
-          href: "/producao",
-          disponivel: false,
-          motivo:
-            "Fase 2 — visão consolidada e vínculos com convênios; produtos individuais ficam em Bolsistas.",
-        },
+
         {
           rotulo: "Relatórios",
           href: "/relatorios",

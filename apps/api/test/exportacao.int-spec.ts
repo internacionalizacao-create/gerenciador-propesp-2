@@ -11,6 +11,11 @@ import { ArmazenamentoService } from '../src/arquivos/armazenamento.service';
 import * as s from '../src/database/schema';
 import { NotificacoesService } from '../src/dominio/notificacoes.service';
 import { AnexosService } from '../src/dominio/anexos.service';
+import { MobilidadeService } from '../src/dominio/mobilidade.service';
+import {
+  criarParceiroSchema,
+  ParceirosService,
+} from '../src/dominio/parceiros.service';
 import { EncerramentoService } from '../src/dominio/encerramento.service';
 import { MissoesComiteService } from '../src/dominio/missoes-comite.service';
 import { PrestacaoService } from '../src/dominio/prestacao.service';
@@ -79,6 +84,8 @@ describe('Exportacao de relatorios e dossie (CG-069)', () => {
       new ResultadosService(ctx.db),
       new EncerramentoService(ctx.db),
       anexos,
+      new ParceirosService(ctx.db),
+      new MobilidadeService(ctx.db, identidade),
     );
   });
 
@@ -437,4 +444,30 @@ describe('Exportacao de relatorios e dossie (CG-069)', () => {
     doc.addPage([200, 200]);
     return Buffer.from(await doc.save());
   }
+  it('gera a ficha do parceiro com os dois eixos da situacao (BOL-034)', async () => {
+    const parceiros = new ParceirosService(ctx.db);
+    const parceiro = await parceiros.criar(
+      criarParceiroSchema.parse({
+        nome: 'Universidade da Ficha',
+        sigla: 'UFICHA',
+        redeIds: [],
+        origemRelacionamento: 'EVENTO_INTERNACIONAL',
+      }),
+      admin,
+    );
+
+    const arquivo = await exportacao.fichaDoParceiro(parceiro.id);
+    expect(arquivo.mimeType).toBe('application/pdf');
+    expect(arquivo.nomeArquivo).toBe('ficha-uficha.pdf');
+
+    // pdfkit comprime o texto, entao asserir sobre os bytes do PDF passa por
+    // vacuo: o conteudo tem de ser extraido antes de comparado (CG-069).
+    const conteudo = await texto(arquivo.conteudo);
+    expect(conteudo).toContain('Universidade da Ficha');
+    expect(conteudo).toContain('Evento internacional');
+    // Os dois eixos aparecem lado a lado, e o aviso do documento vai junto.
+    expect(conteudo).toContain('Instituição identificada');
+    expect(conteudo).toContain('Não há bolsa registrada');
+    expect(conteudo).toContain('não implica disponibilidade futura');
+  });
 });

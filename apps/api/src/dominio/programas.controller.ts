@@ -19,7 +19,6 @@ import { CurrentUser, RequirePermission } from '../auth/auth.decorators';
 import { IdentidadeService } from '../auth/identidade.service';
 import type { AuthUser } from '../auth/auth-user';
 import { ZodValidationPipe } from '../comum/zod-validation.pipe';
-import { disposicaoDoAnexo } from './anexos.service';
 import {
   atualizarPrestacaoSchema,
   criarDespesaSchema,
@@ -67,6 +66,7 @@ import {
   type DispensarRequisito,
   type RevogarDispensa,
 } from './encerramento.service';
+import { responderArquivo } from '../comum/resposta-arquivo';
 import { ContextoService } from './contexto.service';
 import {
   atualizarMissaoComiteSchema,
@@ -1237,26 +1237,3 @@ function rubricaValida(rubrica: string | undefined): Rubrica | undefined {
  * Cabecalho, e nao corpo, porque o corpo e o proprio arquivo; a tela le e
  * avisa, em vez de o usuario descobrir contando paginas.
  */
-function responderArquivo(
-  resposta: Response,
-  arquivo: {
-    nomeArquivo: string;
-    mimeType: string;
-    conteudo: Buffer;
-    ignorados?: string[];
-  },
-): void {
-  resposta.setHeader('Content-Type', arquivo.mimeType);
-  resposta.setHeader(
-    'Content-Disposition',
-    disposicaoDoAnexo(arquivo.nomeArquivo),
-  );
-  resposta.setHeader('Content-Length', arquivo.conteudo.length);
-  if (arquivo.ignorados?.length) {
-    resposta.setHeader(
-      'X-Anexos-Ignorados',
-      encodeURIComponent(arquivo.ignorados.join('|')),
-    );
-  }
-  resposta.send(arquivo.conteudo);
-}

@@ -4,6 +4,7 @@ import { enviar, type EstadoDaAcao } from "@/lib/acao";
 import {
   payloadContato,
   payloadParceiro,
+  payloadParceiroNovo,
   type DadosFormularioContato,
   type DadosFormularioParceiro,
 } from "@/lib/formularios/parceiros";
@@ -26,7 +27,7 @@ export async function criarParceiro(
   return enviar(
     "/parceiros",
     "POST",
-    payloadParceiro(dados),
+    payloadParceiroNovo(dados),
     [LISTA],
     "Parceiro cadastrado.",
   );

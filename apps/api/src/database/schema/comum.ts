@@ -141,6 +141,17 @@ export const tipoProdutoBolsaEnum = pgEnum('tipo_produto_bolsa', [
   'CAPITULO_LIVRO',
   'PATENTE',
   'EVENTO',
+  /**
+   * Cotutela e orientacao conjunta (BOL-050).
+   *
+   * Acrescentados no fim porque `ALTER TYPE ... ADD VALUE` so sabe inserir.
+   * `TESE_COTUTELA` ja existia em `tipo_produto_missao` e faltava aqui — e o
+   * lado que faltava e justamente o que importa: a cotutela e acordo sobre a
+   * tese **deste** bolsista, cobrada dele, nao um resultado institucional da
+   * viagem do Comite.
+   */
+  'TESE_COTUTELA',
+  'ORIENTACAO_CONJUNTA',
   'OUTRO',
 ]);
 
@@ -177,6 +188,8 @@ export const tipoProdutoMissaoEnum = pgEnum('tipo_produto_missao', [
   'REDE_PESQUISA',
   'MOBILIDADE',
   'CAPTACAO_RECURSOS',
+  /** Cooperacao cientifica do documento da equipe (BOL-050), lado institucional. */
+  'ORIENTACAO_CONJUNTA',
   'OUTRO',
 ]);
 
@@ -371,6 +384,20 @@ export const categoriaAnexoEnum = pgEnum('categoria_anexo', [
   'APRESENTACAO',
   'LISTA_PRESENCA',
   'DECLARACAO',
+  // Bolsista (BOL-021). Acrescentados no fim porque `ALTER TYPE ... ADD VALUE`
+  // so sabe inserir, e reordenar a lista obrigaria a recriar o tipo no banco.
+  //
+  // As tres ultimas sao **documento pessoal** e nascem com visibilidade
+  // `PESSOAL`, decidida pela categoria e nao pelo cliente — ver
+  // `CATEGORIAS_PESSOAIS` em `anexos.service.ts`. `DOCUMENTO_IDENTIDADE` cobre
+  // RG, CPF e CIN, que desde a Carteira de Identidade Nacional sao o mesmo
+  // documento; separa-los criaria tres categorias para uma foto so.
+  'CARTA_ACEITE',
+  'PLANO_TRABALHO',
+  'RELATORIO',
+  'DOCUMENTO_IDENTIDADE',
+  'PASSAPORTE',
+  'COMPROVANTE_RESIDENCIA',
   'OUTRO',
 ]);
 
@@ -384,6 +411,18 @@ export const categoriaAnexoEnum = pgEnum('categoria_anexo', [
 export const visibilidadeAnexoEnum = pgEnum('visibilidade_anexo', [
   'INTERNA',
   'RESTRITA',
+  /**
+   * Documento pessoal do bolsista: RG/CIN, CPF, passaporte, comprovante de
+   * residencia (BOL-021, homologado em 2026-09-09).
+   *
+   * **`PESSOAL` e `RESTRITA` nao sao niveis, sao publicos diferentes**, e
+   * quem le esta lista supondo hierarquia erra: o Comite Gestor abre
+   * `RESTRITA` e **nao** abre `PESSOAL` — passaporte de bolsista nao tem
+   * relacao com a missao que ele analisa —, enquanto a secretaria, que instrui
+   * o processo na CAPES, abre `PESSOAL` e nao abre `RESTRITA`. Cada valor
+   * nomeia uma audiencia, e `podeVer` traduz audiencia em permissao.
+   */
+  'PESSOAL',
 ]);
 
 /**
@@ -411,6 +450,62 @@ export const entidadeAnexoEnum = pgEnum('entidade_anexo', [
   // inserir, e reordenar a lista aqui obrigaria a recriar o tipo no banco.
   'PRODUTO_MISSAO',
   'CONVENIO',
+  /** Documentos do bolsista (BOL-021): herdam o recorte por PPG da BOL-020. */
+  'BOLSA_CONCEDIDA',
+  /**
+   * Ata da reuniao que fundamentou a decisao (BOL-052, homologado em
+   * 2026-09-09).
+   *
+   * Estava fora de proposito, e o motivo registrado era outro: o **documento
+   * analisado** se prende a missao, e a decisao apenas o fotografa (CG-019) —
+   * aceitar anexo na decisao faria parecer que ela tem documentos proprios
+   * entre os analisados. A ata nao e um documento analisado: e o registro do
+   * ato que a decisao descreve, e pertence a ela. `decisao_comite` e tabela
+   * real, entao o vinculo polimorfico tem alvo e nao cria orfao.
+   *
+   * Nao substitui o modelo B: o colegiado continua deliberando fora do
+   * sistema, e a ata e o comprovante daquela deliberacao.
+   */
+  'DECISAO_COMITE',
+]);
+
+/**
+ * Como a instituicao entrou no radar da UEA (BOL-030).
+ *
+ * **Fato historico, e por isso imutavel depois de gravado.** Reescrever a
+ * origem apagaria exatamente a memoria institucional que o modulo existe para
+ * preservar: seis meses depois ninguem lembra se aquele parceiro veio de um
+ * evento ou da indicacao de um docente, e essa e a pergunta que o proximo
+ * contato precisa responder.
+ *
+ * Sao as seis opcoes do documento da equipe, sem acrescimo.
+ */
+export const origemRelacionamentoEnum = pgEnum('origem_relacionamento', [
+  'RECEBEU_BOLSISTA',
+  'INDICACAO_PESQUISADOR',
+  'CONTATO_PPG',
+  'EVENTO_INTERNACIONAL',
+  'PROSPECCAO_INSTITUCIONAL',
+  'OUTRO',
+]);
+
+/**
+ * Estagio **declarado** do relacionamento (BOL-031).
+ *
+ * Sao apenas tres dos cinco estados do documento, e a ausencia dos outros dois
+ * e a decisao: "mobilidade realizada" e "parceria formalizada" sao **fatos
+ * verificaveis** — existe concessao apontando para a instituicao, existe
+ * convenio vigente — e ficam derivados na leitura.
+ *
+ * Grava-los seria repetir no cadastro o que o banco ja sabe, e criar a
+ * divergencia do dia seguinte: a ficha afirmando "apenas identificada" sobre
+ * uma instituicao que recebeu tres bolsistas. E o mesmo motivo pelo qual o
+ * checklist de encerramento nao e persistido (CG-058).
+ */
+export const estagioRelacionamentoEnum = pgEnum('estagio_relacionamento', [
+  'IDENTIFICADA',
+  'CONTATO_INICIADO',
+  'COOPERACAO_EM_AVALIACAO',
 ]);
 
 export const statusRemanejamentoEnum = pgEnum('status_remanejamento', [

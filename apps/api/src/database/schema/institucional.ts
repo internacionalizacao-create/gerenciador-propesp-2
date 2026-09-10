@@ -14,7 +14,12 @@ import {
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 
-import { id, timestamps } from './comum';
+import {
+  estagioRelacionamentoEnum,
+  id,
+  origemRelacionamentoEnum,
+  timestamps,
+} from './comum';
 
 /**
  * Domínio institucional: países, instituições, PPGs e pessoas.
@@ -61,6 +66,14 @@ export const pais = pgTable(
     id: id(),
     codigoIso2: char('codigo_iso2', { length: 2 }).notNull(),
     codigoIso3: char('codigo_iso3', { length: 3 }).notNull(),
+    /**
+     * Codigo numerico da ISO 3166-1 (BOL-042).
+     *
+     * E por ele que o mapa casa dado e geografia: o topojson identifica pais
+     * por numero. Nulo apenas para as linhas anteriores ao campo; a seed
+     * preenche as 249.
+     */
+    codigoNumerico: char('codigo_numerico', { length: 3 }),
     nome: varchar('nome', { length: 120 }).notNull(),
     continente: varchar('continente', { length: 40 }),
     ...timestamps,
@@ -68,6 +81,7 @@ export const pais = pgTable(
   (t) => [
     uniqueIndex('pais_iso2_uk').on(t.codigoIso2),
     uniqueIndex('pais_iso3_uk').on(t.codigoIso3),
+    uniqueIndex('pais_numerico_uk').on(t.codigoNumerico),
   ],
 );
 
@@ -89,6 +103,36 @@ export const instituicao = pgTable(
     emailInstitucional: varchar('email_institucional', { length: 240 }),
     telefone: varchar('telefone', { length: 80 }),
     endereco: text('endereco'),
+    /**
+     * Como a instituicao foi identificada (BOL-030).
+     *
+     * **Nulo apenas para o que ja existia**: obrigatoria em todo cadastro novo,
+     * pela regra do servico. Nao ha default no banco de proposito — um default
+     * inventaria a resposta para as instituicoes anteriores ao campo, e
+     * "prospeccao institucional" seria uma afirmacao que ninguem fez.
+     */
+    origemRelacionamento: origemRelacionamentoEnum('origem_relacionamento'),
+    origemObservacao: text('origem_observacao'),
+    /**
+     * Estagio declarado. Os dois estados verificaveis do documento —
+     * mobilidade realizada e parceria formalizada — sao derivados na leitura,
+     * nunca gravados aqui. Ver `estagioRelacionamentoEnum`.
+     */
+    estagioRelacionamento: estagioRelacionamentoEnum('estagio_relacionamento')
+      .notNull()
+      .default('IDENTIFICADA'),
+    /**
+     * Texto livre, e nao lista estruturada.
+     *
+     * Uma taxonomia de areas so vale se alguem a mantiver; sem isso, "Ciencias
+     * Ambientais" e "Ciencias ambientais" viram duas areas e toda contagem sai
+     * errada — foi o que aconteceu com evento contado pelo nome (CG-067). O
+     * campo descreve para quem le; contar por area fica para quando houver
+     * taxonomia de verdade.
+     */
+    areasAtuacao: text('areas_atuacao'),
+    programaRelacionado: varchar('programa_relacionado', { length: 240 }),
+    grupoPesquisa: varchar('grupo_pesquisa', { length: 240 }),
     observacoes: text('observacoes'),
     /** Referencia temporaria que ainda deve ser conciliada por um admin. */
     cadastroProvisorio: boolean('cadastro_provisorio').notNull().default(false),
@@ -103,6 +147,7 @@ export const instituicao = pgTable(
     uniqueIndex('instituicao_nome_uk').on(t.nome),
     uniqueIndex('instituicao_nome_normalizado_uk').on(t.nomeNormalizado),
     index('instituicao_tipo_idx').on(t.tipo),
+    index('instituicao_estagio_idx').on(t.estagioRelacionamento),
     index('instituicao_substituida_por_idx').on(t.substituidaPorId),
     check(
       'instituicao_nome_normalizado_ck',
@@ -133,6 +178,16 @@ export const pessoa = pgTable(
     ppgId: uuid('ppg_id').references((): AnyPgColumn => ppg.id),
     instituicaoId: uuid('instituicao_id').references(() => instituicao.id),
     lattes: varchar('lattes', { length: 240 }),
+    telefone: varchar('telefone', { length: 80 }),
+    /**
+     * ORCID no formato canonico `0000-0000-0000-000X` (BOL-012).
+     *
+     * Coluna propria, e nao um `lattes` generico de "identificador academico":
+     * sao dois registros distintos, mantidos por instituicoes distintas, e a
+     * pessoa costuma ter os dois. O ultimo digito pode ser `X`, que e o digito
+     * verificador do padrao — tratar como numerico recusaria ORCID valido.
+     */
+    orcid: varchar('orcid', { length: 19 }),
     ativo: boolean('ativo').notNull().default(true),
     ...timestamps,
   },
@@ -143,6 +198,13 @@ export const pessoa = pgTable(
     // Postgres já ignora NULL, então pessoas sem e-mail não colidem entre si.
     uniqueIndex('pessoa_email_uk').on(t.email),
     uniqueIndex('pessoa_cpf_uk').on(t.cpf),
+    // ORCID identifica a pessoa: repetido, sao duas linhas para o mesmo
+    // pesquisador — o mesmo motivo do indice de CPF.
+    uniqueIndex('pessoa_orcid_uk').on(t.orcid),
+    check(
+      'pessoa_orcid_ck',
+      sql`${t.orcid} is null or ${t.orcid} ~ '^[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]$'`,
+    ),
   ],
 );
 

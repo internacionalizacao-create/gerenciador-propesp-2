@@ -610,6 +610,120 @@ describe('ParceirosService', () => {
     expect(depoisOrigem.missoes).toEqual([]);
     expect(depoisOrigem.contatos).toEqual([]);
   });
+  // -------------------------------------------------------------------------
+  // Relacionamento institucional (BOL-030 a BOL-033)
+
+  it('grava a origem no cadastro e nao a aceita na edicao', async () => {
+    const criado = await service.criar(
+      parceiroValido('Universidade do Porto', [base.redeId], {
+        origemRelacionamento: 'EVENTO_INTERNACIONAL',
+        origemObservacao: 'Contato no congresso de 2026.',
+      }),
+      admin,
+    );
+    expect(criado.origemRelacionamento).toBe('EVENTO_INTERNACIONAL');
+
+    // A origem e fato historico: o schema de edicao simplesmente nao a tem, e
+    // o campo enviado a mais e descartado antes de chegar ao servico.
+    const editado = atualizarParceiroSchema.parse({
+      cidade: 'Porto',
+      origemRelacionamento: 'PROSPECCAO_INSTITUCIONAL',
+    });
+    expect('origemRelacionamento' in editado).toBe(false);
+
+    await service.atualizar(criado.id, editado, admin);
+    const depois = await service.detalhar(criado.id);
+    expect(depois.origemRelacionamento).toBe('EVENTO_INTERNACIONAL');
+    expect(depois.cidade).toBe('Porto');
+  });
+
+  it('deriva mobilidade e parceria em vez de grava-las', async () => {
+    const criado = await service.criar(
+      parceiroValido('Universidade de Coimbra', [base.redeId], { paisId }),
+      admin,
+    );
+
+    // Recem-cadastrada: o estagio declarado e o inicial, e nenhum dos dois
+    // fatos aconteceu.
+    expect(criado.estagioRelacionamento).toBe('IDENTIFICADA');
+    expect(criado.mobilidadeRealizada).toBe(false);
+    expect(criado.parceriaFormalizada).toBe(false);
+
+    const [pessoa] = await ctx.db
+      .insert(s.pessoa)
+      .values({ nome: 'Bolsista do Parceiro', tipo: 'DISCENTE' })
+      .returning({ id: s.pessoa.id });
+    await ctx.db.insert(s.bolsaConcedida).values({
+      programaId: base.programaId,
+      cicloId: base.cicloId,
+      ppgId: base.ppgId,
+      pessoaId: pessoa.id,
+      modalidadeId: base.modalidadeId,
+      instituicaoDestinoId: criado.id,
+      destino: 'EXTERIOR',
+      nivelBeneficiario: 'DOUTORADO',
+      dataInicio: '2027-03-01',
+      dataFim: '2027-08-31',
+      vigenciaMeses: '6.0',
+      valorConcedido: '82902.20',
+      fluxo: 'OUT',
+    });
+
+    // O fato passou a existir sem ninguem editar o cadastro — que e o ponto:
+    // um enum gravado continuaria dizendo "apenas identificada".
+    const comBolsa = await service.detalhar(criado.id);
+    expect(comBolsa.mobilidadeRealizada).toBe(true);
+    expect(comBolsa.estagioRelacionamento).toBe('IDENTIFICADA');
+    expect(comBolsa.parceriaFormalizada).toBe(false);
+
+    await ctx.db.insert(s.convenio).values({
+      instituicaoId: criado.id,
+      titulo: 'Acordo de cooperacao',
+      tipoAcordo: 'INTERCAMBIO_PESQUISA',
+      situacao: 'VIGENTE',
+      dataAssinatura: '2027-01-15',
+    });
+    const comConvenio = await service.detalhar(criado.id);
+    expect(comConvenio.parceriaFormalizada).toBe(true);
+  });
+
+  it('o historico traz a mobilidade uma vez, com a ponta resolvida', async () => {
+    const criado = await service.criar(
+      parceiroValido('Universidade de Salamanca', [base.redeId]),
+      admin,
+    );
+    const [pessoa] = await ctx.db
+      .insert(s.pessoa)
+      .values({ nome: 'Pessoa em Dupla Titulacao', tipo: 'DISCENTE' })
+      .returning({ id: s.pessoa.id });
+
+    // Origem **e** destino a mesma instituicao: improvavel, mas legitimo numa
+    // dupla titulacao. Um `or` dentro de `join` traria a bolsa duas vezes.
+    await ctx.db.insert(s.bolsaConcedida).values({
+      programaId: base.programaId,
+      cicloId: base.cicloId,
+      ppgId: base.ppgId,
+      pessoaId: pessoa.id,
+      modalidadeId: base.modalidadeId,
+      instituicaoDestinoId: criado.id,
+      instituicaoOrigemId: criado.id,
+      destino: 'EXTERIOR',
+      nivelBeneficiario: 'DOUTORADO',
+      dataInicio: '2027-03-01',
+      dataFim: '2027-08-31',
+      vigenciaMeses: '6.0',
+      valorConcedido: '82902.20',
+      fluxo: 'OUT',
+    });
+
+    const historico = await service.historico(criado.id);
+    expect(historico.mobilidades).toHaveLength(1);
+    expect(historico.mobilidades[0]).toMatchObject({
+      bolsista: 'Pessoa em Dupla Titulacao',
+      ponta: 'DESTINO',
+      ano: 2027,
+    });
+  });
 });
 
 function parceiroValido(
@@ -620,6 +734,9 @@ function parceiroValido(
   return criarParceiroSchema.parse({
     nome,
     redeIds,
+    // Obrigatoria desde a BOL-030: nao se cadastra parceiro sem dizer de onde
+    // ele veio. Os casos que testam outra coisa usam o valor mais neutro.
+    origemRelacionamento: 'PROSPECCAO_INSTITUCIONAL',
     ...sobrescrever,
   });
 }

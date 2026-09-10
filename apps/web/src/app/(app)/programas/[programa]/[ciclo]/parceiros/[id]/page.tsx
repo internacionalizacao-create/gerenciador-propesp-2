@@ -1,16 +1,17 @@
 import Link from "next/link";
 
 import {
-  EditarContato,
-  NovoContato,
-} from "@/componentes/formularios/form-contato-parceiro";
-import { EditarParceiro } from "@/componentes/formularios/form-parceiro";
-import {
   AcoesDoContato,
   ConciliarParceiroBotao,
   InativarParceiroBotao,
 } from "@/componentes/formularios/acoes-parceiro";
 import {
+  EditarContato,
+  NovoContato,
+} from "@/componentes/formularios/form-contato-parceiro";
+import { EditarParceiro } from "@/componentes/formularios/form-parceiro";
+import {
+  Aviso,
   Cartao,
   Cartoes,
   Celula,
@@ -65,8 +66,16 @@ export default async function ParceiroDetalhe({
     apiFetch<Parceiro[]>("/parceiros"),
   ]);
 
-  const { parceiro, contatos, missoes, eventos, documentos, convenios, produtos } =
-    historico;
+  const {
+    parceiro,
+    contatos,
+    mobilidades,
+    missoes,
+    eventos,
+    documentos,
+    convenios,
+    produtos,
+  } = historico;
   const podeEscrever = me.permissions.includes("parceiro:write");
   const base = `/programas/${programa}/${ciclo}/parceiros`;
 
@@ -142,6 +151,51 @@ export default async function ParceiroDetalhe({
 
       <div className="mt-10" />
 
+      {/*
+        Os dois eixos lado a lado, e não um só (BOL-031). O estágio é o que a
+        equipe declarou; mobilidade e parceria são fatos lidos do banco. Fundi-los
+        num rótulo único obrigaria a escolher qual dos dois manda, e o escolhido
+        contradiria o outro no primeiro caso divergente.
+      */}
+      <Secao
+        titulo="Situação do relacionamento"
+        acoes={
+          <a
+            href={`/api/bff/parceiros/${parceiro.id}/ficha`}
+            className="rounded-lg border border-border-strong px-3 py-2 text-sm font-medium text-foreground hover:bg-surface-muted"
+          >
+            Baixar ficha (PDF)
+          </a>
+        }
+        descricao="O estágio é declarado pela equipe. Mobilidade e parceria são deduzidas das bolsas e dos convênios registrados — não se editam aqui."
+      >
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-surface px-5 py-4 text-sm">
+          <Selo tom="primario">
+            {rotulo(parceiro.estagioRelacionamento)}
+          </Selo>
+          <Selo tom={parceiro.mobilidadeRealizada ? "sucesso" : "neutro"}>
+            {parceiro.mobilidadeRealizada
+              ? "Mobilidade realizada"
+              : "Sem mobilidade registrada"}
+          </Selo>
+          <Selo tom={parceiro.parceriaFormalizada ? "sucesso" : "neutro"}>
+            {parceiro.parceriaFormalizada
+              ? "Parceria formalizada"
+              : "Sem parceria formalizada"}
+          </Selo>
+        </div>
+        {parceiro.origemObservacao ? (
+          <p className="mt-3 rounded-xl border border-border bg-surface-muted px-4 py-3 text-sm text-muted">
+            {parceiro.origemObservacao}
+          </p>
+        ) : null}
+        {/* BOL-035: o aviso é exigência do documento da equipe. */}
+        <Aviso tom="info" titulo="O cadastro não garante vaga nem bolsa">
+          O histórico registra ações já realizadas e não implica disponibilidade
+          futura de vagas nem concessão automática de bolsas.
+        </Aviso>
+      </Secao>
+
       <Secao titulo="Dados institucionais">
         <dl className="grid gap-x-8 gap-y-4 rounded-2xl border border-border bg-surface px-5 py-5 sm:grid-cols-2 lg:grid-cols-3">
           <Dado rotuloTexto="Sigla" valor={parceiro.sigla} />
@@ -149,6 +203,23 @@ export default async function ParceiroDetalhe({
           <Dado
             rotuloTexto="Faculdade ou departamento"
             valor={parceiro.faculdadeDepartamento}
+          />
+          <Dado
+            rotuloTexto="Programa relacionado"
+            valor={parceiro.programaRelacionado}
+          />
+          <Dado
+            rotuloTexto="Grupo de pesquisa"
+            valor={parceiro.grupoPesquisa}
+          />
+          <Dado rotuloTexto="Áreas de atuação" valor={parceiro.areasAtuacao} />
+          <Dado
+            rotuloTexto="Como foi identificada"
+            valor={
+              parceiro.origemRelacionamento
+                ? rotulo(parceiro.origemRelacionamento)
+                : null
+            }
           />
           <Dado
             rotuloTexto="Local"
@@ -179,6 +250,58 @@ export default async function ParceiroDetalhe({
             {parceiro.observacoes}
           </p>
         ) : null}
+      </Secao>
+
+      <Secao
+        titulo="Histórico de mobilidades"
+        descricao="Bolsistas da UEA que passaram por esta instituição, ou que vieram dela. Uma linha por concessão, mesmo quando a instituição é origem e destino."
+      >
+        {mobilidades.length === 0 ? (
+          <EstadoVazio
+            titulo="Nenhuma mobilidade registrada"
+            descricao="Nenhuma bolsa concedida aponta para esta instituição. Isso não diz nada sobre o relacionamento — diz apenas que não houve mobilidade."
+          />
+        ) : (
+          <Tabela
+            rotulo="Histórico de mobilidades"
+            colunas={[
+              { chave: "ano", texto: "Ano", alinhamento: "direita" },
+              { chave: "bolsista", texto: "Bolsista" },
+              { chave: "ppg", texto: "PPG" },
+              { chave: "modalidade", texto: "Modalidade" },
+              { chave: "ponta", texto: "Papel" },
+              { chave: "periodo", texto: "Período" },
+            ]}
+          >
+            {mobilidades.map((mobilidade) => (
+              <tr key={mobilidade.id}>
+                <Celula direita className="tabular-nums">
+                  {mobilidade.ano}
+                </Celula>
+                <Celula>
+                  <span className="font-medium text-foreground">
+                    {mobilidade.bolsista}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-muted">
+                    {rotulo(mobilidade.nivelBeneficiario)}
+                  </span>
+                </Celula>
+                <Celula>{mobilidade.ppgSigla}</Celula>
+                <Celula>{mobilidade.modalidade}</Celula>
+                <Celula>
+                  <Selo tom="neutro">
+                    {mobilidade.ponta === "DESTINO"
+                      ? "Recebeu"
+                      : "Enviou"}
+                  </Selo>
+                </Celula>
+                <Celula>
+                  {data(mobilidade.dataInicio)} a {data(mobilidade.dataFim)}
+                </Celula>
+              </tr>
+            ))}
+          </Tabela>
+        )}
       </Secao>
 
       <Secao

@@ -12,18 +12,23 @@ import {
   Pagina,
   Tabela,
 } from "@/componentes/ui/basicos";
+import { ProvedorDeConsultas } from "@/componentes/consultas/provedor";
 import { apiFetch } from "@/lib/api";
 import type {
   BolsaConcedidaResumo,
   Me,
   OpcaoBolsaPlanejada,
+  ReferenciasBolsa,
 } from "@/lib/dominio";
 import { data, inteiro, rotulo } from "@/lib/formato";
 
 export default async function Bolsistas() {
-  const [bolsas, opcoes, me] = await Promise.all([
+  const [bolsas, opcoes, referencias, me] = await Promise.all([
     apiFetch<BolsaConcedidaResumo[]>("/bolsistas"),
     apiFetch<OpcaoBolsaPlanejada[]>("/bolsistas/opcoes-planejamento"),
+    // Primeira pagina do seletor: o Server Component busca, e o TanStack Query
+    // so entra depois da pintura, quando a pessoa digita (AGENTS.md secao 8).
+    apiFetch<ReferenciasBolsa>("/bolsistas/referencias"),
     apiFetch<Me>("/me"),
   ]);
 
@@ -43,7 +48,13 @@ export default async function Bolsistas() {
     <Pagina
       titulo="Bolsistas e bolsas concedidas"
       descricao="Acompanhamento individual do beneficiário, do período real e dos produtos que ele deve entregar."
-      acoes={podeCadastrar ? <NovaBolsaConcedida opcoes={opcoes} /> : undefined}
+      acoes={
+        podeCadastrar ? (
+          <ProvedorDeConsultas>
+            <NovaBolsaConcedida opcoes={opcoes} referencias={referencias} />
+          </ProvedorDeConsultas>
+        ) : undefined
+      }
     >
       {alertas.length > 0 ? (
         <Aviso tom="aviso" titulo="Prazos que pedem atenção">
@@ -165,7 +176,11 @@ export default async function Bolsistas() {
           titulo="Nenhuma bolsa concedida a uma pessoa"
           descricao="As planilhas trazem apenas o planejamento agregado. Use “Conceder bolsa” quando o beneficiário e as datas completas forem conhecidos."
           acao={
-            podeCadastrar ? <NovaBolsaConcedida opcoes={opcoes} /> : undefined
+            podeCadastrar ? (
+              <ProvedorDeConsultas>
+                <NovaBolsaConcedida opcoes={opcoes} referencias={referencias} />
+              </ProvedorDeConsultas>
+            ) : undefined
           }
         />
       )}

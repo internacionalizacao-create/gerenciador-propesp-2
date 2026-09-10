@@ -9,6 +9,7 @@ import { and, asc, desc, eq, ilike, inArray, ne, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 import type { AuthUser } from '../auth/auth-user';
+import { consultar } from '../comum/consultar';
 import { DRIZZLE, type Database } from '../database/database.module';
 import { normalizarNomeInstituicao } from '../database/normalizacao';
 import * as s from '../database/schema';
@@ -26,6 +27,15 @@ const camposParceiroSchema = z.object({
   estadoRegiao: textoOpcional(120),
   tipoOrganizacao: textoOpcional(120),
   faculdadeDepartamento: textoOpcional(240),
+  areasAtuacao: textoOpcional(2000),
+  programaRelacionado: textoOpcional(240),
+  grupoPesquisa: textoOpcional(240),
+  estagioRelacionamento: z.enum([
+    'IDENTIFICADA',
+    'CONTATO_INICIADO',
+    'COOPERACAO_EM_AVALIACAO',
+  ]),
+  origemObservacao: textoOpcional(2000),
   site: z.preprocess(
     (valor) => (valor === '' ? null : valor),
     z.url('Informe uma URL valida.').max(240).nullish(),
@@ -47,9 +57,35 @@ export const criarParceiroSchema = camposParceiroSchema.extend({
   cadastroProvisorio: z.boolean().default(false),
   redeIds: z.array(z.uuid()).max(30).default([]),
   confirmarPossivelDuplicidade: z.boolean().default(false),
+  estagioRelacionamento: z
+    .enum(['IDENTIFICADA', 'CONTATO_INICIADO', 'COOPERACAO_EM_AVALIACAO'])
+    .default('IDENTIFICADA'),
+  /**
+   * Obrigatoria no cadastro novo (BOL-030), embora nula no banco.
+   *
+   * A coluna aceita nulo porque as instituicoes anteriores ao campo nao tem
+   * como responder — inventar "prospeccao institucional" para elas seria
+   * gravar uma afirmacao que ninguem fez. Daqui para a frente, ninguem cadastra
+   * sem dizer de onde veio: e a pergunta que o proximo contato precisa
+   * responder, e seis meses depois ninguem lembra.
+   */
+  origemRelacionamento: z.enum([
+    'RECEBEU_BOLSISTA',
+    'INDICACAO_PESQUISADOR',
+    'CONTATO_PPG',
+    'EVENTO_INTERNACIONAL',
+    'PROSPECCAO_INSTITUCIONAL',
+    'OUTRO',
+  ]),
 });
 export type CriarParceiro = z.infer<typeof criarParceiroSchema>;
 
+/**
+ * `origemRelacionamento` **nao** esta aqui, e a ausencia e a regra (BOL-030):
+ * a origem e fato historico e nao se reescreve. Corrigir um erro de digitacao
+ * na origem e ato de `admin` pelo banco, e deve ser raro o bastante para nao
+ * merecer um endpoint que convide a reescrever a memoria.
+ */
 export const atualizarParceiroSchema = camposParceiroSchema
   .extend({
     nome: z.string().trim().min(3, 'Informe o nome da instituicao.').max(240),
@@ -110,6 +146,23 @@ export interface Parceiro {
   estadoRegiao: string | null;
   tipoOrganizacao: string | null;
   faculdadeDepartamento: string | null;
+  areasAtuacao: string | null;
+  programaRelacionado: string | null;
+  grupoPesquisa: string | null;
+  origemRelacionamento: string | null;
+  origemObservacao: string | null;
+  /** Estagio declarado: julgamento humano, gravado. */
+  estagioRelacionamento:
+    'IDENTIFICADA' | 'CONTATO_INICIADO' | 'COOPERACAO_EM_AVALIACAO';
+  /**
+   * Os dois estados verificaveis do documento, **derivados na leitura**.
+   *
+   * Vem ao lado do estagio declarado, e nao no lugar dele: sao eixos
+   * independentes. Uma instituicao pode ter recebido bolsista e ainda estar em
+   * "contato iniciado" do ponto de vista da cooperacao formal.
+   */
+  mobilidadeRealizada: boolean;
+  parceriaFormalizada: boolean;
   site: string | null;
   emailInstitucional: string | null;
   telefone: string | null;
@@ -128,9 +181,32 @@ export interface Parceiro {
  * agregado persistido: o historico e a leitura do que os outros modulos ja
  * gravaram, nunca uma copia que possa divergir deles.
  */
+/**
+ * Uma mobilidade da UEA nesta instituicao (BOL-033).
+ *
+ * `ponta` diz de que lado a instituicao esteve — recebeu o bolsista ou o
+ * enviou. Sem isso a ficha somaria as duas coisas numa contagem so, e o
+ * historico da universidade estrangeira misturaria quem ela recebeu com quem
+ * ela mandou para ca, que sao relacoes opostas.
+ */
+export interface MobilidadeHistorico {
+  id: string;
+  bolsista: string;
+  ppg: string;
+  ppgSigla: string;
+  modalidade: string;
+  nivelBeneficiario: string;
+  ponta: 'DESTINO' | 'ORIGEM';
+  dataInicio: string;
+  dataFim: string;
+  status: string;
+  ano: number;
+}
+
 export interface HistoricoParceiro {
   parceiro: Parceiro;
   contatos: ContatoHistorico[];
+  mobilidades: MobilidadeHistorico[];
   missoes: MissaoHistorico[];
   eventos: EventoHistorico[];
   documentos: DocumentoHistorico[];
@@ -316,6 +392,31 @@ export class ParceirosService {
         estadoRegiao: s.instituicao.estadoRegiao,
         tipoOrganizacao: s.instituicao.tipoOrganizacao,
         faculdadeDepartamento: s.instituicao.faculdadeDepartamento,
+        areasAtuacao: s.instituicao.areasAtuacao,
+        programaRelacionado: s.instituicao.programaRelacionado,
+        grupoPesquisa: s.instituicao.grupoPesquisa,
+        origemRelacionamento: s.instituicao.origemRelacionamento,
+        origemObservacao: s.instituicao.origemObservacao,
+        estagioRelacionamento: s.instituicao.estagioRelacionamento,
+        /**
+         * BOL-031: os dois estados verificaveis saem de `exists`, na propria
+         * consulta. Derivar em memoria exigiria carregar concessoes e
+         * convenios de todas as instituicoes para responder um booleano.
+         *
+         * `exists` e nao `join`: com join, a instituicao que recebeu tres
+         * bolsistas apareceria tres vezes na lista.
+         */
+        mobilidadeRealizada: sql<boolean>`exists (
+          select 1 from bolsa_concedida bc
+           where bc.instituicao_destino_id = ${s.instituicao.id}
+              or bc.instituicao_origem_id = ${s.instituicao.id}
+        )`,
+        parceriaFormalizada: sql<boolean>`exists (
+          select 1 from convenio cv
+           where cv.instituicao_id = ${s.instituicao.id}
+             and cv.ativo is true
+             and cv.situacao = 'VIGENTE'
+        )`,
         site: s.instituicao.site,
         emailInstitucional: s.instituicao.emailInstitucional,
         telefone: s.instituicao.telefone,
@@ -553,6 +654,7 @@ export class ParceirosService {
     return {
       parceiro,
       contatos,
+      mobilidades: await this.carregarMobilidades(id),
       missoes: missoes.map((missao) => ({
         ...missao,
         redes: redesPorMissao.get(missao.id) ?? [],
@@ -582,6 +684,9 @@ export class ParceirosService {
           .insert(s.instituicao)
           .values({
             ...dadosPersistidos(dto),
+            // So aqui: `atualizarParceiroSchema` nao aceita a origem, porque
+            // ela e fato historico e nao se reescreve (BOL-030).
+            origemRelacionamento: dto.origemRelacionamento,
             nomeNormalizado: normalizarNomeInstituicao(dto.nome),
             tipo: 'PARCEIRA_INTERNACIONAL',
           })
@@ -640,6 +745,27 @@ export class ParceirosService {
             dto.faculdadeDepartamento === undefined
               ? atual.faculdadeDepartamento
               : dto.faculdadeDepartamento,
+          areasAtuacao:
+            dto.areasAtuacao === undefined
+              ? atual.areasAtuacao
+              : dto.areasAtuacao,
+          programaRelacionado:
+            dto.programaRelacionado === undefined
+              ? atual.programaRelacionado
+              : dto.programaRelacionado,
+          grupoPesquisa:
+            dto.grupoPesquisa === undefined
+              ? atual.grupoPesquisa
+              : dto.grupoPesquisa,
+          // O estagio declarado muda; a origem nao entra no `dto` de edicao.
+          estagioRelacionamento:
+            dto.estagioRelacionamento === undefined
+              ? atual.estagioRelacionamento
+              : dto.estagioRelacionamento,
+          origemObservacao:
+            dto.origemObservacao === undefined
+              ? atual.origemObservacao
+              : dto.origemObservacao,
           site: dto.site === undefined ? atual.site : dto.site,
           emailInstitucional:
             dto.emailInstitucional === undefined
@@ -905,6 +1031,48 @@ export class ParceirosService {
     return this.detalhar(dto.destinoId);
   }
 
+  /**
+   * Mobilidades da UEA nesta instituicao (BOL-033).
+   *
+   * **Uma linha por concessao, nunca uma por ponta.** A instituicao pode ser
+   * origem *e* destino da mesma bolsa — improvavel, mas legitimo numa
+   * cooperacao de dupla titulacao —, e um `or` num `join` a traria duas vezes.
+   * `case` resolve a ponta dentro da propria linha, e a bolsa continua sendo
+   * uma so.
+   *
+   * O aviso do documento vale aqui: **o historico registra o que aconteceu e
+   * nao implica vaga futura**. A tela precisa dizer isso; a consulta so nao
+   * pode sugerir o contrario contando duas vezes.
+   */
+  private async carregarMobilidades(
+    instituicaoId: string,
+  ): Promise<MobilidadeHistorico[]> {
+    return consultar<MobilidadeHistorico>(
+      this.db,
+      sql`
+      select bc.id                                as "id",
+             pe.nome                              as "bolsista",
+             pg.nome                              as "ppg",
+             pg.sigla                             as "ppgSigla",
+             m.nome                               as "modalidade",
+             bc.nivel_beneficiario                as "nivelBeneficiario",
+             case when bc.instituicao_destino_id = ${instituicaoId}
+                  then 'DESTINO' else 'ORIGEM' end as "ponta",
+             bc.data_inicio                       as "dataInicio",
+             bc.data_fim                          as "dataFim",
+             bc.status                            as "status",
+             extract(year from bc.data_inicio)::int as "ano"
+        from bolsa_concedida bc
+        join pessoa pe     on pe.id = bc.pessoa_id
+        join ppg pg        on pg.id = bc.ppg_id
+        join modalidade m  on m.id = bc.modalidade_id
+       where bc.instituicao_destino_id = ${instituicaoId}
+          or bc.instituicao_origem_id = ${instituicaoId}
+       order by bc.data_inicio desc, pe.nome
+    `,
+    );
+  }
+
   private async carregarRedesDasMissoes(
     missaoIds: string[],
   ): Promise<(RedeParceiro & { missaoId: string })[]> {
@@ -983,6 +1151,31 @@ export class ParceirosService {
         estadoRegiao: s.instituicao.estadoRegiao,
         tipoOrganizacao: s.instituicao.tipoOrganizacao,
         faculdadeDepartamento: s.instituicao.faculdadeDepartamento,
+        areasAtuacao: s.instituicao.areasAtuacao,
+        programaRelacionado: s.instituicao.programaRelacionado,
+        grupoPesquisa: s.instituicao.grupoPesquisa,
+        origemRelacionamento: s.instituicao.origemRelacionamento,
+        origemObservacao: s.instituicao.origemObservacao,
+        estagioRelacionamento: s.instituicao.estagioRelacionamento,
+        /**
+         * BOL-031: os dois estados verificaveis saem de `exists`, na propria
+         * consulta. Derivar em memoria exigiria carregar concessoes e
+         * convenios de todas as instituicoes para responder um booleano.
+         *
+         * `exists` e nao `join`: com join, a instituicao que recebeu tres
+         * bolsistas apareceria tres vezes na lista.
+         */
+        mobilidadeRealizada: sql<boolean>`exists (
+          select 1 from bolsa_concedida bc
+           where bc.instituicao_destino_id = ${s.instituicao.id}
+              or bc.instituicao_origem_id = ${s.instituicao.id}
+        )`,
+        parceriaFormalizada: sql<boolean>`exists (
+          select 1 from convenio cv
+           where cv.instituicao_id = ${s.instituicao.id}
+             and cv.ativo is true
+             and cv.situacao = 'VIGENTE'
+        )`,
         site: s.instituicao.site,
         emailInstitucional: s.instituicao.emailInstitucional,
         telefone: s.instituicao.telefone,
@@ -1268,6 +1461,11 @@ function dadosPersistidos(
     | 'estadoRegiao'
     | 'tipoOrganizacao'
     | 'faculdadeDepartamento'
+    | 'areasAtuacao'
+    | 'programaRelacionado'
+    | 'grupoPesquisa'
+    | 'estagioRelacionamento'
+    | 'origemObservacao'
     | 'site'
     | 'emailInstitucional'
     | 'telefone'
@@ -1284,6 +1482,11 @@ function dadosPersistidos(
     estadoRegiao: dto.estadoRegiao ?? null,
     tipoOrganizacao: dto.tipoOrganizacao ?? null,
     faculdadeDepartamento: dto.faculdadeDepartamento ?? null,
+    areasAtuacao: dto.areasAtuacao ?? null,
+    programaRelacionado: dto.programaRelacionado ?? null,
+    grupoPesquisa: dto.grupoPesquisa ?? null,
+    estagioRelacionamento: dto.estagioRelacionamento,
+    origemObservacao: dto.origemObservacao ?? null,
     site: dto.site ?? null,
     emailInstitucional: dto.emailInstitucional ?? null,
     telefone: dto.telefone ?? null,

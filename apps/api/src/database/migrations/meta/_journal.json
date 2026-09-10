@@ -239,6 +239,41 @@
       "when": 1788829137667,
       "tag": "0033_flowery_bruce_banner",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1788990049072,
+      "tag": "0034_documentos_bolsista_bol021",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1788992139458,
+      "tag": "0035_contexto_academico_bol011_013",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1788992474345,
+      "tag": "0036_relacionamento_institucional_bol030",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1788994680823,
+      "tag": "0037_cotutela_ata_bol050_052",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1788995708130,
+      "tag": "0038_pais_codigo_numerico_bol042",
+      "breakpoints": true
     }
   ]
 }

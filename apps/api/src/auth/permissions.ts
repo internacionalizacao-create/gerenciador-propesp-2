@@ -81,6 +81,20 @@ export const PERMISSIONS = [
    * Quem enviou o arquivo continua vendo o proprio, sem depender dela.
    */
   'documento:read-restrito',
+  /**
+   * Abrir documento **pessoal** de bolsista (BOL-021, homologado em 2026-09-09).
+   *
+   * Permissao propria, e nao um reuso de `documento:read-restrito`, porque as
+   * duas respondem a perguntas diferentes que so por acaso teriam a mesma
+   * resposta hoje. Reusar daria passaporte e comprovante de residencia de
+   * bolsista ao Comite Gestor — cujo escopo e a missao institucional, nada a
+   * ver com isso — e deixaria de fora a `secretaria`, que e justamente quem
+   * instrui o processo na CAPES.
+   *
+   * E o mesmo argumento que fez `documento:read-restrito` existir no lugar de
+   * `roles.includes('admin')` dentro do servico.
+   */
+  'documento:read-pessoal',
   /** Ler e conceder escopo de acesso; ato administrativo, so do `admin`. */
   'acesso:read',
   'acesso:write',
@@ -142,6 +156,12 @@ export const ROLE_PERMISSIONS: Readonly<Record<string, readonly Permission[]>> =
       'bolsa:write',
       'produto:write',
       'pendencia:write',
+      /**
+       * Instrui o processo da CAPES, entao abre o documento pessoal do
+       * bolsista (BOL-021). Nao recebe `documento:read-restrito`: sao publicos
+       * diferentes, e nao niveis de um mesmo eixo.
+       */
+      'documento:read-pessoal',
     ],
 
     /** Membro de comite tematico: acompanha e aponta pendencia na sua tematica. */

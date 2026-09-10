@@ -1,66 +1,171 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { startTransition, useActionState, useMemo, useState } from "react";
+import { useForm, useWatch, type Path } from "react-hook-form";
 
 import {
   atualizarBolsaConcedida,
   criarBolsaConcedida,
 } from "@/acoes/bolsistas";
+import { CampoInstituicao } from "@/componentes/consultas/campo-instituicao";
+import { CampoCombobox } from "@/componentes/ui/campo-combobox";
 import { AreaTexto, Data, Grade, Selecao, Texto } from "@/componentes/ui/campos";
-import { submeterSemLimpar } from "@/componentes/ui/formulario";
+import { useErrosDaAcao } from "@/componentes/ui/formulario";
 import { Multistep, type Passo } from "@/componentes/ui/multistep";
 import { AbrirSidesheet } from "@/componentes/ui/sidesheet";
 import { useToastDaAcao } from "@/componentes/ui/toast";
 import { ESTADO_INICIAL, type EstadoDaAcao } from "@/lib/acao-tipos";
-import type { BolsaConcedidaDetalhe, OpcaoBolsaPlanejada } from "@/lib/dominio";
-import { dataBrParaIso, meses, moeda, rotulo } from "@/lib/formato";
+import type {
+  BolsaConcedidaDetalhe,
+  OpcaoBolsaPlanejada,
+  ReferenciasBolsa,
+} from "@/lib/dominio";
+import {
+  formularioBolsaConcedidaSchema,
+  NIVEIS_BENEFICIARIO,
+  type DadosFormularioBolsaConcedida,
+} from "@/lib/formularios/bolsa-concedida";
+import { meses, moeda, rotulo } from "@/lib/formato";
 
 export function NovaBolsaConcedida({
   opcoes,
+  referencias,
 }: {
   opcoes: OpcaoBolsaPlanejada[];
+  referencias: ReferenciasBolsa;
 }) {
   return (
     <AbrirSidesheet
       rotulo="Conceder bolsa"
       titulo="Conceder bolsa a uma pessoa"
-      descricao="A linha planejada fornece modalidade, valor e vigência; a equipe informa o bolsista e as datas completas."
+      descricao="A linha planejada fornece modalidade, valor e vigência; a equipe informa o bolsista, as pontas da mobilidade e as datas completas."
       largura="larga"
     >
-      {(fechar) => <FormNovaBolsa opcoes={opcoes} aoConcluir={fechar} />}
+      {(fechar) => (
+        <FormNovaBolsa
+          opcoes={opcoes}
+          referencias={referencias}
+          aoConcluir={fechar}
+        />
+      )}
     </AbrirSidesheet>
   );
 }
 
+/**
+ * Os nomes de campo da API coincidem com os do formulário, então o mapa é a
+ * identidade. Ele existe mesmo assim porque `useErrosDaAcao` só reaplica o que
+ * está no mapa — sem ele, um erro de campo novo voltaria da API e sumiria.
+ */
+const CAMPOS_DA_API = Object.fromEntries(
+  [
+    "itemPlanejadoId",
+    "nome",
+    "email",
+    "cpf",
+    "telefone",
+    "lattes",
+    "orcid",
+    "linhaPesquisaId",
+    "orientadorNome",
+    "nivelBeneficiario",
+    "paisOrigemId",
+    "instituicaoOrigemId",
+    "instituicaoOrigemNome",
+    "paisDestinoId",
+    "instituicaoDestinoId",
+    "instituicaoDestinoNome",
+    "dataInicio",
+    "dataFim",
+    "status",
+    "processo",
+    "observacoes",
+  ].map((campo) => [campo, campo]),
+) as Record<string, Path<DadosFormularioBolsaConcedida>>;
+
 function FormNovaBolsa({
   opcoes,
+  referencias,
   aoConcluir,
 }: {
   opcoes: OpcaoBolsaPlanejada[];
+  referencias: ReferenciasBolsa;
   aoConcluir: () => void;
 }) {
   const [estado, executar, enviando] = useActionState(
     criarBolsaConcedida,
     ESTADO_INICIAL,
   );
-  const [opcaoId, setOpcaoId] = useState("");
+  const {
+    register,
+    handleSubmit,
+    control,
+    setError,
+    clearErrors,
+    formState: { errors },
+  } = useForm<DadosFormularioBolsaConcedida>({
+    resolver: zodResolver(formularioBolsaConcedidaSchema),
+    defaultValues: {
+      itemPlanejadoId: "",
+      nome: "",
+      email: "",
+      cpf: "",
+      telefone: "",
+      lattes: "",
+      orcid: "",
+      linhaPesquisaId: "",
+      orientadorNome: "",
+      nivelBeneficiario: "DOUTORADO",
+      paisOrigemId: "",
+      modoInstituicaoOrigem: "catalogo",
+      instituicaoOrigemId: "",
+      instituicaoOrigemNome: "",
+      paisDestinoId: "",
+      modoInstituicaoDestino: "catalogo",
+      instituicaoDestinoId: "",
+      instituicaoDestinoNome: "",
+      dataInicio: "",
+      dataFim: "",
+      status: "SELECIONADO",
+      processo: "",
+      observacoes: "",
+    },
+  });
+
   const [correcao, setCorrecao] = useState<{
     estado: EstadoDaAcao;
     campos: Set<string>;
   } | null>(null);
-  const opcao = opcoes.find((item) => item.id === opcaoId);
   const formularioAlterado = correcao?.estado === estado;
-  const errosVisiveis = useMemo(() => {
-    const corrigidos = correcao?.estado === estado ? correcao.campos : null;
-    return (estado.erros ?? []).filter(
-      (erro) => !corrigidos?.has(erro.campo),
-    );
-  }, [correcao, estado]);
+
+  const itemPlanejadoId = useWatch({ control, name: "itemPlanejadoId" });
+  const modoOrigem = useWatch({ control, name: "modoInstituicaoOrigem" });
+  const modoDestino = useWatch({ control, name: "modoInstituicaoDestino" });
+  const opcao = opcoes.find((item) => item.id === itemPlanejadoId);
+  // A linha de pesquisa e do PPG, e a API recusa a de outro. Filtrar aqui e o
+  // que impede a tela de oferecer o que sera recusado depois.
+  const linhasDoPpg = opcao
+    ? referencias.linhasPesquisa.filter((linha) => linha.ppgId === opcao.ppgId)
+    : [];
 
   useToastDaAcao(estado, aoConcluir);
+  useErrosDaAcao(estado, setError, CAMPOS_DA_API);
 
-  const erroDe = (campo: string) =>
-    errosVisiveis.find((erro) => erro.campo === campo)?.mensagem;
+  const opcoesPais = useMemo(
+    () =>
+      referencias.paises.map((pais) => ({
+        valor: pais.id,
+        rotulo: pais.nome,
+        termos: pais.codigoIso2,
+      })),
+    [referencias.paises],
+  );
+
+  const opcoesModo = [
+    { valor: "catalogo", texto: "Selecionar do catálogo" },
+    { valor: "livre", texto: "Informar outro nome" },
+  ];
 
   const passos: Passo[] = [
     {
@@ -69,10 +174,6 @@ function FormNovaBolsa({
       campos: ["itemPlanejadoId"],
       descricao:
         "Escolha a vaga de origem. O sistema não permite consumir mais vagas do que o planejamento anual.",
-      validar: (formulario) =>
-        valor(formulario, "itemPlanejadoId")
-          ? null
-          : "Selecione a bolsa planejada.",
       conteudo: (
         <>
           <Selecao
@@ -80,12 +181,12 @@ function FormNovaBolsa({
             nome="itemPlanejadoId"
             vazio="Selecione código, PPG e modalidade"
             obrigatorio
+            registro={register("itemPlanejadoId")}
             opcoes={opcoes.map((item) => ({
               valor: item.id,
               texto: `${item.codigo} · ${item.ppgSigla} · ${item.modalidade}`,
             }))}
-            aoMudar={setOpcaoId}
-            erro={erroDe("itemPlanejadoId")}
+            erro={errors.itemPlanejadoId?.message}
           />
 
           {opcao ? <ResumoDaOpcao opcao={opcao} /> : null}
@@ -95,50 +196,114 @@ function FormNovaBolsa({
     {
       id: "bolsista",
       titulo: "Bolsista",
-      campos: ["nome", "email", "cpf", "nivelBeneficiario"],
+      campos: [
+        "nome",
+        "email",
+        "cpf",
+        "telefone",
+        "lattes",
+        "orcid",
+        "nivelBeneficiario",
+      ],
       descricao:
         "O produto será cobrado individualmente desta pessoa, não da linha agregada do plano.",
-      validar: (formulario) =>
-        valor(formulario, "nome").length >= 3
-          ? null
-          : "Informe o nome completo do bolsista.",
       conteudo: (
         <>
           <Texto
             rotulo="Nome completo"
             nome="nome"
             obrigatorio
-            erro={erroDe("nome")}
+            registro={register("nome")}
+            erro={errors.nome?.message}
           />
           <Grade>
             <Texto
               rotulo="E-mail"
               nome="email"
               placeholder="pessoa@instituicao.br"
-              erro={erroDe("email")}
+              registro={register("email")}
+              erro={errors.email?.message}
             />
             <Texto
               rotulo="CPF"
               nome="cpf"
               placeholder="000.000.000-00"
               obrigatorio
-              erro={erroDe("cpf")}
+              registro={register("cpf")}
+              erro={errors.cpf?.message}
               dica="O CPF é usado para impedir modalidades diferentes para a mesma pessoa no ciclo 2027–2030."
             />
           </Grade>
+          <Grade>
+            <Texto
+              rotulo="Telefone"
+              nome="telefone"
+              placeholder="(92) 90000-0000"
+              registro={register("telefone")}
+              erro={errors.telefone?.message}
+            />
+            <Selecao
+              rotulo="Nível do beneficiário"
+              nome="nivelBeneficiario"
+              obrigatorio
+              registro={register("nivelBeneficiario")}
+              erro={errors.nivelBeneficiario?.message}
+              opcoes={NIVEIS_BENEFICIARIO.map((nivel) => ({
+                valor: nivel.valor,
+                texto: nivel.texto,
+              }))}
+            />
+          </Grade>
+          <Grade>
+            <Texto
+              rotulo="Currículo Lattes"
+              nome="lattes"
+              placeholder="http://lattes.cnpq.br/…"
+              registro={register("lattes")}
+              erro={errors.lattes?.message}
+            />
+            <Texto
+              rotulo="ORCID"
+              nome="orcid"
+              placeholder="0000-0000-0000-0000"
+              registro={register("orcid")}
+              erro={errors.orcid?.message}
+              dica="O último caractere pode ser X — é o dígito verificador do padrão."
+            />
+          </Grade>
+        </>
+      ),
+    },
+    {
+      id: "academico",
+      titulo: "Vínculo acadêmico",
+      campos: ["linhaPesquisaId", "orientadorNome"],
+      descricao:
+        "Opcional. A linha de pesquisa vem do PPG da linha planejada; o orientador é criado como docente se ainda não existir.",
+      conteudo: (
+        <>
           <Selecao
-            rotulo="Nível do beneficiário"
-            nome="nivelBeneficiario"
-            obrigatorio
-            vazio="Selecione"
-            erro={erroDe("nivelBeneficiario")}
-            opcoes={[
-              { valor: "MESTRADO", texto: "Mestrado" },
-              { valor: "DOUTORADO", texto: "Doutorado" },
-              { valor: "POS_DOC", texto: "Pós-doutorado" },
-              { valor: "DOCENTE", texto: "Docente" },
-              { valor: "MOBILIDADE_BREVE", texto: "Mobilidade breve" },
-            ]}
+            rotulo="Linha de pesquisa"
+            nome="linhaPesquisaId"
+            vazio={
+              linhasDoPpg.length > 0
+                ? "Não informar"
+                : "Este PPG não tem linhas cadastradas"
+            }
+            registro={register("linhaPesquisaId")}
+            opcoes={linhasDoPpg.map((linha) => ({
+              valor: linha.id,
+              texto: linha.nome,
+            }))}
+            erro={errors.linhaPesquisaId?.message}
+            dica="Cadastre as linhas em PPGs para que apareçam aqui."
+          />
+          <Texto
+            rotulo="Orientador"
+            nome="orientadorNome"
+            placeholder="Nome completo"
+            registro={register("orientadorNome")}
+            erro={errors.orientadorNome?.message}
           />
         </>
       ),
@@ -147,56 +312,93 @@ function FormNovaBolsa({
       id: "trajeto",
       titulo: "Origem e destino",
       campos: [
-        "paisOrigem",
-        "instituicaoOrigem",
-        "paisDestino",
-        "instituicaoDestino",
+        "paisOrigemId",
+        "modoInstituicaoOrigem",
+        "instituicaoOrigemId",
+        "instituicaoOrigemNome",
+        "paisDestinoId",
+        "modoInstituicaoDestino",
+        "instituicaoDestinoId",
+        "instituicaoDestinoNome",
       ],
       descricao:
         "Registre as duas pontas da mobilidade. Nenhuma instituição é presumida pelo sistema.",
-      validar: (formulario) => {
-        if (!valor(formulario, "paisOrigem")) {
-          return "Informe o país de origem.";
-        }
-        if (!valor(formulario, "instituicaoOrigem")) {
-          return "Informe a universidade ou instituição de origem.";
-        }
-        if (!valor(formulario, "paisDestino")) {
-          return "Informe o país de destino.";
-        }
-        if (!valor(formulario, "instituicaoDestino")) {
-          return "Informe a universidade ou instituição de destino.";
-        }
-        return null;
-      },
       conteudo: (
         <>
-          <Texto
+          <CampoCombobox<DadosFormularioBolsaConcedida>
             rotulo="País de origem"
-            nome="paisOrigem"
+            nome="paisOrigemId"
+            control={control}
             obrigatorio
-            placeholder="País"
-            erro={erroDe("paisOrigem")}
+            opcoes={opcoesPais}
+            erro={errors.paisOrigemId?.message}
+            placeholder="Selecione o país"
+            placeholderBusca="Buscar país"
           />
-          <Texto
-            rotulo="Universidade ou instituição de origem"
-            nome="instituicaoOrigem"
-            obrigatorio
-            erro={erroDe("instituicaoOrigem")}
+          <Selecao
+            rotulo="Como informar a instituição de origem"
+            nome="modoInstituicaoOrigem"
+            registro={register("modoInstituicaoOrigem")}
+            opcoes={opcoesModo}
+            dica="Prefira o catálogo: é o que liga a bolsa ao histórico do parceiro e ao mapa."
+            erro={errors.modoInstituicaoOrigem?.message}
           />
-          <Texto
+          {modoOrigem === "catalogo" ? (
+            <CampoInstituicao<DadosFormularioBolsaConcedida>
+              rotulo="Instituição de origem"
+              nome="instituicaoOrigemId"
+              control={control}
+              obrigatorio
+              iniciais={referencias.instituicoes}
+              erro={errors.instituicaoOrigemId?.message}
+            />
+          ) : (
+            <Texto
+              rotulo="Universidade ou instituição de origem"
+              nome="instituicaoOrigemNome"
+              obrigatorio
+              registro={register("instituicaoOrigemNome")}
+              erro={errors.instituicaoOrigemNome?.message}
+            />
+          )}
+
+          <CampoCombobox<DadosFormularioBolsaConcedida>
             rotulo="País de destino"
-            nome="paisDestino"
+            nome="paisDestinoId"
+            control={control}
             obrigatorio
-            placeholder={opcao?.destino === "BRASIL" ? "Brasil" : "País"}
-            erro={erroDe("paisDestino")}
+            opcoes={opcoesPais}
+            erro={errors.paisDestinoId?.message}
+            placeholder={
+              opcao?.destino === "BRASIL" ? "Brasil" : "Selecione o país"
+            }
+            placeholderBusca="Buscar país"
           />
-          <Texto
-            rotulo="Universidade ou instituição de destino"
-            nome="instituicaoDestino"
-            obrigatorio
-            erro={erroDe("instituicaoDestino")}
+          <Selecao
+            rotulo="Como informar a instituição de destino"
+            nome="modoInstituicaoDestino"
+            registro={register("modoInstituicaoDestino")}
+            opcoes={opcoesModo}
+            erro={errors.modoInstituicaoDestino?.message}
           />
+          {modoDestino === "catalogo" ? (
+            <CampoInstituicao<DadosFormularioBolsaConcedida>
+              rotulo="Instituição de destino"
+              nome="instituicaoDestinoId"
+              control={control}
+              obrigatorio
+              iniciais={referencias.instituicoes}
+              erro={errors.instituicaoDestinoId?.message}
+            />
+          ) : (
+            <Texto
+              rotulo="Universidade ou instituição de destino"
+              nome="instituicaoDestinoNome"
+              obrigatorio
+              registro={register("instituicaoDestinoNome")}
+              erro={errors.instituicaoDestinoNome?.message}
+            />
+          )}
         </>
       ),
     },
@@ -206,15 +408,6 @@ function FormNovaBolsa({
       campos: ["dataInicio", "dataFim", "status", "processo", "observacoes"],
       descricao:
         "Informe as datas exatas do termo. São elas que alimentam os alertas de início e expiração.",
-      validar: (formulario) => {
-        const inicio = dataBrParaIso(valor(formulario, "dataInicio"));
-        const fim = dataBrParaIso(valor(formulario, "dataFim"));
-        if (!inicio || !fim) {
-          return "Informe datas válidas no formato DD/MM/AAAA.";
-        }
-        if (fim < inicio) return "A data final não pode vir antes da inicial.";
-        return null;
-      },
       conteudo: (
         <>
           <Grade>
@@ -222,20 +415,23 @@ function FormNovaBolsa({
               rotulo="Data inicial"
               nome="dataInicio"
               obrigatorio
-              erro={erroDe("dataInicio")}
+              registro={register("dataInicio")}
+              erro={errors.dataInicio?.message}
             />
             <Data
               rotulo="Data final"
               nome="dataFim"
               obrigatorio
-              erro={erroDe("dataFim")}
+              registro={register("dataFim")}
+              erro={errors.dataFim?.message}
             />
           </Grade>
           <Grade>
             <Selecao
               rotulo="Situação registrada"
               nome="status"
-              padrao="SELECIONADO"
+              registro={register("status")}
+              erro={errors.status?.message}
               opcoes={[
                 { valor: "SELECIONADO", texto: "Selecionado" },
                 { valor: "EM_ANDAMENTO", texto: "Em andamento" },
@@ -245,17 +441,43 @@ function FormNovaBolsa({
               rotulo="Processo"
               nome="processo"
               placeholder="Número SEI ou equivalente"
+              registro={register("processo")}
+              erro={errors.processo?.message}
             />
           </Grade>
-          <AreaTexto rotulo="Observações" nome="observacoes" linhas={3} />
+          <AreaTexto
+            rotulo="Observações"
+            nome="observacoes"
+            linhas={3}
+            registro={register("observacoes")}
+            erro={errors.observacoes?.message}
+          />
         </>
       ),
     },
   ];
 
+  /**
+   * Achatado a partir de `errors` do React Hook Form, e não do estado da ação:
+   * é o que faz o `Multistep` saltar para a etapa errada tanto na recusa da
+   * API quanto na validação local, com um caminho só.
+   */
+  const errosVisiveis = useMemo(
+    () =>
+      Object.entries(errors).flatMap(([campo, erro]) => {
+        const mensagem = (erro as { message?: string } | undefined)?.message;
+        return mensagem ? [{ campo, mensagem }] : [];
+      }),
+    [errors],
+  );
+
+  const aoEnviar = handleSubmit((dados) => {
+    startTransition(() => executar(dados));
+  });
+
   return (
     <form
-      onSubmit={(evento) => submeterSemLimpar(evento, executar)}
+      onSubmit={aoEnviar}
       onChange={(evento) => {
         const alvo = evento.nativeEvent.target;
         if (!(alvo instanceof HTMLElement)) return;
@@ -269,6 +491,7 @@ function FormNovaBolsa({
           campos.add(campo);
           return { estado, campos };
         });
+        clearErrors(campo as Path<DadosFormularioBolsaConcedida>);
       }}
       className="flex min-h-0 flex-1 flex-col"
     >
@@ -278,8 +501,8 @@ function FormNovaBolsa({
         erro={
           estado.ok || formularioAlterado ? null : (estado.mensagem ?? null)
         }
-        erros={estado.ok ? [] : errosVisiveis}
-        errosParaNavegacao={estado.ok ? [] : (estado.erros ?? [])}
+        erros={errosVisiveis}
+        errosParaNavegacao={errosVisiveis}
         rotuloConcluir="Cadastrar concessão"
         aoCancelar={aoConcluir}
       />
@@ -431,10 +654,4 @@ function RodapeForm({
       </div>
     </div>
   );
-}
-
-function valor(formulario: HTMLFormElement, campo: string): string {
-  const elemento = formulario.elements.namedItem(campo);
-  if (elemento && "value" in elemento) return String(elemento.value).trim();
-  return "";
 }

@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form";
 import { atualizarParceiro, criarParceiro } from "@/acoes/parceiros";
 import {
   AreaTexto,
+  Campo,
   Grade,
   Marcador,
   Selecao,
@@ -20,9 +21,12 @@ import { useToastDaAcao } from "@/componentes/ui/toast";
 import { ESTADO_INICIAL, type CandidatoDuplicidade } from "@/lib/acao-tipos";
 import type { Parceiro, RedeDoParceiro } from "@/lib/dominio";
 import {
+  ESTAGIOS_RELACIONAMENTO,
   formularioParceiroSchema,
+  ORIGENS_RELACIONAMENTO,
   type DadosFormularioParceiro,
 } from "@/lib/formularios/parceiros";
+import { rotulo } from "@/lib/formato";
 
 interface Contexto {
   redes: RedeDoParceiro[];
@@ -103,6 +107,12 @@ function FormParceiro({
       estadoRegiao: parceiro?.estadoRegiao ?? "",
       tipoOrganizacao: parceiro?.tipoOrganizacao ?? "",
       faculdadeDepartamento: parceiro?.faculdadeDepartamento ?? "",
+      areasAtuacao: parceiro?.areasAtuacao ?? "",
+      programaRelacionado: parceiro?.programaRelacionado ?? "",
+      grupoPesquisa: parceiro?.grupoPesquisa ?? "",
+      origemRelacionamento: parceiro?.origemRelacionamento ?? "",
+      origemObservacao: parceiro?.origemObservacao ?? "",
+      estagioRelacionamento: parceiro?.estagioRelacionamento ?? "IDENTIFICADA",
       site: parceiro?.site ?? "",
       emailInstitucional: parceiro?.emailInstitucional ?? "",
       telefone: parceiro?.telefone ?? "",
@@ -203,6 +213,82 @@ function FormParceiro({
             erro={erroDe("faculdadeDepartamento")}
           />
         </Grade>
+
+        <Grade>
+          <Texto
+            rotulo="Programa relacionado"
+            nome="programaRelacionado"
+            registro={register("programaRelacionado")}
+            erro={erroDe("programaRelacionado")}
+          />
+          <Texto
+            rotulo="Grupo de pesquisa"
+            nome="grupoPesquisa"
+            registro={register("grupoPesquisa")}
+            erro={erroDe("grupoPesquisa")}
+          />
+        </Grade>
+
+        <AreaTexto
+          rotulo="Áreas de atuação"
+          nome="areasAtuacao"
+          linhas={2}
+          registro={register("areasAtuacao")}
+          erro={erroDe("areasAtuacao")}
+          dica="Texto livre. Não há taxonomia de áreas, então este campo descreve — não serve para contar."
+        />
+
+        {/*
+          A origem só é editável no cadastro. Na edição vira texto: reescrevê-la
+          apagaria a memória de como o relacionamento começou, que é justamente
+          o que o módulo existe para preservar (BOL-030).
+        */}
+        {parceiro ? (
+          <Campo rotulo="Como foi identificada">
+            {() => (
+              <p className="text-sm text-foreground">
+                {rotulo(parceiro.origemRelacionamento)}
+                <span className="mt-1 block text-xs text-muted">
+                  Registrada no cadastro e não editável.
+                </span>
+              </p>
+            )}
+          </Campo>
+        ) : (
+          <Selecao
+            rotulo="Como esta instituição foi identificada"
+            nome="origemRelacionamento"
+            vazio="Selecione"
+            obrigatorio
+            registro={register("origemRelacionamento")}
+            opcoes={ORIGENS_RELACIONAMENTO.map((origem) => ({
+              valor: origem.valor,
+              texto: origem.texto,
+            }))}
+            erro={erroDe("origemRelacionamento")}
+            dica="Fato histórico: não poderá ser alterado depois."
+          />
+        )}
+
+        <Selecao
+          rotulo="Situação do relacionamento"
+          nome="estagioRelacionamento"
+          registro={register("estagioRelacionamento")}
+          opcoes={ESTAGIOS_RELACIONAMENTO.map((estagio) => ({
+            valor: estagio.valor,
+            texto: estagio.texto,
+          }))}
+          erro={erroDe("estagioRelacionamento")}
+          dica="“Mobilidade realizada” e “parceria formalizada” não estão aqui: são deduzidas das bolsas e dos convênios registrados."
+        />
+
+        <AreaTexto
+          rotulo="Observação sobre a origem"
+          nome="origemObservacao"
+          linhas={2}
+          registro={register("origemObservacao")}
+          erro={erroDe("origemObservacao")}
+        />
 
         <Grade>
           <Texto

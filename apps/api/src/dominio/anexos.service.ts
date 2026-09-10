@@ -10,7 +10,7 @@ import { and, desc, eq, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 
 import type { AuthUser } from '../auth/auth-user';
-import { alcancaTodasAsRedes, podeVerMissao } from '../auth/escopo';
+import { alcancaTodasAsRedes, podeVerMissao, podeVerPpg } from '../auth/escopo';
 import { IdentidadeService } from '../auth/identidade.service';
 import type { Permission } from '../auth/permissions';
 import { ArmazenamentoService } from '../arquivos/armazenamento.service';
@@ -62,7 +62,9 @@ const POLITICA: Record<
       | 'cotacao'
       | 'instituicao'
       | 'produto'
-      | 'convenio';
+      | 'convenio'
+      | 'bolsa'
+      | 'decisao';
   }
 > = {
   MISSAO_COMITE: {
@@ -115,7 +117,70 @@ const POLITICA: Record<
     escrever: 'parceiro:write',
     tabela: 'convenio',
   },
+  /**
+   * Documento do bolsista (BOL-021).
+   *
+   * As permissoes sao as da concessao, e nao uma permissao documental propria:
+   * o anexo herda quem pode, exatamente como os outros. O que ele herda **alem**
+   * disso e o recorte por PPG da BOL-020 — ver `exigirAcesso`.
+   */
+  BOLSA_CONCEDIDA: {
+    ler: 'bolsa:read',
+    escrever: 'bolsa:write',
+    tabela: 'bolsa',
+  },
+  /**
+   * Ata da reuniao que fundamentou a decisao (BOL-052).
+   *
+   * Escrever exige `missao:decide` — quem registra a decisao e quem anexa a ata
+   * dela —, e nao `missao:edit`: a ata nao e parte da proposta, e quem pode
+   * alterar a missao nao e quem delibera sobre ela. Ler e `missao:read`, como
+   * todo o resto do historico de analise.
+   */
+  DECISAO_COMITE: {
+    ler: 'missao:read',
+    escrever: 'missao:decide',
+    tabela: 'decisao',
+  },
 };
+
+/**
+ * Categorias aceitas num documento de bolsista.
+ *
+ * Lista fechada pela mesma razao de `categoriaPermitidaParaDespesa`: o enum de
+ * categoria serve o sistema inteiro, e sem esta checagem daria para pendurar
+ * `FOTO_EVENTO` ou `NOTA_FISCAL` numa concessao e sujar a lista que a equipe
+ * usa para conferir o processo.
+ */
+const CATEGORIAS_DE_BOLSA = [
+  'CARTA_ACEITE',
+  'PLANO_TRABALHO',
+  'RELATORIO',
+  'DECLARACAO',
+  'PUBLICACAO',
+  'DOCUMENTO_IDENTIDADE',
+  'PASSAPORTE',
+  'COMPROVANTE_RESIDENCIA',
+  'OUTRO',
+] as const satisfies readonly (typeof s.categoriaAnexoEnum.enumValues)[number][];
+
+/**
+ * Documento pessoal: a categoria decide a visibilidade, nunca o cliente.
+ *
+ * Se `visibilidade` viesse do corpo da requisicao, bastaria enviar `INTERNA`
+ * junto de um passaporte para publica-lo a todo mundo que alcanca a bolsa —
+ * e a decisao de 2026-09-09 seria contornavel por quem faz o upload. O servico
+ * sobrescreve, e por isso a regra vale mesmo para um cliente escrito errado.
+ */
+const CATEGORIAS_PESSOAIS = [
+  'DOCUMENTO_IDENTIDADE',
+  'PASSAPORTE',
+  'COMPROVANTE_RESIDENCIA',
+] as const satisfies readonly (typeof s.categoriaAnexoEnum.enumValues)[number][];
+
+export function ehDocumentoPessoal(categoria: string): boolean {
+  return (CATEGORIAS_PESSOAIS as readonly string[]).includes(categoria);
+}
 
 export const enviarAnexoSchema = z.object({
   entidadeTipo: z.enum(s.entidadeAnexoEnum.enumValues),
@@ -171,7 +236,26 @@ export interface AnexoResumo {
   dataEvidencia: string | null;
   localEvidencia: string | null;
   autoria: string | null;
+  /**
+   * Ate quando o documento pessoal deve ser guardado (BOL-021).
+   *
+   * **Derivado, nunca gravado**, e so preenchido em documento pessoal de
+   * bolsista. A politica homologada em 2026-09-09 conta a partir do **fim da
+   * concessao**, e nao do upload: o relogio da retencao comeca quando a
+   * finalidade se encerra. `data_fim` da bolsa e editavel, entao uma coluna
+   * gravada divergiria da politica no dia em que a equipe corrigisse o periodo
+   * — a mesma razao pela qual o checklist de encerramento nao e persistido
+   * (CG-058).
+   *
+   * **Nao existe expurgo automatico**, aqui nem em lugar nenhum do sistema.
+   * Este campo torna a politica conferivel; executa-la continua sendo ato
+   * humano, e isso esta registrado como pendencia.
+   */
+  retencaoAte?: string | null;
 }
+
+/** Anos de guarda do documento pessoal, contados do fim da concessao. */
+const RETENCAO_ANOS = 5;
 
 export interface ArquivoRecebido {
   originalname: string;
@@ -208,9 +292,42 @@ export class AnexosService {
         ),
       )
       .orderBy(desc(s.anexo.enviadoEm));
-    return linhas
+    const visiveis = linhas
       .filter((linha) => this.podeVer(linha, usuario))
       .map((linha) => this.resumir(linha));
+
+    if (filtros.entidadeTipo !== 'BOLSA_CONCEDIDA') return visiveis;
+    return this.comRetencao(visiveis, filtros.entidadeId);
+  }
+
+  /**
+   * Acrescenta a data de guarda aos documentos pessoais da concessao.
+   *
+   * Uma consulta so para a lista inteira: a bolsa e a mesma para todos os
+   * anexos dela, e buscar por linha seria N+1 para responder sempre o mesmo.
+   */
+  private async comRetencao(
+    anexos: AnexoResumo[],
+    bolsaId: string,
+  ): Promise<AnexoResumo[]> {
+    if (!anexos.some((anexo) => ehDocumentoPessoal(anexo.categoria))) {
+      return anexos;
+    }
+
+    const [bolsa] = await this.db
+      .select({ dataFim: s.bolsaConcedida.dataFim })
+      .from(s.bolsaConcedida)
+      .where(eq(s.bolsaConcedida.id, bolsaId))
+      .limit(1);
+    if (!bolsa) return anexos;
+
+    const fim = new Date(`${bolsa.dataFim}T00:00:00Z`);
+    fim.setUTCFullYear(fim.getUTCFullYear() + RETENCAO_ANOS);
+    const retencaoAte = fim.toISOString().slice(0, 10);
+
+    return anexos.map((anexo) =>
+      ehDocumentoPessoal(anexo.categoria) ? { ...anexo, retencaoAte } : anexo,
+    );
   }
 
   async enviar(
@@ -218,10 +335,22 @@ export class AnexosService {
     arquivo: ArquivoRecebido,
     usuario: AuthUser,
   ): Promise<AnexoResumo> {
-    const politica = POLITICA[dto.entidadeTipo];
-    this.exigir(usuario, politica.escrever);
+    // `exigirAcesso`, e nao apenas `exigir`: a permissao diz *o que* se pode
+    // fazer, e o recorte diz *sobre quais linhas*. Ate a BOL-021 o envio
+    // checava so a permissao — todas as outras operacoes ja passavam por aqui
+    // —, e com isso quem nao alcanca uma missao de outra rede, ou a bolsa de
+    // outro PPG, ainda conseguia **pendurar** um documento nela conhecendo o
+    // UUID. Nao dava para ler de volta, mas dava para injetar.
+    await this.exigirAcesso(
+      usuario,
+      dto.entidadeTipo,
+      dto.entidadeId,
+      'escrever',
+    );
     await this.exigirEntidade(dto.entidadeTipo, dto.entidadeId);
     await this.validarAssociacaoPrestacao(dto);
+    const visibilidade = this.visibilidadeDe(dto);
+    this.exigirEnvioDeDocumentoPessoal(usuario, visibilidade);
 
     const tipo = this.validarArquivo(arquivo);
     const { chave, hash } = await this.armazenamento.guardar(arquivo.buffer);
@@ -235,7 +364,7 @@ export class AnexosService {
         caminho: chave,
         hashSha256: hash,
         categoria: dto.categoria,
-        visibilidade: dto.visibilidade,
+        visibilidade,
         entidadeTipo: dto.entidadeTipo,
         entidadeId: dto.entidadeId,
         enviadoPorId: usuario.id,
@@ -412,6 +541,71 @@ export class AnexosService {
    * `entidade_id` não tem chave estrangeira (preço do vínculo polimórfico), por
    * isso a existência é conferida aqui — senão o upload cria órfão no ato.
    */
+  /**
+   * Visibilidade efetiva do documento (BOL-021).
+   *
+   * Documento pessoal de bolsista nasce `PESSOAL` **por decisao da categoria**,
+   * e o que o cliente enviou e descartado: aceitar `INTERNA` junto de um
+   * passaporte publicaria o arquivo para todo mundo que alcanca a bolsa, e a
+   * decisao de 2026-09-09 seria contornavel por quem faz o upload.
+   *
+   * Tambem e aqui que a categoria de bolsa e conferida — o enum serve o sistema
+   * inteiro, e sem a lista fechada daria para pendurar `NOTA_FISCAL` numa
+   * concessao.
+   */
+  private visibilidadeDe(
+    dto: EnviarAnexo,
+  ): (typeof s.visibilidadeAnexoEnum.enumValues)[number] {
+    // A decisao aceita **somente** ata (BOL-052). Qualquer outra categoria ali
+    // confundiria o comprovante da deliberacao com os documentos analisados —
+    // que se prendem a missao, nao a decisao (CG-019).
+    if (dto.entidadeTipo === 'DECISAO_COMITE' && dto.categoria !== 'ATA') {
+      throw new BadRequestException(
+        'A decisão do Comitê aceita apenas documento da categoria ATA.',
+      );
+    }
+
+    if (dto.entidadeTipo !== 'BOLSA_CONCEDIDA') {
+      // `PESSOAL` so existe para bolsista: marcar assim um comprovante de
+      // missao o esconderia de quem precisa conferir a prestacao.
+      if (dto.visibilidade === 'PESSOAL') {
+        throw new BadRequestException(
+          'Visibilidade PESSOAL vale apenas para documento de bolsista.',
+        );
+      }
+      return dto.visibilidade;
+    }
+
+    if (!(CATEGORIAS_DE_BOLSA as readonly string[]).includes(dto.categoria)) {
+      throw new BadRequestException(
+        `A categoria ${dto.categoria} nao e aceita em documento de bolsista.`,
+      );
+    }
+
+    return ehDocumentoPessoal(dto.categoria) ? 'PESSOAL' : dto.visibilidade;
+  }
+
+  /**
+   * Enviar documento pessoal exige a mesma permissao de abri-lo.
+   *
+   * Homologado em 2026-09-09, fechando a assimetria que a BOL-021 deixou: a
+   * API aceitava o envio de qualquer um com `bolsa:write`, e o coordenador
+   * acabava podendo **coletar** passaporte de aluno que so ele proprio
+   * conseguiria reabrir depois — coleta de dado pessoal sem ninguem que a
+   * consuma, que e o pior dos dois mundos.
+   *
+   * A tela ja deixava de oferecer a categoria; e isto que a torna autorizacao
+   * em vez de sugestao. **403 e nao 404**: a concessao e visivel para quem
+   * chegou ate aqui, e o que se recusa e a acao, nao a existencia.
+   */
+  private exigirEnvioDeDocumentoPessoal(
+    usuario: AuthUser,
+    visibilidade: (typeof s.visibilidadeAnexoEnum.enumValues)[number],
+  ): void {
+    if (visibilidade !== 'PESSOAL') return;
+    this.exigir(usuario, 'documento:read-pessoal');
+  }
+
   private async exigirEntidade(
     tipo: (typeof s.entidadeAnexoEnum.enumValues)[number],
     entidadeId: string,
@@ -425,6 +619,8 @@ export class AnexosService {
       instituicao: s.instituicao,
       produto: s.produtoMissao,
       convenio: s.convenio,
+      bolsa: s.bolsaConcedida,
+      decisao: s.decisaoComite,
     } as const;
     const tabela = tabelas[POLITICA[tipo].tabela];
     const [existe] = await this.db
@@ -490,6 +686,15 @@ export class AnexosService {
   ): Promise<void> {
     this.exigir(usuario, POLITICA[tipo][acao]);
 
+    // Bolsista e recortado por PPG, nao por rede (BOL-020/BOL-021). Sem isto o
+    // documento seria a porta lateral do recorte que a BOL-020 acabou de
+    // fechar: conhecer o UUID bastaria para baixar o passaporte de um bolsista
+    // de outro PPG.
+    if (tipo === 'BOLSA_CONCEDIDA') {
+      await this.exigirPpgDaBolsa(usuario, entidadeId);
+      return;
+    }
+
     if (alcancaTodasAsRedes(usuario)) return;
     const missaoId = await this.missaoDaEntidade(tipo, entidadeId);
     if (!missaoId) return;
@@ -513,6 +718,29 @@ export class AnexosService {
   }
 
   /**
+   * A concessao esta no escopo por PPG de quem pediu (BOL-021).
+   *
+   * 404 e nao 403, pelo mesmo criterio do resto: "existe, mas nao e seu" ja
+   * entrega que aquele bolsista tem documento — e, num anexo pessoal, que
+   * aquela pessoa e bolsista.
+   */
+  private async exigirPpgDaBolsa(
+    usuario: AuthUser,
+    bolsaId: string,
+  ): Promise<void> {
+    const [bolsa] = await this.db
+      .select({ ppgId: s.bolsaConcedida.ppgId })
+      .from(s.bolsaConcedida)
+      .where(eq(s.bolsaConcedida.id, bolsaId))
+      .limit(1);
+
+    const escopo = await this.identidade.escopoDe(usuario);
+    if (!bolsa || !podeVerPpg(escopo, bolsa.ppgId)) {
+      throw new NotFoundException('Documento nao encontrado.');
+    }
+  }
+
+  /**
    * A missão a que o alvo do documento pertence, quando pertence a alguma.
    *
    * `null` para instituição e convênio: eles sobrevivem à viagem e não são
@@ -525,6 +753,15 @@ export class AnexosService {
     switch (POLITICA[tipo].tabela) {
       case 'missao':
         return entidadeId;
+      case 'decisao':
+        // Duas junções até a missão: a decisão pertence à rodada, e a rodada à
+        // missão. Sem isto o recorte por rede não alcançaria a ata (CG-028).
+        return this.umValor(sql`
+          select ra.missao_id
+            from decisao_comite dc
+            join rodada_analise ra on ra.id = dc.rodada_id
+           where dc.id = ${entidadeId}
+        `);
       case 'atividade':
         return this.umValor(sql`
           select missao_id from atividade_missao where id = ${entidadeId}
@@ -588,9 +825,23 @@ export class AnexosService {
     anexo: { visibilidade: string; enviadoPorId: string | null },
     usuario: AuthUser,
   ): boolean {
-    if (anexo.visibilidade !== 'RESTRITA') return true;
+    if (anexo.visibilidade === 'INTERNA') return true;
+
+    /**
+     * `RESTRITA` e `PESSOAL` **nao sao niveis**, sao publicos diferentes, e
+     * por isso o mapa e explicito em vez de uma cadeia de fallback. O Comite
+     * Gestor abre `RESTRITA` e nao abre `PESSOAL` — passaporte de bolsista nao
+     * tem relacao com a missao que ele analisa. A `secretaria` abre `PESSOAL`
+     * e nao abre `RESTRITA`. Um `||` entre as duas permissoes daria a cada uma
+     * o alcance da outra, que e exatamente a decisao de 2026-09-09 ao avesso.
+     */
+    const permissaoNecessaria =
+      anexo.visibilidade === 'PESSOAL'
+        ? 'documento:read-pessoal'
+        : 'documento:read-restrito';
+
     return (
-      usuario.permissions.includes('documento:read-restrito') ||
+      usuario.permissions.includes(permissaoNecessaria) ||
       anexo.enviadoPorId === usuario.id
     );
   }

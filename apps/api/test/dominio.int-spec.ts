@@ -71,7 +71,9 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
     // so dependem do banco, e subir o container do Nest para injetar um unico
     // provider adicionaria uma camada que nao esta sob teste.
     contexto = new ContextoService(ctx.db);
-    bolsistas = new BolsistasService(ctx.db);
+    // `ADMIN` enxerga todos os PPGs: estes casos verificam o calculo da P03,
+    // nao o recorte, que tem cobertura propria em `escopo-bolsas.int-spec.ts`.
+    bolsistas = new BolsistasService(ctx.db, new IdentidadeService(ctx.db));
     catalogo = new CatalogoService(ctx.db);
     orcamento = new OrcamentoService(ctx.db);
     painel = new PainelService(ctx.db, orcamento);
@@ -634,7 +636,7 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
   // ------------------------------------------------------------------ //
   describe('BolsistasService (P03)', () => {
     it('concede uma vaga anual e acompanha produtos individuais', async () => {
-      const opcao = (await bolsistas.opcoesPlanejamento()).find(
+      const opcao = (await bolsistas.opcoesPlanejamento(ADMIN)).find(
         (item) => item.codigo === 'BOL-014',
       );
       expect(opcao).toBeDefined();
@@ -649,73 +651,147 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
         ]),
       );
 
-      const criada = await bolsistas.criar({
-        itemPlanejadoId: opcao!.id,
-        nome: 'Bolsista de Integração',
-        email: 'bolsista.integracao@uea.edu.br',
-        cpf: '52998224725',
-        nivelBeneficiario: 'DOCENTE',
-        paisOrigem: 'Brasil',
-        instituicaoOrigem: 'Universidade do Estado do Amazonas',
-        paisDestino: 'Portugal',
-        instituicaoDestino: 'Universidade de Coimbra',
-        dataInicio: '2027-01-03',
-        dataFim: '2027-07-30',
-        status: 'SELECIONADO',
-        processo: 'SEI-TESTE-001',
-      });
+      // BOL-010: as pontas saem do cadastro central. O teste exercita os dois
+      // modos de uma vez — origem do catalogo, destino digitado —, porque e
+      // exatamente a combinacao que a decisao de 2026-09-09 permite.
+      const paisPorIso = async (iso: string) => {
+        const [encontrado] = await ctx.db
+          .select({ id: s.pais.id, nome: s.pais.nome })
+          .from(s.pais)
+          .where(eq(s.pais.codigoIso2, iso))
+          .limit(1);
+        expect(encontrado).toBeDefined();
+        return encontrado;
+      };
+      const brasil = await paisPorIso('BR');
+      const portugal = await paisPorIso('PT');
+      const [uea] = await ctx.db
+        .select({ id: s.instituicao.id, nome: s.instituicao.nome })
+        .from(s.instituicao)
+        .where(eq(s.instituicao.sigla, 'UEA'))
+        .limit(1);
+      expect(uea).toBeDefined();
+
+      const pontas = {
+        paisOrigemId: brasil.id,
+        modoInstituicaoOrigem: 'catalogo' as const,
+        instituicaoOrigemId: uea.id,
+        paisDestinoId: portugal.id,
+        modoInstituicaoDestino: 'livre' as const,
+        instituicaoDestinoNome: 'Universidade de Coimbra',
+      };
+
+      const criada = await bolsistas.criar(
+        {
+          itemPlanejadoId: opcao!.id,
+          nome: 'Bolsista de Integração',
+          email: 'bolsista.integracao@uea.edu.br',
+          cpf: '52998224725',
+          nivelBeneficiario: 'DOCENTE',
+          telefone: '(92) 99999-0000',
+          lattes: 'http://lattes.cnpq.br/0000000000000000',
+          // Termina em X de proposito: e o digito verificador do padrao ORCID.
+          orcid: '0000-0002-1694-233X',
+          orientadorNome: 'Orientadora de Integração',
+          ...pontas,
+          dataInicio: '2027-01-03',
+          dataFim: '2027-07-30',
+          status: 'SELECIONADO',
+          processo: 'SEI-TESTE-001',
+        },
+        ADMIN,
+      );
 
       expect(criada.codigoPlanejamento).toBe('BOL-014');
       expect(criada.valorConcedido).toBe('54697.00');
       expect(criada.dataInicio).toBe('2027-01-03');
       expect(criada.dataFim).toBe('2027-07-30');
-      expect(criada.paisOrigem).toBe('Brasil');
-      expect(criada.instituicaoOrigem).toBe(
-        'Universidade do Estado do Amazonas',
-      );
-      expect(criada.paisDestino).toBe('Portugal');
+      // O nome vem do catalogo, nao de copia gravada na concessao: e o que faz
+      // conciliar um parceiro (CG-025) se propagar para a bolsa ja cadastrada.
+      expect(criada.paisOrigem).toBe(brasil.nome);
+      expect(criada.paisOrigemId).toBe(brasil.id);
+      expect(criada.instituicaoOrigem).toBe(uea.nome);
+      expect(criada.instituicaoOrigemId).toBe(uea.id);
+      expect(criada.paisDestino).toBe(portugal.nome);
+      expect(criada.paisDestinoId).toBe(portugal.id);
+      // Digitada: fica no texto e nao inventa vinculo com o cadastro central.
       expect(criada.instituicaoDestino).toBe('Universidade de Coimbra');
+      expect(criada.instituicaoDestinoId).toBeNull();
       expect(criada.situacaoTemporal).toBeDefined();
+      expect(criada.telefone).toBe('(92) 99999-0000');
+      expect(criada.orcid).toBe('0000-0002-1694-233X');
+      // BOL-011: rede e tematica saem da concessao, nao mais so do item.
+      expect(criada.rede).toBeTruthy();
+      expect(criada.areaTematicaCodigo).toBeTruthy();
+      // BOL-013: orientador informado por nome vira pessoa do mesmo PPG.
+      expect(criada.orientador).toBe('Orientadora de Integração');
 
-      const outraModalidade = (await bolsistas.opcoesPlanejamento()).find(
+      await expect(
+        bolsistas.criar(
+          {
+            itemPlanejadoId: opcao!.id,
+            nome: 'Bolsista com país inexistente',
+            cpf: '11144477735',
+            nivelBeneficiario: 'DOCENTE',
+            ...pontas,
+            paisDestinoId: '00000000-0000-4000-8000-000000000000',
+            dataInicio: '2027-02-01',
+            dataFim: '2027-03-01',
+            status: 'SELECIONADO',
+          },
+          ADMIN,
+        ),
+      ).rejects.toThrow('País não encontrado');
+
+      const outraModalidade = (await bolsistas.opcoesPlanejamento(ADMIN)).find(
         (item) => item.codigo === 'BOL-015',
       );
       await expect(
-        bolsistas.criar({
-          itemPlanejadoId: outraModalidade!.id,
-          nome: 'Bolsista de Integração',
-          email: 'bolsista.integracao@uea.edu.br',
-          cpf: '52998224725',
-          nivelBeneficiario: 'DOCENTE',
-          paisOrigem: 'Brasil',
-          instituicaoOrigem: 'Universidade do Estado do Amazonas',
-          paisDestino: 'Espanha',
-          instituicaoDestino: 'Universidade de Barcelona',
-          dataInicio: '2027-09-01',
-          dataFim: '2027-10-31',
-          status: 'SELECIONADO',
-        }),
+        bolsistas.criar(
+          {
+            itemPlanejadoId: outraModalidade!.id,
+            nome: 'Bolsista de Integração',
+            email: 'bolsista.integracao@uea.edu.br',
+            cpf: '52998224725',
+            nivelBeneficiario: 'DOCENTE',
+            ...pontas,
+            instituicaoDestinoNome: 'Universidade de Barcelona',
+            dataInicio: '2027-09-01',
+            dataFim: '2027-10-31',
+            status: 'SELECIONADO',
+          },
+          ADMIN,
+        ),
       ).rejects.toThrow('já utilizou outra modalidade de bolsa neste ciclo');
 
-      const produto = await bolsistas.criarProduto(criada.id, {
-        tipo: 'ARTIGO',
-        titulo: 'Artigo resultante da mobilidade',
-        prazoEntrega: '2027-12-15',
-        status: 'PREVISTO',
-      });
+      const produto = await bolsistas.criarProduto(
+        criada.id,
+        {
+          tipo: 'ARTIGO',
+          titulo: 'Artigo resultante da mobilidade',
+          prazoEntrega: '2027-12-15',
+          status: 'PREVISTO',
+        },
+        ADMIN,
+      );
       expect(produto.situacao).toBe('PREVISTO');
 
-      const entregue = await bolsistas.atualizarProduto(criada.id, produto.id, {
-        tipo: 'ARTIGO',
-        titulo: 'Artigo resultante da mobilidade',
-        prazoEntrega: '2027-12-15',
-        status: 'ENTREGUE',
-        dataEntrega: '2027-12-10',
-        doi: '10.0000/teste',
-      });
+      const entregue = await bolsistas.atualizarProduto(
+        criada.id,
+        produto.id,
+        {
+          tipo: 'ARTIGO',
+          titulo: 'Artigo resultante da mobilidade',
+          prazoEntrega: '2027-12-15',
+          status: 'ENTREGUE',
+          dataEntrega: '2027-12-10',
+          doi: '10.0000/teste',
+        },
+        ADMIN,
+      );
       expect(entregue.situacao).toBe('ENTREGUE');
 
-      const detalhe = await bolsistas.detalhar(criada.id);
+      const detalhe = await bolsistas.detalhar(criada.id, ADMIN);
       expect(detalhe.produtos).toEqual([
         expect.objectContaining({
           titulo: 'Artigo resultante da mobilidade',
@@ -724,19 +800,20 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
       ]);
 
       await expect(
-        bolsistas.criar({
-          itemPlanejadoId: opcao!.id,
-          nome: 'Outra pessoa para a mesma vaga',
-          cpf: '11144477735',
-          nivelBeneficiario: 'DOCENTE',
-          paisOrigem: 'Brasil',
-          instituicaoOrigem: 'Universidade do Estado do Amazonas',
-          paisDestino: 'Portugal',
-          instituicaoDestino: 'Universidade do Porto',
-          dataInicio: '2027-09-05',
-          dataFim: '2027-11-04',
-          status: 'SELECIONADO',
-        }),
+        bolsistas.criar(
+          {
+            itemPlanejadoId: opcao!.id,
+            nome: 'Outra pessoa para a mesma vaga',
+            cpf: '11144477735',
+            nivelBeneficiario: 'DOCENTE',
+            ...pontas,
+            instituicaoDestinoNome: 'Universidade do Porto',
+            dataInicio: '2027-09-05',
+            dataFim: '2027-11-04',
+            status: 'SELECIONADO',
+          },
+          ADMIN,
+        ),
       ).rejects.toThrow('Todas as 1 vagas planejadas para 2027');
 
       await ctx.db

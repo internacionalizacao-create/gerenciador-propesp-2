@@ -223,6 +223,7 @@ export interface OpcaoBolsaPlanejada {
   programa: string;
   programaSlug: string;
   ciclo: string;
+  ppgId: string;
   ppg: string;
   ppgSigla: string;
   modalidade: string;
@@ -236,6 +237,89 @@ export interface OpcaoBolsaPlanejada {
     concedidas: number;
     vagasDisponiveis: number;
   }[];
+}
+
+/** Instituição no seletor da concessão (BOL-010). */
+/** P02 · panorama de mobilidade (BOL-040). */
+export interface LinhaContagemMobilidade {
+  chave: string;
+  rotulo: string;
+  quantidade: number;
+  entrada: number;
+  saida: number;
+  valor: string;
+}
+
+export interface LinhaAnoMobilidade {
+  ano: number;
+  entrada: number;
+  saida: number;
+  total: number;
+  valor: string;
+}
+
+/** Consolidado por rede, com alcance e resultado (BOL-043). */
+export interface LinhaRedeMobilidade extends LinhaContagemMobilidade {
+  paises: number;
+  instituicoes: number;
+  ppgs: number;
+  produtos: number;
+}
+
+/** País de destino, com o código ISO numérico que o mapa usa (BOL-042). */
+export interface LinhaPaisMobilidade extends LinhaContagemMobilidade {
+  codigoNumerico: string | null;
+  codigoIso2: string | null;
+}
+
+/** Produção consolidada dos dois domínios, que seguem separados (BOL-051). */
+export interface LinhaProducao {
+  id: string;
+  origem: "BOLSA" | "MISSAO";
+  tipo: string;
+  titulo: string;
+  situacao: string;
+  ano: number | null;
+  contexto: string;
+  referencia: string | null;
+}
+
+export interface PanoramaMobilidade {
+  totais: {
+    mobilidades: number;
+    entrada: number;
+    saida: number;
+    paises: number;
+    ppgs: number;
+    instituicoes: number;
+    valor: string;
+    semInstituicaoCadastrada: number;
+  };
+  porAno: LinhaAnoMobilidade[];
+  porModalidade: LinhaContagemMobilidade[];
+  porNivel: LinhaContagemMobilidade[];
+  porRede: LinhaRedeMobilidade[];
+  porPais: LinhaPaisMobilidade[];
+  porInstituicao: LinhaContagemMobilidade[];
+  porPpg: LinhaContagemMobilidade[];
+  /** Avisos que viajam junto com o número — nunca ficam só na API. */
+  avisos: string[];
+}
+
+export interface InstituicaoOpcao {
+  id: string;
+  nome: string;
+  sigla: string | null;
+  cidade: string | null;
+  pais: string | null;
+}
+
+/** Listas de apoio do formulário de concessão (BOL-010). */
+export interface ReferenciasBolsa {
+  paises: { id: string; nome: string; codigoIso2: string }[];
+  instituicoes: InstituicaoOpcao[];
+  /** Linhas ativas de todos os PPGs; a tela filtra pelo PPG selecionado. */
+  linhasPesquisa: { id: string; nome: string; ppgId: string }[];
 }
 
 export interface BolsaConcedidaResumo {
@@ -252,12 +336,25 @@ export interface BolsaConcedidaResumo {
   bolsista: string;
   email: string | null;
   cpf: string | null;
+  telefone: string | null;
+  lattes: string | null;
+  orcid: string | null;
+  areaTematica: string | null;
+  areaTematicaCodigo: string | null;
+  rede: string | null;
+  linhaPesquisa: string | null;
+  orientador: string | null;
+  coordenadorPpg: string | null;
   modalidade: string;
   destino: Destino;
   paisOrigem: string | null;
+  paisOrigemId: string | null;
   instituicaoOrigem: string | null;
+  instituicaoOrigemId: string | null;
   paisDestino: string | null;
+  paisDestinoId: string | null;
   instituicaoDestino: string | null;
+  instituicaoDestinoId: string | null;
   nivelBeneficiario:
     "MESTRADO" | "DOUTORADO" | "POS_DOC" | "DOCENTE" | "MOBILIDADE_BREVE";
   dataInicio: string;
@@ -1005,7 +1102,13 @@ export interface AnexoResumo {
   tamanho: number;
   hashSha256: string | null;
   categoria: string;
-  visibilidade: "INTERNA" | "RESTRITA" | "PUBLICA";
+  /**
+   * `PUBLICA` nunca existiu na API — o enum sempre foi `INTERNA | RESTRITA`, e
+   * `PESSOAL` entrou na BOL-021. O valor errado estava aqui desde a CG-051 e
+   * não quebrou nada porque nada comparava contra ele; comparar teria dado
+   * sempre falso, em silêncio.
+   */
+  visibilidade: "INTERNA" | "RESTRITA" | "PESSOAL";
   entidadeTipo: string;
   entidadeId: string;
   versao: number;
@@ -1018,6 +1121,11 @@ export interface AnexoResumo {
   localEvidencia: string | null;
   /** Crédito da evidência — quem produziu, não quem fez o upload (CG-057). */
   autoria: string | null;
+  /**
+   * Até quando guardar, em documento pessoal de bolsista (BOL-021).
+   * Derivado do fim da concessão + 5 anos; ausente nos demais.
+   */
+  retencaoAte?: string | null;
 }
 
 export interface CotacaoPassagem {
@@ -1177,6 +1285,20 @@ export interface Parceiro {
   estadoRegiao: string | null;
   tipoOrganizacao: string | null;
   faculdadeDepartamento: string | null;
+  areasAtuacao: string | null;
+  programaRelacionado: string | null;
+  grupoPesquisa: string | null;
+  /** Como a instituição foi identificada. Imutável depois do cadastro. */
+  origemRelacionamento: string | null;
+  origemObservacao: string | null;
+  /** Estágio declarado — julgamento humano, gravado. */
+  estagioRelacionamento:
+    | "IDENTIFICADA"
+    | "CONTATO_INICIADO"
+    | "COOPERACAO_EM_AVALIACAO";
+  /** Derivados na leitura, nunca gravados: são fatos verificáveis no banco. */
+  mobilidadeRealizada: boolean;
+  parceriaFormalizada: boolean;
   site: string | null;
   emailInstitucional: string | null;
   telefone: string | null;
@@ -1303,7 +1425,22 @@ export interface ProdutoDoHistorico {
   missaoCodigo: string;
 }
 
+export interface MobilidadeHistorico {
+  id: string;
+  bolsista: string;
+  ppg: string;
+  ppgSigla: string;
+  modalidade: string;
+  nivelBeneficiario: string;
+  ponta: "DESTINO" | "ORIGEM";
+  dataInicio: string;
+  dataFim: string;
+  status: string;
+  ano: number;
+}
+
 export interface HistoricoParceiro {
+  mobilidades: MobilidadeHistorico[];
   parceiro: Parceiro;
   contatos: ContatoParceiro[];
   missoes: MissaoDoHistorico[];

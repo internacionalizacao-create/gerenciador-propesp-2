@@ -53,6 +53,7 @@ describe('ContatosParceirosService', () => {
         sigla: 'ULYON',
         paisId,
         redeIds: [base.redeId],
+        origemRelacionamento: 'PROSPECCAO_INSTITUCIONAL',
       }),
       admin,
     );

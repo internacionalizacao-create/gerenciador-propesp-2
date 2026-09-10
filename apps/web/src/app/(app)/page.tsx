@@ -14,7 +14,7 @@ import {
   Tabela,
 } from "@/componentes/ui/basicos";
 import { apiFetch } from "@/lib/api";
-import type { Painel } from "@/lib/dominio";
+import type { Painel, PanoramaMobilidade } from "@/lib/dominio";
 import { inteiro, moeda, percentual, rotulo } from "@/lib/formato";
 
 export const metadata: Metadata = {
@@ -31,6 +31,21 @@ export const metadata: Metadata = {
  */
 export default async function PainelExecutivo() {
   const painel = await apiFetch<Painel | null>("/programas/padrao/painel");
+
+  /**
+   * BOL-041 · os números de internacionalização vêm do **panorama**, não de um
+   * cálculo próprio da P01.
+   *
+   * Duas telas que somam as mesmas concessões por caminhos diferentes divergem
+   * na primeira mudança, e quem clicasse daqui para `/mobilidade` encontraria
+   * outra contagem do lado de lá — exatamente o que a CG-066 evitou ao fazer
+   * cada cartão do painel do Comitê reusar a expressão da lista.
+   */
+  const panorama = painel
+    ? await apiFetch<PanoramaMobilidade>(
+        `/mobilidade/panorama?cicloId=${painel.ciclo.cicloId}`,
+      )
+    : null;
 
   if (!painel) {
     return (
@@ -82,6 +97,69 @@ export default async function PainelExecutivo() {
           ))}
         </Cartoes>
       </Secao>
+
+      {/*
+        Ao lado dos indicadores financeiros, e não no lugar deles: a P01 responde
+        "o plano cabe no orçamento?" e esta seção responde "o que já aconteceu?".
+        São perguntas diferentes, e fundi-las faria compromisso parecer execução.
+      */}
+      {panorama ? (
+        <Secao
+          titulo="Internacionalização neste ciclo"
+          descricao="Concessões já registradas. Não é planejamento: são as bolsas atribuídas a pessoas."
+          acoes={
+            <Link
+              href="/mobilidade"
+              className="text-sm text-primary hover:underline"
+            >
+              Ver panorama completo →
+            </Link>
+          }
+        >
+          {panorama.totais.mobilidades === 0 ? (
+            <EstadoVazio
+              titulo="Nenhuma concessão registrada neste ciclo"
+              descricao={
+                <>
+                  As planilhas de origem trazem só o planejamento agregado.
+                  Registre as concessões em{" "}
+                  <Link href="/mobilidade/bolsistas">Bolsistas</Link> para estes
+                  números começarem a existir.
+                </>
+              }
+            />
+          ) : (
+            <Cartoes>
+              <Cartao
+                titulo="Mobilidades"
+                valor={inteiro(panorama.totais.mobilidades)}
+                nota="Concessões atribuídas a pessoas"
+              />
+              <Cartao
+                titulo="IN × OUT"
+                valor={`${inteiro(panorama.totais.entrada)} / ${inteiro(panorama.totais.saida)}`}
+              />
+              <Cartao
+                titulo="Países"
+                valor={inteiro(panorama.totais.paises)}
+              />
+              <Cartao
+                titulo="Instituições"
+                valor={inteiro(panorama.totais.instituicoes)}
+                nota="Somente as ligadas ao cadastro central"
+              />
+              <Cartao
+                titulo="Custo das bolsas concedidas"
+                valor={moeda(panorama.totais.valor)}
+                // D-B07, homologada em 2026-09-09: não se chama "executado". A
+                // RN-12 diz que nada passa pelo caixa da UEA — a CAPES paga
+                // direto —, e a RN-14 proíbe somar isto ao aporte do Comitê.
+                nota="Compromisso assumido; a CAPES paga direto ao beneficiário"
+              />
+            </Cartoes>
+          )}
+        </Secao>
+      ) : null}
 
       {painel.alertas.length > 0 ? (
         <Secao

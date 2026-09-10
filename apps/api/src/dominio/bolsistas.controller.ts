@@ -1,6 +1,15 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 
-import { RequirePermission } from '../auth/auth.decorators';
+import type { AuthUser } from '../auth/auth-user';
+import { CurrentUser, RequirePermission } from '../auth/auth.decorators';
 import { ZodValidationPipe } from '../comum/zod-validation.pipe';
 import {
   atualizarBolsaConcedidaSchema,
@@ -19,20 +28,39 @@ export class BolsistasController {
 
   @Get()
   @RequirePermission('bolsa:read', 'produto:read')
-  listar() {
-    return this.bolsistas.listar();
+  listar(@CurrentUser() usuario: AuthUser) {
+    return this.bolsistas.listar(usuario);
   }
 
   @Get('opcoes-planejamento')
   @RequirePermission('bolsa:read')
-  opcoesPlanejamento() {
-    return this.bolsistas.opcoesPlanejamento();
+  opcoesPlanejamento(@CurrentUser() usuario: AuthUser) {
+    return this.bolsistas.opcoesPlanejamento(usuario);
+  }
+
+  /** Paises e instituicoes do formulario de concessao (BOL-010). */
+  @Get('referencias')
+  @RequirePermission('bolsa:read')
+  referencias() {
+    return this.bolsistas.referencias();
+  }
+
+  /**
+   * Busca remota do seletor de instituicao.
+   *
+   * Vem antes de `:id` de proposito: o Nest casa rota na ordem de declaracao, e
+   * declarada depois esta seria engolida por `/bolsistas/:id`.
+   */
+  @Get('instituicoes')
+  @RequirePermission('bolsa:read')
+  instituicoes(@Query('busca') busca?: string) {
+    return this.bolsistas.instituicoes(busca);
   }
 
   @Get(':id')
   @RequirePermission('bolsa:read', 'produto:read')
-  detalhar(@Param('id') id: string) {
-    return this.bolsistas.detalhar(id);
+  detalhar(@Param('id') id: string, @CurrentUser() usuario: AuthUser) {
+    return this.bolsistas.detalhar(id, usuario);
   }
 
   @Post()
@@ -40,8 +68,9 @@ export class BolsistasController {
   criar(
     @Body(new ZodValidationPipe(criarBolsaConcedidaSchema))
     dto: CriarBolsaConcedida,
+    @CurrentUser() usuario: AuthUser,
   ) {
-    return this.bolsistas.criar(dto);
+    return this.bolsistas.criar(dto, usuario);
   }
 
   @Patch(':id')
@@ -50,8 +79,9 @@ export class BolsistasController {
     @Param('id') id: string,
     @Body(new ZodValidationPipe(atualizarBolsaConcedidaSchema))
     dto: AtualizarBolsaConcedida,
+    @CurrentUser() usuario: AuthUser,
   ) {
-    return this.bolsistas.atualizar(id, dto);
+    return this.bolsistas.atualizar(id, dto, usuario);
   }
 
   @Post(':id/produtos')
@@ -59,8 +89,9 @@ export class BolsistasController {
   criarProduto(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(produtoBolsaSchema)) dto: ProdutoBolsaDto,
+    @CurrentUser() usuario: AuthUser,
   ) {
-    return this.bolsistas.criarProduto(id, dto);
+    return this.bolsistas.criarProduto(id, dto, usuario);
   }
 
   @Patch(':id/produtos/:produtoId')
@@ -69,7 +100,8 @@ export class BolsistasController {
     @Param('id') id: string,
     @Param('produtoId') produtoId: string,
     @Body(new ZodValidationPipe(produtoBolsaSchema)) dto: ProdutoBolsaDto,
+    @CurrentUser() usuario: AuthUser,
   ) {
-    return this.bolsistas.atualizarProduto(id, produtoId, dto);
+    return this.bolsistas.atualizarProduto(id, produtoId, dto, usuario);
   }
 }

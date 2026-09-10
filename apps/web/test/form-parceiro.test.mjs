@@ -7,6 +7,7 @@ import {
   formularioParceiroSchema,
   payloadContato,
   payloadParceiro,
+  payloadParceiroNovo,
   textoOuNulo,
 } from "../src/lib/formularios/parceiros.ts";
 
@@ -23,6 +24,12 @@ function parceiroValido(sobrescrever = {}) {
     estadoRegiao: "",
     tipoOrganizacao: "Universidade",
     faculdadeDepartamento: "",
+    areasAtuacao: "",
+    programaRelacionado: "",
+    grupoPesquisa: "",
+    origemRelacionamento: "EVENTO_INTERNACIONAL",
+    origemObservacao: "",
+    estagioRelacionamento: "IDENTIFICADA",
     site: "https://www.umontreal.ca",
     emailInstitucional: "international@umontreal.ca",
     telefone: "",
@@ -220,4 +227,40 @@ test("o smoke cobre as telas de parceiro nos dois perfis", async () => {
   // O perfil sem permissao tem que bater em "Acesso restrito", nao em 200 com
   // dado exposto.
   assert.match(fonte, /parceiros" "Acesso restrito"/);
+});
+
+test("a origem so vai no corpo do cadastro, nunca no da edicao", () => {
+  const dados = parceiroValido();
+
+  // BOL-030: a origem e fato historico. A API nao a aceita na edicao, e mandar
+  // um campo que o outro lado descarta e o tipo de coisa que funciona por
+  // acidente ate alguem "corrigir" o schema.
+  assert.equal(
+    payloadParceiroNovo(dados).origemRelacionamento,
+    "EVENTO_INTERNACIONAL",
+  );
+  assert.equal("origemRelacionamento" in payloadParceiro(dados), false);
+});
+
+test("o estagio declarado vai nos dois corpos", () => {
+  // O estagio muda com o tempo — e o unico dos cinco estados do documento que
+  // e julgamento humano e, por isso, editavel.
+  const dados = parceiroValido({ estagioRelacionamento: "CONTATO_INICIADO" });
+  assert.equal(payloadParceiro(dados).estagioRelacionamento, "CONTATO_INICIADO");
+  assert.equal(
+    payloadParceiroNovo(dados).estagioRelacionamento,
+    "CONTATO_INICIADO",
+  );
+});
+
+test("a tela nao oferece os dois estados derivados", async () => {
+  const fonte = await readFile(
+    new URL("../src/lib/formularios/parceiros.ts", import.meta.url),
+    "utf8",
+  );
+  // "Mobilidade realizada" e "parceria formalizada" sao deduzidos das bolsas e
+  // dos convenios. Oferece-los no seletor permitiria declarar o que o banco
+  // contradiz — o problema que a CG-058 nomeou ao proibir gravar o checklist.
+  assert.ok(!/MOBILIDADE_REALIZADA/.test(fonte));
+  assert.ok(!/PARCERIA_FORMALIZADA/.test(fonte));
 });
