@@ -185,7 +185,7 @@ function FormItemCatalogo({
                 nome="vigenciaMeses"
                 obrigatorio
                 placeholder="6"
-                dica="Uma casa decimal. Bolsa de até 15 dias vale 0,5 mês (RN-02)."
+                dica="Uma casa decimal. Bolsa de até 15 dias vale 0,5 mês."
                 registro={register("vigenciaMeses")}
                 erro={erroDe("vigenciaMeses")}
               />
@@ -194,7 +194,7 @@ function FormItemCatalogo({
                 nome="valorBrl"
                 obrigatorio
                 placeholder="21650,00"
-                dica="É este valor que o plano multiplica pela quantidade (RN-04)."
+                dica="É este valor que o plano multiplica pela quantidade."
                 registro={register("valorBrl")}
                 erro={erroDe("valorBrl")}
               />

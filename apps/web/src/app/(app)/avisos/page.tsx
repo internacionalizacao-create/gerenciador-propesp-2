@@ -71,7 +71,7 @@ export default async function AvisosPagina() {
             ? `Não lidos · ${caixa.naoLidas}`
             : "Caixa de entrada"
         }
-        descricao="Os avisos ficam aqui. Não há envio por e-mail: o servidor institucional ainda não existe."
+        descricao="Decisões, devoluções e pendências das suas missões ficam reunidas aqui."
       >
         {caixa.itens.length === 0 ? (
           <EstadoVazio

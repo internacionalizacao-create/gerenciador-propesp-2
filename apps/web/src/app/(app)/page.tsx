@@ -54,9 +54,8 @@ export default async function PainelExecutivo() {
           titulo="Nenhum ciclo cadastrado"
           descricao={
             <>
-              O sistema ainda não tem um programa com plano de aplicação. Carregue
-              a seed com <code>pnpm --filter api db:seed --reset</code> ou cadastre
-              um programa em <Link href="/programas">Programas</Link>.
+              O sistema ainda não tem um programa com plano de aplicação.
+              Cadastre um programa em <Link href="/programas">Programas</Link>.
             </>
           }
         />
@@ -67,6 +66,12 @@ export default async function PainelExecutivo() {
   const { ciclo } = painel;
   const base = `/programas/${ciclo.programaSlug}/${ciclo.cicloNome}`;
   const totalFluxo = painel.fluxo.in + painel.fluxo.out;
+  const anosCompostos = new Set(painel.anosCompostos);
+  // Enquanto só um exercício tem bolsas, "no ciclo" repete "no ano" coluna a
+  // coluna, e o leitor procura uma diferença que não existe. As colunas do
+  // ciclo aparecem quando passam a dizer algo novo.
+  const cicloDifereDoAno = painel.anosCompostos.length > 1;
+  const anosAindaSemBolsa = ciclo.anos.filter((ano) => !anosCompostos.has(ano));
 
   return (
     <Pagina
@@ -90,7 +95,9 @@ export default async function PainelExecutivo() {
               valor={
                 indicador.formato === "moeda"
                   ? moeda(indicador.valor)
-                  : inteiro(indicador.valor as number)
+                  : indicador.formato === "texto"
+                    ? String(indicador.valor ?? "—")
+                    : inteiro(indicador.valor as number)
               }
               nota={indicador.nota}
             />
@@ -121,10 +128,9 @@ export default async function PainelExecutivo() {
               titulo="Nenhuma concessão registrada neste ciclo"
               descricao={
                 <>
-                  As planilhas de origem trazem só o planejamento agregado.
-                  Registre as concessões em{" "}
-                  <Link href="/mobilidade/bolsistas">Bolsistas</Link> para estes
-                  números começarem a existir.
+                  O plano define quantas bolsas há; aqui aparecem as já
+                  atribuídas a pessoas. Registre as concessões em{" "}
+                  <Link href="/mobilidade/bolsistas">Bolsistas</Link>.
                 </>
               }
             />
@@ -164,7 +170,7 @@ export default async function PainelExecutivo() {
       {painel.alertas.length > 0 ? (
         <Secao
           titulo="Alertas gerenciais"
-          descricao="Cada alerta leva ao registro que o originou — alerta que não leva a lugar nenhum é decoração."
+          descricao="Pontos que pedem ação. Cada alerta abre o registro de onde veio."
         >
           <ul className="grid gap-3 lg:grid-cols-2">
             {painel.alertas.map((alerta) => (
@@ -199,7 +205,7 @@ export default async function PainelExecutivo() {
 
       <Secao
         titulo="Resumo por rede coordenadora"
-        descricao="Rede sem orçamento definido aparece como pendente, nunca como zero."
+        descricao={`Valores do exercício ${painel.anoBase}. Rede sem orçamento definido aparece como pendente, nunca como zero.`}
         acoes={
           <Link
             href={`${base}/redes`}
@@ -213,11 +219,11 @@ export default async function PainelExecutivo() {
           colunas={[
             { chave: "rede", texto: "Rede" },
             { chave: "status", texto: "Situação" },
-            { chave: "orcamento", texto: "Orçamento anual", alinhamento: "direita" },
+            { chave: "orcamento", texto: "Orçamento", alinhamento: "direita" },
             { chave: "bolsas", texto: "Custo de bolsas", alinhamento: "direita" },
             { chave: "apoio", texto: "Manutenção e missões", alinhamento: "direita" },
             { chave: "saldo", texto: "Saldo potencial", alinhamento: "direita" },
-            { chave: "qtd", texto: "Bolsas/ano", alinhamento: "direita" },
+            { chave: "qtd", texto: "Bolsas", alinhamento: "direita" },
             { chave: "tematicas", texto: "Temáticas", alinhamento: "direita" },
             { chave: "ppgs", texto: "PPGs", alinhamento: "direita" },
           ]}
@@ -257,18 +263,69 @@ export default async function PainelExecutivo() {
         </Tabela>
       </Secao>
 
+      {painel.coordenacao.length > 0 ? (
+        <Secao
+          titulo="Coordenação das temáticas"
+          descricao="Coordenadores de temática de cada rede. Uma temática pode ter mais de um coordenador, conforme o PPG."
+        >
+          <div className="grid gap-3 lg:grid-cols-3">
+            {painel.coordenacao.map((rede) => (
+              <section
+                key={rede.redeId}
+                aria-labelledby={`coordenacao-${rede.redeId}`}
+                className="rounded-2xl border border-border bg-surface p-4"
+              >
+                <h3
+                  id={`coordenacao-${rede.redeId}`}
+                  className="font-semibold text-foreground"
+                >
+                  {rede.rede}
+                </h3>
+                <dl className="mt-3 space-y-3 text-sm">
+                  {rede.tematicas.map((tematica) => (
+                    <div key={tematica.codigo}>
+                      <dt className="text-muted">
+                        <span className="font-mono text-xs">{tematica.codigo}</span>{" "}
+                        · {tematica.nome}
+                      </dt>
+                      <dd className="mt-0.5 font-medium text-foreground">
+                        {tematica.coordenadores.length > 0 ? (
+                          tematica.coordenadores.join(" · ")
+                        ) : (
+                          <span className="font-normal italic text-subtle">
+                            A definir
+                          </span>
+                        )}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+            ))}
+          </div>
+        </Secao>
+      ) : null}
+
       <Secao
         titulo="Bolsas por modalidade"
-        descricao="Quantidade é soma de unidades, não contagem de linhas de planejamento (RN-11)."
+        descricao={
+          cicloDifereDoAno
+            ? `Exercício ${painel.anoBase} e soma dos exercícios já compostos do ciclo.`
+            : `Exercício ${painel.anoBase}, o único do ciclo com bolsas definidas até agora.`
+        }
       >
         <Tabela
           colunas={[
             { chave: "modalidade", texto: "Modalidade" },
             { chave: "destino", texto: "Destino" },
-            { chave: "qtdAno", texto: "Qtd./ano", alinhamento: "direita" },
-            { chave: "custoAno", texto: "Custo/ano", alinhamento: "direita" },
-            { chave: "qtdCiclo", texto: "Qtd. no ciclo", alinhamento: "direita" },
-            { chave: "custoCiclo", texto: "Custo no ciclo", alinhamento: "direita" },
+            { chave: "qtdAno", texto: `Bolsas ${painel.anoBase}`, alinhamento: "direita" },
+            { chave: "custoAno", texto: `Custo ${painel.anoBase}`, alinhamento: "direita" },
+            ...(cicloDifereDoAno
+              ? [
+                  { chave: "qtdCiclo", texto: "Bolsas no ciclo", alinhamento: "direita" as const },
+                  { chave: "custoCiclo", texto: "Custo no ciclo", alinhamento: "direita" as const },
+                ]
+              : []),
           ]}
         >
           {painel.porModalidade.map((linha) => (
@@ -283,10 +340,14 @@ export default async function PainelExecutivo() {
               <Celula direita>
                 <Moeda valor={linha.custoAno} />
               </Celula>
-              <Celula direita>{inteiro(linha.quantidadeCiclo)}</Celula>
-              <Celula direita>
-                <Moeda valor={linha.custoCiclo} />
-              </Celula>
+              {cicloDifereDoAno ? (
+                <>
+                  <Celula direita>{inteiro(linha.quantidadeCiclo)}</Celula>
+                  <Celula direita>
+                    <Moeda valor={linha.custoCiclo} />
+                  </Celula>
+                </>
+              ) : null}
             </tr>
           ))}
         </Tabela>
@@ -294,7 +355,7 @@ export default async function PainelExecutivo() {
 
       <Secao
         titulo="Mobilidade IN e OUT"
-        descricao="Destino Brasil traz alguém para a UEA; destino exterior leva alguém daqui para fora (RN-10)."
+        descricao="Bolsas programadas por sentido: destino Brasil traz alguém para a UEA; destino exterior leva alguém daqui para fora."
       >
         <div className="grid gap-3 sm:grid-cols-2">
           <Cartao
@@ -311,7 +372,7 @@ export default async function PainelExecutivo() {
             valor={`${inteiro(painel.fluxo.out)} bolsas`}
             nota={
               totalFluxo > 0
-                ? `${percentual(painel.fluxo.out / totalFluxo)} do total — o desequilíbrio é informação estratégica, não defeito`
+                ? `${percentual(painel.fluxo.out / totalFluxo)} do total`
                 : undefined
             }
           />
@@ -320,7 +381,11 @@ export default async function PainelExecutivo() {
 
       <Secao
         titulo="Impacto por exercício"
-        descricao="O teto nominal se repete sem reajuste. Modalidades e quantidades são próprias de cada ano; 2028–2030 permanecem a definir."
+        descricao={
+          anosAindaSemBolsa.length > 0
+            ? `O aporte se repete todo ano, sem reajuste. As bolsas são definidas exercício a exercício; ${anosAindaSemBolsa.join(", ")} ainda não têm composição.`
+            : "O aporte se repete todo ano, sem reajuste. As bolsas são definidas exercício a exercício."
+        }
       >
         <Tabela
           colunas={[
@@ -349,7 +414,13 @@ export default async function PainelExecutivo() {
               <Celula direita>
                 <Moeda valor={ano.saldoPotencial} />
               </Celula>
-              <Celula direita>{inteiro(ano.bolsas)}</Celula>
+              <Celula direita>
+                {anosCompostos.has(ano.ano) ? (
+                  inteiro(ano.bolsas)
+                ) : (
+                  <span className="italic text-subtle">A definir</span>
+                )}
+              </Celula>
             </tr>
           ))}
         </Tabela>
@@ -360,8 +431,8 @@ export default async function PainelExecutivo() {
           <Aviso tom="aviso" titulo="Orçamento paralelo">
             Os <Moeda valor={painel.comiteGestorAnual} /> anuais do Comitê Gestor{" "}
             <strong>não integram</strong> o orçamento de bolsas acima. Somar os
-            dois superestimaria em cerca de 30% o recurso disponível para bolsas
-            (RN-14).{" "}
+            dois superestimaria em cerca de 30% o recurso disponível para
+            bolsas.{" "}
             <Link
               href={`${base}/comite-gestor`}
               className="font-medium underline"

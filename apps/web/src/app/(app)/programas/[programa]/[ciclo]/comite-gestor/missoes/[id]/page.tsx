@@ -117,7 +117,7 @@ export default async function MissaoDetalhePagina({
       <Pagina titulo="Missão" descricao="Detalhe da missão institucional.">
         <EstadoVazio
           titulo="Acesso restrito"
-          descricao="Nesta etapa, somente o perfil administrador pode consultar as missões do Comitê Gestor."
+          descricao="Seu perfil não tem acesso às missões do Comitê Gestor. Fale com a administração da PROPESP."
         />
       </Pagina>
     );
@@ -1372,7 +1372,7 @@ function Prestacao({
     <>
       <Secao
         titulo="Prestação de contas"
-        descricao="Todos os valores em reais: a conversão de despesa feita no exterior acontece antes do lançamento (CG-009)."
+        descricao="Todos os valores em reais: a conversão de despesa feita no exterior acontece antes do lançamento."
         acoes={
           <div className="flex flex-wrap gap-2">
             {podeEnviar ? (

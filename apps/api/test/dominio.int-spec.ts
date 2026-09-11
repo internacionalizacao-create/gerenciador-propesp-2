@@ -305,7 +305,32 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
       expect(valor('ppgs')).toBe(24);
       expect(valor('bolsas-ciclo')).toBe(22);
       expect(valor('saldo-ano')).toBe('147091.05');
-      expect(valor('pendencias')).toBe(5);
+      // Só 2027 vem composto da planilha. Sem a cobertura na tela, "bolsas no
+      // ano" e "bolsas no ciclo" mostravam o mesmo 22 sem explicação, e quem
+      // lia supunha que um dos dois era por semestre.
+      expect(valor('composicao-ciclo')).toBe('1 de 4');
+      expect(p.anosCompostos).toEqual([2027]);
+      expect(
+        p.indicadores.find((i) => i.chave === 'bolsas-ciclo')?.nota,
+      ).toContain('2028–2030');
+      // Pendência não tem mais tela: nem alerta, nem indicador.
+      expect(valor('pendencias')).toBeUndefined();
+    });
+
+    it('lista os coordenadores de temática por rede, sem eleger um só', async () => {
+      const p = await painel.montar(ciclo);
+      expect(p.coordenacao.map((r) => r.rede)).toEqual([
+        'UFMG',
+        'UNESP',
+        'UNICAMP',
+      ]);
+      expect(p.coordenacao.flatMap((r) => r.tematicas)).toHaveLength(12);
+      // UNICAMP-T1 tem dois coordenadores, um por PPG: escolher um só para a
+      // rede ou para a temática esconderia o outro.
+      const t1 = p.coordenacao
+        .find((r) => r.rede === 'UNICAMP')
+        ?.tematicas.find((t) => t.codigo === 'UNICAMP-T1');
+      expect(t1?.coordenadores).toHaveLength(2);
     });
 
     it('mantem o Comite Gestor fora do aporte de bolsas (RN-14)', async () => {
@@ -1002,7 +1027,9 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
         .returning();
 
       const detalhe = await ppgs.detalhar(participacao.ppgId, ADMIN);
-      expect(detalhe.alertaTematicaDuplicada).toContain('PEND-006');
+      expect(detalhe.alertaTematicaDuplicada).toContain(
+        'Confirme se é intencional',
+      );
       expect(detalhe.alertaTematicaDuplicada).toContain(
         tematicaOriginal.codigo.split('-')[0],
       );

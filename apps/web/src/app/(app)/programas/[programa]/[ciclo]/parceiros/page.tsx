@@ -52,7 +52,7 @@ export default async function ParceirosPagina({
       >
         <EstadoVazio
           titulo="Acesso restrito"
-          descricao="Nesta etapa, somente o perfil administrador pode consultar parceiros e seus contatos. O escopo por rede entra na CG-028."
+          descricao="Seu perfil não tem acesso aos parceiros e seus contatos. Fale com a administração da PROPESP."
         />
       </Pagina>
     );

@@ -211,7 +211,7 @@ export function FormLinhaPlano({
       titulo: "O que",
       descricao:
         rubrica === "BOLSAS"
-          ? "O valor unitário vem do catálogo vigente e não pode ser digitado (RN-01)."
+          ? "O valor unitário vem do catálogo vigente e não pode ser digitado."
           : "Não existe tabela oficial para esta rubrica: o valor é uma estimativa e precisa de justificativa.",
       validar: (formulario) => {
         if (rubrica === "BOLSAS") {
@@ -271,7 +271,7 @@ export function FormLinhaPlano({
               padrao={linha?.vigenciaMeses ?? ""}
               aoMudar={(valor) => setValue("vigenciaMeses", valor)}
               opcoes={vigencias}
-              dica="Só as vigências existentes no catálogo. Bolsa de até 15 dias vale 0,5 mês (RN-02)."
+              dica="Só as vigências existentes no catálogo. Bolsa de até 15 dias vale 0,5 mês."
             />
 
             <Campo rotulo="Valor unitário">
@@ -308,7 +308,7 @@ export function FormLinhaPlano({
               nome="fluxo"
               vazio={`Sugerido: ${destino === "BRASIL" ? "IN" : "OUT"}`}
               padrao={linha?.fluxo ?? ""}
-              dica="Deixe em branco para aplicar a convenção (RN-10). Sobrescreva só nos casos de borda — por exemplo, um bolsista estrangeiro que já reside no Brasil."
+              dica="Deixe em branco para aplicar a convenção. Sobrescreva só nos casos de borda — por exemplo, um bolsista estrangeiro que já reside no Brasil."
               opcoes={[
                 { valor: "IN", texto: rotulo("IN") },
                 { valor: "OUT", texto: rotulo("OUT") },

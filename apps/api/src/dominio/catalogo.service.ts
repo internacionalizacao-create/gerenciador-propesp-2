@@ -254,7 +254,7 @@ export class CatalogoService {
         message:
           'Não existe item no catálogo vigente para esta combinação de ' +
           'destino, modalidade e vigência. O valor não pode ser estimado: ' +
-          'registre uma pendência para que a PROPESP publique o item (RN-01).',
+          'peça à administração que publique o item na tabela de valores.',
         codigo: 'CATALOGO_SEM_CORRESPONDENCIA',
         destino,
         modalidadeId,

@@ -58,7 +58,7 @@ export default async function CatalogoDeBolsas({
           valor={`R$ ${Number(tabela.cotacaoDolar).toLocaleString("pt-BR", {
             minimumFractionDigits: 2,
           })}`}
-          nota="Parâmetro do ciclo, nunca constante no código (RN-03)"
+          nota="Parâmetro do ciclo"
         />
         <Cartao titulo="Itens" valor={inteiro(tabela.itens.length)} />
       </Cartoes>

@@ -35,7 +35,7 @@ export function NovaModalidade() {
     <AbrirSidesheet
       rotulo="Nova modalidade"
       titulo="Cadastrar modalidade"
-      descricao="A modalidade só passa a valer no plano depois que o catálogo tiver um item com o valor dela — é o item que dá o preço (RN-01)."
+      descricao="A modalidade só passa a valer no plano depois que o catálogo tiver um item com o valor dela — é o item que dá o preço."
     >
       {(fechar) => <FormModalidade aoConcluir={fechar} />}
     </AbrirSidesheet>

@@ -187,8 +187,8 @@ export class CicloService {
       ),
       totalCiclo: somarMoeda(linhas.map((l) => l.valorAnual)),
       aviso:
-        'Este orçamento não integra o orçamento de bolsas do CAPES Global ' +
-        '(RN-14). Somar os dois superestima o recurso disponível para bolsas.',
+        'Este orçamento não integra o orçamento de bolsas do CAPES Global. ' +
+        'Somar os dois superestima o recurso disponível para bolsas.',
     };
   }
 

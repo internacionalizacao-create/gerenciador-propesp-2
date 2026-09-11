@@ -25,8 +25,11 @@ export interface Indicador {
   chave: string;
   rotulo: string;
   valor: string | number | null;
-  /** `moeda` formata em BRL na interface; `inteiro` e contagem. */
-  formato: 'moeda' | 'inteiro';
+  /**
+   * `moeda` formata em BRL na interface; `inteiro` e contagem; `texto` vai
+   * como veio (a cobertura "1 de 4" nao e numero nem moeda).
+   */
+  formato: 'moeda' | 'inteiro' | 'texto';
   nota?: string;
 }
 
@@ -48,6 +51,20 @@ export interface LinhaAno {
   bolsas: number;
 }
 
+/**
+ * Quem coordena cada tematica, agrupado por rede.
+ *
+ * Nao existe "coordenador da rede": a coordenacao e por participacao
+ * PPG-tematica, e uma tematica pode ter mais de um coordenador conforme o PPG
+ * (UNICAMP-T1 tem dois). Por isso a lista e por tematica, e nao um nome so por
+ * rede, que obrigaria a escolher um e esconder os outros.
+ */
+export interface CoordenacaoRede {
+  redeId: string;
+  rede: string;
+  tematicas: { codigo: string; nome: string; coordenadores: string[] }[];
+}
+
 export interface Alerta {
   chave: string;
   nivel: 'ALTA' | 'MEDIA' | 'BAIXA';
@@ -67,6 +84,14 @@ export interface Painel {
   porAno: LinhaAno[];
   fluxo: { in: number; out: number };
   alertas: Alerta[];
+  coordenacao: CoordenacaoRede[];
+  /**
+   * Exercicios do ciclo que ja tem bolsa programada. So o ano-base vem composto
+   * da planilha; os demais nascem vazios e nunca copiam quantidade. Sem este
+   * dado a tela mostrava "bolsas no ano" e "bolsas no ciclo" com o mesmo numero
+   * e o leitor concluia que um dos rotulos significava outra coisa.
+   */
+  anosCompostos: number[];
   /**
    * Recado fixo de RN-14: o orcamento do Comite Gestor e paralelo e nunca se
    * soma ao de bolsas. O PNG do painel original precisou dizer isso por escrito.
@@ -84,14 +109,21 @@ export class PainelService {
   async montar(ciclo: CicloResolvido): Promise<Painel> {
     const anoBase = ciclo.anoInicio;
 
-    const [tematicasCiclo, porRede, porModalidade, contagens, comiteGestor] =
-      await Promise.all([
-        this.orcamento.porTematica(ciclo.cicloId),
-        this.orcamento.porRede(ciclo.cicloId, anoBase),
-        this.porModalidade(ciclo.cicloId, anoBase),
-        this.contagens(ciclo.cicloId, anoBase),
-        this.comiteGestorAnual(ciclo.cicloId),
-      ]);
+    const [
+      tematicasCiclo,
+      porRede,
+      porModalidade,
+      contagens,
+      comiteGestor,
+      coordenacao,
+    ] = await Promise.all([
+      this.orcamento.porTematica(ciclo.cicloId),
+      this.orcamento.porRede(ciclo.cicloId, anoBase),
+      this.porModalidade(ciclo.cicloId, anoBase),
+      this.contagens(ciclo.cicloId, anoBase),
+      this.comiteGestorAnual(ciclo.cicloId),
+      this.coordenacao(ciclo.cicloId),
+    ]);
 
     const doAnoBase = tematicasCiclo.filter((t) => t.ano === anoBase);
 
@@ -104,6 +136,10 @@ export class PainelService {
       (total, t) => total + t.bolsas,
       0,
     );
+    const porAno = this.porAno(tematicasCiclo, ciclo.anos);
+    const anosCompostos = porAno.filter((a) => a.bolsas > 0).map((a) => a.ano);
+    const anosSemBolsa = ciclo.anos.filter((a) => !anosCompostos.includes(a));
+    const periodo = faixaDeAnos(ciclo.anos);
 
     return {
       ciclo,
@@ -111,61 +147,75 @@ export class PainelService {
       comiteGestorAnual: comiteGestor,
       porRede,
       porModalidade,
-      porAno: this.porAno(tematicasCiclo, ciclo.anos),
+      porAno,
+      anosCompostos,
+      coordenacao,
       fluxo: contagens.fluxo,
+      // Duas faixas de quatro: a primeira fala do exercicio-base, a segunda do
+      // ciclo. O ano vai escrito no rotulo porque "por ano" era lido como
+      // media, e a media de um ciclo com um so exercicio composto engana.
       indicadores: [
         {
           chave: 'aporte-anual',
-          rotulo: 'Aporte anual conhecido',
+          rotulo: `Aporte conhecido em ${anoBase}`,
           valor: aporteAnual,
           formato: 'moeda',
-          nota: `Exercício ${anoBase}. Não inclui redes sem orçamento definido.`,
-        },
-        {
-          chave: 'projecao-ciclo',
-          rotulo: 'Projeção do ciclo',
-          valor: aporteCiclo,
-          formato: 'moeda',
-          nota: `${ciclo.anos.length} exercícios, valor nominal repetido (RN-09).`,
+          nota: 'Redes sem orçamento definido ficam de fora.',
         },
         {
           chave: 'bolsas-ano',
-          rotulo: 'Bolsas programadas/ano',
+          rotulo: `Bolsas programadas em ${anoBase}`,
           valor: bolsasAno,
           formato: 'inteiro',
-          nota: 'Soma de quantidades, não de linhas de planejamento (RN-11).',
+          nota: 'Soma das quantidades de todas as linhas do plano.',
         },
         {
           chave: 'custo-bolsas-ano',
-          rotulo: 'Custo anual das bolsas',
+          rotulo: `Custo das bolsas em ${anoBase}`,
           valor: custoAnual,
           formato: 'moeda',
-          nota: 'Quantidade x valor do catálogo vigente (RN-01, RN-04).',
+          nota: 'Quantidade × valor da tabela vigente.',
         },
         {
-          chave: 'ppgs',
-          rotulo: 'PPGs mapeados',
-          valor: contagens.ppgs,
-          formato: 'inteiro',
+          chave: 'saldo-ano',
+          rotulo: `Saldo potencial em ${anoBase}`,
+          valor: saldoAnual,
+          formato: 'moeda',
+          nota: 'Orçamento de bolsas menos o custo programado.',
+        },
+        {
+          chave: 'projecao-ciclo',
+          rotulo: 'Orçamento projetado do ciclo',
+          valor: aporteCiclo,
+          formato: 'moeda',
+          nota: `Aporte anual repetido em ${ciclo.anos.length} exercícios (${periodo}), sem reajuste.`,
         },
         {
           chave: 'bolsas-ciclo',
           rotulo: 'Bolsas no ciclo',
           valor: bolsasCiclo,
           formato: 'inteiro',
+          nota:
+            anosSemBolsa.length === 0
+              ? 'Soma de todos os exercícios do ciclo.'
+              : `Só ${faixaDeAnos(anosCompostos) || 'nenhum exercício'} tem bolsas definidas; ${faixaDeAnos(anosSemBolsa)} ainda não.`,
         },
         {
-          chave: 'saldo-ano',
-          rotulo: 'Saldo potencial/ano',
-          valor: saldoAnual,
-          formato: 'moeda',
-          nota: 'Orçamento de bolsas menos o custo programado (RN-06).',
+          chave: 'composicao-ciclo',
+          rotulo: 'Exercícios compostos',
+          valor: `${anosCompostos.length} de ${ciclo.anos.length}`,
+          formato: 'texto',
+          nota:
+            anosCompostos.length === 0
+              ? 'Nenhum exercício com bolsas definidas.'
+              : `Com bolsas definidas: ${faixaDeAnos(anosCompostos)}.`,
         },
         {
-          chave: 'pendencias',
-          rotulo: 'Pendências abertas',
-          valor: contagens.pendenciasAbertas,
+          chave: 'ppgs',
+          rotulo: 'PPGs mapeados',
+          valor: contagens.ppgs,
           formato: 'inteiro',
+          nota: 'Programas de pós-graduação cadastrados.',
         },
       ],
       alertas: this.alertas(ciclo, doAnoBase, contagens),
@@ -173,6 +223,51 @@ export class PainelService {
   }
 
   // ------------------------------------------------------------------ //
+
+  private async coordenacao(cicloId: string): Promise<CoordenacaoRede[]> {
+    const linhas = await consultar<{
+      redeId: string;
+      rede: string;
+      codigo: string;
+      nome: string;
+      coordenadores: string[];
+    }>(
+      this.db,
+      sql`
+      select rc.id    as "redeId",
+             rc.nome  as "rede",
+             at.codigo as "codigo",
+             at.nome  as "nome",
+             coalesce(
+               array_agg(distinct pe.nome order by pe.nome)
+                 filter (where pe.nome is not null),
+               '{}'
+             )        as "coordenadores"
+        from area_tematica     at
+        join rede_coordenadora rc on rc.id = at.rede_id
+        left join participacao_ppg pp on pp.area_tematica_id = at.id
+        left join pessoa           pe on pe.id = pp.coordenador_tematica_id
+       where rc.ciclo_id = ${cicloId}
+       group by rc.id, rc.nome, at.codigo, at.nome
+       order by rc.nome, at.codigo
+    `,
+    );
+    const porRede = new Map<string, CoordenacaoRede>();
+    for (const linha of linhas) {
+      const rede = porRede.get(linha.redeId) ?? {
+        redeId: linha.redeId,
+        rede: linha.rede,
+        tematicas: [],
+      };
+      rede.tematicas.push({
+        codigo: linha.codigo,
+        nome: linha.nome,
+        coordenadores: linha.coordenadores,
+      });
+      porRede.set(linha.redeId, rede);
+    }
+    return [...porRede.values()];
+  }
 
   private porAno(linhas: LinhaTematica[], anos: number[]): LinhaAno[] {
     return anos.map((ano) => {
@@ -235,7 +330,6 @@ export class PainelService {
     const linha = await consultarUma<{
       ppgs: number;
       ppgsSemBolsa: number;
-      pendenciasAbertas: number;
       tematicasSemOrcamento: number;
       composicoesADefinir: number;
       bolsasIn: number;
@@ -255,9 +349,6 @@ export class PainelService {
              where ip.ppg_id = p.id
                and ip.ciclo_id = ${cicloId}
                and ip.status = 'PROGRAMADO')) as "ppgsSemBolsa",
-
-        (select count(*)::int from pendencia
-          where ciclo_id = ${cicloId} and status <> 'RESOLVIDA') as "pendenciasAbertas",
 
         (select count(*)::int
            from area_tematica at
@@ -317,7 +408,6 @@ export class PainelService {
       ppgsSemBolsa: number;
       tematicasSemOrcamento: number;
       composicoesADefinir: number;
-      pendenciasAbertas: number;
     },
   ): Alerta[] {
     const base = `/programas/${ciclo.programaSlug}/${ciclo.cicloNome}`;
@@ -343,8 +433,7 @@ export class PainelService {
         nivel: 'ALTA',
         titulo: 'Áreas temáticas sem orçamento definido',
         detalhe:
-          'Ficam de fora de todo indicador financeiro. Não entram como zero — ' +
-          'entrariam distorcendo médias e percentuais.',
+          'Ficam fora dos indicadores financeiros até o orçamento ser informado.',
         quantidade: contagens.tematicasSemOrcamento,
         destino: `${base}/redes`,
       });
@@ -370,7 +459,7 @@ export class PainelService {
         titulo: 'Divergência entre saldo calculado e saldo informado',
         detalhe:
           `Em ${divergentes.map((d) => d.codigo).join(', ')}. ` +
-          'O sistema calculou um saldo diferente do que o anexo da rede alegava (RN-08).',
+          'O saldo calculado pelo sistema difere do informado no anexo da rede.',
         quantidade: divergentes.length,
         destino: `${base}/redes`,
       });
@@ -403,11 +492,26 @@ export class PainelService {
       });
     }
 
-    // A P13 perdeu a tela na decisao de 2026-09-08, e o alerta ficou orfao
-    // apontando para `/pendencias`, rota que nao existe mais: o card era um
-    // link para 404. A contagem continua visivel no indicador "Pendencias
-    // abertas", que nao navega. Se a tela voltar, o alerta volta com ela.
+    // Sem alerta nem indicador de pendencias: a P13 perdeu a tela em
+    // 2026-09-08, e mostrar uma contagem que nao abre em lugar nenhum era o
+    // card que levava a 404. As pendencias seguem na API; se a tela voltar, o
+    // alerta volta com ela.
 
     return alertas;
   }
+}
+
+/**
+ * "2028–2030" para anos consecutivos, "2027" para um so e "2027, 2029" para
+ * salteados. Lista vazia vira texto vazio: quem chama decide o que dizer.
+ */
+export function faixaDeAnos(anos: number[]): string {
+  if (anos.length === 0) return '';
+  const ordenados = [...anos].sort((a, b) => a - b);
+  const consecutivos = ordenados.every(
+    (ano, i) => i === 0 || ano === ordenados[i - 1] + 1,
+  );
+  if (ordenados.length === 1) return String(ordenados[0]);
+  if (consecutivos) return `${ordenados[0]}–${ordenados[ordenados.length - 1]}`;
+  return ordenados.join(', ');
 }

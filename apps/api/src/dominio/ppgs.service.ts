@@ -305,7 +305,7 @@ function temRedeRepetida(
 
   const repetida = [...contagem.entries()].find(([, total]) => total > 1);
   return repetida
-    ? `Este PPG aparece em ${repetida[1]} areas tematicas da rede ${repetida[0]}. ` +
-        'Confirme se e intencional (PEND-006).'
+    ? `Este PPG aparece em ${repetida[1]} áreas temáticas da rede ${repetida[0]}. ` +
+        'Confirme se é intencional.'
     : null;
 }

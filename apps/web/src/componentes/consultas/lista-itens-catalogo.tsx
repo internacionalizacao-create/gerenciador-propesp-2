@@ -135,7 +135,7 @@ export function ListaItensCatalogo({
       {brasil.length > 0 ? (
         <SecaoDeItens
           titulo="Bolsas com destino Brasil"
-          descricao="Trazem alguém para a UEA — fluxo IN. Bolsa de até 15 dias vale 0,5 mês (RN-02)."
+          descricao="Trazem alguém para a UEA — fluxo IN. Bolsa de até 15 dias vale 0,5 mês."
           itens={brasil}
           modalidades={modalidades}
           podeEditar={podeEditar}
@@ -253,7 +253,7 @@ function LinhaDeItem({ item, modalidades, podeEditar, mostrarDolar }: { item: It
     <tr>
       <Celula><span className="font-mono text-xs">{item.codigo}</span></Celula>
       <Celula>{item.modalidade}</Celula>
-      <Celula>{meses(item.vigenciaMeses)}{Number(item.vigenciaMeses) === 0.5 ? <span className="ml-2"><Selo tom="info" titulo="Regra dos 15 dias (RN-02)">até 15 dias</Selo></span> : null}</Celula>
+      <Celula>{meses(item.vigenciaMeses)}{Number(item.vigenciaMeses) === 0.5 ? <span className="ml-2"><Selo tom="info" titulo="Regra dos 15 dias">até 15 dias</Selo></span> : null}</Celula>
       {mostrarDolar ? <Celula direita>{item.valorUsd ? `US$ ${Number(item.valorUsd).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"}</Celula> : null}
       <Celula direita><Moeda valor={item.valorBrl} forte /></Celula>
       <Celula className="max-w-[12rem] text-xs text-subtle">{item.fonte ?? "—"}</Celula>

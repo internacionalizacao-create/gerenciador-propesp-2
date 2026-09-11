@@ -109,7 +109,7 @@ export interface Indicador {
   chave: string;
   rotulo: string;
   valor: string | number | null;
-  formato: "moeda" | "inteiro";
+  formato: "moeda" | "inteiro" | "texto";
   nota?: string;
 }
 
@@ -145,7 +145,16 @@ export interface Painel {
   }[];
   fluxo: { in: number; out: number };
   alertas: Alerta[];
+  /** Exercícios do ciclo que já têm bolsa programada. */
+  anosCompostos: number[];
+  coordenacao: CoordenacaoRede[];
   comiteGestorAnual: string | null;
+}
+
+export interface CoordenacaoRede {
+  redeId: string;
+  rede: string;
+  tematicas: { codigo: string; nome: string; coordenadores: string[] }[];
 }
 
 export interface ResumoCiclo {
@@ -1432,6 +1441,9 @@ export interface MobilidadeHistorico {
   ppgSigla: string;
   modalidade: string;
   nivelBeneficiario: string;
+  tematicaCodigo: string | null;
+  tematica: string | null;
+  rede: string | null;
   ponta: "DESTINO" | "ORIGEM";
   dataInicio: string;
   dataFim: string;
@@ -1439,8 +1451,17 @@ export interface MobilidadeHistorico {
   ano: number;
 }
 
+export interface VinculoParceiro {
+  rede: string | null;
+  tematicaCodigo: string | null;
+  tematica: string | null;
+  ppgs: string[];
+  mobilidades: number;
+}
+
 export interface HistoricoParceiro {
   mobilidades: MobilidadeHistorico[];
+  vinculos: VinculoParceiro[];
   parceiro: Parceiro;
   contatos: ContatoParceiro[];
   missoes: MissaoDoHistorico[];

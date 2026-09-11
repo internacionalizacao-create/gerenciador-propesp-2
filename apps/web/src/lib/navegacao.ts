@@ -1,10 +1,11 @@
 /**
  * Menu do sistema (system-structl.md §6).
  *
- * Os módulos que ainda não têm dado aparecem com `disponivel: false` em vez de
- * sumirem. O sistema é multiprograma e plurianual: esconder o que falta daria a
- * impressão de que o escopo é o que existe hoje, e a equipe perderia a régua do
- * que ainda vem. O item desabilitado diz o que falta para ele existir.
+ * Os módulos que ainda não existem continuam listados aqui com
+ * `disponivel: false` e o motivo, como régua do escopo que ainda vem. Desde
+ * 2026-09-10 o menu lateral **não os mostra**: a tela passou a ser usada em
+ * apresentação, e item "em breve" lia como sistema inacabado. Para voltar a
+ * exibi-los, basta o `MenuLateral` deixar de filtrar por `disponivel`.
  */
 
 export interface ItemMenu {

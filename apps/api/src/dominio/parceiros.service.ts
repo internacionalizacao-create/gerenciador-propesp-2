@@ -196,6 +196,18 @@ export interface MobilidadeHistorico {
   ppgSigla: string;
   modalidade: string;
   nivelBeneficiario: string;
+  /**
+   * Tematica e rede da concessao, derivadas e nunca declaradas no parceiro.
+   *
+   * "A que rede, PPG e tematica este parceiro esta ligado" se responde pelo
+   * que de fato aconteceu com ele. Um vinculo declarado a mao divergiria da
+   * primeira bolsa que o contrariasse, pelo mesmo motivo que "mobilidade
+   * realizada" nao e gravado (BOL-030). Nulo quando a concessao chegou sem
+   * tematica nem linha de plano.
+   */
+  tematicaCodigo: string | null;
+  tematica: string | null;
+  rede: string | null;
   ponta: 'DESTINO' | 'ORIGEM';
   dataInicio: string;
   dataFim: string;
@@ -203,10 +215,29 @@ export interface MobilidadeHistorico {
   ano: number;
 }
 
+/**
+ * A que rede, tematica e PPG o parceiro serve, lido das mobilidades.
+ *
+ * Uma linha por tematica, com os PPGs juntos. E a resposta ao "de alguma forma
+ * esse parceiro precisa estar ligado a rede, PPG e tematica": o vinculo existe
+ * quando uma bolsa passou por ele, e nao quando alguem o declarou. A rede
+ * declarada no cadastro (`instituicao_rede`) continua em `parceiro.redes` e
+ * pode discordar desta — sao perguntas diferentes, "com quem a PROPESP se
+ * relaciona" e "onde houve mobilidade".
+ */
+export interface VinculoParceiro {
+  rede: string | null;
+  tematicaCodigo: string | null;
+  tematica: string | null;
+  ppgs: string[];
+  mobilidades: number;
+}
+
 export interface HistoricoParceiro {
   parceiro: Parceiro;
   contatos: ContatoHistorico[];
   mobilidades: MobilidadeHistorico[];
+  vinculos: VinculoParceiro[];
   missoes: MissaoHistorico[];
   eventos: EventoHistorico[];
   documentos: DocumentoHistorico[];
@@ -655,6 +686,7 @@ export class ParceirosService {
       parceiro,
       contatos,
       mobilidades: await this.carregarMobilidades(id),
+      vinculos: await this.carregarVinculos(id),
       missoes: missoes.map((missao) => ({
         ...missao,
         redes: redesPorMissao.get(missao.id) ?? [],
@@ -1044,6 +1076,37 @@ export class ParceirosService {
    * nao implica vaga futura**. A tela precisa dizer isso; a consulta so nao
    * pode sugerir o contrario contando duas vezes.
    */
+  /**
+   * Agrupa no banco, e nao na tela: a pagina do parceiro nao agrega nada, e a
+   * ficha em PDF le a mesma resposta. `count(*)` conta concessoes porque o
+   * `where` com `or` fica sobre `bolsa_concedida`, sem join que multiplique a
+   * linha — a mesma bolsa com a instituicao nas duas pontas conta uma vez.
+   */
+  private async carregarVinculos(
+    instituicaoId: string,
+  ): Promise<VinculoParceiro[]> {
+    return consultar<VinculoParceiro>(
+      this.db,
+      sql`
+      select rc.nome     as "rede",
+             at.codigo   as "tematicaCodigo",
+             at.nome     as "tematica",
+             array_agg(distinct pg.sigla order by pg.sigla) as "ppgs",
+             count(*)::int as "mobilidades"
+        from bolsa_concedida bc
+        join ppg pg on pg.id = bc.ppg_id
+        left join item_planejado    ip on ip.id = bc.item_planejado_id
+        left join area_tematica     at
+          on at.id = coalesce(bc.area_tematica_id, ip.area_tematica_id)
+        left join rede_coordenadora rc on rc.id = at.rede_id
+       where bc.instituicao_destino_id = ${instituicaoId}
+          or bc.instituicao_origem_id = ${instituicaoId}
+       group by rc.nome, at.codigo, at.nome
+       order by at.codigo nulls last
+    `,
+    );
+  }
+
   private async carregarMobilidades(
     instituicaoId: string,
   ): Promise<MobilidadeHistorico[]> {
@@ -1056,6 +1119,9 @@ export class ParceirosService {
              pg.sigla                             as "ppgSigla",
              m.nome                               as "modalidade",
              bc.nivel_beneficiario                as "nivelBeneficiario",
+             at.codigo                            as "tematicaCodigo",
+             at.nome                              as "tematica",
+             rc.nome                              as "rede",
              case when bc.instituicao_destino_id = ${instituicaoId}
                   then 'DESTINO' else 'ORIGEM' end as "ponta",
              bc.data_inicio                       as "dataInicio",
@@ -1066,6 +1132,13 @@ export class ParceirosService {
         join pessoa pe     on pe.id = bc.pessoa_id
         join ppg pg        on pg.id = bc.ppg_id
         join modalidade m  on m.id = bc.modalidade_id
+        -- A tematica propria da concessao vence a da linha de plano: e a que a
+        -- equipe informou para esta bolsa. Os dois lados sao left join porque
+        -- bolsa vinda de fora do planejamento (GCUB, Erasmus) nao tem linha.
+        left join item_planejado    ip on ip.id = bc.item_planejado_id
+        left join area_tematica     at
+          on at.id = coalesce(bc.area_tematica_id, ip.area_tematica_id)
+        left join rede_coordenadora rc on rc.id = at.rede_id
        where bc.instituicao_destino_id = ${instituicaoId}
           or bc.instituicao_origem_id = ${instituicaoId}
        order by bc.data_inicio desc, pe.nome

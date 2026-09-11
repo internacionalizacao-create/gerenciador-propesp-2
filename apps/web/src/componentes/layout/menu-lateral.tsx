@@ -18,9 +18,18 @@ export function MenuLateral({ grupos }: { grupos: GrupoMenu[] }) {
   const [expandido, setExpandido] = useState(false);
   const caminho = usePathname();
 
-  const hrefAtual = grupos
+  // Só o que já existe vai para a tela. A lista completa, com os módulos
+  // futuros e o motivo de cada um, continua em `navegacao.ts`: a régua do
+  // escopo fica no código, e o menu não promete tela que ainda não abre.
+  const visiveis = grupos
+    .map((grupo) => ({
+      ...grupo,
+      itens: grupo.itens.filter((item) => item.disponivel),
+    }))
+    .filter((grupo) => grupo.itens.length > 0);
+
+  const hrefAtual = visiveis
     .flatMap((grupo) => grupo.itens)
-    .filter((item) => item.disponivel)
     .map((item) => item.href)
     .filter((href) => caminho === href || caminho.startsWith(`${href}/`))
     .sort((a, b) => b.length - a.length)[0];
@@ -109,13 +118,11 @@ export function MenuLateral({ grupos }: { grupos: GrupoMenu[] }) {
         <div
           className={`min-h-0 flex-1 overflow-x-hidden px-3 py-4 ${expandido ? "overflow-y-auto" : "overflow-y-auto lg:overflow-y-hidden"}`}
         >
-          {grupos.map((grupo, indiceGrupo) => {
-            const temItemDisponivel = grupo.itens.some((item) => item.disponivel);
-
+          {visiveis.map((grupo, indiceGrupo) => {
             return (
               <div
                 key={grupo.titulo}
-                className={`${indiceGrupo > 0 ? "mt-4 border-t border-border pt-4" : ""} ${!expandido && !temItemDisponivel ? "lg:hidden" : ""}`}
+                className={indiceGrupo > 0 ? "mt-4 border-t border-border pt-4" : ""}
               >
               <p
                 className={`mb-1.5 h-4 whitespace-nowrap px-3 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-subtle transition-opacity ${expandido ? "lg:opacity-100" : "lg:opacity-0"}`}
@@ -137,28 +144,6 @@ export function MenuLateral({ grupos }: { grupos: GrupoMenu[] }) {
                       </span>
                     </>
                   );
-
-                  if (!item.disponivel) {
-                    return (
-                      <li
-                        key={item.href}
-                        className={!expandido ? "lg:hidden" : ""}
-                      >
-                        <span
-                          title={expandido ? item.motivo : `${item.rotulo} · Em breve`}
-                          aria-disabled="true"
-                          className="flex h-10 cursor-help items-center gap-3 rounded-xl px-3 text-sm text-subtle opacity-60"
-                        >
-                          {conteudo}
-                          <span
-                            className={`rounded bg-surface-muted px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wide ${expandido ? "lg:block" : "lg:hidden"}`}
-                          >
-                            em breve
-                          </span>
-                        </span>
-                      </li>
-                    );
-                  }
 
                   return (
                     <li key={item.href}>

@@ -417,6 +417,14 @@ indireção existe desde o começo.
 
 ## 7. Convenções de código
 
+- **Código interno não aparece na tela.** `RN-09`, `CG-028`, `D-10`, `PEND-006`
+  vão em comentário, teste e documentação — nunca em rótulo, nota, dica ou
+  mensagem de erro. Na tela, a regra se explica pelo que ela faz ("aporte
+  anual repetido nos 4 exercícios"), não pelo número dela. A limpeza de
+  2026-09-10 tirou 33 ocorrências (web e API) e achou três que, além do código, afirmavam
+  como futuro o que já estava entregue ("o escopo por rede entra na CG-028").
+  Nota que conta a história da implementação envelhece; nota que explica o
+  número, não.
 - **Idioma.** Domínio, mensagens de erro ao usuário e comentários em português.
   Comentários **sem acentuação** (padrão do repositório); **texto que o usuário
   lê é sempre acentuado**. A distinção importa porque a fronteira não é óbvia:
@@ -562,7 +570,10 @@ depois não ouviria nada; coluna de ações precisa de rótulo `sr-only`, nunca
 alcançável pelo teclado.
 
 O menu lateral nasce recolhido no desktop e pode ser expandido pelo controle no
-rodapé. No celular ele continua como gaveta completa. Preserve esse comportamento
+rodapé. **Mostra só o que existe** desde 2026-09-10: os módulos futuros seguem
+em [navegacao.ts](apps/web/src/lib/navegacao.ts) com `disponivel: false` e o
+motivo, mas o `MenuLateral` os filtra — item "em breve" lia como sistema
+inacabado nas apresentações. No celular ele continua como gaveta completa. Preserve esse comportamento
 ao incluir novos itens: todo item precisa de rótulo acessível mesmo quando apenas
 o ícone estiver visível.
 
@@ -622,6 +633,13 @@ o ícone estiver visível.
     (recebeu/enviou) resolvida por `case`: a instituição pode ser origem *e*
     destino da mesma bolsa numa dupla titulação, e um `or` dentro de `join` a
     traria duas vezes.
+  - **Rede, temática e PPG do parceiro** (2026-09-10): a rede é a declarada em
+    `instituicao_rede`; temática e PPG são **derivados** das bolsas que
+    passaram pela instituição, em `HistoricoParceiro.vinculos`, agrupados no
+    banco (a página do parceiro não agrega nada) com a temática da própria
+    concessão vencendo a da linha de plano. Declarar os dois à mão criaria o
+    vínculo que diverge da primeira bolsa que o contrariar. Com P03 vazia, a
+    seção mostra o estado vazio — o vínculo nasce com a primeira concessão.
   - **Áreas de atuação é texto livre de propósito**: sem taxonomia mantida, duas
     grafias viram duas áreas e a contagem sai errada — o mesmo defeito do evento
     contado pelo nome (CG-067). O campo descreve, não conta.
@@ -636,6 +654,20 @@ o ícone estiver visível.
   vinda de fora do planejamento. **Concessão com destino digitado à mão entra no
   total e fica fora das quebras por país e instituição**, com o aviso na tela —
   sem ele, quem somasse as linhas acharia que a tela erra (CG-067).
+  - **A P01 diz o ano em cada rótulo e mostra a cobertura do ciclo**
+    (2026-09-10). Só 2027 vem composto, então "bolsas no ano" e "bolsas no
+    ciclo" davam o mesmo 22 enquanto o dinheiro multiplicava por 4 — e quem
+    lia supunha que um dos rótulos era "por semestre". Os cartões viraram duas
+    faixas (o exercício-base e o ciclo), o rótulo diz `em 2027` em vez de
+    `/ano`, e `Painel.anosCompostos` alimenta o cartão *Exercícios compostos*
+    (`1 de 4`) e a nota de *Bolsas no ciclo*. Na tabela por modalidade, as
+    colunas do ciclo **só aparecem quando há mais de um exercício composto** —
+    antes disso repetem as do ano. *Projeção do ciclo* virou *Orçamento
+    projetado do ciclo*, com a conta escrita na nota.
+  - **Coordenação das temáticas na P01** (`Painel.coordenacao`): um cartão por
+    rede, temática a temática. **Não existe coordenador de rede** — a
+    coordenação é por participação PPG–temática, e UNICAMP-T1 tem dois. Eleger
+    um nome por rede esconderia os outros.
   - **A P01 mostra os mesmos números** numa seção própria (BOL-041), buscando o
     panorama filtrado por `cicloId` — não recalcula. **Ao lado** dos indicadores
     financeiros, nunca no lugar: são perguntas diferentes, e fundi-las faria
@@ -725,8 +757,8 @@ o ícone estiver visível.
     mão ofereceria, na P10, combinação que `resolverItem` recusaria depois.
 - **P13 não tem mais tela** (decisão de 2026-09-08). O alerta *Pendências em
   aberto* da P01 sobreviveu à remoção apontando para `/pendencias` e virou um
-  card que levava a 404; saiu em 2026-09-09. A contagem continua no indicador
-  homônimo, que não navega. As pendências continuam na
+  card que levava a 404; saiu em 2026-09-09, e o indicador homônimo saiu em
+  2026-09-10 — contagem que não abre em lugar nenhum. As pendências continuam na
   seed, no banco e na API (`GET/POST /:programa/:ciclo/pendencias`,
   `PATCH /pendencias/:id`) para consulta e resolução; o que saiu foi a página,
   o item de menu e o cartão do painel do ciclo. O smoke de login usa `/ppgs`

@@ -172,7 +172,7 @@ function FormRelato({
             opcoes={AVALIACOES}
             registro={register("avaliacaoObjetivos")}
             erro={errors.avaliacaoObjetivos?.message}
-            dica="O encerramento exige esta resposta (CG-058)."
+            dica="O encerramento exige esta resposta."
           />
           {/* Justificativa só quando não foi plenamente alcançado: "atingiu"
               não precisa de explicação, "não atingiu" precisa. */}

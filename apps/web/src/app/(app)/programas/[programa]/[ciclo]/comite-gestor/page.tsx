@@ -200,7 +200,7 @@ export default async function ComiteGestorPagina({
       >
         <EstadoVazio
           titulo="Acesso restrito"
-          descricao="Nesta etapa, somente o perfil administrador pode consultar e alterar esta área."
+          descricao="Seu perfil não tem acesso a esta área. Fale com a administração da PROPESP."
         />
       </Pagina>
     );

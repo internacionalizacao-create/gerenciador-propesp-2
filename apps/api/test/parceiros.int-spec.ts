@@ -707,6 +707,7 @@ describe('ParceirosService', () => {
       modalidadeId: base.modalidadeId,
       instituicaoDestinoId: criado.id,
       instituicaoOrigemId: criado.id,
+      areaTematicaId: base.areaTematicaId,
       destino: 'EXTERIOR',
       nivelBeneficiario: 'DOUTORADO',
       dataInicio: '2027-03-01',
@@ -722,7 +723,33 @@ describe('ParceirosService', () => {
       bolsista: 'Pessoa em Dupla Titulacao',
       ponta: 'DESTINO',
       ano: 2027,
+      tematicaCodigo: 'TESTE-T1',
+      rede: 'REDE-TESTE',
     });
+
+    // O vinculo derivado conta concessoes, nao pontas: a bolsa com a
+    // instituicao dos dois lados e uma mobilidade so, tambem aqui.
+    expect(historico.vinculos).toEqual([
+      {
+        rede: 'REDE-TESTE',
+        tematicaCodigo: 'TESTE-T1',
+        tematica: 'Área Temática de Teste',
+        ppgs: ['PPGT'],
+        mobilidades: 1,
+      },
+    ]);
+  });
+
+  it('parceiro sem mobilidade nao ganha vinculo declarado por ninguem', async () => {
+    const criado = await service.criar(
+      parceiroValido('Universidade de Bolonha', [base.redeId]),
+      admin,
+    );
+    const historico = await service.historico(criado.id);
+    // A rede declarada no cadastro continua la; o vinculo por tematica e PPG
+    // so nasce quando uma bolsa passa pela instituicao.
+    expect(historico.parceiro.redes.map((r) => r.id)).toEqual([base.redeId]);
+    expect(historico.vinculos).toEqual([]);
   });
 });
 

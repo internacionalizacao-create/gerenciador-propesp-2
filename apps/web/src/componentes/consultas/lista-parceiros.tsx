@@ -142,8 +142,7 @@ export function ListaParceiros({
       {truncada ? (
         <Aviso tom="aviso" titulo="Lista possivelmente incompleta">
           A consulta devolve no máximo {LIMITE_DO_SERVICO} parceiros e esse
-          limite foi atingido. Refine a busca ou filtre por rede — a paginação
-          ainda não existe (CG-049).
+          limite foi atingido. Refine a busca ou filtre por rede.
         </Aviso>
       ) : null}
 
@@ -218,7 +217,7 @@ export function ListaParceiros({
                             tom="neutro"
                             titulo={
                               parceiro.substituidaPorId
-                                ? "Conciliado em outro cadastro (CG-025)"
+                                ? "Conciliado em outro cadastro"
                                 : "Cadastro inativado"
                             }
                           >

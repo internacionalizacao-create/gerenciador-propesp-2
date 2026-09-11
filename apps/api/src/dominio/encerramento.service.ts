@@ -394,7 +394,7 @@ export class EncerramentoService {
       },
       PRESTACAO_VALIDADA: {
         titulo: 'Prestação de contas validada',
-        descricao: 'Somente a prestação validada abate o aporte (CG-009).',
+        descricao: 'Somente a prestação validada abate o aporte.',
         aplicavel: true,
         obrigatorio: true,
         atendido: prestacao?.status === 'VALIDADA',

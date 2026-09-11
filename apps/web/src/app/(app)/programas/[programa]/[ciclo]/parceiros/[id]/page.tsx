@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 
 import {
   AcoesDoContato,
@@ -21,7 +22,7 @@ import {
   Selo,
   Tabela,
 } from "@/componentes/ui/basicos";
-import { apiFetch } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
 import type {
   HistoricoParceiro,
   Me,
@@ -50,14 +51,14 @@ export default async function ParceiroDetalhe({
       <Pagina titulo="Parceiro" descricao="Histórico da instituição parceira.">
         <EstadoVazio
           titulo="Acesso restrito"
-          descricao="Nesta etapa, somente o perfil administrador pode consultar parceiros e seus contatos."
+          descricao="Seu perfil não tem acesso aos parceiros e seus contatos. Fale com a administração da PROPESP."
         />
       </Pagina>
     );
   }
 
   const [historico, referencias, ativos] = await Promise.all([
-    apiFetch<HistoricoParceiro>(`/parceiros/${id}/historico`),
+    buscarHistorico(id),
     apiFetch<ReferenciasMissao>(
       `/programas/${programa}/${ciclo}/comite-gestor/referencias-missao`,
     ),
@@ -70,6 +71,7 @@ export default async function ParceiroDetalhe({
     parceiro,
     contatos,
     mobilidades,
+    vinculos,
     missoes,
     eventos,
     documentos,
@@ -150,6 +152,68 @@ export default async function ParceiroDetalhe({
       </Cartoes>
 
       <div className="mt-10" />
+
+      {/*
+        Resposta ao "a que rede, PPG e temática este parceiro está ligado". A
+        rede é a declarada no cadastro; temática e PPG vêm das bolsas que
+        passaram pela instituição, agrupadas pela API. Declarar os dois à mão
+        criaria o vínculo que diverge da primeira bolsa que o contrariar.
+      */}
+      <Secao
+        titulo="Vínculo com o CAPES Global"
+        descricao="Redes com que a instituição se relaciona e as temáticas e PPGs em que houve mobilidade."
+      >
+        <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-muted">Redes coordenadoras:</span>
+          {parceiro.redes.length > 0 ? (
+            parceiro.redes.map((rede) => (
+              <Selo key={rede.id} tom="primario">
+                {rede.nome}
+              </Selo>
+            ))
+          ) : (
+            <span className="italic text-subtle">Nenhuma rede vinculada</span>
+          )}
+        </div>
+        {vinculos.length === 0 ? (
+          <EstadoVazio
+            titulo="Nenhuma mobilidade com esta instituição"
+            descricao="Temática e PPG aparecem aqui assim que houver bolsa concedida com origem ou destino nesta instituição."
+          />
+        ) : (
+          <Tabela
+            rotulo="Temáticas e PPGs com mobilidade"
+            colunas={[
+              { chave: "rede", texto: "Rede" },
+              { chave: "tematica", texto: "Temática" },
+              { chave: "ppgs", texto: "PPGs" },
+              { chave: "mobilidades", texto: "Mobilidades", alinhamento: "direita" },
+            ]}
+          >
+            {vinculos.map((vinculo) => (
+              <tr key={vinculo.tematicaCodigo ?? "sem-tematica"}>
+                <Celula>{vinculo.rede ?? "—"}</Celula>
+                <Celula>
+                  {vinculo.tematicaCodigo ? (
+                    <>
+                      <span className="font-mono text-xs text-muted">
+                        {vinculo.tematicaCodigo}
+                      </span>{" "}
+                      {vinculo.tematica}
+                    </>
+                  ) : (
+                    <span className="italic text-subtle">Sem temática informada</span>
+                  )}
+                </Celula>
+                <Celula>{vinculo.ppgs.join(", ")}</Celula>
+                <Celula direita className="tabular-nums">
+                  {inteiro(vinculo.mobilidades)}
+                </Celula>
+              </tr>
+            ))}
+          </Tabela>
+        )}
+      </Secao>
 
       {/*
         Os dois eixos lado a lado, e não um só (BOL-031). O estágio é o que a
@@ -268,6 +332,7 @@ export default async function ParceiroDetalhe({
               { chave: "ano", texto: "Ano", alinhamento: "direita" },
               { chave: "bolsista", texto: "Bolsista" },
               { chave: "ppg", texto: "PPG" },
+              { chave: "tematica", texto: "Temática" },
               { chave: "modalidade", texto: "Modalidade" },
               { chave: "ponta", texto: "Papel" },
               { chave: "periodo", texto: "Período" },
@@ -287,6 +352,7 @@ export default async function ParceiroDetalhe({
                   </span>
                 </Celula>
                 <Celula>{mobilidade.ppgSigla}</Celula>
+                <Celula>{mobilidade.tematicaCodigo ?? "—"}</Celula>
                 <Celula>{mobilidade.modalidade}</Celula>
                 <Celula>
                   <Selo tom="neutro">
@@ -450,7 +516,7 @@ export default async function ParceiroDetalhe({
       {eventos.length > 0 ? (
         <Secao
           titulo="Eventos"
-          descricao="Projeção das atividades que nomeiam um evento; o evento ainda não é entidade própria (decisão D-10)."
+          descricao="Eventos citados nas atividades das missões com esta instituição."
         >
           <Tabela
             rotulo="Eventos do parceiro"
@@ -483,7 +549,7 @@ export default async function ParceiroDetalhe({
       {convenios.length > 0 ? (
         <Secao
           titulo="Convênios"
-          descricao="Acordos firmados com esta instituição. O convênio sobrevive à missão que o originou (CG-056)."
+          descricao="Acordos firmados com esta instituição. O convênio continua valendo depois da missão que o originou."
         >
           <Tabela
             rotulo="Convênios do parceiro"
@@ -531,7 +597,7 @@ export default async function ParceiroDetalhe({
       {produtos.length > 0 ? (
         <Secao
           titulo="Produtos"
-          descricao="Resultados de missão que envolvem este parceiro, pela instituição relacionada ou pelo convênio (CG-056)."
+          descricao="Resultados de missão que envolvem este parceiro, pela instituição relacionada ou pelo convênio."
         >
           <Tabela
             rotulo="Produtos ligados ao parceiro"
@@ -565,7 +631,7 @@ export default async function ParceiroDetalhe({
       {documentos.length > 0 ? (
         <Secao
           titulo="Documentos"
-          descricao="Metadados dos arquivos já vinculados à instituição. O download seguro e a política de acesso entram na CG-051."
+          descricao="Arquivos vinculados à instituição."
         >
           <Tabela
             rotulo="Documentos do parceiro"
@@ -664,4 +730,15 @@ function Dado({
       </dd>
     </div>
   );
+}
+
+async function buscarHistorico(id: string): Promise<HistoricoParceiro> {
+  try {
+    return await apiFetch<HistoricoParceiro>(`/parceiros/${id}/historico`);
+  } catch (erro) {
+    // Id inexistente, ou de instituição que não é parceira, vira a página de
+    // "não encontrado" — antes o 404 da API subia como erro e a tela dava 500.
+    if (erro instanceof ApiError && erro.status === 404) notFound();
+    throw erro;
+  }
 }

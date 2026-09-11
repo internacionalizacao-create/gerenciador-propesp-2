@@ -60,7 +60,7 @@ export default async function DetalheDaTematica({
       ) : null}
 
       {divergente ? (
-        <Aviso tom="perigo" titulo="Divergência de saldo (RN-08)">
+        <Aviso tom="perigo" titulo="Divergência de saldo">
           O sistema calcula <Moeda valor={area.saldoPotencial} /> de saldo. O
           valor de referência registrado é <Moeda valor={area.saldoInformado} />.
           A diferença é <Moeda valor={area.divergencia} /> e precisa de decisão.
@@ -73,7 +73,7 @@ export default async function DetalheDaTematica({
           <Cartao
             titulo="Manutenção e missões"
             valor={moeda(area.apoio)}
-            nota="Sem plano de aplicação detalhado (PEND-009, PEND-010)"
+            nota="Sem plano de aplicação detalhado"
           />
           <Cartao
             titulo="Custo programado"
@@ -237,7 +237,7 @@ export default async function DetalheDaTematica({
 
       <Secao
         titulo="Projeção plurianual"
-        descricao="O teto nominal repete-se nos exercícios, mas cada composição anual é independente (RN-09)."
+        descricao="O teto nominal repete-se nos exercícios, mas cada composição anual é independente."
       >
         <Tabela
           colunas={[
