@@ -62,8 +62,9 @@ export default async function MapaDeDestinos({
       ))}
       {semCodigo.length > 0 ? (
         <Aviso tom="aviso" titulo="Países fora do mapa">
-          {inteiro(semCodigo.length)} país(es) não têm código ISO numérico e
-          aparecem só nas tabelas. Recarregue a seed para preencher o catálogo.
+          {inteiro(semCodigo.length)} destino(s) não foram reconhecidos como país
+          no mapa e aparecem só nas tabelas. Confira a grafia do país na
+          concessão.
         </Aviso>
       ) : null}
 
@@ -71,7 +72,7 @@ export default async function MapaDeDestinos({
         {panorama.porPais.length === 0 ? (
           <EstadoVazio
             titulo="Nenhum destino registrado"
-            descricao="Nenhuma concessão do recorte atual está ligada ao catálogo de países."
+            descricao="Nenhuma concessão do recorte atual tem país de destino informado."
           />
         ) : (
           <MapaMundi
@@ -81,14 +82,11 @@ export default async function MapaDeDestinos({
         )}
       </Secao>
 
-      <Secao
-        titulo="Países"
-        descricao="Somente as concessões ligadas ao catálogo ISO. Destino digitado à mão fica fora."
-      >
+      <Secao titulo="Países">
         {panorama.porPais.length === 0 ? (
           <EstadoVazio
             titulo="Sem países no recorte"
-            descricao="Ajuste os filtros ou ligue as concessões ao catálogo."
+            descricao="Ajuste os filtros ou registre concessões em Bolsistas."
           />
         ) : (
           <Tabela
@@ -122,14 +120,11 @@ export default async function MapaDeDestinos({
         )}
       </Secao>
 
-      <Secao
-        titulo="Universidades de destino"
-        descricao="Ranking das instituições que mais receberam ou enviaram. Só as ligadas ao cadastro institucional."
-      >
+      <Secao titulo="Universidades de destino">
         {panorama.porInstituicao.length === 0 ? (
           <EstadoVazio
             titulo="Sem instituições no recorte"
-            descricao="Ligue as concessões ao cadastro institucional para o ranking existir."
+            descricao="Ajuste os filtros ou registre concessões em Bolsistas."
           />
         ) : (
           <Tabela

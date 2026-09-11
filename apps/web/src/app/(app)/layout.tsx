@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { unstable_rethrow } from "next/navigation";
 
 import { ProvedorDeConsultas } from "@/componentes/consultas/provedor";
 import { MenuLateral } from "@/componentes/layout/menu-lateral";
@@ -106,7 +107,10 @@ async function cicloPadrao(): Promise<{ programa: string; nome: string }> {
         nome: painel.ciclo.cicloNome,
       };
     }
-  } catch {
+  } catch (erro) {
+    // Sessão morta manda para o login por exceção de `redirect`; engoli-la aqui
+    // deixaria a casca renderizar sem sessão e estourar mais adiante.
+    unstable_rethrow(erro);
     // Sem ciclo, o menu ainda precisa existir.
   }
 

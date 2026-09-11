@@ -219,14 +219,16 @@ export class ProgramasController {
   /** Painel do ciclo aberto por quem entra sem escolher programa. */
   @Get('padrao/painel')
   @RequirePermission('painel:read')
-  async painelPadrao() {
+  async painelPadrao(@Query('ano') ano?: string) {
     const ciclo = await this.contexto.padrao();
     if (!ciclo) {
       // Estado vazio de P01: sem ciclo cadastrado nao ha o que exibir, e a tela
       // oferece "criar ciclo" / "importar planilha" em vez de zeros.
       return null;
     }
-    return this.painel.montar(ciclo);
+    // Ano fora do ciclo cai no primeiro exercicio, como no resto das telas do
+    // ciclo — e nao num painel de zeros, indistinguivel de ciclo vazio.
+    return this.painel.montar(ciclo, anoValido(ano, ciclo.anos));
   }
 
   @Get(':programa')

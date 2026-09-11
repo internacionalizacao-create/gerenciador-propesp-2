@@ -2,6 +2,7 @@ import "server-only";
 
 import { getSession } from "./auth";
 import { urlDaApi } from "./env";
+import { irParaLogin } from "./sessao-encerrada";
 
 /** A API respondeu, mas com status de erro. */
 export class ApiError extends Error {
@@ -15,13 +16,6 @@ export class ApiError extends Error {
   }
 }
 
-/** Nao ha sessao valida para montar o `Authorization`. */
-export class SemSessaoError extends Error {
-  constructor() {
-    super("Nenhuma sessao ativa");
-    this.name = "SemSessaoError";
-  }
-}
 
 /**
  * Chama a API NestJS em nome do usuario logado.
@@ -33,8 +27,10 @@ export async function apiFetch<T>(
   path: string,
   init: RequestInit = {},
 ): Promise<T> {
+  // Sem sessão, ou com token que a API recusa, o render não continua: vai para
+  // o login em vez de estourar um erro que ninguém trata (ver sessao-encerrada).
   const session = await getSession();
-  if (!session) throw new SemSessaoError();
+  if (!session) return irParaLogin();
 
   const response = await fetch(urlDaApi(path), {
     ...init,
@@ -47,6 +43,11 @@ export async function apiFetch<T>(
     // para outro.
     cache: "no-store",
   });
+
+  // 401 aqui é a sessão que morreu entre a leitura do cookie e a chamada: o
+  // token estava dentro da validade, mas o Keycloak já o invalidara (logout,
+  // revogação, realm recriado). Não é erro de aplicação.
+  if (response.status === 401) return irParaLogin();
 
   const corpo: unknown = await lerCorpo(response);
 

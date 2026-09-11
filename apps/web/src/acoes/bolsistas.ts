@@ -71,6 +71,8 @@ function corpoDoProduto(formulario: FormData) {
     dataEntrega: dataDoFormulario(formulario, "dataEntrega"),
     doi: texto(formulario, "doi"),
     link: texto(formulario, "link"),
+    instituicaoColaboracao: texto(formulario, "instituicaoColaboracao"),
+    paisColaboracao: texto(formulario, "paisColaboracao"),
     observacoes: texto(formulario, "observacoes"),
   };
 }

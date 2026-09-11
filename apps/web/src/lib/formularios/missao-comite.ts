@@ -240,6 +240,38 @@ export function novaAtividade(
   };
 }
 
+/**
+ * Pessoas oferecidas como participante já cadastrado: só quem integra o
+ * Comitê Gestor no ciclo, com vínculo não encerrado.
+ *
+ * Sai dos vínculos, e não de `/pessoas`: aquela lista mistura bolsistas,
+ * docentes e contatos, e para em 100 nomes em ordem alfabética — o membro do
+ * Comitê podia nem aparecer. Quem viaja sem integrar o Comitê entra como
+ * "Cadastrar nova pessoa".
+ */
+export function pessoasDoComiteGestor(
+  membros: {
+    pessoaId: string;
+    nome: string;
+    email: string | null;
+    tipoEquipe: string;
+    situacao: string;
+  }[],
+) {
+  const unicas = new Map<string, { id: string; nome: string; email: string | null }>();
+  for (const membro of membros) {
+    if (membro.tipoEquipe !== "COMITE_GESTOR" || membro.situacao === "ENCERRADO") {
+      continue;
+    }
+    unicas.set(membro.pessoaId, {
+      id: membro.pessoaId,
+      nome: membro.nome,
+      email: membro.email,
+    });
+  }
+  return [...unicas.values()].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+}
+
 export function novoParticipante(
   responsavel = false,
 ): DadosFormularioMissaoComite["participantes"][number] {

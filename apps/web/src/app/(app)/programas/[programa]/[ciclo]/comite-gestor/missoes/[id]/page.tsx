@@ -1304,11 +1304,6 @@ function Galeria({
                     .filter(Boolean)
                     .join(" · ") || "Sem data ou local informados"}
                 </p>
-                {evidencia.autoria ? (
-                  <p className="text-xs text-subtle">
-                    Autoria: {evidencia.autoria}
-                  </p>
-                ) : null}
                 <a
                   href={`/api/bff/anexos/${evidencia.id}/conteudo`}
                   className="inline-block text-xs font-medium text-primary hover:underline"

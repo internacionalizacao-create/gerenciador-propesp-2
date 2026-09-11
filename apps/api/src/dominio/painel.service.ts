@@ -5,7 +5,6 @@ import { consultar, consultarUma } from '../comum/consultar';
 import { DRIZZLE, type Database } from '../database/database.module';
 import type { CicloResolvido } from './contexto.service';
 import {
-  deCentavos,
   OrcamentoService,
   paraCentavos,
   somarMoeda,
@@ -27,9 +26,10 @@ export interface Indicador {
   valor: string | number | null;
   /**
    * `moeda` formata em BRL na interface; `inteiro` e contagem; `texto` vai
-   * como veio (a cobertura "1 de 4" nao e numero nem moeda).
+   * como veio (a cobertura "1 de 4" nao e numero nem moeda); `percentual` e
+   * fracao entre 0 e 1.
    */
-  formato: 'moeda' | 'inteiro' | 'texto';
+  formato: 'moeda' | 'inteiro' | 'texto' | 'percentual';
   nota?: string;
 }
 
@@ -65,6 +65,26 @@ export interface CoordenacaoRede {
   tematicas: { codigo: string; nome: string; coordenadores: string[] }[];
 }
 
+/**
+ * Uma tematica e o estado da composicao em cada exercicio do ciclo.
+ *
+ * E a grade 12 tematicas x 4 anos da P01. Ela existe porque a pergunta de
+ * gestao mais importante do programa — "o que ainda falta compor?" — ficava
+ * espalhada entre um cartao, uma tabela e selos. Sai de `porTematica`, a
+ * mesma consulta do resto do painel: nenhum numero novo.
+ */
+export interface LinhaComposicao {
+  redeId: string;
+  rede: string;
+  codigo: string;
+  tematica: string;
+  anos: {
+    ano: number;
+    status: LinhaTematica['statusComposicao'];
+    bolsas: number;
+  }[];
+}
+
 export interface Alerta {
   chave: string;
   nivel: 'ALTA' | 'MEDIA' | 'BAIXA';
@@ -92,12 +112,22 @@ export interface Painel {
    * e o leitor concluia que um dos rotulos significava outra coisa.
    */
   anosCompostos: number[];
+  composicao: LinhaComposicao[];
   /**
    * Recado fixo de RN-14: o orcamento do Comite Gestor e paralelo e nunca se
    * soma ao de bolsas. O PNG do painel original precisou dizer isso por escrito.
    */
   comiteGestorAnual: string | null;
 }
+
+/**
+ * Dinheiro dentro de frase vai formatado aqui: o alerta chega à tela como texto
+ * pronto, e `deCentavos` devolve "69751.14", que a interface nao reformata.
+ */
+const REAIS = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL',
+});
 
 @Injectable()
 export class PainelService {
@@ -106,8 +136,15 @@ export class PainelService {
     private readonly orcamento: OrcamentoService,
   ) {}
 
-  async montar(ciclo: CicloResolvido): Promise<Painel> {
-    const anoBase = ciclo.anoInicio;
+  /**
+   * `ano` e o exercicio escolhido na tela; sem ele, o primeiro do ciclo. Quem
+   * chama ja validou que o ano pertence ao ciclo (`anoValido` no controller).
+   */
+  async montar(
+    ciclo: CicloResolvido,
+    ano: number = ciclo.anoInicio,
+  ): Promise<Painel> {
+    const anoBase = ano;
 
     const [
       tematicasCiclo,
@@ -141,6 +178,22 @@ export class PainelService {
     const anosSemBolsa = ciclo.anos.filter((a) => !anosCompostos.includes(a));
     const periodo = faixaDeAnos(ciclo.anos);
 
+    // Uso do teto so sobre tematicas com composicao aprovada: e o mesmo recorte
+    // do saldo potencial. Somar o teto de quem ainda nao compos ao denominador
+    // faria a rede pendente parecer folga: 2027 leria 46% num plano que esta
+    // a 88% onde ja foi decidido.
+    const aprovadas = doAnoBase.filter(
+      (t) => t.statusComposicao === 'APROVADA' && t.valorBolsas !== null,
+    );
+    const tetoAprovado = paraCentavos(
+      somarMoeda(aprovadas.map((t) => t.valorBolsas)),
+    );
+    const custoAprovado = paraCentavos(
+      somarMoeda(aprovadas.map((t) => t.custoBolsas)),
+    );
+    const usoDoTeto =
+      tetoAprovado > 0n ? Number(custoAprovado) / Number(tetoAprovado) : null;
+
     return {
       ciclo,
       anoBase,
@@ -149,6 +202,7 @@ export class PainelService {
       porModalidade,
       porAno,
       anosCompostos,
+      composicao: this.composicao(tematicasCiclo, ciclo.anos),
       coordenacao,
       fluxo: contagens.fluxo,
       // Duas faixas de quatro: a primeira fala do exercicio-base, a segunda do
@@ -175,6 +229,13 @@ export class PainelService {
           valor: custoAnual,
           formato: 'moeda',
           nota: 'Quantidade × valor da tabela vigente.',
+        },
+        {
+          chave: 'uso-teto-ano',
+          rotulo: `Teto de bolsas comprometido em ${anoBase}`,
+          valor: usoDoTeto,
+          formato: 'percentual',
+          nota: 'Custo programado sobre o teto das redes com composição aprovada.',
         },
         {
           chave: 'saldo-ano',
@@ -267,6 +328,44 @@ export class PainelService {
       porRede.set(linha.redeId, rede);
     }
     return [...porRede.values()];
+  }
+
+  private composicao(
+    linhas: LinhaTematica[],
+    anos: number[],
+  ): LinhaComposicao[] {
+    const porTematica = new Map<string, LinhaTematica[]>();
+    for (const linha of linhas) {
+      porTematica.set(linha.areaTematicaId, [
+        ...(porTematica.get(linha.areaTematicaId) ?? []),
+        linha,
+      ]);
+    }
+    return [...porTematica.values()]
+      .map((doTema) => {
+        const [primeira] = doTema;
+        return {
+          redeId: primeira.redeId,
+          rede: primeira.rede,
+          codigo: primeira.codigo,
+          tematica: primeira.nome,
+          // Ano sem linha de orcamento entra como A_DEFINIR, e nao some: a
+          // grade tem de ter as mesmas colunas em toda linha.
+          anos: anos.map((ano) => {
+            const doAno = doTema.find((l) => l.ano === ano);
+            return {
+              ano,
+              status: doAno?.statusComposicao ?? 'A_DEFINIR',
+              bolsas: doAno?.bolsas ?? 0,
+            };
+          }),
+        };
+      })
+      .sort(
+        (a, b) =>
+          a.rede.localeCompare(b.rede, 'pt-BR') ||
+          a.codigo.localeCompare(b.codigo, 'pt-BR'),
+      );
   }
 
   private porAno(linhas: LinhaTematica[], anos: number[]): LinhaAno[] {
@@ -484,7 +583,7 @@ export class PainelService {
         nivel: 'MEDIA',
         titulo: 'Manutenção e missões sem plano de aplicação',
         detalhe:
-          `R$ ${deCentavos(apoioNaoProgramado)} por ano com orçamento e sem ` +
+          `${REAIS.format(Number(apoioNaoProgramado) / 100)} por ano com orçamento e sem ` +
           'item planejado. Os anexos informam o valor global das rubricas, mas ' +
           'não detalham em que será gasto.',
         quantidade: 1,

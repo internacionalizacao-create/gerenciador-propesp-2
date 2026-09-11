@@ -124,6 +124,9 @@ export interface LinhaProducao {
   /** Bolsista, no produto de bolsa; codigo da missao, no de missao. */
   contexto: string;
   referencia: string | null;
+  /** So o produto de bolsa registra com quem foi feito. */
+  instituicaoColaboracao: string | null;
+  paisColaboracao: string | null;
 }
 
 /** Uma concessao no relatorio exportavel (BOL-044). */
@@ -182,6 +185,20 @@ export interface PanoramaMobilidade {
 const TETO_QUEBRA = 25;
 
 /**
+ * Chave de agrupamento do destino: a FK quando a concessao foi reconhecida no
+ * cadastro central, o texto normalizado quando foi digitada. Desde 2026-09-11
+ * o destino e digitado, e deixar o texto de fora esvaziaria as quebras.
+ * Caixa e espacos se unem; grafias diferentes continuam separadas, porque
+ * uni-las seria adivinhar.
+ */
+const CHAVE_PAIS = sql.raw(
+  `coalesce(bc.pais_destino_id::text, 'texto:' || lower(trim(bc.pais_destino_nome)))`,
+);
+const CHAVE_INSTITUICAO = sql.raw(
+  `coalesce(bc.instituicao_destino_id::text, 'texto:' || lower(trim(bc.instituicao_destino_nome)))`,
+);
+
+/**
  * Teto de linhas do relatorio (BOL-044).
  *
  * Nao e o mesmo teto das quebras: aquele protege a leitura de uma tabela na
@@ -231,9 +248,9 @@ export class MobilidadeService {
       this.porPais(onde),
       this.quebra(
         onde,
-        sql`ind.id::text`,
-        sql`ind.nome`,
-        sql`join instituicao ind on ind.id = bc.instituicao_destino_id`,
+        CHAVE_INSTITUICAO,
+        sql`coalesce(ind.nome, trim(bc.instituicao_destino_nome))`,
+        sql`left join instituicao ind on ind.id = bc.instituicao_destino_id`,
       ),
       this.quebra(
         onde,
@@ -243,12 +260,9 @@ export class MobilidadeService {
       ),
     ]);
 
+    // O destino digitado entra nas quebras desde 2026-09-11, e o aviso que
+    // explicava a ausencia dele deixou de ser verdade.
     const avisos: string[] = [];
-    if (totais.semInstituicaoCadastrada > 0) {
-      avisos.push(
-        `${totais.semInstituicaoCadastrada} concessão(ões) têm destino informado à mão e ficam fora das quebras por país e por instituição.`,
-      );
-    }
 
     return {
       totais,
@@ -349,7 +363,9 @@ export class MobilidadeService {
              extract(year from coalesce(pb.data_entrega, pb.prazo_entrega))::int
                                         as "ano",
              pe.nome                    as "contexto",
-             coalesce(pb.doi, pb.link)  as "referencia"
+             coalesce(pb.doi, pb.link)  as "referencia",
+             pb.instituicao_colaboracao as "instituicaoColaboracao",
+             pb.pais_colaboracao        as "paisColaboracao"
         from produto_bolsa pb
         join bolsa_concedida bc on bc.id = pb.bolsa_concedida_id
         join pessoa pe          on pe.id = bc.pessoa_id
@@ -364,7 +380,9 @@ export class MobilidadeService {
              pm.situacao::text          as "situacao",
              pm.ano                     as "ano",
              mc.codigo                  as "contexto",
-             pm.referencia              as "referencia"
+             pm.referencia              as "referencia",
+             null::text                 as "instituicaoColaboracao",
+             null::text                 as "paisColaboracao"
         from produto_missao pm
         join missao_comite mc on mc.id = pm.missao_id
        where ${veMissao ? sql`true` : sql`false`}
@@ -435,9 +453,9 @@ export class MobilidadeService {
       select count(*)::int                                        as "mobilidades",
              count(*) filter (where bc.fluxo = 'IN')::int         as "entrada",
              count(*) filter (where bc.fluxo = 'OUT')::int        as "saida",
-             count(distinct bc.pais_destino_id)::int              as "paises",
+             count(distinct ${CHAVE_PAIS})::int                   as "paises",
              count(distinct bc.ppg_id)::int                       as "ppgs",
-             count(distinct bc.instituicao_destino_id)::int       as "instituicoes",
+             count(distinct ${CHAVE_INSTITUICAO})::int            as "instituicoes",
              coalesce(sum(bc.valor_concedido), 0)::text           as "valor",
              count(*) filter (
                where bc.instituicao_destino_id is null
@@ -489,8 +507,8 @@ export class MobilidadeService {
              count(*) filter (where bc.fluxo = 'IN')::int      as "entrada",
              count(*) filter (where bc.fluxo = 'OUT')::int     as "saida",
              coalesce(sum(bc.valor_concedido), 0)::text        as "valor",
-             count(distinct bc.pais_destino_id)::int           as "paises",
-             count(distinct bc.instituicao_destino_id)::int    as "instituicoes",
+             count(distinct ${CHAVE_PAIS})::int                as "paises",
+             count(distinct ${CHAVE_INSTITUICAO})::int         as "instituicoes",
              count(distinct bc.ppg_id)::int                    as "ppgs",
              coalesce(sum(
                (select count(*) from produto_bolsa pb
@@ -512,20 +530,21 @@ export class MobilidadeService {
     return consultar<LinhaPais>(
       this.db,
       sql`
-      select pd.id::text                                     as "chave",
-             pd.nome                                          as "rotulo",
-             pd.codigo_numerico                               as "codigoNumerico",
-             pd.codigo_iso2                                   as "codigoIso2",
+      select ${CHAVE_PAIS}                                   as "chave",
+             min(coalesce(pd.nome, trim(bc.pais_destino_nome))) as "rotulo",
+             min(pd.codigo_numerico)                          as "codigoNumerico",
+             min(pd.codigo_iso2)                              as "codigoIso2",
              count(*)::int                                     as "quantidade",
              count(*) filter (where bc.fluxo = 'IN')::int      as "entrada",
              count(*) filter (where bc.fluxo = 'OUT')::int     as "saida",
              coalesce(sum(bc.valor_concedido), 0)::text        as "valor"
         from bolsa_concedida bc
         left join item_planejado ip on ip.id = bc.item_planejado_id
-        join pais pd on pd.id = bc.pais_destino_id
+        left join pais pd on pd.id = bc.pais_destino_id
        where ${onde}
-       group by pd.id, pd.nome, pd.codigo_numerico, pd.codigo_iso2
-       order by count(*) desc, pd.nome
+         and ${CHAVE_PAIS} is not null
+       group by 1
+       order by count(*) desc, 2
        limit ${TETO_QUEBRA}
     `,
     );
@@ -549,7 +568,7 @@ export class MobilidadeService {
       this.db,
       sql`
       select ${chave}                                        as "chave",
-             ${rotulo}                                       as "rotulo",
+             min(${rotulo})                                  as "rotulo",
              count(*)::int                                    as "quantidade",
              count(*) filter (where bc.fluxo = 'IN')::int     as "entrada",
              count(*) filter (where bc.fluxo = 'OUT')::int    as "saida",
@@ -558,8 +577,9 @@ export class MobilidadeService {
         left join item_planejado ip on ip.id = bc.item_planejado_id
         ${juncao}
        where ${onde}
-       group by ${chave}, ${rotulo}
-       order by count(*) desc, ${rotulo}
+         and ${chave} is not null
+       group by 1
+       order by count(*) desc, 2
        limit ${TETO_QUEBRA}
     `,
     );

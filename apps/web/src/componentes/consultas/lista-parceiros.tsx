@@ -1,8 +1,12 @@
 "use client";
 
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   Aviso,
@@ -73,6 +77,25 @@ export function ListaParceiros({
   const chave = chaveDaConsulta(consulta);
   const ehConsultaInicial =
     JSON.stringify(chave) === JSON.stringify(chaveDaConsulta(filtrosIniciais));
+
+  /**
+   * `initialData` só vale na criação da consulta: quando um cadastro revalida
+   * a página, o servidor manda a lista nova e o cache continuaria mostrando a
+   * velha. Sem isto o parceiro gravava e não aparecia — lia-se "não salvou".
+   */
+  const clienteDeConsultas = useQueryClient();
+  const primeiraPintura = useRef(true);
+  useEffect(() => {
+    if (primeiraPintura.current) {
+      primeiraPintura.current = false;
+      return;
+    }
+    clienteDeConsultas.setQueryData(
+      chaveDaConsulta(filtrosIniciais),
+      dadosIniciais,
+    );
+    void clienteDeConsultas.invalidateQueries({ queryKey: ["parceiros"] });
+  }, [clienteDeConsultas, dadosIniciais, filtrosIniciais]);
 
   const { data, isFetching, isError, error } = useQuery({
     queryKey: chave,

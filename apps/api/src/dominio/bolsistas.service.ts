@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, asc, eq, ilike, inArray, ne, or, sql } from 'drizzle-orm';
+import { and, asc, eq, ilike, ne, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { dataHojeEmManaus } from '../comum/datas';
@@ -14,6 +14,7 @@ import { filtroPorPpg, podeVerPpg } from '../auth/escopo';
 import { IdentidadeService } from '../auth/identidade.service';
 import { consultar } from '../comum/consultar';
 import { DRIZZLE, type Database } from '../database/database.module';
+import { normalizarNomeInstituicao } from '../database/normalizacao';
 import * as s from '../database/schema';
 
 const dataCompleta = z
@@ -82,7 +83,8 @@ export const criarBolsaConcedidaSchema = z
       'MOBILIDADE_BREVE',
     ]),
     /**
-     * Pais sai do catalogo ISO, sempre (BOL-010, decisao de 2026-09-09).
+     * Pais de origem sai do catalogo ISO (BOL-010, decisao de 2026-09-09); o
+     * de destino voltou a ser digitado em 2026-09-11, logo abaixo.
      *
      * Era texto livre. Agrupar mobilidade por texto conta "Franca" e "FRANCA"
      * como dois paises — o mesmo defeito que a CG-067 registrou sobre evento
@@ -93,10 +95,22 @@ export const criarBolsaConcedidaSchema = z
     modoInstituicaoOrigem: modoInstituicao,
     instituicaoOrigemId: z.uuid().nullish(),
     instituicaoOrigemNome: z.string().trim().min(2).max(240).nullish(),
-    paisDestinoId: z.uuid('Selecione o país de destino.'),
-    modoInstituicaoDestino: modoInstituicao,
-    instituicaoDestinoId: z.uuid().nullish(),
-    instituicaoDestinoNome: z.string().trim().min(2).max(240).nullish(),
+    /**
+     * O destino e digitado, sem catalogo (decisao de 2026-09-11): a equipe
+     * informa pais e instituicao como estao no termo. `resolverPontas` liga ao
+     * cadastro central quando a grafia coincide, e so assim o pais chega ao
+     * mapa e a instituicao ao historico do parceiro.
+     */
+    paisDestinoNome: z
+      .string()
+      .trim()
+      .min(2, 'Informe o país de destino.')
+      .max(120),
+    instituicaoDestinoNome: z
+      .string()
+      .trim()
+      .min(2, 'Informe a universidade ou instituição de destino.')
+      .max(240),
     dataInicio: dataCompleta,
     dataFim: dataCompleta,
     status: z.enum(['SELECIONADO', 'EM_ANDAMENTO']).default('SELECIONADO'),
@@ -104,26 +118,25 @@ export const criarBolsaConcedidaSchema = z
     observacoes: z.string().trim().max(4000).nullish(),
   })
   .superRefine((valor, contexto) => {
-    for (const ponta of ['Origem', 'Destino'] as const) {
-      const modo = valor[`modoInstituicao${ponta}`];
-      const doCatalogo = valor[`instituicao${ponta}Id`];
-      const digitada = valor[`instituicao${ponta}Nome`];
-      const lado = ponta === 'Origem' ? 'de origem' : 'de destino';
-
-      if (modo === 'catalogo' && !doCatalogo) {
-        contexto.addIssue({
-          code: 'custom',
-          path: [`instituicao${ponta}Id`],
-          message: `Selecione a instituição ${lado} no catálogo.`,
-        });
-      }
-      if (modo === 'livre' && !digitada) {
-        contexto.addIssue({
-          code: 'custom',
-          path: [`instituicao${ponta}Nome`],
-          message: `Informe o nome da instituição ${lado}.`,
-        });
-      }
+    if (
+      valor.modoInstituicaoOrigem === 'catalogo' &&
+      !valor.instituicaoOrigemId
+    ) {
+      contexto.addIssue({
+        code: 'custom',
+        path: ['instituicaoOrigemId'],
+        message: 'Selecione a instituição de origem no catálogo.',
+      });
+    }
+    if (
+      valor.modoInstituicaoOrigem === 'livre' &&
+      !valor.instituicaoOrigemNome
+    ) {
+      contexto.addIssue({
+        code: 'custom',
+        path: ['instituicaoOrigemNome'],
+        message: 'Informe o nome da instituição de origem.',
+      });
     }
   })
   .and(periodo);
@@ -184,6 +197,16 @@ export const produtoBolsaSchema = z
     dataEntrega: dataCompleta.nullish(),
     doi: z.string().trim().max(240).nullish(),
     link: z.url('Informe um link válido.').max(500).nullish(),
+    instituicaoColaboracao: z
+      .string()
+      .trim()
+      .min(2, 'Informe a instituição de colaboração.')
+      .max(240),
+    paisColaboracao: z
+      .string()
+      .trim()
+      .min(2, 'Informe o país da colaboração.')
+      .max(120),
     observacoes: z.string().trim().max(4000).nullish(),
   })
   .superRefine((produto, contexto) => {
@@ -279,6 +302,8 @@ export interface ProdutoBolsa {
   dataEntrega: string | null;
   doi: string | null;
   link: string | null;
+  instituicaoColaboracao: string | null;
+  paisColaboracao: string | null;
   observacoes: string | null;
 }
 
@@ -589,6 +614,8 @@ export class BolsistasService {
              data_entrega       as "dataEntrega",
              doi,
              link,
+             instituicao_colaboracao as "instituicaoColaboracao",
+             pais_colaboracao   as "paisColaboracao",
              observacoes
         from produto_bolsa
        where bolsa_concedida_id = ${id}
@@ -980,60 +1007,104 @@ async function orientador(
  * (CG-025), e a leitura teria de escolher uma sem conseguir justificar a
  * escolha. O `coalesce` de `listar` depende disso.
  *
- * O nome do pais nunca e copiado: a lista ISO e fechada e a FK basta.
+ * O destino chega sempre digitado. Quando a grafia coincide com o catalogo —
+ * sem caixa, acento nem pontuacao —, grava-se a FK e nao o texto: e o que poe
+ * o pais no mapa e a bolsa no historico do parceiro. Sem coincidencia, fica o
+ * texto, e nada e presumido.
  */
 async function resolverPontas(db: Database, dto: CriarBolsaConcedida) {
-  const paisIds = [...new Set([dto.paisOrigemId, dto.paisDestinoId])];
-  const paises = await db
+  const [paisOrigem] = await db
     .select({ id: s.pais.id })
     .from(s.pais)
-    .where(inArray(s.pais.id, paisIds));
-  if (paises.length !== paisIds.length) {
+    .where(eq(s.pais.id, dto.paisOrigemId))
+    .limit(1);
+  if (!paisOrigem) {
     throw new BadRequestException('País não encontrado no catálogo ISO.');
   }
 
-  const doCatalogo = [
-    dto.modoInstituicaoOrigem === 'catalogo' ? dto.instituicaoOrigemId : null,
-    dto.modoInstituicaoDestino === 'catalogo' ? dto.instituicaoDestinoId : null,
-  ].filter((id): id is string => Boolean(id));
-
-  if (doCatalogo.length > 0) {
-    const distintas = [...new Set(doCatalogo)];
+  if (dto.modoInstituicaoOrigem === 'catalogo' && dto.instituicaoOrigemId) {
     // Inativa nao serve: o cadastro inativo e o lado perdedor de uma
     // conciliacao, e apontar para ele recriaria a duplicidade que a CG-025
     // desfez.
-    const encontradas = await db
+    const [encontrada] = await db
       .select({ id: s.instituicao.id })
       .from(s.instituicao)
       .where(
         and(
-          inArray(s.instituicao.id, distintas),
+          eq(s.instituicao.id, dto.instituicaoOrigemId),
           eq(s.instituicao.ativo, true),
         ),
-      );
-    if (encontradas.length !== distintas.length) {
+      )
+      .limit(1);
+    if (!encontrada) {
       throw new BadRequestException(
         'Instituição não encontrada ou inativa no cadastro institucional.',
       );
     }
   }
 
-  const daPonta = (ponta: 'Origem' | 'Destino') =>
-    dto[`modoInstituicao${ponta}`] === 'catalogo'
-      ? { id: dto[`instituicao${ponta}Id`] ?? null, nome: null }
-      : { id: null, nome: dto[`instituicao${ponta}Nome`] ?? null };
+  const origem =
+    dto.modoInstituicaoOrigem === 'catalogo'
+      ? { id: dto.instituicaoOrigemId ?? null, nome: null }
+      : { id: null, nome: dto.instituicaoOrigemNome ?? null };
 
-  const origem = daPonta('Origem');
-  const destino = daPonta('Destino');
+  const paisDestinoId = await reconhecerPais(db, dto.paisDestinoNome);
+  const instituicaoDestinoId = await reconhecerInstituicao(
+    db,
+    dto.instituicaoDestinoNome,
+  );
 
   return {
     paisOrigemId: dto.paisOrigemId,
-    paisDestinoId: dto.paisDestinoId,
+    paisDestinoId,
+    paisDestinoNome: paisDestinoId ? null : dto.paisDestinoNome,
     instituicaoOrigemId: origem.id,
     instituicaoOrigemNome: origem.nome,
-    instituicaoDestinoId: destino.id,
-    instituicaoDestinoNome: destino.nome,
+    instituicaoDestinoId,
+    instituicaoDestinoNome: instituicaoDestinoId
+      ? null
+      : dto.instituicaoDestinoNome,
   };
+}
+
+/** Pais do catalogo ISO pelo nome digitado, ou pelo codigo de 2 ou 3 letras. */
+async function reconhecerPais(db: Database, digitado: string) {
+  const chave = normalizarNomeInstituicao(digitado);
+  const codigo = digitado.trim().toUpperCase();
+  const paises = await db
+    .select({
+      id: s.pais.id,
+      nome: s.pais.nome,
+      iso2: s.pais.codigoIso2,
+      iso3: s.pais.codigoIso3,
+    })
+    .from(s.pais);
+  const achado = paises.find(
+    (pais) =>
+      normalizarNomeInstituicao(pais.nome) === chave ||
+      pais.iso2 === codigo ||
+      pais.iso3 === codigo,
+  );
+  return achado?.id ?? null;
+}
+
+/**
+ * Instituicao ativa com o mesmo nome normalizado. Sigla nao entra: siglas
+ * colidem entre paises, e unir por elas misturaria instituicoes distintas —
+ * a mesma cautela de `normalizarNomeInstituicao`.
+ */
+async function reconhecerInstituicao(db: Database, digitado: string) {
+  const [achada] = await db
+    .select({ id: s.instituicao.id })
+    .from(s.instituicao)
+    .where(
+      and(
+        eq(s.instituicao.nomeNormalizado, normalizarNomeInstituicao(digitado)),
+        eq(s.instituicao.ativo, true),
+      ),
+    )
+    .limit(1);
+  return achada?.id ?? null;
 }
 
 async function exigirVaga(
@@ -1099,6 +1170,8 @@ function valoresProduto(bolsaId: string, dto: ProdutoBolsaDto) {
     dataEntrega: dto.dataEntrega ?? null,
     doi: dto.doi ?? null,
     link: dto.link ?? null,
+    instituicaoColaboracao: dto.instituicaoColaboracao,
+    paisColaboracao: dto.paisColaboracao,
     observacoes: dto.observacoes ?? null,
   };
 }

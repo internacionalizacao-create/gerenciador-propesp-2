@@ -204,7 +204,7 @@ test("a conciliacao exige destino e justificativa e nao apaga a origem", async (
   assert.match(fonte, /destinoId: String\(formulario\.get\("destinoId"\)/);
   assert.match(fonte, /justificativa: String\(formulario\.get\("justificativa"\)/);
   // Revalida a lista e o detalhe da origem, que continua acessivel depois.
-  assert.match(fonte, /\[LISTA, detalhe\(origemId\)\]/);
+  assert.match(fonte, /conciliarParceiro[\s\S]*?return comRevalidacao\(/);
 });
 
 test("conciliacao nao se oferece sem candidato ativo", async () => {

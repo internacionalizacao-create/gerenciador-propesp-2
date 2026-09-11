@@ -71,9 +71,15 @@ export function MenuLateral({ grupos }: { grupos: GrupoMenu[] }) {
             aria-label="Gerenciador PROPESP"
             className="flex min-w-0 flex-1 items-center gap-3"
           >
-            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary text-on-primary shadow-sm">
-              <IconeMarca />
-            </span>
+            {/* Imagem estatica para a marca carregar igualmente no menu e no login. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/marca-propesp.svg"
+              alt=""
+              width={40}
+              height={40}
+              className="size-10 shrink-0 rounded-xl shadow-sm"
+            />
             <span
               className={`min-w-0 transition-opacity ${expandido ? "lg:opacity-100" : "lg:pointer-events-none lg:opacity-0"}`}
             >
@@ -192,7 +198,6 @@ function Svg({ children }: { children: ReactNode }) {
   return <svg aria-hidden="true" viewBox="0 0 20 20" className="size-[1.125rem]" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">{children}</svg>;
 }
 
-function IconeMarca() { return <Svg><path d="M3 15c4 0 6.7-2.7 6.7-6.7"/><path d="M6.3 17.5c0-6 3-10 9.2-11.7"/><path d="M10.5 5.8c.8-2.3 3.1-3.3 5.8-3.3 0 3-1.3 5.3-4.2 6.2"/></Svg>; }
 function IconePainel() { return <Svg><path d="M3 10a7 7 0 1 1 14 0"/><path d="m10 10 3.5-3.5"/><path d="M4.5 15.5h11"/></Svg>; }
 function IconePessoas() { return <Svg><circle cx="7" cy="7" r="2.5"/><path d="M2.5 16c.5-3 2-4.5 4.5-4.5s4 1.5 4.5 4.5"/><path d="M12.5 5.3a2.5 2.5 0 0 1 0 4.4M14 11.5c2 0 3.2 1.5 3.5 4.5"/></Svg>; }
 function IconeCatalogo() { return <Svg><path d="M4 3h10a2 2 0 0 1 2 2v12H6a2 2 0 0 1-2-2V3Z"/><path d="M4 14.5c0-1.4.8-2.5 2.5-2.5H16M7 6h6"/></Svg>; }

@@ -7,6 +7,10 @@ import { useForm, useWatch, type Path } from "react-hook-form";
 import { anexarDocumentoDoBolsista } from "@/acoes/documentos-bolsista";
 import { Selecao, Texto } from "@/componentes/ui/campos";
 import { useErrosDaAcao } from "@/componentes/ui/formulario";
+import {
+  CLASSE_CORPO_PAINEL,
+  RodapeDoPainel,
+} from "@/componentes/ui/painel-formulario";
 import { AbrirSidesheet } from "@/componentes/ui/sidesheet";
 import { useToastDaAcao } from "@/componentes/ui/toast";
 import { ESTADO_INICIAL } from "@/lib/acao-tipos";
@@ -112,9 +116,9 @@ function FormDocumento({
   });
 
   return (
-    <form onSubmit={aoEnviar} className="flex h-full flex-col">
-      <div className="flex-1 space-y-5 overflow-y-auto px-1 pb-4">
-        <div>
+    <form onSubmit={aoEnviar} className="flex min-h-0 flex-1 flex-col">
+      <div className={CLASSE_CORPO_PAINEL}>
+        <div className="mb-4">
           <label
             htmlFor="arquivo"
             className="block text-sm font-medium text-foreground"
@@ -151,7 +155,7 @@ function FormDocumento({
         />
 
         {pessoal ? (
-          <p className="rounded-xl border-l-4 border-info bg-info-soft px-4 py-3 text-sm text-on-info-soft">
+          <p className="mb-4 rounded-xl border-l-4 border-info bg-info-soft px-4 py-3 text-sm text-on-info-soft">
             Documento pessoal fica visível apenas para a administração e para a
             secretaria. O coordenador do PPG não o abre nem o envia.
           </p>
@@ -174,22 +178,12 @@ function FormDocumento({
         ) : null}
       </div>
 
-      <div className="flex justify-end gap-2 border-t border-border pt-4">
-        <button
-          type="button"
-          onClick={aoConcluir}
-          className="rounded-lg px-4 py-2 text-sm font-medium text-muted hover:bg-surface-muted"
-        >
-          Cancelar
-        </button>
-        <button
-          type="submit"
-          disabled={enviando}
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary hover:bg-primary-hover disabled:opacity-60"
-        >
-          {enviando ? "Enviando…" : "Anexar"}
-        </button>
-      </div>
+      <RodapeDoPainel
+        aoCancelar={aoConcluir}
+        enviando={enviando}
+        rotulo="Anexar"
+        rotuloEnviando="Enviando…"
+      />
     </form>
   );
 }

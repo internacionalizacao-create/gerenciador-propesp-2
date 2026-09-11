@@ -19,6 +19,16 @@ export interface Session {
   idToken?: string;
   /** Epoch em ms em que o access token expira. */
   expiresAt: number;
+  /**
+   * Epoch em ms em que o refresh token expira, quando o Keycloak informa
+   * (`refresh_expires_in`, que espelha o ocioso da sessao SSO do realm).
+   *
+   * E o que permite ao proxy mandar para o login sem chamada de rede: passado
+   * este instante, renovar nao tem como dar certo. Opcional porque sessoes
+   * seladas antes do campo continuam validas — e porque o realm pode nao
+   * mandar o parametro.
+   */
+  refreshExpiresAt?: number;
   user: SessionUser;
 }
 
@@ -34,6 +44,7 @@ const sessionSchema = z.object({
   refreshToken: z.string().min(1),
   idToken: z.string().optional(),
   expiresAt: z.number(),
+  refreshExpiresAt: z.number().optional(),
   user: z.object({
     id: z.string().min(1),
     username: z.string().optional(),

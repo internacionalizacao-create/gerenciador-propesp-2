@@ -64,6 +64,17 @@ export const formularioParceiroSchema = z.object({
 
 export type DadosFormularioParceiro = z.infer<typeof formularioParceiroSchema>;
 
+/**
+ * No cadastro a origem é obrigatória. Sem esta checagem o formulário seguia
+ * vazio para a API, que recusava com "Dados inválidos" no rodapé — sem apontar
+ * o campo, parecia que o cadastro simplesmente não salvava.
+ */
+export const formularioParceiroNovoSchema = formularioParceiroSchema.extend({
+  origemRelacionamento: z
+    .string()
+    .min(1, "Informe como esta instituição foi identificada."),
+});
+
 export const formularioContatoSchema = z.object({
   nome: z
     .string()

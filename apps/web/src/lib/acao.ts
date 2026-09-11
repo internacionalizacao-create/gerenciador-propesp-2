@@ -1,6 +1,7 @@
 import "server-only";
 
 import { revalidatePath } from "next/cache";
+import { unstable_rethrow } from "next/navigation";
 
 import { ApiError, apiFetch } from "./api";
 import type { CandidatoDuplicidade, EstadoDaAcao } from "./acao-tipos";
@@ -43,6 +44,10 @@ export async function enviar(
     for (const rota of revalidar) revalidatePath(rota);
     return { ok: true, mensagem: sucesso };
   } catch (erro) {
+    // Sessão morta faz `apiFetch` chamar `redirect`, que sinaliza por exceção.
+    // Sem isto, o `catch` a engoliria e a tela mostraria "não foi possível
+    // salvar" no lugar de mandar a pessoa para o login.
+    unstable_rethrow(erro);
     return traduzirErro(erro);
   }
 }
@@ -69,6 +74,7 @@ export async function enviarArquivo(
     for (const rota of revalidar) revalidatePath(rota);
     return { ok: true, mensagem: sucesso };
   } catch (erro) {
+    unstable_rethrow(erro);
     return traduzirErro(erro);
   }
 }

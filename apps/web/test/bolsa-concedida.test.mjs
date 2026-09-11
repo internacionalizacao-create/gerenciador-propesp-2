@@ -29,9 +29,7 @@ const base = {
   modoInstituicaoOrigem: "catalogo",
   instituicaoOrigemId: "33333333-3333-4333-8333-333333333333",
   instituicaoOrigemNome: "",
-  paisDestinoId: "44444444-4444-4444-8444-444444444444",
-  modoInstituicaoDestino: "livre",
-  instituicaoDestinoId: "",
+  paisDestinoNome: "Portugal",
   instituicaoDestinoNome: "Universidade de Coimbra",
   dataInicio: "03/01/2027",
   dataFim: "30/07/2027",
@@ -54,7 +52,7 @@ test("modo catalogo sem instituicao selecionada e recusado", () => {
   assert.equal(resultado.error.issues[0].path.join("."), "instituicaoOrigemId");
 });
 
-test("modo livre sem nome digitado e recusado", () => {
+test("instituicao de destino e digitada e obrigatoria", () => {
   const resultado = formularioBolsaConcedidaSchema.safeParse({
     ...base,
     instituicaoDestinoNome: "",
@@ -66,13 +64,13 @@ test("modo livre sem nome digitado e recusado", () => {
   );
 });
 
-test("pais e obrigatorio: nao ha mais texto livre para ele", () => {
+test("pais de destino e digitado e obrigatorio", () => {
   const resultado = formularioBolsaConcedidaSchema.safeParse({
     ...base,
-    paisDestinoId: "",
+    paisDestinoNome: "",
   });
   assert.equal(resultado.success, false);
-  assert.equal(resultado.error.issues[0].path.join("."), "paisDestinoId");
+  assert.equal(resultado.error.issues[0].path.join("."), "paisDestinoNome");
 });
 
 test("data final anterior a inicial e recusada no campo certo", () => {
@@ -95,10 +93,11 @@ test("o payload manda exatamente uma coluna por ponta", () => {
   );
   assert.equal("instituicaoOrigemNome" in payload, false);
 
-  // Livre: vai o nome, e o id nem aparece — senao a API teria de escolher.
-  assert.equal(payload.modoInstituicaoDestino, "livre");
+  // Destino: sempre texto, sem id nem modo de catalogo.
+  assert.equal(payload.paisDestinoNome, "Portugal");
   assert.equal(payload.instituicaoDestinoNome, "Universidade de Coimbra");
   assert.equal("instituicaoDestinoId" in payload, false);
+  assert.equal("paisDestinoId" in payload, false);
 });
 
 test("o ORCID aceita o digito verificador X", () => {

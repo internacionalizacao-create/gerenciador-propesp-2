@@ -1,5 +1,4 @@
 import {
-  Aviso,
   Cartao,
   Cartoes,
   Celula,
@@ -31,12 +30,6 @@ export default async function Producao() {
       titulo="Produção e resultados"
       descricao="O que a internacionalização rendeu, somando o que foi cobrado dos bolsistas e o que as missões do Comitê produziram."
     >
-      <Aviso tom="info" titulo="Duas cobranças, uma leitura">
-        Produto de bolsa é entrega do beneficiário; produto de missão é resultado
-        institucional. Eles são registrados em lugares diferentes de propósito —
-        esta tela só os lê juntos.
-      </Aviso>
-
       <div className="mb-8">
         <Cartoes>
           <Cartao titulo="Total" valor={inteiro(linhas.length)} />
@@ -66,6 +59,8 @@ export default async function Producao() {
             { chave: "origem", texto: "Origem" },
             { chave: "tipo", texto: "Tipo" },
             { chave: "contexto", texto: "Bolsista ou missão" },
+            { chave: "instituicao", texto: "Instituição de colaboração" },
+            { chave: "pais", texto: "País" },
             { chave: "situacao", texto: "Situação" },
             { chave: "ano", texto: "Ano", alinhamento: "direita" },
           ]}
@@ -89,6 +84,8 @@ export default async function Producao() {
               </Celula>
               <Celula>{rotulo(linha.tipo)}</Celula>
               <Celula>{linha.contexto}</Celula>
+              <Celula>{linha.instituicaoColaboracao ?? "—"}</Celula>
+              <Celula>{linha.paisColaboracao ?? "—"}</Celula>
               <Celula>{rotulo(linha.situacao)}</Celula>
               <Celula direita className="tabular-nums">
                 {linha.ano ?? "—"}

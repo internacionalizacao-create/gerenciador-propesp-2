@@ -115,6 +115,24 @@ function FormProduto({
           padrao={produto?.descricao ?? undefined}
         />
         <Grade>
+          <Texto
+            rotulo="Instituição de colaboração"
+            nome="instituicaoColaboracao"
+            obrigatorio
+            padrao={produto?.instituicaoColaboracao ?? undefined}
+            placeholder="Universidade de Coimbra"
+            erro={erroDe("instituicaoColaboracao")}
+          />
+          <Texto
+            rotulo="País"
+            nome="paisColaboracao"
+            obrigatorio
+            padrao={produto?.paisColaboracao ?? undefined}
+            placeholder="Portugal"
+            erro={erroDe("paisColaboracao")}
+          />
+        </Grade>
+        <Grade>
           <Data
             rotulo="Prazo de entrega"
             nome="prazoEntrega"

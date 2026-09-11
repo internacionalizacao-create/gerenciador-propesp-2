@@ -5,6 +5,10 @@ import { useActionState } from "react";
 import { anexarEvidencias } from "@/acoes/evidencias";
 import { AreaTexto, Data, Grade, Selecao, Texto } from "@/componentes/ui/campos";
 import { submeterSemLimpar } from "@/componentes/ui/formulario";
+import {
+  CLASSE_CORPO_PAINEL,
+  RodapeDoPainel,
+} from "@/componentes/ui/painel-formulario";
 import { AbrirSidesheet } from "@/componentes/ui/sidesheet";
 import { useToastDaAcao } from "@/componentes/ui/toast";
 import { ESTADO_INICIAL, type EstadoDaAcao } from "@/lib/acao-tipos";
@@ -37,7 +41,7 @@ export function AnexarEvidencias({
     <AbrirSidesheet
       rotulo="Adicionar evidências"
       titulo="Fotos e evidências da missão"
-      descricao="Vários arquivos de uma vez. Data, local, autoria e visibilidade valem para toda a seleção."
+      descricao="Vários arquivos de uma vez. Data, local e visibilidade valem para toda a seleção."
     >
       {(fechar) => (
         <FormEvidencias
@@ -68,13 +72,13 @@ function FormEvidencias({
   return (
     <form
       onSubmit={(evento) => submeterSemLimpar(evento, executar)}
-      className="flex h-full flex-col"
+      className="flex min-h-0 flex-1 flex-col"
     >
       <input type="hidden" name="entidadeTipo" value="MISSAO_COMITE" />
       <input type="hidden" name="entidadeId" value={entidadeId} />
 
-      <div className="flex-1 space-y-5 overflow-y-auto px-1 pb-4">
-        <div>
+      <div className={CLASSE_CORPO_PAINEL}>
+        <div className="mb-4">
           <label
             htmlFor="arquivos"
             className="block text-sm font-medium text-foreground"
@@ -109,12 +113,6 @@ function FormEvidencias({
           <Data rotulo="Data da evidência" nome="dataEvidencia" />
           <Texto rotulo="Local" nome="localEvidencia" />
         </Grade>
-
-        <Texto
-          rotulo="Autoria"
-          nome="autoria"
-          dica="Quem fotografou ou produziu — não é quem faz o upload."
-        />
 
         <AreaTexto
           rotulo="Legenda"
@@ -155,22 +153,12 @@ function FormEvidencias({
         )}
       </div>
 
-      <div className="flex justify-end gap-2 border-t border-border pt-4">
-        <button
-          type="button"
-          onClick={aoConcluir}
-          className="rounded-lg px-4 py-2 text-sm font-medium text-muted hover:bg-surface-muted"
-        >
-          Cancelar
-        </button>
-        <button
-          type="submit"
-          disabled={enviando}
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary hover:bg-primary-hover disabled:opacity-60"
-        >
-          {enviando ? "Enviando…" : "Anexar"}
-        </button>
-      </div>
+      <RodapeDoPainel
+        aoCancelar={aoConcluir}
+        enviando={enviando}
+        rotulo="Anexar"
+        rotuloEnviando="Enviando…"
+      />
     </form>
   );
 }

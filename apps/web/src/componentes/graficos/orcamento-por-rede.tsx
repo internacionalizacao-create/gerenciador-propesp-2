@@ -3,7 +3,6 @@
 import { Bar, BarChart, CartesianGrid, Legend, Tooltip, XAxis, YAxis } from "recharts";
 
 import {
-  CORES_REDE,
   DicaMoeda,
   EIXO_GRAFICO,
   GRADE_GRAFICO,
@@ -11,6 +10,7 @@ import {
 } from "@/componentes/ui/grafico";
 import { montarSerie } from "@/componentes/graficos/orcamento-por-rede-serie";
 import type { LinhaRede } from "@/lib/dominio";
+import { identidadeDaRede } from "@/lib/redes";
 
 /**
  * P09 · Total previsto por rede ao longo do ciclo.
@@ -66,7 +66,7 @@ export function OrcamentoPorRede({
             key={nome}
             dataKey={nome}
             name={nome}
-            fill={CORES_REDE[indice % CORES_REDE.length]}
+            fill={identidadeDaRede(nome, indice).cor}
             radius={[4, 4, 0, 0]}
             maxBarSize={56}
           />

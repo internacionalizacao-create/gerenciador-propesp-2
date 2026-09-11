@@ -1,5 +1,7 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+
 import { enviar, type EstadoDaAcao } from "@/lib/acao";
 import {
   payloadContato,
@@ -17,19 +19,32 @@ import {
  * nenhuma — só o payload e o que revalidar.
  */
 
-const LISTA = "/parceiros";
-const detalhe = (id: string) => `/parceiros/${id}`;
+/**
+ * As telas moram dentro do ciclo, e a ação não sabe qual: por isso o padrão da
+ * rota, e não um caminho literal. Revalidar `/parceiros`, que não existe, era o
+ * que fazia o cadastro gravar e a lista continuar sem ele.
+ */
+async function comRevalidacao(estado: Promise<EstadoDaAcao>) {
+  const resultado = await estado;
+  if (resultado.ok) {
+    revalidatePath("/programas/[programa]/[ciclo]/parceiros", "page");
+    revalidatePath("/programas/[programa]/[ciclo]/parceiros/[id]", "page");
+  }
+  return resultado;
+}
 
 export async function criarParceiro(
   _anterior: EstadoDaAcao,
   dados: DadosFormularioParceiro,
 ): Promise<EstadoDaAcao> {
-  return enviar(
-    "/parceiros",
-    "POST",
-    payloadParceiroNovo(dados),
-    [LISTA],
-    "Parceiro cadastrado.",
+  return comRevalidacao(
+    enviar(
+      "/parceiros",
+      "POST",
+      payloadParceiroNovo(dados),
+      [],
+      "Parceiro cadastrado.",
+    ),
   );
 }
 
@@ -38,12 +53,14 @@ export async function atualizarParceiro(
   _anterior: EstadoDaAcao,
   dados: DadosFormularioParceiro,
 ): Promise<EstadoDaAcao> {
-  return enviar(
-    `/parceiros/${id}`,
-    "PATCH",
-    payloadParceiro(dados),
-    [LISTA, detalhe(id)],
-    "Parceiro atualizado.",
+  return comRevalidacao(
+    enviar(
+      `/parceiros/${id}`,
+      "PATCH",
+      payloadParceiro(dados),
+      [],
+      "Parceiro atualizado.",
+    ),
   );
 }
 
@@ -52,12 +69,14 @@ export async function inativarParceiro(
   _anterior: EstadoDaAcao,
   formulario: FormData,
 ): Promise<EstadoDaAcao> {
-  return enviar(
-    `/parceiros/${id}/inativacao`,
-    "POST",
-    { justificativa: String(formulario.get("justificativa") ?? "").trim() },
-    [LISTA, detalhe(id)],
-    "Parceiro inativado.",
+  return comRevalidacao(
+    enviar(
+      `/parceiros/${id}/inativacao`,
+      "POST",
+      { justificativa: String(formulario.get("justificativa") ?? "").trim() },
+      [],
+      "Parceiro inativado.",
+    ),
   );
 }
 
@@ -74,15 +93,17 @@ export async function conciliarParceiro(
   _anterior: EstadoDaAcao,
   formulario: FormData,
 ): Promise<EstadoDaAcao> {
-  return enviar(
-    `/parceiros/${origemId}/conciliacao`,
-    "POST",
-    {
-      destinoId: String(formulario.get("destinoId") ?? ""),
-      justificativa: String(formulario.get("justificativa") ?? "").trim(),
-    },
-    [LISTA, detalhe(origemId)],
-    "Cadastros conciliados.",
+  return comRevalidacao(
+    enviar(
+      `/parceiros/${origemId}/conciliacao`,
+      "POST",
+      {
+        destinoId: String(formulario.get("destinoId") ?? ""),
+        justificativa: String(formulario.get("justificativa") ?? "").trim(),
+      },
+      [],
+      "Cadastros conciliados.",
+    ),
   );
 }
 
@@ -91,12 +112,14 @@ export async function criarContato(
   _anterior: EstadoDaAcao,
   dados: DadosFormularioContato,
 ): Promise<EstadoDaAcao> {
-  return enviar(
-    "/contatos-parceiros",
-    "POST",
-    payloadContato(dados, instituicaoId),
-    [detalhe(instituicaoId)],
-    "Contato cadastrado.",
+  return comRevalidacao(
+    enviar(
+      "/contatos-parceiros",
+      "POST",
+      payloadContato(dados, instituicaoId),
+      [],
+      "Contato cadastrado.",
+    ),
   );
 }
 
@@ -105,12 +128,14 @@ export async function atualizarContato(
   _anterior: EstadoDaAcao,
   dados: DadosFormularioContato,
 ): Promise<EstadoDaAcao> {
-  return enviar(
-    `/contatos-parceiros/${contexto.id}`,
-    "PATCH",
-    payloadContato(dados, contexto.instituicaoId),
-    [detalhe(contexto.instituicaoId)],
-    "Contato atualizado.",
+  return comRevalidacao(
+    enviar(
+      `/contatos-parceiros/${contexto.id}`,
+      "PATCH",
+      payloadContato(dados, contexto.instituicaoId),
+      [],
+      "Contato atualizado.",
+    ),
   );
 }
 
@@ -119,12 +144,14 @@ export async function definirContatoPrincipal(
   _anterior: EstadoDaAcao,
   _formulario: FormData,
 ): Promise<EstadoDaAcao> {
-  return enviar(
-    `/contatos-parceiros/${contexto.id}/principal`,
-    "POST",
-    {},
-    [detalhe(contexto.instituicaoId)],
-    "Contato principal atualizado.",
+  return comRevalidacao(
+    enviar(
+      `/contatos-parceiros/${contexto.id}/principal`,
+      "POST",
+      {},
+      [],
+      "Contato principal atualizado.",
+    ),
   );
 }
 
@@ -138,12 +165,14 @@ export async function inativarContato(
   _anterior: EstadoDaAcao,
   formulario: FormData,
 ): Promise<EstadoDaAcao> {
-  return enviar(
-    `/contatos-parceiros/${contexto.id}/inativacao`,
-    "POST",
-    { justificativa: String(formulario.get("justificativa") ?? "").trim() },
-    [detalhe(contexto.instituicaoId)],
-    "Contato inativado.",
+  return comRevalidacao(
+    enviar(
+      `/contatos-parceiros/${contexto.id}/inativacao`,
+      "POST",
+      { justificativa: String(formulario.get("justificativa") ?? "").trim() },
+      [],
+      "Contato inativado.",
+    ),
   );
 }
 
@@ -152,11 +181,13 @@ export async function reativarContato(
   _anterior: EstadoDaAcao,
   formulario: FormData,
 ): Promise<EstadoDaAcao> {
-  return enviar(
-    `/contatos-parceiros/${contexto.id}/reativacao`,
-    "POST",
-    { justificativa: String(formulario.get("justificativa") ?? "").trim() },
-    [detalhe(contexto.instituicaoId)],
-    "Contato reativado.",
+  return comRevalidacao(
+    enviar(
+      `/contatos-parceiros/${contexto.id}/reativacao`,
+      "POST",
+      { justificativa: String(formulario.get("justificativa") ?? "").trim() },
+      [],
+      "Contato reativado.",
+    ),
   );
 }

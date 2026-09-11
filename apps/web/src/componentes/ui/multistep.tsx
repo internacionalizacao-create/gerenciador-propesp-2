@@ -2,6 +2,8 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 
+import { Botao } from "@/componentes/ui/botao";
+
 import {
   errosUnicos,
   indiceDaPrimeiraEtapaComErro,
@@ -206,45 +208,39 @@ export function Multistep({
 
           <div className="flex gap-2">
             {aoCancelar ? (
-              <button
-                type="button"
-                onClick={aoCancelar}
-                className="rounded-xl px-3 py-2 text-sm font-medium text-muted hover:bg-surface hover:text-foreground"
-              >
+              <Botao type="button" variante="fantasma" onClick={aoCancelar}>
                 Cancelar
-              </button>
+              </Botao>
             ) : null}
 
             {atual > 0 ? (
-              <button
+              <Botao
                 type="button"
+                variante="contorno"
                 onClick={() => {
                   setImpedimento(null);
                   setAtual((i) => i - 1);
                 }}
-                className="rounded-xl border border-border-strong bg-surface px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-surface-muted"
               >
                 Voltar
-              </button>
+              </Botao>
             ) : null}
 
+            {/* `key` distinta nos dois: o React troca o elemento em vez de só
+                mudar o `type`, e o clique que avança nunca vira submit. */}
             {ultimo ? (
-              <button
+              <Botao
+                key="concluir"
                 type="submit"
                 onClick={concluir}
                 disabled={enviando}
-                className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-on-primary shadow-sm hover:bg-primary-hover disabled:opacity-60"
               >
                 {enviando ? "Salvando…" : rotuloConcluir}
-              </button>
+              </Botao>
             ) : (
-              <button
-                type="button"
-                onClick={avancar}
-                className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-on-primary shadow-sm hover:bg-primary-hover"
-              >
+              <Botao key="avancar" type="button" onClick={avancar}>
                 Avançar
-              </button>
+              </Botao>
             )}
           </div>
         </div>

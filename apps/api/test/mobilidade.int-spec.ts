@@ -139,11 +139,12 @@ describe('Panorama de mobilidade', () => {
     expect(panorama.porModalidade[0].quantidade).toBe(4);
   });
 
-  it('a concessao sem cadastro entra no total e fica fora das quebras', async () => {
+  it('o destino digitado entra na quebra por instituicao', async () => {
     const panorama = await service.panorama(admin, {});
 
-    // O total conta as quatro; a quebra por pais so as tres ligadas ao
-    // catalogo. Esconder a diferenca faria a soma das linhas parecer o total.
+    // Desde 2026-09-11 o destino e digitado: deixar o texto fora das quebras
+    // as esvaziaria. A concessao sem pais informado fica fora so da quebra
+    // por pais, e nenhum aviso sobre "digitado a mao" sobra na tela.
     expect(panorama.totais.mobilidades).toBe(4);
     expect(panorama.totais.semInstituicaoCadastrada).toBe(1);
     const porPais = panorama.porPais.reduce(
@@ -151,7 +152,18 @@ describe('Panorama de mobilidade', () => {
       0,
     );
     expect(porPais).toBe(3);
-    expect(panorama.avisos.join(' ')).toContain('à mão');
+    const porInstituicao = panorama.porInstituicao.reduce(
+      (total, linha) => total + linha.quantidade,
+      0,
+    );
+    expect(porInstituicao).toBe(4);
+    expect(
+      panorama.porInstituicao.some(
+        (linha) => linha.rotulo === 'Universidade Digitada',
+      ),
+    ).toBe(true);
+    expect(panorama.totais.instituicoes).toBe(2);
+    expect(panorama.avisos).toEqual([]);
   });
 
   it('o filtro vale para todas as quebras, nao so para os cartoes', async () => {

@@ -1,11 +1,15 @@
 import "server-only";
 
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 import { cache } from "react";
 import * as client from "openid-client";
 
 import { getOidcConfig } from "./oidc";
+import { irParaLogin } from "./sessao-encerrada";
+import {
+  calcularExpiracaoDoRefresh,
+  refreshVencido,
+} from "./sessao-expiracao";
 import {
   abrirSessao,
   gravarCookieSessao,
@@ -15,6 +19,8 @@ import {
   type Session,
   type SessionUser,
 } from "./session";
+
+export { calcularExpiracaoDoRefresh } from "./sessao-expiracao";
 
 /**
  * Camada de acesso a sessao (o "DAL" da documentacao do Next).
@@ -43,6 +49,13 @@ export const getSession = cache(async (): Promise<Session | null> => {
   const session = await abrirSessao(selada);
   if (!session) return null;
 
+  // Refresh vencido nao tem volta: tentar renovar so gastaria uma ida ao
+  // Keycloak para receber o mesmo "nao".
+  if (refreshVencido(session)) {
+    tentarEscreverCookie(() => limparCookieSessao(store));
+    return null;
+  }
+
   if (session.expiresAt - Date.now() > MARGEM_RENOVACAO_MS) {
     return session;
   }
@@ -63,10 +76,17 @@ export const getSession = cache(async (): Promise<Session | null> => {
   return renovada;
 });
 
-/** Igual a `getSession`, mas manda para o login em vez de devolver `null`. */
+/**
+ * Igual a `getSession`, mas manda para o login em vez de devolver `null`.
+ *
+ * Pelo mesmo caminho de `apiFetch`: os dois descobrem a sessao morta no mesmo
+ * render, em paralelo, e qualquer um pode chegar primeiro — se cada um
+ * redirecionasse de um jeito, o `returnTo` dependeria de quem ganhasse a
+ * corrida.
+ */
 export async function requireSession(): Promise<Session> {
   const session = await getSession();
-  if (!session) redirect("/login");
+  if (!session) return irParaLogin();
   return session;
 }
 
@@ -92,6 +112,7 @@ export async function renovarSessao(
       refreshToken: tokens.refresh_token ?? session.refreshToken,
       idToken: tokens.id_token ?? session.idToken,
       expiresAt: calcularExpiracao(tokens.expiresIn()),
+      refreshExpiresAt: calcularExpiracaoDoRefresh(tokens),
       user: session.user,
     };
   } catch {

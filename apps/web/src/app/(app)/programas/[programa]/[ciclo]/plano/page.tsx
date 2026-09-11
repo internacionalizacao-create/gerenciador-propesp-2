@@ -15,6 +15,11 @@ import { AcoesLinhaPlano } from "@/componentes/formularios/acoes-linha-plano";
 import { NovaLinhaDePlano } from "@/componentes/formularios/nova-linha-plano";
 import { Botao } from "@/componentes/ui/botao";
 import { apiFetch } from "@/lib/api";
+import {
+  chaveDaRede,
+  identidadeDaRede,
+  type IdentidadeRede,
+} from "@/lib/redes";
 import type {
   Ciclo,
   CoordenadorTematica,
@@ -58,55 +63,6 @@ interface ContextoDaLinha {
   anos: number[];
   anoInicial: number;
   podeEditar: boolean;
-}
-
-const IDENTIDADES_REDE = [
-  {
-    borda: "border-l-network-1",
-    fundo: "bg-network-1-soft",
-    marcador: "bg-network-1 text-on-network-1",
-    texto: "text-on-network-1-soft",
-    abaAtiva: "border-network-1 bg-network-1-soft text-on-network-1-soft",
-    ponto: "bg-network-1",
-  },
-  {
-    borda: "border-l-network-2",
-    fundo: "bg-network-2-soft",
-    marcador: "bg-network-2 text-on-network-2",
-    texto: "text-on-network-2-soft",
-    abaAtiva: "border-network-2 bg-network-2-soft text-on-network-2-soft",
-    ponto: "bg-network-2",
-  },
-  {
-    borda: "border-l-network-3",
-    fundo: "bg-network-3-soft",
-    marcador: "bg-network-3 text-on-network-3",
-    texto: "text-on-network-3-soft",
-    abaAtiva: "border-network-3 bg-network-3-soft text-on-network-3-soft",
-    ponto: "bg-network-3",
-  },
-] as const;
-
-type IdentidadeRede = (typeof IDENTIDADES_REDE)[number];
-
-function identidadeDaRede(nome: string, indice: number): IdentidadeRede {
-  const posicaoConhecida = ["UNESP", "UFMG", "UNICAMP"].findIndex((sigla) =>
-    nome.toLocaleUpperCase("pt-BR").includes(sigla),
-  );
-
-  return IDENTIDADES_REDE[
-    (posicaoConhecida >= 0 ? posicaoConhecida : indice) %
-      IDENTIDADES_REDE.length
-  ];
-}
-
-function chaveDaRede(nome: string) {
-  return nome
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLocaleLowerCase("pt-BR")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
 }
 
 /**

@@ -29,6 +29,13 @@ import {
 } from './anexos.service';
 
 /**
+ * O multer le o `filename` do multipart como latin1 por padrao, mas browser e
+ * `fetch` do Node mandam os bytes em UTF-8: "Relatório.pdf" chegava gravado
+ * como "RelatÃ³rio.pdf" e voltava assim no download.
+ */
+const OPCOES_DO_UPLOAD = { defParamCharset: 'utf8' };
+
+/**
  * Documentos (CG-051).
  *
  * **Não há `@RequirePermission` aqui de propósito.** A permissão depende da
@@ -52,7 +59,7 @@ export class AnexosController {
   @Post()
   // Memória, não disco: o arquivo precisa ser inspecionado e ter o hash
   // calculado antes de existir em qualquer lugar permanente.
-  @UseInterceptors(FileInterceptor('arquivo'))
+  @UseInterceptors(FileInterceptor('arquivo', OPCOES_DO_UPLOAD))
   enviar(
     @UploadedFile() arquivo: ArquivoRecebido,
     @Body(new ZodValidationPipe(enviarAnexoSchema)) dto: EnviarAnexo,
@@ -87,7 +94,7 @@ export class AnexosController {
   }
 
   @Post(':id/substituicao')
-  @UseInterceptors(FileInterceptor('arquivo'))
+  @UseInterceptors(FileInterceptor('arquivo', OPCOES_DO_UPLOAD))
   substituir(
     @Param('id', new ZodValidationPipe(idAnexoSchema)) id: string,
     @UploadedFile() arquivo: ArquivoRecebido,

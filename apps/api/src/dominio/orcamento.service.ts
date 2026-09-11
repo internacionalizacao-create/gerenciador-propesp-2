@@ -117,6 +117,8 @@ export interface LinhaRede {
   custoBolsas: string;
   bolsas: number;
   saldoPotencial: string | null;
+  /** RN-07 na rede: mesma regra da tematica, nula enquanto a rede nao compos. */
+  utilizacao: number | null;
   tematicas: number;
   ppgs: number;
 }
@@ -271,6 +273,10 @@ export class OrcamentoService {
                          or not bool_and(o.status_composicao = 'APROVADA') then null
                   else sum(o.valor_bolsas) - coalesce(cb.custo, 0)
              end                         as "saldoPotencial",
+             case when sum(o.valor_bolsas) is null or sum(o.valor_bolsas) = 0
+                         or not bool_and(o.status_composicao = 'APROVADA') then null
+                  else (coalesce(cb.custo, 0) / sum(o.valor_bolsas))::float8
+             end                         as "utilizacao",
              count(distinct at.id)::int  as "tematicas",
              coalesce(p.total, 0)        as "ppgs"
         from orcamento_tematica o

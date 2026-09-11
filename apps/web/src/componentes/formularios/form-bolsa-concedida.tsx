@@ -73,8 +73,7 @@ const CAMPOS_DA_API = Object.fromEntries(
     "paisOrigemId",
     "instituicaoOrigemId",
     "instituicaoOrigemNome",
-    "paisDestinoId",
-    "instituicaoDestinoId",
+    "paisDestinoNome",
     "instituicaoDestinoNome",
     "dataInicio",
     "dataFim",
@@ -121,13 +120,13 @@ function FormNovaBolsa({
       modoInstituicaoOrigem: "catalogo",
       instituicaoOrigemId: "",
       instituicaoOrigemNome: "",
-      paisDestinoId: "",
-      modoInstituicaoDestino: "catalogo",
-      instituicaoDestinoId: "",
+      paisDestinoNome: "",
       instituicaoDestinoNome: "",
       dataInicio: "",
       dataFim: "",
-      status: "SELECIONADO",
+      // A concessão é registrada quando já está em curso; "Selecionado"
+      // continua disponível para o caso de exceção.
+      status: "EM_ANDAMENTO",
       processo: "",
       observacoes: "",
     },
@@ -141,7 +140,6 @@ function FormNovaBolsa({
 
   const itemPlanejadoId = useWatch({ control, name: "itemPlanejadoId" });
   const modoOrigem = useWatch({ control, name: "modoInstituicaoOrigem" });
-  const modoDestino = useWatch({ control, name: "modoInstituicaoDestino" });
   const opcao = opcoes.find((item) => item.id === itemPlanejadoId);
   // A linha de pesquisa e do PPG, e a API recusa a de outro. Filtrar aqui e o
   // que impede a tela de oferecer o que sera recusado depois.
@@ -316,9 +314,7 @@ function FormNovaBolsa({
         "modoInstituicaoOrigem",
         "instituicaoOrigemId",
         "instituicaoOrigemNome",
-        "paisDestinoId",
-        "modoInstituicaoDestino",
-        "instituicaoDestinoId",
+        "paisDestinoNome",
         "instituicaoDestinoNome",
       ],
       descricao:
@@ -362,43 +358,24 @@ function FormNovaBolsa({
             />
           )}
 
-          <CampoCombobox<DadosFormularioBolsaConcedida>
-            rotulo="País de destino"
-            nome="paisDestinoId"
-            control={control}
-            obrigatorio
-            opcoes={opcoesPais}
-            erro={errors.paisDestinoId?.message}
-            placeholder={
-              opcao?.destino === "BRASIL" ? "Brasil" : "Selecione o país"
-            }
-            placeholderBusca="Buscar país"
-          />
-          <Selecao
-            rotulo="Como informar a instituição de destino"
-            nome="modoInstituicaoDestino"
-            registro={register("modoInstituicaoDestino")}
-            opcoes={opcoesModo}
-            erro={errors.modoInstituicaoDestino?.message}
-          />
-          {modoDestino === "catalogo" ? (
-            <CampoInstituicao<DadosFormularioBolsaConcedida>
-              rotulo="Instituição de destino"
-              nome="instituicaoDestinoId"
-              control={control}
+          <Grade>
+            <Texto
+              rotulo="País de destino"
+              nome="paisDestinoNome"
               obrigatorio
-              iniciais={referencias.instituicoes}
-              erro={errors.instituicaoDestinoId?.message}
+              placeholder={opcao?.destino === "BRASIL" ? "Brasil" : "Portugal"}
+              registro={register("paisDestinoNome")}
+              erro={errors.paisDestinoNome?.message}
             />
-          ) : (
             <Texto
               rotulo="Universidade ou instituição de destino"
               nome="instituicaoDestinoNome"
               obrigatorio
+              placeholder="Universidade de Coimbra"
               registro={register("instituicaoDestinoNome")}
               erro={errors.instituicaoDestinoNome?.message}
             />
-          )}
+          </Grade>
         </>
       ),
     },

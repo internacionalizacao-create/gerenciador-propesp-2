@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import * as client from "openid-client";
 import { z } from "zod";
 
-import { calcularExpiracao } from "@/lib/auth";
+import { calcularExpiracao, calcularExpiracaoDoRefresh } from "@/lib/auth";
 import { abrirTransacao, TRANSACTION_COOKIE } from "@/lib/auth-transaction";
 import { env } from "@/lib/env";
 import { getOidcConfig, redirectUri } from "@/lib/oidc";
@@ -76,6 +76,7 @@ export async function GET(request: NextRequest) {
       refreshToken: tokens.refresh_token,
       idToken: tokens.id_token,
       expiresAt: calcularExpiracao(tokens.expiresIn()),
+      refreshExpiresAt: calcularExpiracaoDoRefresh(tokens),
       user: {
         id: claims.data.sub,
         username: claims.data.preferred_username,

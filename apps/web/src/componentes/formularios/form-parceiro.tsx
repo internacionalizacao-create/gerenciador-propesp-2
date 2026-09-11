@@ -22,6 +22,7 @@ import { ESTADO_INICIAL, type CandidatoDuplicidade } from "@/lib/acao-tipos";
 import type { Parceiro, RedeDoParceiro } from "@/lib/dominio";
 import {
   ESTAGIOS_RELACIONAMENTO,
+  formularioParceiroNovoSchema,
   formularioParceiroSchema,
   ORIGENS_RELACIONAMENTO,
   type DadosFormularioParceiro,
@@ -41,6 +42,12 @@ const CAMPOS_DA_API = {
   estadoRegiao: "estadoRegiao",
   tipoOrganizacao: "tipoOrganizacao",
   faculdadeDepartamento: "faculdadeDepartamento",
+  areasAtuacao: "areasAtuacao",
+  programaRelacionado: "programaRelacionado",
+  grupoPesquisa: "grupoPesquisa",
+  origemRelacionamento: "origemRelacionamento",
+  origemObservacao: "origemObservacao",
+  estagioRelacionamento: "estagioRelacionamento",
   site: "site",
   emailInstitucional: "emailInstitucional",
   telefone: "telefone",
@@ -98,7 +105,9 @@ function FormParceiro({
     setValue,
     formState: { errors },
   } = useForm<DadosFormularioParceiro>({
-    resolver: zodResolver(formularioParceiroSchema),
+    resolver: zodResolver(
+      parceiro ? formularioParceiroSchema : formularioParceiroNovoSchema,
+    ),
     defaultValues: {
       nome: parceiro?.nome ?? "",
       sigla: parceiro?.sigla ?? "",

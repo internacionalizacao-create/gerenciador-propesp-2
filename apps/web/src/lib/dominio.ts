@@ -101,6 +101,8 @@ export interface LinhaRede {
   custoBolsas: string;
   bolsas: number;
   saldoPotencial: string | null;
+  /** RN-07 na rede; nula enquanto a rede não compôs o exercício. */
+  utilizacao: number | null;
   tematicas: number;
   ppgs: number;
 }
@@ -109,7 +111,7 @@ export interface Indicador {
   chave: string;
   rotulo: string;
   valor: string | number | null;
-  formato: "moeda" | "inteiro" | "texto";
+  formato: "moeda" | "inteiro" | "texto" | "percentual";
   nota?: string;
 }
 
@@ -147,8 +149,17 @@ export interface Painel {
   alertas: Alerta[];
   /** Exercícios do ciclo que já têm bolsa programada. */
   anosCompostos: number[];
+  composicao: LinhaComposicao[];
   coordenacao: CoordenacaoRede[];
   comiteGestorAnual: string | null;
+}
+
+export interface LinhaComposicao {
+  redeId: string;
+  rede: string;
+  codigo: string;
+  tematica: string;
+  anos: { ano: number; status: StatusComposicaoAnual; bolsas: number }[];
 }
 
 export interface CoordenacaoRede {
@@ -291,6 +302,9 @@ export interface LinhaProducao {
   ano: number | null;
   contexto: string;
   referencia: string | null;
+  /** Só o produto de bolsa registra com quem foi feito. */
+  instituicaoColaboracao: string | null;
+  paisColaboracao: string | null;
 }
 
 export interface PanoramaMobilidade {
@@ -406,6 +420,8 @@ export interface ProdutoBolsa {
   dataEntrega: string | null;
   doi: string | null;
   link: string | null;
+  instituicaoColaboracao: string | null;
+  paisColaboracao: string | null;
   observacoes: string | null;
 }
 

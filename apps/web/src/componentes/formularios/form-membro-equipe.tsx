@@ -20,6 +20,7 @@ import {
   Texto,
 } from "@/componentes/ui/campos";
 import { useErrosDaAcao } from "@/componentes/ui/formulario";
+import { RodapeDoPainel } from "@/componentes/ui/painel-formulario";
 import { AbrirSidesheet } from "@/componentes/ui/sidesheet";
 import { useToastDaAcao } from "@/componentes/ui/toast";
 import { ESTADO_INICIAL } from "@/lib/acao-tipos";
@@ -306,31 +307,11 @@ function Rodape({
   rotulo: string;
 }) {
   return (
-    <div className="shrink-0 border-t border-border bg-surface-muted px-6 py-4">
-      {erro ? (
-        <p
-          role="alert"
-          className="mb-3 rounded-lg bg-danger-soft px-3 py-2 text-sm text-on-danger-soft"
-        >
-          {erro}
-        </p>
-      ) : null}
-      <div className="flex justify-end gap-2">
-        <button
-          type="button"
-          onClick={aoCancelar}
-          className="rounded-lg px-3 py-2 text-sm font-medium text-muted hover:text-foreground"
-        >
-          Cancelar
-        </button>
-        <button
-          type="submit"
-          disabled={enviando}
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary hover:bg-primary-hover disabled:opacity-60"
-        >
-          {enviando ? "Salvando…" : rotulo}
-        </button>
-      </div>
-    </div>
+    <RodapeDoPainel
+      aoCancelar={aoCancelar}
+      enviando={enviando}
+      rotulo={rotulo}
+      erro={erro}
+    />
   );
 }

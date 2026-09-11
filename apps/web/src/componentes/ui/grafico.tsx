@@ -15,15 +15,9 @@ import { cn } from "@/lib/utils";
  * estava ativo na montagem e congelaria nela.
  *
  * Escala das redes: `network-1..3` sao identidade de navegacao, os mesmos tons
- * que a P10 usa nas abas (AGENTS.md §8). Um grafico de rede pintado com outra
- * paleta obrigaria a reaprender a associacao a cada tela.
+ * que a P10 usa nas abas (AGENTS.md §8). A cor de cada rede sai de
+ * `identidadeDaRede` em `lib/redes.ts`, pelo nome e nunca pela posicao.
  */
-export const CORES_REDE = [
-  "var(--network-1)",
-  "var(--network-2)",
-  "var(--network-3)",
-] as const;
-
 /** Sequencia para series que nao sao rede (rubricas, situacoes). */
 export const CORES_SERIE = [
   "var(--primary)",

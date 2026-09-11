@@ -317,6 +317,43 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
       expect(valor('pendencias')).toBeUndefined();
     });
 
+    it('mede o teto comprometido só onde a composição foi aprovada', async () => {
+      const p = await painel.montar(ciclo);
+      const uso = p.indicadores.find((i) => i.chave === 'uso-teto-ano')?.valor;
+      // O teto aprovado é custo + saldo das temáticas aprovadas. Pôr o teto da
+      // UNICAMP, que ainda não compôs, no denominador faria a rede pendente
+      // parecer folga.
+      expect(uso).toBeCloseTo(1033513.4 / (1033513.4 + 147091.05), 6);
+    });
+
+    it('monta a grade de composição 12 temáticas x 4 exercícios', async () => {
+      const p = await painel.montar(ciclo);
+      const celulas = p.composicao.flatMap((linha) => linha.anos);
+      expect(p.composicao).toHaveLength(12);
+      expect(celulas).toHaveLength(48);
+      expect(celulas.filter((c) => c.status === 'APROVADA')).toHaveLength(8);
+      // A UNICAMP não compôs nem o primeiro exercício.
+      const unicamp = p.composicao.filter((linha) => linha.rede === 'UNICAMP');
+      expect(unicamp).toHaveLength(4);
+      expect(unicamp.every((l) => l.anos[0].status === 'A_DEFINIR')).toBe(true);
+      // Mesma ordem da tela: rede, depois temática.
+      expect(p.composicao[0].codigo).toBe('UFMG-T1');
+    });
+
+    it('troca de exercício sem inventar bolsa', async () => {
+      const p = await painel.montar(ciclo, 2028);
+      const valor = (chave: string) =>
+        p.indicadores.find((i) => i.chave === chave)?.valor;
+      expect(p.anoBase).toBe(2028);
+      // O aporte se repete; a composição, não.
+      expect(valor('aporte-anual')).toBe('2315444.58');
+      expect(valor('bolsas-ano')).toBe(0);
+      expect(valor('uso-teto-ano')).toBeNull();
+      expect(
+        p.indicadores.find((i) => i.chave === 'bolsas-ano')?.rotulo,
+      ).toContain('2028');
+    });
+
     it('lista os coordenadores de temática por rede, sem eleger um só', async () => {
       const p = await painel.montar(ciclo);
       expect(p.coordenacao.map((r) => r.rede)).toEqual([
@@ -391,7 +428,8 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
       // contagem continua no indicador homonimo, conferido acima.
       expect(alerta('pendencias')).toBeUndefined();
       // R$ 69.751,14/ano de manutencao e missoes sem nenhum item planejado.
-      expect(alerta('apoio-nao-programado')?.detalhe).toContain('69751.14');
+      // Formatado em pt-BR: o alerta vai à tela como frase pronta.
+      expect(alerta('apoio-nao-programado')?.detalhe).toContain('69.751,14');
       // Alerta que nao leva ao registro e decoracao.
       for (const a of p.alertas) expect(a.destino).toMatch(/^\//);
     });
@@ -704,8 +742,8 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
         paisOrigemId: brasil.id,
         modoInstituicaoOrigem: 'catalogo' as const,
         instituicaoOrigemId: uea.id,
-        paisDestinoId: portugal.id,
-        modoInstituicaoDestino: 'livre' as const,
+        // Digitado em caixa baixa: a API reconhece a grafia do catalogo.
+        paisDestinoNome: 'portugal',
         instituicaoDestinoNome: 'Universidade de Coimbra',
       };
 
@@ -762,7 +800,7 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
             cpf: '11144477735',
             nivelBeneficiario: 'DOCENTE',
             ...pontas,
-            paisDestinoId: '00000000-0000-4000-8000-000000000000',
+            paisOrigemId: '00000000-0000-4000-8000-000000000000',
             dataInicio: '2027-02-01',
             dataFim: '2027-03-01',
             status: 'SELECIONADO',
@@ -799,10 +837,14 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
           titulo: 'Artigo resultante da mobilidade',
           prazoEntrega: '2027-12-15',
           status: 'PREVISTO',
+          instituicaoColaboracao: 'Universidade de Coimbra',
+          paisColaboracao: 'Portugal',
         },
         ADMIN,
       );
       expect(produto.situacao).toBe('PREVISTO');
+      expect(produto.instituicaoColaboracao).toBe('Universidade de Coimbra');
+      expect(produto.paisColaboracao).toBe('Portugal');
 
       const entregue = await bolsistas.atualizarProduto(
         criada.id,
@@ -814,6 +856,8 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
           status: 'ENTREGUE',
           dataEntrega: '2027-12-10',
           doi: '10.0000/teste',
+          instituicaoColaboracao: 'Universidade do Porto',
+          paisColaboracao: 'Portugal',
         },
         ADMIN,
       );

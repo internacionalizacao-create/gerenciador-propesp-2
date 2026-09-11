@@ -286,6 +286,13 @@ export const produtoBolsa = pgTable(
     dataEntrega: date('data_entrega'),
     doi: varchar('doi', { length: 240 }),
     link: varchar('link', { length: 500 }),
+    /**
+     * Com quem a producao foi feita. Texto, e nao FK, como o destino da bolsa:
+     * o coautor costuma estar numa instituicao que nunca passou pelo cadastro
+     * central. Nulo so para os produtos anteriores ao campo; a API o exige.
+     */
+    instituicaoColaboracao: varchar('instituicao_colaboracao', { length: 240 }),
+    paisColaboracao: varchar('pais_colaboracao', { length: 120 }),
     observacoes: text('observacoes'),
     ...timestamps,
   },

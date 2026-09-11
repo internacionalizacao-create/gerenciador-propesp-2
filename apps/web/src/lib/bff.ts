@@ -63,6 +63,17 @@ export async function buscarNoBff<T>(
     }
   }
 
+  /**
+   * 401 aqui significa uma coisa só: a sessão do BFF acabou enquanto a página
+   * estava aberta. Mostrar "não foi possível atualizar a lista" deixaria a
+   * pessoa tentando de novo contra uma sessão que não volta — o caminho é o
+   * login, com volta para onde ela estava.
+   */
+  if (resposta.status === 401 && typeof window !== "undefined") {
+    const returnTo = `${window.location.pathname}${window.location.search}`;
+    window.location.assign(`/login?returnTo=${encodeURIComponent(returnTo)}`);
+  }
+
   if (!resposta.ok) {
     throw new BffError(
       resposta.status,

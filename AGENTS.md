@@ -4,7 +4,7 @@ Documento de referência para quem (pessoa ou LLM) vai mexer neste repositório 
 tê-lo escrito. Descreve o que existe hoje, por que está assim, e o que ainda não
 existe. **Mantenha-o atualizado quando mudar arquitetura ou convenção.**
 
-Última revisão: 2026-09-09.
+Última revisão: 2026-09-11.
 
 ---
 
@@ -480,8 +480,11 @@ semânticos: `bg-surface`, `text-muted`, `border-border-strong`, `bg-danger-soft
   cada gráfico em `componentes/graficos/`. **Passe a cor como `var(--token)`
   direto no SVG**, nunca resolvida em JavaScript: assim a troca de tema repinta
   sozinha, enquanto um `getComputedStyle` na montagem congelaria a cor do tema
-  que estava ativo. Rede usa `CORES_REDE` (`network-1..3`, os mesmos tons das
-  abas da P10); o resto usa `CORES_SERIE`.
+  que estava ativo. **A cor de uma rede sai do nome, nunca da posição**:
+  `identidadeDaRede` em [lib/redes.ts](apps/web/src/lib/redes.ts) dá à rede a
+  mesma cor na P10, na P09 e na P01, junto com `chaveDaRede` (o `?rede=`). Até
+  2026-09-10 o gráfico da P09 coloria pelo índice e, em ordem alfabética, dava
+  à UFMG a cor que a P10 dá à UNESP. O resto usa `CORES_SERIE`.
 - **Valor nulo não vira barra zerada.** `null` chega ao Recharts como `null` e
   desenha um vazio — é a mesma regra do componente `Moeda` (§9.2 da
   especificação), e num gráfico ela importa mais, porque barra rente ao eixo é
@@ -535,12 +538,21 @@ ficam como estão. O `<dialog>` nativo continua sendo a decisão — foco preso,
   tabela piscar em branco a cada tecla, e a URL continua refletindo o filtro por
   `window.history.replaceState` — sem isso, quem manda o link de uma busca
   mandaria a lista inteira. Retry não insiste em 4xx: 401/403 não melhoram.
+- **`initialData` só vale na criação da consulta.** Depois de uma Server Action
+  o servidor manda a lista nova e o cache continuaria mostrando a velha — o
+  parceiro gravava e não aparecia. A lista de parceiros regrava o cache e
+  invalida `["parceiros"]` quando `dadosIniciais` muda.
+- **Server Action revalida a rota real, não um apelido.** A tela de parceiros
+  mora em `programas/[programa]/[ciclo]`; `revalidatePath("/parceiros")` não
+  revalidava nada. Quando a ação não conhece os segmentos, use o padrão com
+  o tipo: `revalidatePath("/programas/[programa]/[ciclo]/parceiros", "page")`.
 
 ### Peças de interface que valem conhecer antes de criar outras
 
 | Peça | Onde | Para quê |
 |---|---|---|
 | `Sidesheet` / `AbrirSidesheet` | [ui/sidesheet.tsx](apps/web/src/componentes/ui/sidesheet.tsx) | Todo cadastro entra por painel lateral. É `<dialog>` nativo — foco preso, `Esc`, fundo inerte e `::backdrop` vêm do navegador. O conteúdo permanece montado durante a animação de saída. |
+| `RodapeDoPainel` / `CLASSE_CORPO_PAINEL` | [ui/painel-formulario.tsx](apps/web/src/componentes/ui/painel-formulario.tsx) | Corpo rolável (`px-6 py-5`, sem `space-y`: os campos já trazem `mb-4`) e rodapé com `Botao` de todo formulário em sidesheet. Existe porque onze formulários do Comitê e do bolsista escreviam isso à mão e colavam os campos na borda. |
 | `Multistep` | [ui/multistep.tsx](apps/web/src/componentes/ui/multistep.tsx) | Formulário longo em etapas. **Todos os passos ficam montados** e o inativo usa o atributo `hidden`: só assim o `FormData` do submit traz o formulário inteiro, e campos `required` de passo oculto não travam o envio. |
 | `Selecoes` | [ui/campos.tsx](apps/web/src/componentes/ui/campos.tsx) | Grupo de caixas de seleção que devolve uma lista (as redes de uma missão, por exemplo). É `fieldset`/`legend`, e todas as caixas compartilham o `name`: o React Hook Form junta as marcadas em array e o `FormData` as devolve em `getAll`. |
 | `Texto` / `Selecao` / `Data` / `AreaTexto` | [ui/campos.tsx](apps/web/src/componentes/ui/campos.tsx) | Campos visuais aceitam `registro={register("campo")}` do React Hook Form e mantêm os tokens e mensagens acessíveis do sistema. |
@@ -548,6 +560,8 @@ ficam como estão. O `<dialog>` nativo continua sendo a decisão — foco preso,
 | `RolagemHorizontal` | [ui/rolagem.tsx](apps/web/src/componentes/ui/rolagem.tsx) | Envolve conteúdo que rola na horizontal — a `Tabela` já usa. Dá `tabIndex` ao contêiner **só quando ele transborda de verdade**, medido no cliente: fixo criaria parada de tabulação morta em cada tabela numa tela larga, e ausente deixa as colunas escondidas inalcançáveis pelo teclado. |
 | `Combobox` / `CampoCombobox` | [ui/combobox.tsx](apps/web/src/componentes/ui/combobox.tsx) | Seleção única **com busca**, para lista longa (as 200+ instituições da CG-045). Lista curta continua no `Selecao` nativo, que já vem acessível e não carrega JavaScript. O valor sai num `<input type="hidden">`, então o `FormData` do `Multistep` continua trazendo o campo; no React Hook Form vai por `Controller`, não por `register`. |
 | `Grafico` / `DicaMoeda` | [ui/grafico.tsx](apps/web/src/componentes/ui/grafico.tsx) | Moldura responsiva do Recharts com `<figure>`/`<figcaption>`: o SVG é uma árvore de `<path>` sem texto útil, e sem a legenda amarrada o gráfico some para quem usa leitor de tela. |
+| `CartaoKpi` / `BarraDeProporcao` | [painel/kpis.tsx](apps/web/src/componentes/painel/kpis.tsx) | Indicador com barra e linha de contexto — número sozinho diz pouco. A barra é `aria-hidden` porque o valor já está escrito, e com `semaforo` segue a faixa da RN-07. |
+| `identidadeDaRede` / `chaveDaRede` | [lib/redes.ts](apps/web/src/lib/redes.ts) | Cor e `?rede=` de cada rede, pelo nome. Toda tela que pinta ou linka rede passa por aqui. |
 | `Botao` | [ui/botao.tsx](apps/web/src/componentes/ui/botao.tsx) | Variantes com CVA (`primario`, `contorno`, `suave`, `fantasma`, `perigo`). `comoFilho` renderiza num `<Link>` em vez de `<button>`. |
 | `Moeda` | [ui/basicos.tsx](apps/web/src/componentes/ui/basicos.tsx) | Nulo vira *A definir* em itálico, **nunca** R$ 0,00 (§9.2 da especificação). |
 | `somarMoeda` | [lib/formato.ts](apps/web/src/lib/formato.ts) | Soma em centavos com `BigInt`. Dinheiro nunca passa por `number` antes de uma conta. Cada parcela é truncada para centavos **antes** da soma, e a ordem importa: mil parcelas de 8,615 dão 8.610,00 aqui e 8.615,00 numa soma em `number` — está fixado em `test/dinheiro.test.mjs`. Se **tudo** for nulo o resultado é nulo, nunca zero. |
@@ -654,20 +668,35 @@ o ícone estiver visível.
   vinda de fora do planejamento. **Concessão com destino digitado à mão entra no
   total e fica fora das quebras por país e instituição**, com o aviso na tela —
   sem ele, quem somasse as linhas acharia que a tela erra (CG-067).
-  - **A P01 diz o ano em cada rótulo e mostra a cobertura do ciclo**
-    (2026-09-10). Só 2027 vem composto, então "bolsas no ano" e "bolsas no
-    ciclo" davam o mesmo 22 enquanto o dinheiro multiplicava por 4 — e quem
-    lia supunha que um dos rótulos era "por semestre". Os cartões viraram duas
-    faixas (o exercício-base e o ciclo), o rótulo diz `em 2027` em vez de
-    `/ano`, e `Painel.anosCompostos` alimenta o cartão *Exercícios compostos*
-    (`1 de 4`) e a nota de *Bolsas no ciclo*. Na tabela por modalidade, as
-    colunas do ciclo **só aparecem quando há mais de um exercício composto** —
-    antes disso repetem as do ano. *Projeção do ciclo* virou *Orçamento
-    projetado do ciclo*, com a conta escrita na nota.
-  - **Coordenação das temáticas na P01** (`Painel.coordenacao`): um cartão por
-    rede, temática a temática. **Não existe coordenador de rede** — a
-    coordenação é por participação PPG–temática, e UNICAMP-T1 tem dois. Eleger
-    um nome por rede esconderia os outros.
+  - **A P01 é um painel, não um relatório** (2026-09-10). Cinco blocos, do
+    geral ao detalhe, cada um respondendo uma pergunta e levando à tela onde
+    ela se resolve: (1) quatro KPIs com contexto — aporte, teto de bolsas
+    comprometido, bolsas do exercício e composições aprovadas no ciclo; (2) um
+    cartão por rede, com a coordenação recolhida em `<details>`; (3) o **mapa
+    de composição**, temáticas × exercícios, ao lado de *Precisa de ação*; (4)
+    bolsas por modalidade em gráfico, com a tabela em "Ver dados"; (5) a
+    mobilidade realizada, que sem concessões vira uma faixa discreta em vez de
+    gráficos zerados. O exercício é escolhido em `?ano=` (ano fora do ciclo cai
+    no primeiro, como no resto do ciclo).
+    - **O mapa de composição é a peça central.** Só 2027 vem composto, e isso
+      fazia "bolsas no ano" e "bolsas no ciclo" mostrarem o mesmo 22 enquanto o
+      dinheiro multiplicava por 4 — quem lia supunha "por semestre". A grade
+      mostra 8 de 48 composições aprovadas e a UNICAMP sem nenhuma. É uma
+      `<table>` com cabeçalho de linha e coluna, e cada estado tem símbolo e
+      texto além da cor. Vem de `Painel.composicao`, derivado de
+      `porTematica` — nenhum número novo.
+    - **Teto comprometido só sobre composição aprovada** (`uso-teto-ano`, e
+      `LinhaRede.utilizacao` por rede), o mesmo recorte do saldo potencial. Pôr
+      o teto da UNICAMP no denominador faria a rede pendente parecer folga, e
+      os 88% de 2027 virariam 46%. A cor segue o semáforo da RN-07.
+    - **Rede sem composição mostra *A definir*, não R$ 0,00** — a API devolve
+      custo e bolsas zerados porque não há linha, e zero leria "decidiram
+      zero bolsas".
+    - **Não existe coordenador de rede**: a coordenação é por participação
+      PPG–temática, e UNICAMP-T1 tem dois. `Painel.coordenacao` lista temática
+      a temática; eleger um nome por rede esconderia os outros.
+    - `Painel.indicadores` continua no contrato: é a superfície do teste de
+      aceite da migração. A tela escolhe os indicadores pela `chave`.
   - **A P01 mostra os mesmos números** numa seção própria (BOL-041), buscando o
     panorama filtrado por `cicloId` — não recalcula. **Ao lado** dos indicadores
     financeiros, nunca no lugar: são perguntas diferentes, e fundi-las faria
@@ -702,7 +731,9 @@ o ícone estiver visível.
   produto não se relacionam, e o que existe é a pergunta comum. A coluna
   *Origem* marca cada linha para a soma não apagar a diferença que a CG-056
   preservou. Exige `bolsa:read` **e** `produto:read`; produto de missão só entra
-  para quem tem `missao:read`.
+  para quem tem `missao:read`. Desde 2026-09-11 o produto de bolsa exige
+  **instituição e país de colaboração** (texto, migration `0039`; nulos só nos
+  anteriores ao campo), e a tela os mostra em colunas próprias.
 - **Ficha do parceiro (BOL-034)**: `GET /parceiros/:id/ficha`, PDF único pelo
   `gerarPdf` da CG-069. **PDF apenas**, porque a ficha é documento e não tabela.
   A autorização é a da própria consulta — chama `historico`, o mesmo método da
@@ -782,6 +813,14 @@ o ícone estiver visível.
     digitada; gravar as duas as faria discordar na primeira conciliação
     (CG-025). A leitura usa `coalesce(join, texto)`, com o join primeiro, para
     que renomear ou conciliar um parceiro se propague à bolsa já registrada.
+  - **O destino voltou a ser digitado em 2026-09-11**, por pedido da equipe:
+    país e instituição de destino são dois campos de texto, sem catálogo. A
+    origem continua como acima. `resolverPontas` reconhece a grafia do
+    catálogo (sem caixa, acento nem pontuação; país também pelo código ISO de
+    2 ou 3 letras) e, quando coincide, grava a FK e não o texto — é o que
+    mantém o país no mapa e a bolsa no histórico do parceiro. O panorama
+    agrupa destino por `coalesce(FK, texto normalizado)`, então o digitado
+    entra nas quebras e o aviso "fica fora das quebras" deixou de existir.
   - O formulário é o seletor com busca: país filtra **no cliente** (lista ISO
     fechada, já carregada pelo Server Component) e instituição filtra **no
     servidor** (`GET /bolsistas/instituicoes?busca=`, com TanStack Query), porque
@@ -1260,12 +1299,12 @@ interface é **Coordenador de Temática**, não “membro do comitê”. Ediçã
 existente exige `plano:edit` (só `admin`), preserva código/rubrica e grava uma
 entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: somente
 2027 vem composto; 2028–2030 começam vazios e nunca copiam a quantidade automaticamente.
-- **Testes**: 185 unitários/regressões (69 API + 127 na web para toast, datas,
+- **Testes**: 199 unitários/regressões (69 API + 130 na web para toast, datas,
   React Hook Form/Zod, erros do multistep, formulários de parceiro,
   acessibilidade, contraste dos tokens, cálculos monetários, montagem de série
-  do gráfico, links do painel, pontas da mobilidade e caminhos do BFF)
-  + 503 de integração contra Postgres
-  real — os oito últimos são a escrita do catálogo
+  do gráfico, links do painel, pontas da mobilidade, cor das redes e caminhos
+  do BFF) + 522 de integração contra Postgres
+  real — entre eles os oito da escrita do catálogo
   ([catalogo.int-spec.ts](apps/api/test/catalogo.int-spec.ts)), incluindo a
   recusa de alterar item que já custeia linha de plano. As duas garantias de não duplicação da linha
   histórica do parceiro foram verificadas por mutação: trocar o `exists` +
@@ -1321,6 +1360,12 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
   detalhe, opções de planejamento, concessão, edição e produtos. Plano,
   orçamento e parceiros continuam sem recorte — é trabalho mecânico, uma
   consulta por vez, e cada uma precisa de regressão própria.
+- **Home por perfil.** A P01 é a mesma para todos os perfis, e **continua assim
+  até existir o recorte de plano e orçamento** (decisão de 2026-09-10). Uma
+  home do coordenador montada antes disso ou mostraria o programa inteiro sob
+  o rótulo "seu PPG", ou recortaria só na tela — e recorte fora da consulta é
+  justamente o que o §6 proíbe. Quando o recorte chegar, a home por perfil é a
+  terceira fase da proposta de dashboard.
 - Cobertura ampla de componentes na `web`. O `node --test` carrega TypeScript em
   modo strip-only: não lê `.tsx` e recusa *parameter property*
   (`constructor(readonly x: number)`). Por isso a lógica testável mora em `.ts`
@@ -1362,6 +1407,15 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
   contrato das Server Actions importa de `acao-tipos.ts`. Importar `acao.ts` do
   cliente quebra o build de propósito — foi o que impediu `apiFetch` de vazar
   para o bundle do browser na primeira versão dos formulários.
+- **Sessão expirada leva ao login, e isso depende de três peças** (2026-09-11).
+  Layout e página renderizam **em paralelo**: o `requireSession()` do layout
+  redirecionava, mas a página já tinha chamado a API e estourado antes — e, sem
+  nenhum `error.tsx` no projeto, o erro virava a tela de erro do Next. Agora
+  `apiFetch` manda para `/login` quando não há sessão ou quando a API responde
+  401; o `proxy.ts` corta antes de renderizar quando `refreshExpiresAt` já
+  passou (e apaga o cookie morto); e `app/(app)/error.tsx` é a rede embaixo dos
+  dois. **Todo `catch` em volta de `apiFetch` precisa de `unstable_rethrow`** —
+  `redirect()` sinaliza por exceção, e engoli-la traz o erro de volta.
 - **`proxy.ts` enumera rotas públicas, não protegidas.** Com o sistema inteiro
   atrás de login, listar o que é protegido significaria lembrar de cada tela
   nova, e esquecer falharia em silêncio.

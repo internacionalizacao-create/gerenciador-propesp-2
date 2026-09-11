@@ -32,7 +32,7 @@ export function menu(
     {
       titulo: "Visão geral",
       itens: [
-        { rotulo: "Painel executivo", href: "/", disponivel: true },
+        { rotulo: "Resumo do orçamento anual", href: "/", disponivel: true },
         {
           rotulo: "Mobilidade",
           href: "/mobilidade",

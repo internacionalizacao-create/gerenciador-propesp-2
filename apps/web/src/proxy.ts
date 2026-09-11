@@ -1,6 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { abrirSessao, lerCookieSessao } from "@/lib/session";
+import { CABECALHO_ROTA } from "@/lib/cabecalhos";
+import { refreshVencido } from "@/lib/sessao-expiracao";
+import {
+  abrirSessao,
+  lerCookieSessao,
+  limparCookieSessao,
+} from "@/lib/session";
 
 /**
  * Checagem otimista de sessao (o antigo `middleware.ts`, renomeado no Next 16).
@@ -31,12 +37,29 @@ export async function proxy(request: NextRequest) {
   const selada = lerCookieSessao(request.cookies);
   const session = selada ? await abrirSessao(selada) : undefined;
 
-  if (session) return NextResponse.next();
+  /**
+   * Cookie selado valido **nao** significa sessao viva: o envelope dura 8h e os
+   * tokens de dentro morrem muito antes. Quando o proprio Keycloak disse ate
+   * quando o refresh valeria, da para saber aqui — sem rede — que renovar nao
+   * tem como dar certo, e mandar para o login antes de renderizar.
+   */
+  if (session && !refreshVencido(session)) {
+    // A rota pedida segue no cabecalho para o `apiFetch` montar o `returnTo` se
+    // a sessao morrer no meio do render.
+    const cabecalhos = new Headers(request.headers);
+    cabecalhos.set(CABECALHO_ROTA, `${pathname}${search}`);
+    return NextResponse.next({ request: { headers: cabecalhos } });
+  }
 
   const login = new URL("/login", request.nextUrl.origin);
   // Depois de autenticar, o usuario volta para onde estava tentando ir.
   login.searchParams.set("returnTo", `${pathname}${search}`);
-  return NextResponse.redirect(login);
+
+  const resposta = NextResponse.redirect(login);
+  // Cookie morto apagado aqui, onde a escrita e permitida: deixa-lo passaria
+  // pelo mesmo caminho em toda navegacao seguinte.
+  if (selada) limparCookieSessao(resposta.cookies);
+  return resposta;
 }
 
 export const config = {

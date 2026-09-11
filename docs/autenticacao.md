@@ -104,6 +104,31 @@ consegue persistir.
 Ciclo de vida: access token 5 min · sessão SSO ociosa 30 min · máximo 10 h ·
 cookie 8 h (deliberadamente menor que o máximo do SSO).
 
+**Expiração.** O cookie durar 8 h não quer dizer que a sessão viva 8 h: os
+tokens de dentro morrem antes, e o envelope selado continua íntegro. Três peças
+garantem que isso termine no login, e não num erro de renderização:
+
+1. O Keycloak informa `refresh_expires_in` (o ocioso do SSO), guardado como
+   `refreshExpiresAt`. Passado esse instante, renovar não tem como dar certo —
+   o `proxy.ts` corta antes de renderizar, **sem chamada de rede**, e apaga o
+   cookie morto, que de outro modo repetiria o caminho a cada navegação.
+2. `apiFetch` manda para o login quando não há sessão ou quando a API responde
+   **401** (token dentro da validade, mas já invalidado — logout no console,
+   revogação, realm recriado). Antes ele lançava um erro que ninguém tratava.
+3. `app/(app)/error.tsx` é a rede embaixo das duas, para o que sobrar.
+
+O ponto que tornava isso um erro de tela: **layout e página renderizam em
+paralelo**. O `requireSession()` do layout redirecionava, mas a página já tinha
+chamado a API e estourado antes — e o projeto não tinha nenhum `error.tsx`.
+Hoje os dois terminam em `irParaLogin()`
+([sessao-encerrada.ts](../apps/web/src/lib/sessao-encerrada.ts)), que preserva o
+`returnTo` a partir do cabeçalho que o proxy injeta. **Todo `catch` em volta de
+`apiFetch` precisa de `unstable_rethrow`**: `redirect()` sinaliza por exceção, e
+engoli-la traz o erro de volta.
+
+No browser, `lib/bff.ts` faz o equivalente: 401 vindo de `/api/bff/*` leva para
+o login em vez de virar "não foi possível atualizar a lista".
+
 ---
 
 ## 5. Do papel à permissão
@@ -163,6 +188,8 @@ concreta de que o token não vaza para o cliente.
   podem renovar em paralelo. Hoje é inofensivo porque o realm não rotaciona
   refresh token; se `revokeRefreshToken` for ligado, uma das duas perde a sessão.
 - **Sem back-channel logout.** Logout feito direto no console do Keycloak não
-  apaga o cookie aqui; a sessão só cai na próxima tentativa de renovação.
+  apaga o cookie aqui; a sessão só cai na próxima tentativa de renovação — ou
+  no primeiro 401 da API, que desde 2026-09-11 leva ao login em vez de virar
+  erro de tela (§4).
 - **Nada disso está pronto para produção**: HTTPS, segredos fora do repositório,
   Keycloak em modo `start`, e revisão das durações de sessão continuam pendentes.

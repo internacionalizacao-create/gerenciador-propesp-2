@@ -258,10 +258,8 @@ export default async function ComiteGestorPagina({
           <NovaMissaoComite
             programa={programa}
             ciclo={ciclo}
-            pessoas={pessoas}
             membros={membros}
             referencias={referenciasMissao}
-            dataInicioPadrao={inicioPadrao}
           />
         ) : aba === "equipes" ? (
           <NovoMembroEquipe {...contextoFormulario} />

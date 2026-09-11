@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { unstable_rethrow } from "next/navigation";
 
 import { apiFetch } from "@/lib/api";
 import { traduzirErro, texto, type EstadoDaAcao } from "@/lib/acao";
@@ -49,7 +50,6 @@ export async function anexarEvidencias(
     legenda: texto(formulario, "legenda"),
     dataEvidencia: texto(formulario, "dataEvidencia"),
     localEvidencia: texto(formulario, "localEvidencia"),
-    autoria: texto(formulario, "autoria"),
   };
 
   const falhas: string[] = [];
@@ -66,6 +66,7 @@ export async function anexarEvidencias(
       await apiFetch("/anexos", { method: "POST", body: corpo });
       enviados += 1;
     } catch (erro) {
+      unstable_rethrow(erro);
       const traduzido = traduzirErro(erro);
       falhas.push(`${arquivo.name}: ${traduzido.mensagem ?? "falhou"}`);
     }

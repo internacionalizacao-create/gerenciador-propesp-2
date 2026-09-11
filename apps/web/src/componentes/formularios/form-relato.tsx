@@ -13,6 +13,10 @@ import {
 import { CampoCombobox } from "@/componentes/ui/campo-combobox";
 import { AreaTexto, Data, Grade, Selecao, Texto } from "@/componentes/ui/campos";
 import { useErrosDaAcao } from "@/componentes/ui/formulario";
+import {
+  CLASSE_CORPO_PAINEL,
+  RodapeDoPainel,
+} from "@/componentes/ui/painel-formulario";
 import { AbrirSidesheet } from "@/componentes/ui/sidesheet";
 import { useToastDaAcao } from "@/componentes/ui/toast";
 import { ESTADO_INICIAL, type EstadoDaAcao } from "@/lib/acao-tipos";
@@ -142,8 +146,8 @@ function FormRelato({
   });
 
   return (
-    <form onSubmit={aoEnviar} className="flex h-full flex-col">
-      <div className="flex-1 space-y-6 overflow-y-auto px-1 pb-4">
+    <form onSubmit={aoEnviar} className="flex min-h-0 flex-1 flex-col">
+      <div className={`${CLASSE_CORPO_PAINEL} space-y-5`}>
         <AreaTexto
           rotulo="Relato geral"
           nome="relatoGeral"
@@ -374,8 +378,8 @@ function FormAtividadeExtra({
   });
 
   return (
-    <form onSubmit={aoEnviar} className="flex h-full flex-col">
-      <div className="flex-1 space-y-5 overflow-y-auto px-1 pb-4">
+    <form onSubmit={aoEnviar} className="flex min-h-0 flex-1 flex-col">
+      <div className={CLASSE_CORPO_PAINEL}>
         <Grade>
           <Selecao
             rotulo="Tipo"
@@ -534,22 +538,12 @@ function Rodape({
   rotulo: string;
 }) {
   return (
-    <div className="flex justify-end gap-2 border-t border-border pt-4">
-      <button
-        type="button"
-        onClick={aoConcluir}
-        className="rounded-lg px-4 py-2 text-sm font-medium text-muted hover:bg-surface-muted"
-      >
-        Cancelar
-      </button>
-      <button
-        type="submit"
-        disabled={enviando}
-        className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary hover:bg-primary-hover disabled:opacity-60"
-      >
-        {enviando ? "Salvando…" : rotulo}
-      </button>
-    </div>
+    <RodapeDoPainel
+        aoCancelar={aoConcluir}
+        enviando={enviando}
+        rotulo={rotulo}
+        rotuloEnviando="Salvando…"
+      />
   );
 }
 
@@ -607,9 +601,9 @@ function FormSemProduto({
         const dados = new FormData(evento.currentTarget);
         startTransition(() => executar(dados));
       }}
-      className="flex h-full flex-col"
+      className="flex min-h-0 flex-1 flex-col"
     >
-      <div className="flex-1 space-y-5 overflow-y-auto px-1 pb-4">
+      <div className={CLASSE_CORPO_PAINEL}>
         <AreaTexto
           rotulo="Justificativa"
           nome="justificativa"

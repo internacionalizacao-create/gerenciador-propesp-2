@@ -79,10 +79,21 @@ export const formularioBolsaConcedidaSchema = z
     modoInstituicaoOrigem: z.enum(["catalogo", "livre"]),
     instituicaoOrigemId: z.string(),
     instituicaoOrigemNome: opcional(240),
-    paisDestinoId: z.string().min(1, "Selecione o país de destino."),
-    modoInstituicaoDestino: z.enum(["catalogo", "livre"]),
-    instituicaoDestinoId: z.string(),
-    instituicaoDestinoNome: opcional(240),
+    /**
+     * O destino é digitado, sem catálogo: a equipe informa o país e a
+     * instituição como aparecem no termo. A API reconhece a grafia do catálogo
+     * quando ela coincide, e é isso que mantém o país no mapa.
+     */
+    paisDestinoNome: z
+      .string()
+      .trim()
+      .min(2, "Informe o país de destino.")
+      .max(120, "No máximo 120 caracteres."),
+    instituicaoDestinoNome: z
+      .string()
+      .trim()
+      .min(2, "Informe a universidade ou instituição de destino.")
+      .max(240, "No máximo 240 caracteres."),
     dataInicio: dataBr,
     dataFim: dataBr,
     status: z.enum(["SELECIONADO", "EM_ANDAMENTO"]),
@@ -90,28 +101,22 @@ export const formularioBolsaConcedidaSchema = z
     observacoes: opcional(4000),
   })
   .superRefine((valor, contexto) => {
-    for (const ponta of ["Origem", "Destino"] as const) {
-      const lado = ponta === "Origem" ? "de origem" : "de destino";
-      if (
-        valor[`modoInstituicao${ponta}`] === "catalogo" &&
-        !valor[`instituicao${ponta}Id`]
-      ) {
-        contexto.addIssue({
-          code: "custom",
-          path: [`instituicao${ponta}Id`],
-          message: `Selecione a instituição ${lado} no catálogo.`,
-        });
-      }
-      if (
-        valor[`modoInstituicao${ponta}`] === "livre" &&
-        valor[`instituicao${ponta}Nome`].length < 2
-      ) {
-        contexto.addIssue({
-          code: "custom",
-          path: [`instituicao${ponta}Nome`],
-          message: `Informe o nome da instituição ${lado}.`,
-        });
-      }
+    if (valor.modoInstituicaoOrigem === "catalogo" && !valor.instituicaoOrigemId) {
+      contexto.addIssue({
+        code: "custom",
+        path: ["instituicaoOrigemId"],
+        message: "Selecione a instituição de origem no catálogo.",
+      });
+    }
+    if (
+      valor.modoInstituicaoOrigem === "livre" &&
+      valor.instituicaoOrigemNome.length < 2
+    ) {
+      contexto.addIssue({
+        code: "custom",
+        path: ["instituicaoOrigemNome"],
+        message: "Informe o nome da instituição de origem.",
+      });
     }
 
     const inicio = dataBrParaIso(valor.dataInicio);
@@ -132,21 +137,21 @@ export type DadosFormularioBolsaConcedida = z.infer<
 /**
  * Objeto enviado à API.
  *
- * Manda **uma** das duas colunas por ponta, espelhando o que o serviço grava:
+ * Na origem manda **uma** das duas colunas, espelhando o que o serviço grava:
  * a FK quando veio do catálogo, o nome quando foi digitado. Mandar as duas
  * faria a API ter de escolher, e a escolha silenciosa é o que produz o vínculo
- * errado meses depois.
+ * errado meses depois. O destino é sempre texto.
  */
 export function payloadBolsaConcedida(dados: DadosFormularioBolsaConcedida) {
-  const ponta = (lado: "Origem" | "Destino") =>
-    dados[`modoInstituicao${lado}`] === "catalogo"
+  const origem =
+    dados.modoInstituicaoOrigem === "catalogo"
       ? {
-          [`modoInstituicao${lado}`]: "catalogo",
-          [`instituicao${lado}Id`]: dados[`instituicao${lado}Id`],
+          modoInstituicaoOrigem: "catalogo" as const,
+          instituicaoOrigemId: dados.instituicaoOrigemId,
         }
       : {
-          [`modoInstituicao${lado}`]: "livre",
-          [`instituicao${lado}Nome`]: dados[`instituicao${lado}Nome`],
+          modoInstituicaoOrigem: "livre" as const,
+          instituicaoOrigemNome: dados.instituicaoOrigemNome,
         };
 
   return {
@@ -161,9 +166,9 @@ export function payloadBolsaConcedida(dados: DadosFormularioBolsaConcedida) {
     linhaPesquisaId: dados.linhaPesquisaId || null,
     orientadorNome: dados.orientadorNome || null,
     paisOrigemId: dados.paisOrigemId,
-    paisDestinoId: dados.paisDestinoId,
-    ...ponta("Origem"),
-    ...ponta("Destino"),
+    ...origem,
+    paisDestinoNome: dados.paisDestinoNome,
+    instituicaoDestinoNome: dados.instituicaoDestinoNome,
     dataInicio: dataBrParaIso(dados.dataInicio),
     dataFim: dataBrParaIso(dados.dataFim),
     status: dados.status,

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { unstable_rethrow } from "next/navigation";
 
 import { traduzirErro, type EstadoDaAcao } from "@/lib/acao";
 import { apiFetch } from "@/lib/api";
@@ -38,6 +39,7 @@ export async function anexarDocumentoDoBolsista(
   try {
     await apiFetch("/anexos", { method: "POST", body: corpo });
   } catch (erro) {
+    unstable_rethrow(erro);
     return traduzirErro(erro);
   }
 

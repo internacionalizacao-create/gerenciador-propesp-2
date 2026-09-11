@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, ChevronsUpDown } from "lucide-react";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 
 import {
   Comando,
@@ -66,6 +66,12 @@ export function Combobox({
   aoBuscar?: (termo: string) => void;
 }) {
   const [aberto, definirAberto] = useState(false);
+  // O `<dialog>` que contem o gatilho, se houver. E resolvido na abertura, e
+  // nao na montagem, porque e so ai que o gatilho ja esta no DOM.
+  const [recipiente, definirRecipiente] = useState<HTMLDialogElement | null>(
+    null,
+  );
+  const gatilho = useRef<HTMLButtonElement>(null);
   const idPainel = useId();
   const selecionada = opcoes.find((opcao) => opcao.valor === valor);
 
@@ -75,9 +81,16 @@ export function Combobox({
           valor precisa ser enviado mesmo quando a escolha esta travada. */}
       <input type="hidden" name={nome} value={valor ?? ""} />
 
-      <Popover open={aberto} onOpenChange={definirAberto}>
+      <Popover
+        open={aberto}
+        onOpenChange={(abrir) => {
+          if (abrir) definirRecipiente(gatilho.current?.closest("dialog") ?? null);
+          definirAberto(abrir);
+        }}
+      >
         <PopoverTrigger asChild>
           <button
+            ref={gatilho}
             type="button"
             id={id}
             // O `role="combobox"` NAO fica aqui, apesar de o shadcn/ui colocar.
@@ -110,6 +123,9 @@ export function Combobox({
 
         <PopoverContent
           id={idPainel}
+          // Dentro do sidesheet o painel precisa nascer no proprio `<dialog>`;
+          // fora dele, `null` devolve ao `document.body` (ver `PopoverContent`).
+          container={recipiente}
           className="w-[var(--radix-popover-trigger-width)] p-0"
         >
           <Comando shouldFilter={filtrarNoCliente}>

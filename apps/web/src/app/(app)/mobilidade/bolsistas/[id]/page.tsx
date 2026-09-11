@@ -240,6 +240,7 @@ export default async function DetalheDoBolsista({
           <Tabela
             colunas={[
               { chave: "produto", texto: "Produto" },
+              { chave: "colaboracao", texto: "Colaboração" },
               { chave: "tipo", texto: "Tipo" },
               { chave: "prazo", texto: "Prazo" },
               { chave: "situacao", texto: "Situação" },
@@ -256,6 +257,14 @@ export default async function DetalheDoBolsista({
                   {produto.descricao ? (
                     <span className="mt-1 block text-xs text-muted">
                       {produto.descricao}
+                    </span>
+                  ) : null}
+                </Celula>
+                <Celula>
+                  {produto.instituicaoColaboracao ?? "—"}
+                  {produto.paisColaboracao ? (
+                    <span className="block text-xs text-subtle">
+                      {produto.paisColaboracao}
                     </span>
                   ) : null}
                 </Celula>

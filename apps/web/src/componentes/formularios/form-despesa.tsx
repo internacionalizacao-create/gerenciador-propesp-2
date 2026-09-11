@@ -11,6 +11,10 @@ import {
 } from "@/acoes/prestacao";
 import { AreaTexto, Data, Selecao, Texto } from "@/componentes/ui/campos";
 import { submeterSemLimpar } from "@/componentes/ui/formulario";
+import {
+  CLASSE_CORPO_PAINEL,
+  RodapeDoPainel,
+} from "@/componentes/ui/painel-formulario";
 import { AbrirSidesheet } from "@/componentes/ui/sidesheet";
 import { useToastDaAcao } from "@/componentes/ui/toast";
 import { ESTADO_INICIAL, type EstadoDaAcao } from "@/lib/acao-tipos";
@@ -149,9 +153,9 @@ function FormDespesa({
   return (
     <form
       onSubmit={(evento) => submeterSemLimpar(evento, executar)}
-      className="flex h-full flex-col"
+      className="flex min-h-0 flex-1 flex-col"
     >
-      <div className="flex-1 space-y-5 overflow-y-auto px-1 pb-4">
+      <div className={CLASSE_CORPO_PAINEL}>
         <Selecao
           rotulo="Tipo de despesa"
           nome="tipo"
@@ -335,22 +339,12 @@ function FormDespesa({
         <NotaDeErro estado={estado} />
       </div>
 
-      <div className="flex justify-end gap-2 border-t border-border pt-4">
-        <button
-          type="button"
-          onClick={aoConcluir}
-          className="rounded-lg px-4 py-2 text-sm font-medium text-muted hover:bg-surface-muted"
-        >
-          Cancelar
-        </button>
-        <button
-          type="submit"
-          disabled={enviando}
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary hover:bg-primary-hover disabled:opacity-60"
-        >
-          {enviando ? "Salvando…" : despesa ? "Salvar despesa" : "Lançar"}
-        </button>
-      </div>
+      <RodapeDoPainel
+        aoCancelar={aoConcluir}
+        enviando={enviando}
+        rotulo={despesa ? "Salvar despesa" : "Lançar"}
+        rotuloEnviando="Salvando…"
+      />
     </form>
   );
 }
@@ -451,13 +445,13 @@ function FormAnexo({
   return (
     <form
       onSubmit={(evento) => submeterSemLimpar(evento, executar)}
-      className="flex h-full flex-col"
+      className="flex min-h-0 flex-1 flex-col"
     >
       <input type="hidden" name="entidadeTipo" value={entidadeTipo} />
       <input type="hidden" name="entidadeId" value={entidadeId} />
 
-      <div className="flex-1 space-y-5 overflow-y-auto px-1 pb-4">
-        <div>
+      <div className={CLASSE_CORPO_PAINEL}>
+        <div className="mb-4">
           <label
             htmlFor="arquivo"
             className="block text-sm font-medium text-foreground"
@@ -492,22 +486,12 @@ function FormAnexo({
         <NotaDeErro estado={estado} />
       </div>
 
-      <div className="flex justify-end gap-2 border-t border-border pt-4">
-        <button
-          type="button"
-          onClick={aoConcluir}
-          className="rounded-lg px-4 py-2 text-sm font-medium text-muted hover:bg-surface-muted"
-        >
-          Cancelar
-        </button>
-        <button
-          type="submit"
-          disabled={enviando}
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary hover:bg-primary-hover disabled:opacity-60"
-        >
-          {enviando ? "Enviando…" : "Anexar"}
-        </button>
-      </div>
+      <RodapeDoPainel
+        aoCancelar={aoConcluir}
+        enviando={enviando}
+        rotulo="Anexar"
+        rotuloEnviando="Enviando…"
+      />
     </form>
   );
 }

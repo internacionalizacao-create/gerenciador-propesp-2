@@ -20,10 +20,19 @@ export function PopoverContent({
   className,
   align = "start",
   sideOffset = 6,
+  container,
   ...props
-}: React.ComponentProps<typeof PopoverPrimitive.Content>) {
+}: React.ComponentProps<typeof PopoverPrimitive.Content> & {
+  /**
+   * Onde o painel e montado. Sem ele vai para `document.body` — o que quebra
+   * dentro do sidesheet: `showModal()` torna inerte tudo fora do `<dialog>`, e
+   * a top layer fica acima de qualquer z-index. O painel abria atras do
+   * dialogo, invisivel e sem receber clique.
+   */
+  container?: Element | null;
+}) {
   return (
-    <PopoverPrimitive.Portal>
+    <PopoverPrimitive.Portal container={container}>
       <PopoverPrimitive.Content
         align={align}
         sideOffset={sideOffset}

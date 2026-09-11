@@ -137,27 +137,17 @@ export default async function PanoramaDeMobilidade({
 
       <div className="mb-8">
         <Cartoes>
-          <Cartao
-            titulo="Mobilidades"
-            valor={inteiro(totais.mobilidades)}
-            nota="Concessões registradas no recorte atual"
-          />
+          <Cartao titulo="Mobilidades" valor={inteiro(totais.mobilidades)} />
           <Cartao
             titulo="IN × OUT"
             valor={`${inteiro(totais.entrada)} / ${inteiro(totais.saida)}`}
-            nota="Quem a UEA recebeu e quem ela enviou"
           />
           <Cartao titulo="Países" valor={inteiro(totais.paises)} />
           <Cartao titulo="PPGs envolvidos" valor={inteiro(totais.ppgs)} />
-          <Cartao
-            titulo="Instituições"
-            valor={inteiro(totais.instituicoes)}
-            nota="Somente as ligadas ao cadastro central"
-          />
+          <Cartao titulo="Instituições" valor={inteiro(totais.instituicoes)} />
           <Cartao
             titulo="Custo das bolsas concedidas"
             valor={<Moeda valor={totais.valor} />}
-            nota="Compromisso assumido; a CAPES paga direto ao beneficiário"
           />
         </Cartoes>
       </div>
@@ -286,7 +276,6 @@ export default async function PanoramaDeMobilidade({
       </Secao>
       <Secao
         titulo="Por país de destino"
-        descricao="Somente as concessões ligadas ao catálogo ISO. Destino digitado à mão fica fora."
         acoes={
           <Link
             href={`/mobilidade/mapa${consulta.size ? `?${consulta}` : ""}`}
@@ -299,7 +288,7 @@ export default async function PanoramaDeMobilidade({
         {panorama.porPais.length === 0 ? (
           <EstadoVazio
             titulo="Sem países neste recorte"
-            descricao="Nenhuma concessão do recorte atual está ligada ao catálogo de países."
+            descricao="Nenhuma concessão do recorte atual tem país de destino informado."
           />
         ) : (
           <Tabela
@@ -334,7 +323,6 @@ export default async function PanoramaDeMobilidade({
       </Secao>
       <Quebra
         titulo="Por instituição de destino"
-        descricao="Somente as ligadas ao cadastro institucional."
         linhas={panorama.porInstituicao}
       />
       <Quebra

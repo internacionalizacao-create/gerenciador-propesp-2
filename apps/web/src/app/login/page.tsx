@@ -24,22 +24,16 @@ const MENSAGENS_DE_ERRO: Record<string, string> = {
 function MarcaPropesp() {
   return (
     <div className="flex items-center gap-3">
-      <span className="grid size-11 place-items-center rounded-xl bg-primary text-on-primary shadow-sm">
-        <svg
-          aria-hidden="true"
-          viewBox="0 0 24 24"
-          className="size-6"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M4 18c4.8 0 8-3.2 8-8" />
-          <path d="M8 21c0-7.2 3.6-12 11-14" />
-          <path d="M13 7c1-2.7 3.7-4 7-4 0 3.6-1.5 6.4-5 7.5" />
-        </svg>
-      </span>
+      {/* A marca no login e um recurso estatico: a tag direta evita que a
+          otimizacao de imagem interfira antes da sessao existir. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/marca-propesp.svg"
+        alt=""
+        width={44}
+        height={44}
+        className="size-11 shrink-0 rounded-xl shadow-sm"
+      />
       <span>
         <span className="block text-sm font-semibold tracking-wide text-foreground">
           PROPESP

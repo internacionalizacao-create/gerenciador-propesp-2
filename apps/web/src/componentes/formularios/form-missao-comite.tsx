@@ -44,16 +44,15 @@ import {
   formularioMissaoComiteSchema,
   novaAtividade,
   novoParticipante,
+  pessoasDoComiteGestor,
   type DadosFormularioMissaoComite,
 } from "@/lib/formularios/missao-comite";
 
 interface ContextoMissao {
   programa: string;
   ciclo: string;
-  pessoas: PessoaDisponivel[];
   membros: MembroEquipeGestao[];
   referencias: ReferenciasMissao;
-  dataInicioPadrao: string;
 }
 
 const TIPOS_ATIVIDADE = [
@@ -80,15 +79,13 @@ export function NovaMissaoComite(props: ContextoMissao) {
 function FormMissaoComite({
   programa,
   ciclo,
-  pessoas,
   membros,
   referencias,
-  dataInicioPadrao,
   aoConcluir,
 }: ContextoMissao & { aoConcluir: () => void }) {
   const acao = criarMissaoComite.bind(null, { programa, ciclo });
+  const pessoasDoComite = useMemo(() => pessoasDoComiteGestor(membros), [membros]);
   const [estado, executar, enviando] = useActionState(acao, ESTADO_INICIAL);
-  const inicioVisual = isoParaVisual(dataInicioPadrao);
   const {
     register,
     handleSubmit,
@@ -103,12 +100,14 @@ function FormMissaoComite({
     defaultValues: {
       titulo: "",
       objetivo: "",
-      dataInicio: inicioVisual,
-      dataFim: inicioVisual,
+      // Nada de data presumida: o primeiro dia do ciclo parecia informado e
+      // passava sem revisão para a missão gravada.
+      dataInicio: "",
+      dataFim: "",
       status: "RASCUNHO",
       observacoes: "",
       redes: [],
-      atividades: [novaAtividade(inicioVisual, inicioVisual)],
+      atividades: [novaAtividade()],
       participantes: [novoParticipante(true)],
     },
   });
@@ -205,7 +204,6 @@ function FormMissaoComite({
               rotulo="Início da viagem"
               nome="dataInicio"
               obrigatorio
-              padrao={inicioVisual}
               registro={register("dataInicio")}
               erro={mensagem(errors.dataInicio)}
             />
@@ -213,7 +211,6 @@ function FormMissaoComite({
               rotulo="Fim da viagem"
               nome="dataFim"
               obrigatorio
-              padrao={inicioVisual}
               registro={register("dataFim")}
               erro={mensagem(errors.dataFim)}
             />
@@ -321,7 +318,7 @@ function FormMissaoComite({
                 register={register}
                 setValue={setValue}
                 errors={errors}
-                pessoas={pessoas}
+                pessoas={pessoasDoComite}
                 membros={membros}
                 aoRemover={() => equipe.remove(indice)}
               />
@@ -345,7 +342,7 @@ function FormMissaoComite({
       conteudo: (
         <Revisao
           dados={dadosAtuais}
-          pessoas={pessoas}
+          pessoas={pessoasDoComite}
           referencias={referencias}
         />
       ),
@@ -585,7 +582,7 @@ function Participante({
   register: UseFormRegister<DadosFormularioMissaoComite>;
   setValue: UseFormSetValue<DadosFormularioMissaoComite>;
   errors: FieldErrors<DadosFormularioMissaoComite>;
-  pessoas: PessoaDisponivel[];
+  pessoas: Pick<PessoaDisponivel, "id" | "nome" | "email">[];
   membros: MembroEquipeGestao[];
   aoRemover: () => void;
 }) {
@@ -749,7 +746,7 @@ function Revisao({
       DadosFormularioMissaoComite["participantes"][number]
     >[];
   };
-  pessoas: PessoaDisponivel[];
+  pessoas: Pick<PessoaDisponivel, "id" | "nome" | "email">[];
   referencias: ReferenciasMissao;
 }) {
   const atividades = dados.atividades ?? [];
@@ -921,10 +918,6 @@ function valor(formulario: HTMLFormElement, campo: string): string {
   return "";
 }
 
-function isoParaVisual(iso: string): string {
-  const partes = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-  return partes ? `${partes[3]}/${partes[2]}/${partes[1]}` : iso;
-}
 
 function rotuloPapel(papel: string | undefined): string {
   if (papel === "RESPONSAVEL") return "Responsável";
