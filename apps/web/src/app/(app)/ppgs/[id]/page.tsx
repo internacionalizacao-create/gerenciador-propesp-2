@@ -31,13 +31,11 @@ export default async function DetalheDoPpg({
   return (
     <Pagina
       titulo={ppg.sigla}
+      voltar={{ href: "/ppgs", rotulo: "Voltar aos PPGs" }}
       descricao={
         <>
           {ppg.nome}
-          {ppg.unidade ? ` · ${ppg.unidade}` : ""} ·{" "}
-          <Link href="/ppgs" className="text-primary hover:underline">
-            voltar à lista
-          </Link>
+          {ppg.unidade ? ` · ${ppg.unidade}` : ""}
         </>
       }
       acoes={podeEditar ? <CadastroPpg ppg={ppg} /> : undefined}

@@ -20,6 +20,14 @@ import { ESTADO_INICIAL } from "@/lib/acao-tipos";
 import type { PpgDetalhe } from "@/lib/dominio";
 import { formularioPpgSchema, type DadosFormularioPpg } from "@/lib/formularios/ppg";
 
+// Referencia estavel: recriar o mapa reaplicaria erros da API a cada render.
+const CAMPOS_DA_API = {
+  nome: "nome", sigla: "sigla", unidade: "unidade", nivel: "nivel",
+  modalidade: "modalidade", notaCapes: "notaCapes", areaCapes: "areaCapes",
+  situacao: "situacao", emRede: "emRede", redeAcademica: "redeAcademica",
+  observacoes: "observacoes", linhasPesquisa: "linhasPesquisa",
+} as const;
+
 /**
  * Cadastro de PPG em três etapas (P14).
  *
@@ -45,7 +53,14 @@ export function FormPpg({
     defaultValues: { nome: ppg?.nome ?? "", sigla: ppg?.sigla ?? "", unidade: ppg?.unidade ?? "", nivel: (ppg?.nivel as DadosFormularioPpg["nivel"]) ?? "", modalidade: (ppg?.modalidade as DadosFormularioPpg["modalidade"]) ?? "", notaCapes: ppg?.notaCapes ? String(ppg.notaCapes) : "", areaCapes: ppg?.areaCapes ?? "", situacao: (ppg?.situacao as DadosFormularioPpg["situacao"]) ?? "ATIVO", emRede: ppg?.emRede ?? false, redeAcademica: ppg?.redeAcademica ?? "", observacoes: ppg?.observacoes ?? "", linhasPesquisa: ppg?.linhasPesquisa.map((linha) => linha.nome) ?? [] },
   });
   const linhasPesquisa = useWatch({ control, name: "linhasPesquisa" }) ?? [];
-  useErrosDaAcao(estado, setError, { nome: "nome", sigla: "sigla", notaCapes: "notaCapes", situacao: "situacao" });
+  useErrosDaAcao(estado, setError, CAMPOS_DA_API);
+  // setError pode manter a referencia de errors; releia tambem erros da API.
+  const errosVisiveis = Object.entries(errors).flatMap(([campo, erro]) => {
+    if (Array.isArray(erro)) {
+      return erro.flatMap((item) => item?.message ? [{ campo, mensagem: String(item.message) }] : []);
+    }
+    return erro?.message ? [{ campo, mensagem: String(erro.message) }] : [];
+  });
 
   // Fechar so depois de gravar; fechar no clique esconderia o erro do servidor.
   useToastDaAcao(estado, aoConcluir);
@@ -55,6 +70,7 @@ export function FormPpg({
   const passos: Passo[] = [
     {
       id: "identificacao",
+      campos: ["nome", "sigla", "unidade", "nivel", "modalidade"],
       titulo: "Identificação",
       descricao:
         "Como o programa é chamado e onde ele fica. A sigla é usada em todas as tabelas do sistema.",
@@ -87,6 +103,7 @@ export function FormPpg({
             <Texto
               rotulo="Unidade / campus"
               nome="unidade"
+              erro={erroDe("unidade")}
             registro={register("unidade")}
               placeholder="Escola Superior de Ciências da Saúde"
             />
@@ -95,6 +112,7 @@ export function FormPpg({
             <Selecao
               rotulo="Nível"
               nome="nivel"
+              erro={erroDe("nivel")}
               vazio="Não informado"
               registro={register("nivel")}
               opcoes={[
@@ -110,6 +128,7 @@ export function FormPpg({
             <Selecao
               rotulo="Modalidade"
               nome="modalidade"
+              erro={erroDe("modalidade")}
               vazio="Não informada"
               registro={register("modalidade")}
               opcoes={[
@@ -123,6 +142,7 @@ export function FormPpg({
     },
     {
       id: "avaliacao",
+      campos: ["notaCapes", "situacao", "areaCapes", "emRede", "redeAcademica"],
       titulo: "Avaliação e vínculos",
       descricao:
         "Dados da avaliação CAPES e participação em rede nacional. O conceito vai de 1 a 7.",
@@ -151,6 +171,7 @@ export function FormPpg({
             <Selecao
               rotulo="Situação"
               nome="situacao"
+              erro={erroDe("situacao")}
               registro={register("situacao")}
               opcoes={[
                 { valor: "ATIVO", texto: "Ativo" },
@@ -162,6 +183,7 @@ export function FormPpg({
           <Texto
             rotulo="Área CAPES"
             nome="areaCapes"
+            erro={erroDe("areaCapes")}
             registro={register("areaCapes")}
             placeholder="Ciências Ambientais"
           />
@@ -174,6 +196,7 @@ export function FormPpg({
           <Texto
             rotulo="Rede acadêmica"
             nome="redeAcademica"
+            erro={erroDe("redeAcademica")}
             registro={register("redeAcademica")}
             placeholder="BIONORTE"
             dica="Preencha se o programa marcar a opção acima."
@@ -183,6 +206,7 @@ export function FormPpg({
     },
     {
       id: "linhas",
+      campos: ["linhasPesquisa", "observacoes"],
       titulo: "Linhas de pesquisa",
       descricao:
         "Adicione uma por vez. Elas aparecem no detalhe do PPG e servirão para vincular produtos da cooperação na fase 2.",
@@ -195,10 +219,12 @@ export function FormPpg({
             aoMudar={(itens) => setValue("linhasPesquisa", itens, { shouldValidate: true })}
             placeholder="Ecologia de ecossistemas amazônicos"
             dica="Enter também adiciona."
+            erro={errosVisiveis.find((erro) => erro.campo === "linhasPesquisa")?.mensagem}
           />
           <AreaTexto
             rotulo="Observações"
             nome="observacoes"
+            erro={erroDe("observacoes")}
             registro={register("observacoes")}
             placeholder="Qualquer informação que ajude quem for consultar este cadastro depois."
           />
@@ -209,12 +235,14 @@ export function FormPpg({
 
   return (
     <form
+      noValidate
       onSubmit={handleSubmit((dados) => startTransition(() => executar(dados)))}
       className="flex min-h-0 flex-1 flex-col"
     >
       <Multistep
         passos={passos}
         enviando={enviando}
+        erros={errosVisiveis}
         erro={estado.ok ? null : (estado.mensagem ?? null)}
         rotuloConcluir={ppg ? "Salvar alterações" : "Cadastrar PPG"}
         aoCancelar={aoConcluir}

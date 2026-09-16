@@ -6,6 +6,7 @@ import {
   Tabela,
 } from "@/componentes/ui/basicos";
 import type { Modalidade } from "@/lib/dominio";
+import { Ajuda } from "@/componentes/ui/ajuda";
 import { inteiro, rotulo } from "@/lib/formato";
 
 /** Leitura responsiva das modalidades; a consulta continua no Server Component. */
@@ -41,7 +42,7 @@ export function ListaModalidades({
           colunas={[
             { chave: "nome", texto: "Modalidade" },
             { chave: "publico", texto: "Público-alvo" },
-            { chave: "destinos", texto: "Destinos com valor publicado" },
+            { chave: "destinos", texto: <Ajuda rotulo="Destinos com valor publicado">Brasil e exterior aparecem automaticamente quando um item com destino, vigência e valor é publicado no Catálogo de bolsas para esta modalidade.</Ajuda> },
             { chave: "itens", texto: "Itens no catálogo", alinhamento: "direita" },
             { chave: "ativa", texto: "Situação" },
             ...(podeEditar

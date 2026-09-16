@@ -1,4 +1,9 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { asc, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
@@ -259,7 +264,8 @@ export class PpgsService {
         redeAcademica: dados.redeAcademica ?? null,
         observacoes: dados.observacoes ?? null,
       })
-      .returning({ id: s.ppg.id });
+      .returning({ id: s.ppg.id })
+      .catch(traduzirErroDePpg);
 
     await this.gravarLinhas(criado.id, linhasPesquisa);
     return this.carregarDetalhe(criado.id);
@@ -272,7 +278,8 @@ export class PpgsService {
       await this.db
         .update(s.ppg)
         .set({ ...dados, atualizadoEm: new Date() })
-        .where(eq(s.ppg.id, id));
+        .where(eq(s.ppg.id, id))
+        .catch(traduzirErroDePpg);
     }
 
     if (linhasPesquisa) {
@@ -293,6 +300,25 @@ export class PpgsService {
       .insert(s.linhaPesquisa)
       .values(unicos.map((nome) => ({ ppgId, nome })));
   }
+}
+
+/** A restricao do banco tambem cobre cadastros concorrentes com a mesma sigla. */
+function traduzirErroDePpg(erro: unknown): never {
+  const causa = (erro as { cause?: unknown })?.cause ?? erro;
+  const violacao = causa as { code?: string; constraint?: string } | null;
+  if (violacao?.code === '23505' && violacao.constraint === 'ppg_sigla_uk') {
+    throw new ConflictException({
+      message: 'Já existe um PPG cadastrado com esta sigla.',
+      erros: [
+        {
+          campo: 'sigla',
+          mensagem:
+            'Esta sigla já está cadastrada. Informe outra sigla ou edite o PPG existente.',
+        },
+      ],
+    });
+  }
+  throw erro;
 }
 
 function temRedeRepetida(

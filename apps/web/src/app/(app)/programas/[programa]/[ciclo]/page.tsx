@@ -105,34 +105,6 @@ export default async function VisaoDoCiclo({
           />
         </div>
       </Secao>
-
-      <Secao
-        titulo="Legenda herdada da planilha"
-        descricao="As cores que a equipe usava viraram comportamento do sistema."
-      >
-        <dl className="grid gap-3 sm:grid-cols-2">
-          <Legenda
-            cor="bg-warning"
-            planilha="Amarelo — preencher ou validar"
-            sistema="Campo editável com aviso de validação pendente."
-          />
-          <Legenda
-            cor="bg-info"
-            planilha="Azul — entrada editável"
-            sistema="Campo editável comum."
-          />
-          <Legenda
-            cor="bg-success"
-            planilha="Verde — vínculo entre abas"
-            sistema="Valor calculado, somente leitura, com link para a origem."
-          />
-          <Legenda
-            cor="bg-danger"
-            planilha="Vermelho — divergência"
-            sistema="Alerta em destaque e pendência associada."
-          />
-        </dl>
-      </Secao>
     </Pagina>
   );
 }
@@ -159,25 +131,5 @@ function Atalho({
         <p className="mt-2 text-xs font-medium text-warning">{aviso}</p>
       ) : null}
     </Link>
-  );
-}
-
-function Legenda({
-  cor,
-  planilha,
-  sistema,
-}: {
-  cor: string;
-  planilha: string;
-  sistema: string;
-}) {
-  return (
-    <div className="flex gap-3 rounded-xl border border-border bg-surface p-4">
-      <span className={`mt-1 h-4 w-4 shrink-0 rounded ${cor}`} aria-hidden />
-      <div>
-        <dt className="text-sm font-medium text-foreground">{planilha}</dt>
-        <dd className="mt-0.5 text-sm text-muted">{sistema}</dd>
-      </div>
-    </div>
   );
 }

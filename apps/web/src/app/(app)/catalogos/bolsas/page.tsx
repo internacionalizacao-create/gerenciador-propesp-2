@@ -51,24 +51,15 @@ export default async function CatalogoDeBolsas({
       }
     >
       <Cartoes>
-        <Cartao titulo="Versão vigente" valor={tabela.versao} />
-        <Cartao titulo="Data-base" valor={data(tabela.dataBase)} />
-        <Cartao
-          titulo="Cotação do dólar"
-          valor={`R$ ${Number(tabela.cotacaoDolar).toLocaleString("pt-BR", {
-            minimumFractionDigits: 2,
-          })}`}
-          nota="Parâmetro do ciclo"
-        />
-        <Cartao titulo="Itens" valor={inteiro(tabela.itens.length)} />
+        <Cartao titulo="Itens publicados" valor={inteiro(tabela.itens.length)} />
+        <Cartao titulo="Modalidades com valor" valor={inteiro(new Set(tabela.itens.map((item) => item.modalidadeId)).size)} />
+        <Cartao titulo="Itens para o Brasil" valor={inteiro(tabela.itens.filter((item) => item.destino === "BRASIL").length)} />
+        <Cartao titulo="Itens para o exterior" valor={inteiro(tabela.itens.filter((item) => item.destino === "EXTERIOR").length)} />
       </Cartoes>
 
-      {tabela.referenciaNormativa ? (
-        <p className="mb-8 text-sm text-muted">
-          <strong className="text-foreground">Referência normativa:</strong>{" "}
-          {tabela.referenciaNormativa}
-        </p>
-      ) : null}
+      <p className="mb-8 mt-4 text-xs leading-5 text-subtle">
+        Versão {tabela.versao} · Data-base: {data(tabela.dataBase)} · Cotação de referência do ciclo: {Number(tabela.cotacaoDolar).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}/US$
+      </p>
 
       <ListaItensCatalogo
         key={`${programa}:${q}:${destinoInicial}`}

@@ -11,6 +11,8 @@ import {
   Utilizacao,
 } from "@/componentes/ui/basicos";
 import { apiFetch } from "@/lib/api";
+import { Ajuda } from "@/componentes/ui/ajuda";
+import { AJUDA_ORCAMENTO } from "@/lib/ajuda-orcamento";
 import type {
   CoordenadorTematica,
   LinhaRede,
@@ -103,25 +105,25 @@ export default async function RedesETematicas({
               { chave: "ppgs", texto: "PPGs no tema", alinhamento: "direita" },
               {
                 chave: "bolsas",
-                texto: "Orçamento bolsas",
+                texto: <Ajuda rotulo="Orçamento bolsas">{AJUDA_ORCAMENTO.bolsas}</Ajuda>,
                 alinhamento: "direita",
               },
               {
                 chave: "apoio",
-                texto: "Manut. + missões",
+                texto: <Ajuda rotulo="Manut. + missões">{AJUDA_ORCAMENTO.apoio}</Ajuda>,
                 alinhamento: "direita",
               },
               {
                 chave: "total",
-                texto: "Total recurso",
+                texto: <Ajuda rotulo="Total recurso">{AJUDA_ORCAMENTO.total}</Ajuda>,
                 alinhamento: "direita",
               },
               {
                 chave: "custo",
-                texto: "Custo calculado",
+                texto: <Ajuda rotulo="Custo calculado">{AJUDA_ORCAMENTO.custo}</Ajuda>,
                 alinhamento: "direita",
               },
-              { chave: "saldo", texto: "Saldo", alinhamento: "direita" },
+              { chave: "saldo", texto: <Ajuda rotulo="Saldo">{AJUDA_ORCAMENTO.saldo}</Ajuda>, alinhamento: "direita" },
               { chave: "util", texto: "Utilização", alinhamento: "direita" },
             ]}
           >

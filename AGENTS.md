@@ -4,7 +4,7 @@ Documento de referência para quem (pessoa ou LLM) vai mexer neste repositório 
 tê-lo escrito. Descreve o que existe hoje, por que está assim, e o que ainda não
 existe. **Mantenha-o atualizado quando mudar arquitetura ou convenção.**
 
-Última revisão: 2026-09-11.
+Última revisão: 2026-09-14.
 
 ---
 
@@ -171,9 +171,16 @@ packages/
 scripts/
   smoke-login.sh           percorre o login inteiro sem browser
   smoke-telas.sh           abre cada tela logado e confere os números
+  db-comum.sh              base dos scripts de banco (container, credenciais, avisos)
+  db-backup.sh             dump + anexos + inventário; --congelar define o baseline
+  db-restaurar.sh          devolve o banco a um backup, conferindo a contagem
+  db-zerar.sh              esvazia o operacional, preserva a base e os logins
+  db-inventario.sql        contagem exata de linhas por tabela
+  api.sh                   chama a API autenticado, pelo BFF (atos ainda sem tela)
 docs/
   autenticacao.md          detalhamento da arquitetura de auth
   migracao-ui.md           inventário e padrões da migração da UI local
+  guia-cadastro-do-zero.md roteiro do fluxo completo com o banco zerado
 ```
 
 ---
@@ -254,6 +261,43 @@ pnpm db:migrate         # aplica no banco de DATABASE_URL
 pnpm db:seed --reset    # APAGA o dominio e recarrega os dados das planilhas
 pnpm db:studio          # inspetor visual do Drizzle
 ```
+
+### Congelar, restaurar e zerar o banco
+
+```bash
+pnpm db:congelar                 # dump + anexos + inventario em backups/, como baseline
+pnpm db:backup -m "rotulo"       # snapshot datado, sem mexer no baseline
+pnpm db:restaurar                # volta ao baseline (ou a um .dump informado)
+pnpm db:zerar                    # esvazia o operacional; preserva base e logins
+pnpm db:zerar --com-catalogo     # zera tambem modalidades e itens de catalogo
+pnpm api GET me                  # chama a API autenticado, pelo BFF
+```
+
+**`pnpm db:zerar` não é `pnpm db:seed --reset`.** O reset apaga tudo, inclusive o
+que nenhum endpoint da API sabe criar — programa, ciclo, rede, temática,
+participação PPG–temática, teto anual, aporte do Comitê, catálogo ISO. Um banco
+sem isso não é um banco em branco: é um banco sem a rota
+`/programas/capes-global/2027-2030` e sem nenhuma tela que a recrie. O `db:zerar`
+esvazia só o que a interface alimenta (34 das 54 tabelas), e **falha se aparecer
+tabela nova não classificada** — sem essa checagem, a tabela da próxima migration
+sobreviveria à zeragem em silêncio.
+
+Os vínculos de `usuario_sistema` e os escopos ficam, o `admin` incluído: o login
+continua funcionando porque o Keycloak é outro banco, e preservar o vínculo evita
+que `/me` recrie a pessoa com identidade nova e escopo vazio.
+
+**O backup inclui `apps/api/arquivos/`.** Anexo vive fora do banco; restaurar só
+o dump devolveria linhas de `anexo` cujo download responde 404.
+
+**Os três comandos encerram as conexões ao banco, e isso derruba a API** — sem
+encerrá-las, `truncate` e `drop schema` ficam presos no lock do pool. O processo
+do Nest termina e o `--watch` não o reinicia, porque nenhum arquivo mudou:
+reinicie o `pnpm dev`. Os scripts avisam quando detectam a API no ar.
+
+O roteiro de cadastro sobre a base zerada está em
+[docs/guia-cadastro-do-zero.md](docs/guia-cadastro-do-zero.md), com os atos que
+ainda não têm tela (confirmar missão, produto de missão, convênio, pendência) e
+a chamada de `pnpm api` de cada um.
 
 O banco de testes (`gerenciador_test`) precisa existir uma vez:
 
@@ -566,6 +610,25 @@ ficam como estão. O `<dialog>` nativo continua sendo a decisão — foco preso,
 | `Moeda` | [ui/basicos.tsx](apps/web/src/componentes/ui/basicos.tsx) | Nulo vira *A definir* em itálico, **nunca** R$ 0,00 (§9.2 da especificação). |
 | `somarMoeda` | [lib/formato.ts](apps/web/src/lib/formato.ts) | Soma em centavos com `BigInt`. Dinheiro nunca passa por `number` antes de uma conta. Cada parcela é truncada para centavos **antes** da soma, e a ordem importa: mil parcelas de 8,615 dão 8.610,00 aqui e 8.615,00 numa soma em `number` — está fixado em `test/dinheiro.test.mjs`. Se **tudo** for nulo o resultado é nulo, nunca zero. |
 | `ToastProvider` / `useToastDaAcao` | [ui/toast.tsx](apps/web/src/componentes/ui/toast.tsx) | Confirma ações depois que o sidesheet fecha. Erros de validação continuam junto ao formulário. |
+
+**Ajustes de usabilidade de 2026-09-14:** as notificações globais aparecem no
+canto superior direito. `Pagina.voltar` oferece um botão com seta acima do
+título, usado nos detalhes de PPG e temática. `Ajuda` em
+[ui/ajuda.tsx](apps/web/src/componentes/ui/ajuda.tsx) explica títulos por mouse,
+foco ou toque, com fechamento por `Esc` e posicionamento fora da rolagem da
+tabela. Os textos financeiros ficam em `lib/ajuda-orcamento.ts` e acompanham
+as fórmulas da API: **saldo de bolsas não inclui manutenção e missões**.
+No catálogo, os cartões mostram itens publicados, modalidades com valor e
+itens por destino; versão, data-base e câmbio ficam em uma linha de contexto.
+Fonte continua no cadastro, mas saiu da tabela principal.
+
+**Validação do PPG:** o formulário usa `noValidate` para que um campo inválido
+em etapa oculta não bloqueie o envio antes do React Hook Form. Todos os campos
+estão mapeados por etapa e os erros fazem a navegação voltar ao campo a corrigir.
+Os limites do schema do cliente acompanham `ppgSchema` na API; conceito CAPES
+é inteiro. Mantenha estável o mapa passado a `useErrosDaAcao`: recriá-lo a cada
+render reaplica os erros do servidor continuamente. Sigla duplicada retorna
+409 com erro associado ao campo, tanto no cadastro quanto na edição.
 
 Cadastro novo: crie o formulário em `componentes/formularios/`, a Server Action
 em `acoes/`, o schema Zod em `lib/formularios/` e chame por `AbrirSidesheet` na

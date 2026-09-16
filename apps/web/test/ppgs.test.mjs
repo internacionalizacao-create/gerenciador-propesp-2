@@ -9,6 +9,32 @@ import {
 
 const raiz = (caminho) => new URL(`../${caminho}`, import.meta.url);
 
+const ppgMinimo = {
+  nome: "Programa de Teste", sigla: "PPGT", unidade: "", nivel: "", modalidade: "",
+  notaCapes: "", areaCapes: "", situacao: "ATIVO", emRede: false,
+  redeAcademica: "", observacoes: "", linhasPesquisa: [],
+};
+
+test("o cadastro minimo aceita opcionais vazios e envia nulo para a API", () => {
+  const payload = payloadPpg(formularioPpgSchema.parse(ppgMinimo));
+  assert.equal(payload.notaCapes, null);
+  assert.equal(payload.nivel, null);
+  assert.equal(payload.modalidade, null);
+  assert.deepEqual(payload.linhasPesquisa, []);
+});
+
+test("o formulario respeita os limites da API e recusa conceito fracionario", () => {
+  for (const [campo, limite] of Object.entries({ nome: 300, sigla: 40, unidade: 200, areaCapes: 200, redeAcademica: 120, observacoes: 2000 })) {
+    assert.equal(formularioPpgSchema.safeParse({ ...ppgMinimo, [campo]: "a".repeat(limite) }).success, true, campo);
+    const resultado = formularioPpgSchema.safeParse({ ...ppgMinimo, [campo]: "a".repeat(limite + 1) });
+    assert.equal(resultado.success, false, campo);
+    assert.equal(resultado.error.issues[0].path[0], campo);
+  }
+  assert.equal(formularioPpgSchema.safeParse({ ...ppgMinimo, notaCapes: "5.5" }).success, false);
+  assert.equal(formularioPpgSchema.safeParse({ ...ppgMinimo, linhasPesquisa: ["a"] }).success, false);
+  assert.equal(formularioPpgSchema.safeParse({ ...ppgMinimo, linhasPesquisa: ["a".repeat(301)] }).success, false);
+});
+
 test("o schema de PPG recusa identificacao e conceito invalidos", () => {
   const resultado = formularioPpgSchema.safeParse({
     nome: "AB", sigla: "X", unidade: "", nivel: "", modalidade: "",

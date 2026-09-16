@@ -92,7 +92,7 @@ export function ListaItensCatalogo({
             type="search"
             value={busca}
             onChange={(evento) => alterarBusca(evento.currentTarget.value)}
-            placeholder="Código, modalidade, fonte…"
+            placeholder="Código, modalidade, observação…"
             className="w-full rounded-xl border border-border-strong bg-surface px-3 py-2.5 text-sm text-foreground shadow-sm placeholder:text-subtle hover:border-primary focus:border-primary"
           />
         </div>
@@ -213,7 +213,6 @@ function SecaoDeItens({
                   valor={item.valorUsd ? `US$ ${Number(item.valorUsd).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"}
                 />
               ) : null}
-              <Dado rotulo="Fonte" valor={item.fonte ?? "—"} />
             </dl>
             {item.observacao ? <p className="mt-3 text-xs text-muted">{item.observacao}</p> : null}
             {podeEditar ? (
@@ -239,7 +238,6 @@ function colunasDeItens(mostrarDolar: boolean, podeEditar: boolean) {
     { chave: "vigencia", texto: "Vigência" },
     ...(mostrarDolar ? [{ chave: "usd", texto: "Valor US$", alinhamento: "direita" as const }] : []),
     { chave: "brl", texto: "Valor R$", alinhamento: "direita" as const },
-    { chave: "fonte", texto: "Fonte" },
     { chave: "obs", texto: "Observação" },
     ...(podeEditar ? [
       { chave: "usos", texto: "Em uso", alinhamento: "direita" as const },
@@ -256,7 +254,6 @@ function LinhaDeItem({ item, modalidades, podeEditar, mostrarDolar }: { item: It
       <Celula>{meses(item.vigenciaMeses)}{Number(item.vigenciaMeses) === 0.5 ? <span className="ml-2"><Selo tom="info" titulo="Regra dos 15 dias">até 15 dias</Selo></span> : null}</Celula>
       {mostrarDolar ? <Celula direita>{item.valorUsd ? `US$ ${Number(item.valorUsd).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"}</Celula> : null}
       <Celula direita><Moeda valor={item.valorBrl} forte /></Celula>
-      <Celula className="max-w-[12rem] text-xs text-subtle">{item.fonte ?? "—"}</Celula>
       <Celula className="max-w-sm text-xs text-muted">{item.observacao ?? "—"}</Celula>
       {podeEditar ? <><Celula direita className="text-xs text-muted">{item.usos > 0 ? `${item.usos} linha(s)` : "—"}</Celula><Celula><div className="flex items-center gap-1"><EditarItemCatalogo item={item} modalidades={modalidades} /><RemoverItemCatalogo item={item} /></div></Celula></> : null}
     </tr>

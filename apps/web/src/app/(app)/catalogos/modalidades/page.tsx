@@ -30,7 +30,6 @@ export default async function Modalidades() {
   return (
     <Pagina
       titulo="Modalidades de bolsa"
-      descricao="As modalidades do CAPES Global, com os destinos cobertos pelo catálogo oficial."
       acoes={podeEditar ? <NovaModalidade /> : undefined}
     >
       <Secao titulo="Modalidades">

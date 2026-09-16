@@ -14,6 +14,8 @@ import {
   Utilizacao,
 } from "@/componentes/ui/basicos";
 import { apiFetch } from "@/lib/api";
+import { Ajuda } from "@/componentes/ui/ajuda";
+import { AJUDA_ORCAMENTO } from "@/lib/ajuda-orcamento";
 import type { DetalheTematica } from "@/lib/dominio";
 import { inteiro, meses, moeda, rotulo } from "@/lib/formato";
 
@@ -42,14 +44,8 @@ export default async function DetalheDaTematica({
   return (
     <Pagina
       titulo={`${area.codigo} · ${area.nome}`}
-      descricao={
-        <>
-          Rede {area.rede} ·{" "}
-          <Link href={`${base}/redes`} className="text-primary hover:underline">
-            voltar às redes
-          </Link>
-        </>
-      }
+      descricao={`Rede ${area.rede}`}
+      voltar={{ href: `${base}/redes`, rotulo: "Voltar às redes" }}
     >
       {area.statusOrcamento === "A_DEFINIR" ? (
         <Aviso tom="aviso" titulo="Orçamento a definir">
@@ -69,19 +65,18 @@ export default async function DetalheDaTematica({
 
       <Secao titulo={`Resumo do exercício ${area.ano}`}>
         <Cartoes>
-          <Cartao titulo="Orçamento de bolsas" valor={moeda(area.valorBolsas)} />
+          <Cartao titulo={<Ajuda rotulo="Orçamento de bolsas">{AJUDA_ORCAMENTO.bolsas}</Ajuda>} valor={moeda(area.valorBolsas)} />
           <Cartao
-            titulo="Manutenção e missões"
+            titulo={<Ajuda rotulo="Manutenção e missões">{AJUDA_ORCAMENTO.apoio}</Ajuda>}
             valor={moeda(area.apoio)}
-            nota="Sem plano de aplicação detalhado"
           />
           <Cartao
-            titulo="Custo programado"
+            titulo={<Ajuda rotulo="Custo programado">{AJUDA_ORCAMENTO.custo}</Ajuda>}
             valor={moeda(area.custoBolsas)}
             nota={`${inteiro(area.bolsas)} bolsas por ano`}
           />
           <Cartao
-            titulo="Saldo potencial"
+            titulo={<Ajuda rotulo="Saldo de bolsas">{AJUDA_ORCAMENTO.saldo}</Ajuda>}
             valor={moeda(area.saldoPotencial)}
             destaque
           />
@@ -95,7 +90,6 @@ export default async function DetalheDaTematica({
 
       <Secao
         titulo="Coordenadores de Temática"
-        descricao="Docentes responsáveis pelos PPGs participantes desta temática."
       >
         {area.coordenadores.length > 0 ? (
           <ul className="flex flex-wrap gap-2">
@@ -123,7 +117,6 @@ export default async function DetalheDaTematica({
 
       <Secao
         titulo="PPGs participantes"
-        descricao="A participação no custo mostra quanto das bolsas da temática vai para cada programa."
       >
         <Tabela
           colunas={[

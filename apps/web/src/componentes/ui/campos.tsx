@@ -414,6 +414,7 @@ export function Chips({
   placeholder,
   valor,
   aoMudar,
+  erro,
 }: {
   rotulo: string;
   nome: string;
@@ -422,6 +423,7 @@ export function Chips({
   placeholder?: string;
   valor?: string[];
   aoMudar?: (itens: string[]) => void;
+  erro?: string;
 }) {
   const id = useId();
   const [itensInternos, setItensInternos] = useState<string[]>(padrao);
@@ -451,7 +453,8 @@ export function Chips({
       <div className="flex gap-2">
         <input
           id={id}
-          aria-describedby={dica ? `${id}-dica` : undefined}
+          aria-describedby={[dica ? `${id}-dica` : null, erro ? `${id}-erro` : null].filter(Boolean).join(" ") || undefined}
+          aria-invalid={erro ? true : undefined}
           type="text"
           value={rascunho}
           placeholder={placeholder}
@@ -480,6 +483,8 @@ export function Chips({
           {dica}
         </p>
       ) : null}
+
+      {erro ? <p id={`${id}-erro`} role="alert" className="mt-1.5 text-xs text-danger">{erro}</p> : null}
 
       {itens.length > 0 ? (
         <ul className="mt-3 flex flex-wrap gap-2">

@@ -1,20 +1,21 @@
 import { z } from "zod";
 
-const opcional = (maximo: number) => z.string().trim().max(maximo);
+const opcional = (rotulo: string, maximo: number) =>
+  z.string().trim().max(maximo, `${rotulo}: use até ${maximo} caracteres.`);
 
 export const formularioPpgSchema = z.object({
-  nome: z.string().trim().min(3, "Informe o nome do PPG.").max(240),
-  sigla: z.string().trim().min(2, "Informe a sigla do PPG.").max(40),
-  unidade: opcional(240),
+  nome: z.string().trim().min(3, "Informe o nome do PPG.").max(300, "Nome do PPG: use até 300 caracteres."),
+  sigla: z.string().trim().min(2, "Informe a sigla do PPG.").max(40, "Sigla: use até 40 caracteres."),
+  unidade: opcional("Unidade / campus", 200),
   nivel: z.enum(["", "MESTRADO", "DOUTORADO", "MESTRADO_DOUTORADO", "MESTRADO_PROFISSIONAL"]),
   modalidade: z.enum(["", "ACADEMICO", "PROFISSIONAL"]),
-  notaCapes: z.string().refine((valor) => valor === "" || (Number(valor) >= 1 && Number(valor) <= 7), "O conceito CAPES vai de 1 a 7."),
-  areaCapes: opcional(240),
+  notaCapes: z.string().trim().refine((valor) => valor === "" || (Number.isInteger(Number(valor)) && Number(valor) >= 1 && Number(valor) <= 7), "Informe um conceito CAPES inteiro de 1 a 7."),
+  areaCapes: opcional("Área CAPES", 200),
   situacao: z.enum(["ATIVO", "EM_IMPLANTACAO", "INATIVO"]),
   emRede: z.boolean(),
-  redeAcademica: opcional(240),
-  observacoes: opcional(4000),
-  linhasPesquisa: z.array(z.string().trim().min(1).max(500)).max(100),
+  redeAcademica: opcional("Rede acadêmica", 120),
+  observacoes: opcional("Observações", 2000),
+  linhasPesquisa: z.array(z.string().trim().min(2, "Cada linha de pesquisa deve ter ao menos 2 caracteres.").max(300, "Cada linha de pesquisa deve ter até 300 caracteres.")),
 });
 
 export type DadosFormularioPpg = z.infer<typeof formularioPpgSchema>;

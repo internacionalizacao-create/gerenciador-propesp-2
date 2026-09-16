@@ -32,7 +32,6 @@ export function OrcamentoPorRede({
   return (
     <Grafico
       titulo="Total previsto por rede e exercício"
-      descricao="Exercício sem orçamento definido não aparece como zero: a barra fica ausente."
       altura={300}
     >
       <BarChart

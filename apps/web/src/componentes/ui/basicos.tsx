@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { A_DEFINIR, faixaDeUtilizacao, moeda, percentual } from "@/lib/formato";
 
 import { RolagemHorizontal } from "./rolagem";
+import { Botao } from "./botao";
 
 /** Peças de leitura usadas por todas as telas. Server Components. */
 
@@ -11,15 +13,27 @@ export function Pagina({
   titulo,
   descricao,
   acoes,
+  voltar,
   children,
 }: {
   titulo: string;
   descricao?: ReactNode;
   acoes?: ReactNode;
+  voltar?: { href: string; rotulo: string };
   children: ReactNode;
 }) {
   return (
     <div className="mx-auto w-full max-w-[112rem] px-5 py-7 sm:px-7 lg:px-8">
+      {voltar ? (
+        <nav aria-label="Voltar" className="mb-5">
+          <Botao comoFilho variante="contorno">
+            <Link href={voltar.href}>
+              <ArrowLeft aria-hidden="true" />
+              {voltar.rotulo}
+            </Link>
+          </Botao>
+        </nav>
+      ) : null}
       <header className="mb-7 flex flex-wrap items-start justify-between gap-4">
         <div className="max-w-3xl">
           <div className="mb-3 h-1 w-9 rounded-full bg-primary" />
@@ -71,7 +85,7 @@ export function Cartao({
   destaque,
   href,
 }: {
-  titulo: string;
+  titulo: ReactNode;
   valor: ReactNode;
   nota?: ReactNode;
   destaque?: boolean;

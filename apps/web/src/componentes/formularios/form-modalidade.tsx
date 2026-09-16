@@ -33,9 +33,9 @@ const PUBLICOS = [
 export function NovaModalidade() {
   return (
     <AbrirSidesheet
-      rotulo="Nova modalidade"
+      rotulo="Cadastrar modalidade"
       titulo="Cadastrar modalidade"
-      descricao="A modalidade só passa a valer no plano depois que o catálogo tiver um item com o valor dela — é o item que dá o preço."
+      descricao="Após cadastrar, publique um item no Catálogo de bolsas para definir o destino, a vigência e o valor."
     >
       {(fechar) => <FormModalidade aoConcluir={fechar} />}
     </AbrirSidesheet>

@@ -17,7 +17,12 @@
     "infra:up": "docker compose -f infra/docker-compose.yml --env-file infra/.env up -d",
     "infra:down": "docker compose -f infra/docker-compose.yml --env-file infra/.env down",
     "infra:logs": "docker compose -f infra/docker-compose.yml logs -f",
-    "kc:import": "./infra/keycloak/import-realm.sh"
+    "kc:import": "./infra/keycloak/import-realm.sh",
+    "db:backup": "./scripts/db-backup.sh",
+    "db:congelar": "./scripts/db-backup.sh --congelar",
+    "db:restaurar": "./scripts/db-restaurar.sh",
+    "db:zerar": "./scripts/db-zerar.sh",
+    "api": "./scripts/api.sh"
   },
   "devDependencies": {
     "turbo": "^2",

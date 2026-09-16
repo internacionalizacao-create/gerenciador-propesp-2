@@ -3,7 +3,6 @@ import Link from "next/link";
 import { EditarOrcamento } from "@/componentes/formularios/form-orcamento";
 import { OrcamentoPorRede } from "@/componentes/graficos/orcamento-por-rede";
 import {
-  Aviso,
   Celula,
   Moeda,
   Pagina,
@@ -68,16 +67,6 @@ export default async function Orcamento({
       titulo="Orçamento"
       descricao={`Matriz de exercícios × áreas temáticas do ciclo ${ciclo.cicloNome}.`}
     >
-      <Aviso
-        tom="aviso"
-        titulo="Manutenção da UFMG e da UNICAMP depende de cadastro"
-      >
-        Todas as redes terão orçamento de manutenção, mas apenas a UNESP
-        informou valores. UFMG e UNICAMP seguem como “A definir” até que a
-        gestão cadastre os valores na área temática correspondente; enquanto
-        isso não são tratados como R$ 0,00 nem entram no total conhecido.
-      </Aviso>
-
       <nav
         aria-label="Exercício do orçamento"
         className="mb-6 flex flex-wrap gap-2"
@@ -100,7 +89,6 @@ export default async function Orcamento({
 
       <Secao
         titulo="Consolidado por rede e exercício"
-        descricao="Rede sem orçamento definido aparece em branco, e não entra em nenhuma soma."
       >
         <div className="mb-6">
           <OrcamentoPorRede redes={redes} anos={anos} />

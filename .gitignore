@@ -35,3 +35,8 @@ dados
 # projeto, justificativa, comprovante financeiro — e nenhum deles pode ser
 # versionado, nem por engano.
 arquivos/
+# Backups locais do banco de desenvolvimento (pnpm db:backup / db:congelar).
+# Sao dumps completos do dominio, com dados pessoais de alunos e servidores, e
+# por isso nao entram no repositorio — nem o baseline. Apagar esta pasta perde o
+# ponto de restauracao; congele de novo com `pnpm db:congelar`.
+backups/

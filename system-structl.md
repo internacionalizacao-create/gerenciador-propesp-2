@@ -979,14 +979,6 @@ exercia na planilha. Exibe cartões de atalho para redes, orçamento, plano de b
 movimentações externas, pendências e comitê gestor — cada um com um número vivo
 (ex.: "Pendências · 5 abertas").
 
-Inclui a **legenda de uso** herdada da planilha, traduzida para o sistema:
-| Planilha | Sistema |
-|---|---|
-| Amarelo — preencher/validar | Campo editável com aviso de validação pendente |
-| Azul — entrada editável | Campo editável comum |
-| Verde — vínculo entre abas | Valor calculado, somente leitura, com link para a origem |
-| Vermelho — divergência/alerta | Alerta em destaque + pendência associada |
-
 ---
 
 ### P07 · Redes e áreas temáticas

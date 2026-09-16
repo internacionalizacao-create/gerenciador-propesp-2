@@ -111,7 +111,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div
         aria-label="Notificações"
-        className="pointer-events-none fixed inset-x-4 bottom-4 z-50 flex flex-col items-end gap-3 sm:left-auto sm:right-6 sm:w-full sm:max-w-sm"
+        className="pointer-events-none fixed inset-x-4 top-4 z-50 flex flex-col items-end gap-3 sm:left-auto sm:right-6 sm:top-6 sm:w-full sm:max-w-sm"
       >
         {toasts.map((toast) => (
           <Toast key={toast.id} toast={toast} aoFechar={fecharToast} />
