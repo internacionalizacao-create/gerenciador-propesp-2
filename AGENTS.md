@@ -4,7 +4,17 @@ Documento de referência para quem (pessoa ou LLM) vai mexer neste repositório 
 tê-lo escrito. Descreve o que existe hoje, por que está assim, e o que ainda não
 existe. **Mantenha-o atualizado quando mudar arquitetura ou convenção.**
 
-Última revisão: 2026-09-14.
+Última revisão: 2026-09-15.
+
+**Planejamento da V1 interna (2026-09-15):** a fila atual de trabalho está em
+[docs/backlog-v1.md](docs/backlog-v1.md), com fichas detalhadas para execução
+sob demanda. A [proposta de autorização](docs/proposta-autorizacao-v1.md)
+considera uso interno, sem acesso de bolsistas/externos nesta fase, e distingue
+decisões do responsável de sugestões ainda não adotadas. Esses documentos não
+alteram o comportamento atual nem significam homologação institucional.
+Antes de iniciar uma task, confira suas dependências e o código: o
+[diagnóstico de 2026-09-15](docs/diagnostico-v1-2026-09-15.md) registra divergências
+entre descrições antigas abaixo e funcionalidades já entregues.
 
 ---
 

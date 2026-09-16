@@ -1,5 +1,11 @@
 # Diagnóstico para fechamento da V1 — 2026-09-15
 
+Encaminhamento: as pendências deste diagnóstico foram organizadas em
+[backlog-v1.md](backlog-v1.md). A nova premissa definida pelo responsável é uso
+interno sem acesso de bolsistas/externos, detalhada na
+[proposta de autorização](proposta-autorizacao-v1.md). Este diagnóstico continua
+sendo o retrato da revisão, não um registro de implementação das tarefas.
+
 Revisão da documentação e do código presente no workspace, incluindo alterações
 locais ainda não commitadas. Não altera as decisões homologadas nem implementa
 as pendências. As prioridades abaixo são recomendações para decisão.

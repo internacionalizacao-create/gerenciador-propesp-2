@@ -1,5 +1,14 @@
 # Questionário — Perfis de acesso ao Gerenciador PROPESP
 
+> **Contexto atualizado em 2026-09-15:** este questionário permanece como
+> registro de consulta, sem respostas presumidas. O responsável definiu que a
+> primeira versão será interna e não terá acesso de bolsistas ou externos, e
+> solicitou uma proposta técnica para avançar sem aguardar o retorno geral.
+> Consulte [proposta-autorizacao-v1.md](proposta-autorizacao-v1.md) e
+> [backlog-v1.md](backlog-v1.md). As descrições históricas abaixo sobre ausência
+> de recorte de bolsas e de upload já não refletem integralmente o código atual;
+> não devem orientar uma nova implementação sem essa conferência.
+
 ---
 
 ## Por que este questionário
