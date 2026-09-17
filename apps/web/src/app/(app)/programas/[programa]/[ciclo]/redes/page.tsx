@@ -10,7 +10,10 @@ import {
   Tabela,
   Utilizacao,
 } from "@/componentes/ui/basicos";
+import { SemAcesso } from "@/componentes/ui/sem-acesso";
+import { faltando } from "@/lib/acesso";
 import { apiFetch } from "@/lib/api";
+import { carregarMe } from "@/lib/me";
 import { Ajuda } from "@/componentes/ui/ajuda";
 import { AJUDA_ORCAMENTO } from "@/lib/ajuda-orcamento";
 import type {
@@ -51,6 +54,19 @@ export default async function RedesETematicas({
   const { programa, ciclo } = await params;
   const { ano } = await searchParams;
   const base = `/programas/${programa}/${ciclo}`;
+
+  const me = await carregarMe();
+  const falta = faltando(me.permissions, ["orcamento:read"]);
+  if (falta.length > 0) {
+    return (
+      <SemAcesso
+        titulo="Redes e temáticas"
+        descricao="Orçamento por rede e área temática do ciclo."
+        me={me}
+        faltando={falta}
+      />
+    );
+  }
 
   const dados = await apiFetch<Resposta>(
     `/programas/${programa}/${ciclo}/redes${ano ? `?ano=${ano}` : ""}`,

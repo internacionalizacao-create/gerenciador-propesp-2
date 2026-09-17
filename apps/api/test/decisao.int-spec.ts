@@ -42,7 +42,12 @@ const admin: AuthUser = {
   id: 'sub-admin',
   name: 'Admin',
   roles: ['admin'],
-  permissions: ['missao:submit', 'missao:decide', 'missao:reopen'],
+  permissions: [
+    'missao:submit',
+    'missao:decide',
+    'missao:reopen-analise',
+    'missao:reopen-execucao',
+  ],
 };
 
 const relator: AuthUser = {

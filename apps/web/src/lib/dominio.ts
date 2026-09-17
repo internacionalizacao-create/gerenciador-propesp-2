@@ -21,7 +21,27 @@ export interface Me {
   name?: string;
   email?: string;
   roles: string[];
+  /** Ações concedidas a esta conta. Vazio é o normal de quem acabou de entrar. */
   permissions: string[];
+  /** Cadastro local ligado ao `sub`; nulo quando o vínculo não pôde ser feito. */
+  pessoaId: string | null;
+  /**
+   * `true` quando o login funcionou mas a conta não pôde ser ligada a uma
+   * pessoa. É diferente de "sem acesso": aqui nem há a quem conceder.
+   */
+  vinculoPendente: boolean;
+}
+
+/** Uma ação concedida, com o alcance já descrito pela API. */
+export interface AcaoDoMeuAcesso {
+  permissao: string;
+  rotulo: string;
+  /** Onde a ação vale, em linguagem institucional. Vazio não acontece. */
+  alcance: string[];
+}
+
+export interface MeuAcesso {
+  acoes: AcaoDoMeuAcesso[];
 }
 
 export interface Ciclo {
@@ -1546,4 +1566,117 @@ export interface ResultadosDaMissao {
     justificativa: string | null;
   } | null;
   produtos: ProdutoMissao[];
+}
+
+// ---------------------------------------------------------------------------
+// Administração de acessos (V1-017/018)
+
+export type TipoAlvoAcesso =
+  | "GLOBAL"
+  | "CICLO"
+  | "PPG"
+  | "REDE"
+  | "TEMATICA"
+  | "PARTICIPACAO";
+
+/**
+ * Alcance de uma concessão, na forma em que a API o grava e devolve.
+ *
+ * É união discriminada pelo `tipo`, e não um objeto com todos os campos
+ * opcionais: `PPG` exige o ciclo junto, e um tipo frouxo deixaria a tela montar
+ * um alvo que a API recusa — ou, pior, um alvo que ela aceita com o ciclo
+ * faltando.
+ */
+export type AlcanceConcessao =
+  | { tipo: "GLOBAL" }
+  | { tipo: "CICLO"; cicloId: string }
+  | { tipo: "PPG"; ppgId: string; cicloId: string }
+  | { tipo: "REDE"; redeId: string }
+  | { tipo: "TEMATICA"; tematicaId: string }
+  | { tipo: "PARTICIPACAO"; participacaoId: string };
+
+export interface AcaoDoCatalogo {
+  permissao: string;
+  rotulo: string;
+  escopos: TipoAlvoAcesso[];
+}
+
+export interface ModeloDeAcesso {
+  id: string;
+  rotulo: string;
+  permissoes: string[];
+}
+
+export interface CatalogoDeAcesso {
+  permissoes: AcaoDoCatalogo[];
+  modelos: ModeloDeAcesso[];
+}
+
+export interface AlvosDeAcesso {
+  ciclos: { id: string; nome: string; programa: string }[];
+  ppgs: { id: string; nome: string; sigla: string | null }[];
+  redes: { id: string; nome: string; cicloId: string; ciclo: string }[];
+  tematicas: {
+    id: string;
+    codigo: string;
+    nome: string;
+    rede: string;
+    cicloId: string;
+  }[];
+  participacoes: {
+    id: string;
+    ppg: string | null;
+    ppgNome: string;
+    tematica: string;
+    rede: string;
+    cicloId: string;
+  }[];
+}
+
+export interface ContaDeAcesso {
+  id: string;
+  sub: string;
+  username: string | null;
+  email: string | null;
+  origem: string;
+  vinculadoEm: string;
+  ultimoAcessoEm: string | null;
+  ativo: boolean;
+  pessoaId: string;
+  pessoaNome: string;
+  escopos: { id: string; tipo: string }[];
+}
+
+export interface ConcessaoListada {
+  id: string;
+  permissao: string;
+  escopo: AlcanceConcessao;
+  origem: string | null;
+  justificativa: string;
+  concedidoPorId: string | null;
+  concedidoEm: string;
+  ativo: boolean;
+  revogadoEm: string | null;
+}
+
+export interface ConcessoesDaConta {
+  conta: {
+    id: string;
+    sub: string;
+    email: string | null;
+    username: string | null;
+    ativo: boolean;
+    pessoaId: string;
+    pessoaNome: string;
+  };
+  concessoes: ConcessaoListada[];
+}
+
+/** O que um lote faria, item a item, antes de gravar. */
+export interface PreviaDeConcessao {
+  itens: {
+    permissao: string;
+    escopo: AlcanceConcessao;
+    efeito: "CRIAR" | "REATIVAR" | "JA_ATIVA";
+  }[];
 }

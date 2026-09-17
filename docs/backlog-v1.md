@@ -13,8 +13,17 @@ usuários externos não acessam nesta fase; foco em admin e responsáveis por
 temática/PPG. Autorização será preparada com o modelo existente e uma proposta
 técnica inicial, sem aguardar uma resposta geral da PROPESP.
 
-**Proposto, ainda sujeito à revisão:** perfis, associação perfil–escopo, máscaras
-de campos e visibilidade do orçamento de temática descritos na proposta. Rede
+**Decisão do responsável em 2026-09-16:** em produção o Keycloak **só
+autentica** — nenhum papel de negócio criado ou atribuído lá. A base sobe com o
+consolidado (catálogo, PPGs, programa, ciclo, redes) e sem conta alguma; o
+primeiro administrador vem do comando de bootstrap e os demais são cadastrados
+pela tela de administração. Não há conversão de acesso legado a fazer.
+
+**Modelo aprovado pelo responsável em 2026-09-15:** concessões individuais de
+permissão + escopo, administradas na aplicação; Keycloak autentica e perfis são
+modelos opcionais. Substitui a proposta anterior de perfil–escopo condicionado
+a papel do Keycloak. Máscaras de campos, projeção do orçamento e detalhes dos
+modelos ainda serão especificados nas tarefas. Rede
 interna não elimina login, HTTPS ou recorte de dados.
 
 **Fora da V1 interna:** autosserviço de bolsista/participante, acesso externo e
@@ -38,7 +47,17 @@ de domínio; não deve virar tarefa de implementação CAPES Global.
    Só concluir quando todos os critérios de aceite forem satisfeitos.
 
 Estados: `Pendente`, `Em andamento`, `Bloqueada (motivo explícito)`, `Concluída`,
-`Adiada por decisão`. Estado inicial de todos os IDs: **Pendente**. Dependência
+`Adiada por decisão`. Estado dos IDs: **Pendente**, exceto V1-001, **Em andamento** pelo
+registro da decisão de autorização, V1-010, **Concluída como contrato
+preparatório** (2026-09-15), e V1-011, **Concluída** (2026-09-15) com a tabela
+`concessao_acesso` criada, **V1-012 e V1-017 concluídas** em 2026-09-16 — a
+autorização em execução passou a ser a das concessões, e o papel do Keycloak não
+concede mais nada —, **V1-018 e V1-019 concluídas** em 2026-09-17 — a tela de
+administração de acessos e a navegação por acesso efetivo —, e V1-021, **Em andamento**, com o bootstrap entregue; a
+conversão do legado foi cancelada porque a produção começa sem conta nenhuma. Os demais critérios do contrato seguem abertos;
+a autorização em execução já usa as concessões; faltam os recortes por ação
+(V1-013–016) e a regressão (V1-020) — a tela (V1-018) e a navegação (V1-019)
+foram concluídas em 2026-09-17. Evidências na ficha. Dependência
 pendente significa ordem de execução; não é prova de impedimento externo.
 
 Prioridades: **P0** necessária para liberação ampla interna; **P1** entregar ou
@@ -81,18 +100,18 @@ dependências são obrigatórios, exceto quando a ficha indicar uma condição.
 |---|---|---|---|
 | V1-001 | P0 | Contrato da V1 e decisões iniciais | — |
 | V1-002 | P1 | Reconciliação da documentação e vocabulário | 001 |
-| V1-010 | P0 | Matriz de permissões e perfis internos | 001 |
-| V1-011 | P0 | Schema de concessões por perfil/escopo/ciclo | 010 |
-| V1-012 | P0 | Resolução central de acesso por ação | 011 |
+| V1-010 | P0 | Catálogo de permissões e modelos opcionais — concluído (preparatório) | 001 (autorização decidida) |
+| V1-011 | P0 | Schema de concessões por permissão/escopo/ciclo — concluído (tabela inerte) | 010 |
+| V1-012 | P0 | Resolução central de acesso por ação — concluída | 011 |
 | V1-013 | P0 | Recorte de leitura de planejamento e indicadores | 012 |
 | V1-014 | P0 | Recorte de escrita e referências de formulários | 012 |
 | V1-015 | P0 | Bolsas, produção e campos pessoais | 012 |
 | V1-016 | P0 | Históricos, documentos e exportações | 013, 015 |
-| V1-017 | P0 | API administrativa das concessões | 012 |
-| V1-018 | P0 | Interface de atribuição e revisão de acesso | 017 |
-| V1-019 | P0 | Navegação e orientação por acesso efetivo | 013, 015, 017 |
+| V1-017 | P0 | API administrativa das concessões — concluída | 012 |
+| V1-018 | P0 | Interface de atribuição e revisão de acesso — concluída | 017 |
+| V1-019 | P0 | Navegação e orientação por acesso efetivo — concluída | 013, 015, 017 (entregue antes de 013/015: não dependia delas) |
 | V1-020 | P0 | Regressão da matriz de autorização | 013–019 |
-| V1-021 | P0 | Atribuição nominal e ativação restritiva | 018–020 |
+| V1-021 | P0 | Atribuição nominal e ativação restritiva — em andamento (subtarefas a–e; b entregue) | 018–020 |
 | V1-030 | P0 | Ciclo de vida completo da missão na web | 001 |
 | V1-031 | P0 | Produtos de missão na web | 001 |
 | V1-032 | P1 | Gestão de convênios na web | 016 |
@@ -133,6 +152,16 @@ Fichas: [autorização](backlog-v1/01-autorizacao.md),
 [evoluções](backlog-v1/04-evolucoes.md).
 
 ## V1-001 — Registrar contrato e escolhas iniciais
+
+- **Estado / data:** Em andamento — 2026-09-15.
+- **Decisão registrada:** responsável aprovou nesta conversa o modelo individual
+  permissão + escopo, com modelos opcionais, configuração revisável pelo admin,
+  negação por ausência de concessão, auditoria e revogação na requisição seguinte.
+  A proposta de autorização e as fichas foram ajustadas documentalmente; nenhuma
+  permissão em execução foi alterada. Não representa homologação institucional.
+- **Ainda necessário:** selecionar/adiar P1, detalhar projeções de orçamento/dados
+  pessoais e registrar responsáveis por dados/infraestrutura. Não concluir a
+  tarefa só pela aprovação do modelo.
 
 - **Objetivo:** fixar o que será considerado V1 concluída e as decisões A01–A07
   da proposta, sem aguardar o questionário inteiro nem presumir aceite da PROPESP.

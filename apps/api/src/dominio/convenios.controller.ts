@@ -40,7 +40,7 @@ export class ConveniosController {
   constructor(private readonly resultados: ResultadosService) {}
 
   @Get()
-  @RequirePermission('parceiro:read')
+  @RequirePermission('convenio:read')
   listar(
     @Query(new ZodValidationPipe(listarConveniosSchema))
     filtros: ListarConvenios,
@@ -49,13 +49,13 @@ export class ConveniosController {
   }
 
   @Get(':id')
-  @RequirePermission('parceiro:read')
+  @RequirePermission('convenio:read')
   detalhar(@Param('id') id: string) {
     return this.resultados.detalharConvenio(id);
   }
 
   @Post()
-  @RequirePermission('parceiro:write')
+  @RequirePermission('convenio:create')
   criar(
     @CurrentUser() usuario: AuthUser,
     @Body(new ZodValidationPipe(criarConvenioSchema)) dto: CriarConvenio,
@@ -64,7 +64,7 @@ export class ConveniosController {
   }
 
   @Patch(':id')
-  @RequirePermission('parceiro:write')
+  @RequirePermission('convenio:edit')
   atualizar(
     @Param('id') id: string,
     @CurrentUser() usuario: AuthUser,
@@ -76,7 +76,7 @@ export class ConveniosController {
 
   /** Nao ha exclusao: o produto que aponta para o acordo perderia o vinculo. */
   @Post(':id/inativacao')
-  @RequirePermission('parceiro:write')
+  @RequirePermission('convenio:status')
   inativar(
     @Param('id') id: string,
     @CurrentUser() usuario: AuthUser,
@@ -87,7 +87,7 @@ export class ConveniosController {
   }
 
   @Post(':id/reativacao')
-  @RequirePermission('parceiro:write')
+  @RequirePermission('convenio:status')
   reativar(
     @Param('id') id: string,
     @CurrentUser() usuario: AuthUser,

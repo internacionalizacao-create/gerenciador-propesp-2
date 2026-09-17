@@ -2,12 +2,13 @@ import Link from "next/link";
 import { unstable_rethrow } from "next/navigation";
 
 import { ProvedorDeConsultas } from "@/componentes/consultas/provedor";
+import { Aviso } from "@/componentes/ui/basicos";
 import { MenuLateral } from "@/componentes/layout/menu-lateral";
 import { ThemeToggle } from "@/componentes/layout/theme-toggle";
 import { ToastProvider } from "@/componentes/ui/toast";
 import { apiFetch } from "@/lib/api";
 import { requireSession } from "@/lib/auth";
-import type { Me } from "@/lib/dominio";
+import { carregarMe } from "@/lib/me";
 import { menu } from "@/lib/navegacao";
 
 /**
@@ -26,8 +27,9 @@ export default async function LayoutDoApp({
   const sessao = await requireSession();
 
   // Papéis e permissões vêm da API, não do cookie: quem decide o que o usuário
-  // pode é o dono do dado.
-  const me = await apiFetch<Me>("/me");
+  // pode é o dono do dado. `carregarMe` deduplica a chamada com a da página
+  // dentro desta mesma requisição.
+  const me = await carregarMe();
 
   // O menu do ciclo é montado a partir do que existe no banco. Fixar
   // "capes-global/2027-2030" no código faria o sistema deixar de ser
@@ -64,7 +66,16 @@ export default async function LayoutDoApp({
               <span className="grid size-8 place-items-center rounded-lg bg-primary-soft text-xs font-semibold text-on-primary-soft">{iniciais}</span>
               <span className="hidden min-w-0 text-left sm:block">
                 <span className="block max-w-36 truncate text-sm font-medium text-foreground">{nome}</span>
-                <span className="block max-w-36 truncate text-[0.68rem] text-subtle">{me.roles.filter((p) => !p.includes("_")).join(" · ") || "sem papel"}</span>
+                {/* O papel do Keycloak não concede mais nada (V1-012); exibi-lo
+                  aqui faria "coordenador" parecer a resposta para o que a
+                  pessoa pode fazer. O que vale é o acesso concedido. */}
+              <span className="block max-w-36 truncate text-[0.68rem] text-subtle">
+                {me.vinculoPendente
+                  ? "vínculo pendente"
+                  : me.permissions.length === 0
+                    ? "sem acesso"
+                    : (me.email ?? me.username ?? "")}
+              </span>
               </span>
             </Link>
             {/* POST e não link: sair muda estado, e um <img> em página externa
@@ -79,6 +90,29 @@ export default async function LayoutDoApp({
             </form>
           </div>
         </header>
+
+        {/*
+          Conta sem concessão nenhuma entra e não enxerga nada — o
+          comportamento certo, e o que mais confunde quem acabou de receber a
+          credencial. O aviso fica na casca porque nenhuma tela específica é o
+          lugar dele: o que falta não é aquela tela, é o acesso (V1-019).
+        */}
+        {me.vinculoPendente || me.permissions.length === 0 ? (
+          <div className="px-5 pt-5 sm:px-7">
+            <Aviso
+              tom={me.vinculoPendente ? "aviso" : "info"}
+              titulo={
+                me.vinculoPendente
+                  ? "Sua conta ainda não está associada a um cadastro"
+                  : "Sua conta ainda não recebeu acesso"
+              }
+            >
+              {me.vinculoPendente
+                ? "Você entrou, mas o sistema não conseguiu ligar esta conta a uma pessoa já cadastrada. Enquanto isso não for resolvido, nenhum acesso pode ser concedido a você: peça a quem administra acessos na PROPESP para reassociar a sua identidade."
+                : "Entrar e ter acesso são coisas separadas: a credencial abre a porta, e o que você vê é concedido depois, ação a ação, por quem administra acessos na PROPESP. Diga a eles quais telas você precisa usar."}
+            </Aviso>
+          </div>
+        ) : null}
 
         <main className="flex-1">{children}</main>
       </div>

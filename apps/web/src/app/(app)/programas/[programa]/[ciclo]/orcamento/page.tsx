@@ -11,8 +11,11 @@ import {
   Tabela,
   Utilizacao,
 } from "@/componentes/ui/basicos";
+import { SemAcesso } from "@/componentes/ui/sem-acesso";
+import { faltando } from "@/lib/acesso";
 import { apiFetch } from "@/lib/api";
-import type { Ciclo, LinhaRede, LinhaTematica, Me } from "@/lib/dominio";
+import { carregarMe } from "@/lib/me";
+import type { Ciclo, LinhaRede, LinhaTematica } from "@/lib/dominio";
 import { inteiro, somarMoeda } from "@/lib/formato";
 
 interface Resposta {
@@ -40,15 +43,27 @@ export default async function Orcamento({
   const { ano: anoInformado } = await searchParams;
   const base = `/programas/${programa}/${cicloNome}`;
 
-  const [{ ciclo, tematicas, redes }, me] = await Promise.all([
-    apiFetch<Resposta>(`${base}/orcamento`),
-    apiFetch<Me>("/me"),
-  ]);
+  const me = await carregarMe();
+  const falta = faltando(me.permissions, ["orcamento:read"]);
+  if (falta.length > 0) {
+    return (
+      <SemAcesso
+        titulo="Orçamento"
+        descricao="Aporte, teto de bolsas e execução por exercício."
+        me={me}
+        faltando={falta}
+      />
+    );
+  }
+
+  const { ciclo, tematicas, redes } = await apiFetch<Resposta>(
+    `${base}/orcamento`,
+  );
 
   const anos = ciclo.anos;
   const anoSolicitado = Number(anoInformado);
   const anoSelecionado = anos.includes(anoSolicitado) ? anoSolicitado : anos[0];
-  const podeEditar = me.permissions.includes("orcamento:write");
+  const podeEditar = me.permissions.includes("orcamento:edit");
   const codigos = [
     ...new Map(
       tematicas.map((t) => [

@@ -18,7 +18,7 @@ const ADMIN: AuthUser = {
   id: 'sub-admin-catalogo',
   name: 'Gestao PROPESP',
   roles: ['admin'],
-  permissions: ['catalogo:write'],
+  permissions: ['catalogo:create', 'catalogo:edit', 'catalogo:delete'],
 };
 
 /**

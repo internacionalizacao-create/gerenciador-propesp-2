@@ -17,12 +17,14 @@ import {
   Selo,
   Tabela,
 } from "@/componentes/ui/basicos";
+import { SemAcesso } from "@/componentes/ui/sem-acesso";
+import { faltando } from "@/lib/acesso";
 import { apiFetch } from "@/lib/api";
+import { carregarMe } from "@/lib/me";
 import type {
   ComiteGestor,
   ExecucaoComite,
   ExecucaoExercicio,
-  Me,
   MembroEquipeGestao,
   CabecalhoRelatorio,
   LinhaResultado,
@@ -190,21 +192,30 @@ export default async function ComiteGestorPagina({
   const consulta = await searchParams;
   const base = `/programas/${programa}/${ciclo}/comite-gestor`;
   const aba = normalizarAba(consulta.aba);
-  const me = await apiFetch<Me>("/me");
+  const me = await carregarMe();
 
-  if (!me.permissions.includes("equipe-gestao:read")) {
+  const falta = faltando(me.permissions, ["equipe-gestao:read"]);
+  if (falta.length > 0) {
     return (
-      <Pagina
+      <SemAcesso
         titulo="Comitê Gestor e Administração"
         descricao="Equipes, missões institucionais e acompanhamento do orçamento do Comitê Gestor."
-      >
-        <EstadoVazio
-          titulo="Acesso restrito"
-          descricao="Seu perfil não tem acesso a esta área. Fale com a administração da PROPESP."
-        />
-      </Pagina>
+        me={me}
+        faltando={falta}
+      />
     );
   }
+
+  /*
+   * As equipes são uma permissão; as missões, outra. Quem cadastra vínculo de
+   * equipe não acompanha necessariamente as viagens, e o contrário também
+   * vale — então as abas de missão só existem para quem tem `missao:read`, e
+   * a Visão geral mostra os aportes sem o panorama quando falta o par
+   * `missao:read` + `prestacao:read` que o painel e a execução exigem (V1-019).
+   */
+  const podeVerMissoes = me.permissions.includes("missao:read");
+  const podeVerPanorama =
+    podeVerMissoes && me.permissions.includes("prestacao:read");
 
   // Os aportes vêm antes do resto porque é deles que sai a lista de exercícios
   // do ciclo, e o painel só pode ser apurado depois que o exercício pedido na
@@ -222,19 +233,20 @@ export default async function ComiteGestorPagina({
         `/programas/${programa}/${ciclo}/comite-gestor/equipes`,
       ),
       apiFetch<PessoaDisponivel[]>("/pessoas"),
-      aba === "missoes" || aba === "analise" || aba === "relatorios"
+      podeVerMissoes &&
+      (aba === "missoes" || aba === "analise" || aba === "relatorios")
         ? apiFetch<ReferenciasMissao>(
             `/programas/${programa}/${ciclo}/comite-gestor/referencias-missao`,
           )
         : Promise.resolve({ paises: [], instituicoes: [], redes: [] }),
       // Só a Visão geral usa a execução; buscá-la nas outras abas pagaria duas
       // agregações sobre a prestação para desenhar uma lista.
-      aba === "visao-geral"
+      aba === "visao-geral" && podeVerPanorama
         ? apiFetch<ExecucaoComite>(
             `/programas/${programa}/${ciclo}/comite-gestor/execucao`,
           )
         : Promise.resolve(null),
-      aba === "visao-geral"
+      aba === "visao-geral" && podeVerPanorama
         ? apiFetch<PainelComite>(
             `/programas/${programa}/${ciclo}/comite-gestor/painel?${recorteDaConsulta(consulta, exercicio)}`,
           )
@@ -254,7 +266,7 @@ export default async function ComiteGestorPagina({
       titulo="Comitê Gestor e Administração"
       descricao="Equipes, missões institucionais e acompanhamento do orçamento do Comitê Gestor."
       acoes={
-        aba === "missoes" ? (
+        aba === "missoes" && podeVerMissoes ? (
           <NovaMissaoComite
             programa={programa}
             ciclo={ciclo}
@@ -266,7 +278,7 @@ export default async function ComiteGestorPagina({
         ) : undefined
       }
     >
-      <Abas base={base} ativa={aba} />
+      <Abas base={base} ativa={aba} comMissoes={podeVerMissoes} />
 
       {aba === "visao-geral" ? (
         <VisaoGeral
@@ -278,7 +290,8 @@ export default async function ComiteGestorPagina({
           exercicio={exercicio}
         />
       ) : null}
-      {aba === "missoes" ? (
+      {aba === "missoes" && !podeVerMissoes ? <SemMissoes /> : null}
+      {aba === "missoes" && podeVerMissoes ? (
         <Missoes
           programa={programa}
           ciclo={ciclo}
@@ -288,7 +301,8 @@ export default async function ComiteGestorPagina({
           referencias={referenciasMissao}
         />
       ) : null}
-      {aba === "analise" ? (
+      {aba === "analise" && !podeVerMissoes ? <SemMissoes /> : null}
+      {aba === "analise" && podeVerMissoes ? (
         <FilaDeAnalise
           programa={programa}
           ciclo={ciclo}
@@ -298,7 +312,8 @@ export default async function ComiteGestorPagina({
           referencias={referenciasMissao}
         />
       ) : null}
-      {aba === "relatorios" ? (
+      {aba === "relatorios" && !podeVerMissoes ? <SemMissoes /> : null}
+      {aba === "relatorios" && podeVerMissoes ? (
         <Relatorios
           programa={programa}
           ciclo={ciclo}
@@ -317,12 +332,42 @@ export default async function ComiteGestorPagina({
   );
 }
 
-function Abas({ base, ativa }: { base: string; ativa: Aba }) {
+/**
+ * Aba de missão pedida por quem não tem `missao:read`.
+ *
+ * Acontece com link antigo ou URL digitada: a barra já não oferece a aba. A
+ * tela explica, em vez de mostrar a Visão geral com `?aba=missoes` na URL —
+ * silenciosamente trocar o conteúdo faria parecer que a aba sumiu do sistema.
+ */
+function SemMissoes() {
+  return (
+    <EstadoVazio
+      titulo="Fora do seu acesso"
+      descricao="Seu acesso cobre as equipes de gestão, mas não as missões do Comitê. Quem administra acessos na PROPESP pode conceder a consulta de missões."
+    />
+  );
+}
+
+function Abas({
+  base,
+  ativa,
+  comMissoes,
+}: {
+  base: string;
+  ativa: Aba;
+  comMissoes: boolean;
+}) {
   const abas: { id: Aba; texto: string }[] = [
     { id: "visao-geral", texto: "Visão geral" },
-    { id: "missoes", texto: "Missões" },
-    { id: "analise", texto: "Análise" },
-    { id: "relatorios", texto: "Relatórios" },
+    // As três abas de missão saem juntas: todas leem a mesma listagem, e
+    // deixar uma delas na barra levaria a uma tela que a API recusa.
+    ...(comMissoes
+      ? ([
+          { id: "missoes", texto: "Missões" },
+          { id: "analise", texto: "Análise" },
+          { id: "relatorios", texto: "Relatórios" },
+        ] as { id: Aba; texto: string }[])
+      : []),
     { id: "equipes", texto: "Equipes" },
   ];
 

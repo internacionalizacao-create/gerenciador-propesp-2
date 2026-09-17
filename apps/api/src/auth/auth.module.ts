@@ -2,6 +2,8 @@ import { Global, Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 
 import { AcessoController } from './acesso.controller';
+import { AcessoV1Service } from './autorizacao-v1/acesso-v1.service';
+import { ConcessoesService } from './autorizacao-v1/concessoes.service';
 import { EscopoMissaoGuard } from './escopo-missao.guard';
 import { IdentidadeService } from './identidade.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -20,10 +22,17 @@ import { TokenVerifierService } from './token-verifier.service';
   providers: [
     TokenVerifierService,
     IdentidadeService,
+    AcessoV1Service,
+    ConcessoesService,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
     { provide: APP_GUARD, useClass: EscopoMissaoGuard },
   ],
-  exports: [TokenVerifierService, IdentidadeService],
+  exports: [
+    TokenVerifierService,
+    IdentidadeService,
+    AcessoV1Service,
+    ConcessoesService,
+  ],
 })
 export class AuthModule {}

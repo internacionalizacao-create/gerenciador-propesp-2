@@ -6,6 +6,17 @@
  * 2026-09-10 o menu lateral **não os mostra**: a tela passou a ser usada em
  * apresentação, e item "em breve" lia como sistema inacabado. Para voltar a
  * exibi-los, basta o `MenuLateral` deixar de filtrar por `disponivel`.
+ *
+ * **Desde V1-019 o menu é montado por capacidade.** Cada item declara em
+ * `exige` as ações que a sua tela precisa — as mesmas que o guard cobra do
+ * endpoint principal dela —, e quem não as tem não vê o item. O motivo não é
+ * segurança (quem barra é a API, e editar a URL não contorna nada): é que item
+ * que só responde "sem acesso" faz o sistema parecer quebrado para quem foi
+ * configurado corretamente para outra coisa.
+ *
+ * A consequência é proposital: **conta recém-criada vê quase nada**, porque
+ * ainda não recebeu concessão nenhuma. O menu curto é a resposta certa, e o
+ * lugar que explica isso é a tela "Sua conta".
  */
 
 export interface ItemMenu {
@@ -14,6 +25,12 @@ export interface ItemMenu {
   disponivel: boolean;
   /** Por que ainda não está disponível — vira o `title` do item. */
   motivo?: string;
+  /**
+   * Ações que a tela exige, todas elas. Item sem `exige` aparece sempre: são
+   * as telas que qualquer conta autenticada abre (a caixa de avisos é dela
+   * mesma; "Sua conta" explica o próprio acesso).
+   */
+  exige?: readonly string[];
 }
 
 export interface GrupoMenu {
@@ -28,65 +45,91 @@ export function menu(
 ): GrupoMenu[] {
   const ciclo = `/programas/${programaSlug}/${cicloNome}`;
 
-  return [
+  const grupos: GrupoMenu[] = [
     {
       titulo: "Visão geral",
       itens: [
-        { rotulo: "Resumo do orçamento anual", href: "/", disponivel: true },
+        {
+          rotulo: "Resumo do orçamento anual",
+          href: "/",
+          disponivel: true,
+          exige: ["painel:read"],
+        },
         {
           rotulo: "Mobilidade",
           href: "/mobilidade",
           disponivel: true,
+          exige: ["bolsa:read"],
         },
         {
           rotulo: "Mapa e destinos",
           href: "/mobilidade/mapa",
           disponivel: true,
+          exige: ["bolsa:read"],
         },
-        { rotulo: "Produção", href: "/producao", disponivel: true },
+        {
+          rotulo: "Produção",
+          href: "/producao",
+          disponivel: true,
+          // Duas ações porque a tela junta produto de bolsa e de missão numa
+          // consulta só (`union all`); sem as duas, metade da tabela some.
+          exige: ["bolsa:read", "produto:read"],
+        },
         {
           rotulo: "Bolsistas",
           href: "/mobilidade/bolsistas",
           disponivel: true,
+          exige: ["bolsa:read", "produto:read"],
         },
       ],
     },
     {
       titulo: "Planejamento",
       itens: [
-        { rotulo: "Programas", href: "/programas", disponivel: true },
-        { rotulo: "Ciclo atual", href: ciclo, disponivel: true },
+        {
+          rotulo: "Programas",
+          href: "/programas",
+          disponivel: true,
+          exige: ["programa:read"],
+        },
+        {
+          rotulo: "Ciclo atual",
+          href: ciclo,
+          disponivel: true,
+          exige: ["programa:read"],
+        },
         {
           rotulo: "Redes e temáticas",
           href: `${ciclo}/redes`,
           disponivel: true,
+          exige: ["orcamento:read"],
         },
-        { rotulo: "Orçamento", href: `${ciclo}/orcamento`, disponivel: true },
+        {
+          rotulo: "Orçamento",
+          href: `${ciclo}/orcamento`,
+          disponivel: true,
+          exige: ["orcamento:read"],
+        },
         {
           rotulo: "Plano de aplicação",
           href: `${ciclo}/plano`,
           disponivel: true,
+          exige: ["plano:read"],
         },
-        ...(permissoes.includes("equipe-gestao:read")
-          ? [
-              {
-                rotulo: "Comitê Gestor e Administração",
-                href: `${ciclo}/comite-gestor`,
-                disponivel: true,
-              },
-            ]
-          : []),
+        {
+          rotulo: "Comitê Gestor e Administração",
+          href: `${ciclo}/comite-gestor`,
+          disponivel: true,
+          exige: ["equipe-gestao:read"],
+        },
         // Sob o ciclo porque o vínculo com rede é do ciclo; a instituição em si
         // é global e o detalhe mostra o histórico inteiro dela.
-        ...(permissoes.includes("parceiro:read")
-          ? [
-              {
-                rotulo: "Parceiros",
-                href: `${ciclo}/parceiros`,
-                disponivel: true,
-              },
-            ]
-          : []),
+        {
+          rotulo: "Parceiros",
+          href: `${ciclo}/parceiros`,
+          disponivel: true,
+          exige: ["parceiro:read"],
+        },
       ],
     },
     {
@@ -113,18 +156,32 @@ export function menu(
       itens: [
         // A caixa de entrada é da pessoa, não de um ciclo (D-11): fica fora
         // de `programas/[programa]/[ciclo]` porque um aviso sobre missão de
-        // ciclo encerrado continua sendo dela.
+        // ciclo encerrado continua sendo dela. Sem `exige`: o endpoint lista
+        // as notificações do próprio destinatário e não cobra permissão.
         { rotulo: "Avisos", href: "/avisos", disponivel: true },
-        { rotulo: "PPGs", href: "/ppgs", disponivel: true },
+        {
+          rotulo: "PPGs",
+          href: "/ppgs",
+          disponivel: true,
+          exige: ["ppg:read"],
+        },
         {
           rotulo: "Catálogo de bolsas",
           href: "/catalogos/bolsas",
           disponivel: true,
+          exige: ["catalogo:read"],
         },
         {
           rotulo: "Modalidades",
           href: "/catalogos/modalidades",
           disponivel: true,
+          exige: ["catalogo:read"],
+        },
+        {
+          rotulo: "Acessos",
+          href: "/configuracoes/acessos",
+          disponivel: true,
+          exige: ["acesso:read"],
         },
       ],
     },
@@ -155,4 +212,23 @@ export function menu(
       ],
     },
   ];
+
+  return grupos
+    .map((grupo) => ({
+      ...grupo,
+      itens: grupo.itens.filter(alcancado(permissoes)),
+    }))
+    .filter((grupo) => grupo.itens.length > 0);
+}
+
+/**
+ * Item que a conta alcança.
+ *
+ * O que ainda não existe continua passando: `disponivel: false` é escopo
+ * futuro, não falta de permissão, e misturar os dois faria o módulo por vir
+ * sumir da régua no dia em que alguém rodasse o sistema sem concessões.
+ */
+function alcancado(permissoes: readonly string[]) {
+  return (item: ItemMenu) =>
+    !item.exige || item.exige.every((acao) => permissoes.includes(acao));
 }

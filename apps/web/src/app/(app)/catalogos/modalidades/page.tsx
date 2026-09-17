@@ -3,8 +3,11 @@ import type { Metadata } from "next";
 import { NovaModalidade } from "@/componentes/formularios/form-modalidade";
 import { ListaModalidades } from "@/componentes/consultas/lista-modalidades";
 import { Pagina, Secao } from "@/componentes/ui/basicos";
+import { SemAcesso } from "@/componentes/ui/sem-acesso";
+import { faltando } from "@/lib/acesso";
 import { apiFetch } from "@/lib/api";
-import type { Me, Modalidade } from "@/lib/dominio";
+import type { Modalidade } from "@/lib/dominio";
+import { carregarMe } from "@/lib/me";
 
 export const metadata: Metadata = {
   title: "Modalidades — Gerenciador PROPESP",
@@ -21,11 +24,21 @@ export const metadata: Metadata = {
  * todos os PPGs, e quem planeja não decide o que existe para planejar.
  */
 export default async function Modalidades() {
-  const [modalidades, me] = await Promise.all([
-    apiFetch<Modalidade[]>("/catalogo/modalidades"),
-    apiFetch<Me>("/me"),
-  ]);
-  const podeEditar = me.permissions.includes("catalogo:write");
+  const me = await carregarMe();
+  const falta = faltando(me.permissions, ["catalogo:read"]);
+  if (falta.length > 0) {
+    return (
+      <SemAcesso
+        titulo="Modalidades"
+        descricao="Modalidades de bolsa aceitas no planejamento."
+        me={me}
+        faltando={falta}
+      />
+    );
+  }
+
+  const modalidades = await apiFetch<Modalidade[]>("/catalogo/modalidades");
+  const podeEditar = me.permissions.includes("catalogo:create");
 
   return (
     <Pagina

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { permissionsForRoles, type Permission } from './permissions';
+import type { Permission } from './permissions';
 
 /**
  * Formato do access token emitido pelo Keycloak (apenas o que consumimos).
@@ -30,7 +30,14 @@ export const accessTokenClaimsSchema = z.object({
 
 export type AccessTokenClaims = z.infer<typeof accessTokenClaimsSchema>;
 
-/** Identidade autenticada, ja resolvida em permissoes, anexada a `request.user`. */
+/**
+ * Identidade autenticada anexada a `request.user`.
+ *
+ * `permissions` **nao vem do token**: desde 2026-09-16 ela e preenchida pelo
+ * `JwtAuthGuard` a partir das concessoes locais da conta. Um `AuthUser` montado
+ * fora do guard nasce sem permissao nenhuma, e essa e a falha segura — o token
+ * sozinho nao autoriza nada.
+ */
 export interface AuthUser {
   /** `sub` do Keycloak — identificador estavel do usuario. */
   readonly id: string;
@@ -42,16 +49,21 @@ export interface AuthUser {
   readonly permissions: readonly Permission[];
 }
 
+/**
+ * Claims -> identidade, **sem autorizacao nenhuma**.
+ *
+ * Os papeis continuam sendo lidos porque aparecem no `/me` e ajudam o suporte a
+ * reconhecer a conta no console do Keycloak. Eles nao concedem acesso: quem
+ * concede e `concessao_acesso`, e o guard preenche `permissions` a partir dela.
+ */
 export function toAuthUser(claims: AccessTokenClaims): AuthUser {
-  const roles = claims.realm_access?.roles ?? [];
-
   return {
     id: claims.sub,
     username: claims.preferred_username,
     email: claims.email,
     name: claims.name ?? claims.preferred_username,
     sessionId: claims.sid,
-    roles,
-    permissions: permissionsForRoles(roles),
+    roles: claims.realm_access?.roles ?? [],
+    permissions: [],
   };
 }

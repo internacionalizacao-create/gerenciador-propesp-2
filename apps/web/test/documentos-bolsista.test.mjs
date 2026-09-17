@@ -21,13 +21,13 @@ const raiz = (caminho) => new URL(`../${caminho}`, import.meta.url);
 test("categoria pessoal so aparece para quem pode abri-la", () => {
   const doCoordenador = categoriasDisponiveis([
     "bolsa:read",
-    "bolsa:write",
+    "bolsa:create",
   ]).map((categoria) => categoria.valor);
   assert.ok(doCoordenador.includes("CARTA_ACEITE"));
   assert.ok(!doCoordenador.includes("PASSAPORTE"));
 
   const daSecretaria = categoriasDisponiveis([
-    "bolsa:write",
+    "bolsa:create",
     "documento:read-pessoal",
   ]).map((categoria) => categoria.valor);
   assert.ok(daSecretaria.includes("PASSAPORTE"));

@@ -29,7 +29,10 @@ const admin: AuthUser = {
     'missao:submit',
     'missao:decide',
     'prestacao:read',
-    'prestacao:write',
+    'prestacao:create',
+    'prestacao:edit',
+    'prestacao:delete',
+    'prestacao:submit',
     'prestacao:review',
   ],
 };

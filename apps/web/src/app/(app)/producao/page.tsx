@@ -7,9 +7,12 @@ import {
   Selo,
   Tabela,
 } from "@/componentes/ui/basicos";
+import { SemAcesso } from "@/componentes/ui/sem-acesso";
+import { faltando } from "@/lib/acesso";
 import { apiFetch } from "@/lib/api";
 import type { LinhaProducao } from "@/lib/dominio";
 import { inteiro, rotulo } from "@/lib/formato";
+import { carregarMe } from "@/lib/me";
 
 /**
  * P18/P19 · Produção consolidada (BOL-051).
@@ -18,8 +21,24 @@ import { inteiro, rotulo } from "@/lib/formato";
  * é cobrança sobre o beneficiário; produto de missão é resultado institucional
  * da viagem do Comitê (CG-056). A coluna *Origem* existe justamente para que a
  * soma não apague a diferença — quem precisa de um dos dois filtra por ela.
+ *
+ * Exige as duas leituras, como o endpoint: com só uma delas a tabela mostraria
+ * metade da produção sem dizer que metade ficou de fora (V1-019).
  */
 export default async function Producao() {
+  const me = await carregarMe();
+  const falta = faltando(me.permissions, ["bolsa:read", "produto:read"]);
+  if (falta.length > 0) {
+    return (
+      <SemAcesso
+        titulo="Produção e resultados"
+        descricao="Produtos gerados por bolsistas e por missões do Comitê."
+        me={me}
+        faltando={falta}
+      />
+    );
+  }
+
   const linhas = await apiFetch<LinhaProducao[]>("/mobilidade/producao");
 
   const deBolsa = linhas.filter((linha) => linha.origem === "BOLSA");

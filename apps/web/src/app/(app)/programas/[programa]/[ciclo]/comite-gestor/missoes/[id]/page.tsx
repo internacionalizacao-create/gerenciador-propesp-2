@@ -42,13 +42,15 @@ import {
   Selo,
   Tabela,
 } from "@/componentes/ui/basicos";
-import { ApiError, apiFetch } from "@/lib/api";
+import { SemAcesso } from "@/componentes/ui/sem-acesso";
+import { faltando } from "@/lib/acesso";
+import { ApiError, apiFetch, apiFetchOuNada } from "@/lib/api";
+import { carregarMe } from "@/lib/me";
 import type {
   AnexoResumo,
   AtividadeMissao,
   AvaliacaoSubmissao,
   DespesaMissao,
-  Me,
   MissaoDetalhe,
   ParticipanteMissao,
   PrestacaoMissao,
@@ -109,20 +111,22 @@ export default async function MissaoDetalhePagina({
 }) {
   const { programa, ciclo, id } = await params;
   const aba = normalizarAba((await searchParams).aba);
-  const me = await apiFetch<Me>("/me");
+  const me = await carregarMe();
   const base = `/programas/${programa}/${ciclo}/comite-gestor`;
 
-  if (!me.permissions.includes("missao:read")) {
+  const falta = faltando(me.permissions, ["missao:read"]);
+  if (falta.length > 0) {
     return (
-      <Pagina titulo="Missão" descricao="Detalhe da missão institucional.">
-        <EstadoVazio
-          titulo="Acesso restrito"
-          descricao="Seu perfil não tem acesso às missões do Comitê Gestor. Fale com a administração da PROPESP."
-        />
-      </Pagina>
+      <SemAcesso
+        titulo="Missão"
+        descricao="Detalhe da missão institucional."
+        me={me}
+        faltando={falta}
+      />
     );
   }
 
+  const podeVerPrestacao = me.permissions.includes("prestacao:read");
   const rotaMissao = `/programas/${programa}/${ciclo}/comite-gestor/missoes/${id}`;
   const [
     missao,
@@ -150,10 +154,16 @@ export default async function MissaoDetalhePagina({
       ),
       // Nulo quando a missão não tem prestação — ausência é ausência de linha,
       // não o estado `NAO_INICIADA` (CG-013).
-      apiFetch<PrestacaoMissao | null>(`${rotaMissao}/prestacao`),
+      // `prestacao:read` é outra permissão, e não vem junto de `missao:read`.
+      // A consulta é condicional, e não tolerante a 403, porque nula aqui já
+      // significa "prestação não iniciada": as duas ausências precisam
+      // continuar distinguíveis na aba (V1-019).
+      podeVerPrestacao
+        ? apiFetch<PrestacaoMissao | null>(`${rotaMissao}/prestacao`)
+        : Promise.resolve(null),
       // Produtos e a resposta "gerou produto?" (CG-056). Leitura aqui; o
       // cadastro entra com a edição do relato (CG-046).
-      apiFetch<ResultadosDaMissao>(`${rotaMissao}/produtos`),
+      apiFetchOuNada<ResultadosDaMissao>(`${rotaMissao}/produtos`),
       // Checklist de encerramento (CG-058), recalculado a cada leitura.
       apiFetch<ChecklistEncerramento>(`${rotaMissao}/encerramento`),
       // País e parceiros do formulário de atividade não prevista (CG-046). Só
@@ -188,7 +198,7 @@ export default async function MissaoDetalhePagina({
     me.permissions.includes("missao:decide") &&
     missao.statusAprovacao === "EM_ANALISE";
   const podeReabrir =
-    me.permissions.includes("missao:reopen") &&
+    me.permissions.includes("missao:reopen-analise") &&
     (missao.statusAprovacao === "APROVADA" ||
       missao.statusAprovacao === "REPROVADA");
   // Encerrar mexe na dimensão de execução, e por isso olha `status`, nunca
@@ -197,9 +207,9 @@ export default async function MissaoDetalhePagina({
   // Relatar é ato de execução, não de aprovação: `missao:write`, e a missão
   // cancelada não recebe relato (a API recusa; a tela nem oferece).
   const podeRelatar =
-    me.permissions.includes("missao:write") && missao.status !== "CANCELADA";
+    me.permissions.includes("missao:relato") && missao.status !== "CANCELADA";
   const podeEncerrar =
-    me.permissions.includes("missao:write") && missao.status === "CONFIRMADA";
+    me.permissions.includes("missao:close") && missao.status === "CONFIRMADA";
   const podeDispensar = me.permissions.includes("missao:decide");
   /*
     A prestação congela quando sai de um estado editável (CG-054).
@@ -210,9 +220,9 @@ export default async function MissaoDetalhePagina({
     prestacao === null ||
     prestacao.status === "EM_PREENCHIMENTO" ||
     prestacao.status === "COM_PENDENCIA";
-  const podeLancar = me.permissions.includes("prestacao:write") && editavel;
+  const podeLancar = me.permissions.includes("prestacao:create") && editavel;
   const podeEnviarPrestacao =
-    me.permissions.includes("prestacao:write") &&
+    me.permissions.includes("prestacao:submit") &&
     prestacao !== null &&
     editavel;
   // Revisar é ato distinto de preparar, e a permissão é outra.
@@ -314,6 +324,7 @@ export default async function MissaoDetalhePagina({
       ) : aba === "prestacao" ? (
         <Prestacao
           prestacao={prestacao}
+          podeVer={podeVerPrestacao}
           missao={missao}
           contexto={contexto}
           podeEscrever={podeLancar}
@@ -596,10 +607,23 @@ function Resultados({
   contexto,
   podeResponder,
 }: {
-  resultados: ResultadosDaMissao;
+  resultados: ResultadosDaMissao | null;
   contexto: { programa: string; ciclo: string; id: string };
   podeResponder: boolean;
 }) {
+  // Sem `produto-missao:read` a API recusa a consulta; a seção diz isso em vez
+  // de sumir, senão a missão pareceria não ter resultado nenhum.
+  if (resultados === null) {
+    return (
+      <Secao titulo="Resultados">
+        <EstadoVazio
+          titulo="Fora do seu acesso"
+          descricao="Seu acesso não cobre os produtos de missão. Quem administra acessos na PROPESP pode conceder a consulta."
+        />
+      </Secao>
+    );
+  }
+
   if (resultados.respostaProduto === "NAO") {
     return (
       <Secao
@@ -1332,6 +1356,7 @@ function Galeria({
  */
 function Prestacao({
   prestacao,
+  podeVer,
   missao,
   contexto,
   podeEscrever,
@@ -1339,12 +1364,25 @@ function Prestacao({
   podeRevisar,
 }: {
   prestacao: PrestacaoMissao | null;
+  /** `false` quando falta `prestacao:read` — diferente de não haver prestação. */
+  podeVer: boolean;
   missao: MissaoDetalhe;
   contexto: { programa: string; ciclo: string; id: string };
   podeEscrever: boolean;
   podeEnviar: boolean;
   podeRevisar: boolean;
 }) {
+  if (!podeVer) {
+    return (
+      <Secao titulo="Prestação de contas">
+        <EstadoVazio
+          titulo="Fora do seu acesso"
+          descricao="Seu acesso não cobre a prestação de contas desta missão. Quem administra acessos na PROPESP pode conceder a consulta."
+        />
+      </Secao>
+    );
+  }
+
   if (!prestacao) {
     return (
       <Secao

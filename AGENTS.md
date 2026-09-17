@@ -4,14 +4,55 @@ Documento de referência para quem (pessoa ou LLM) vai mexer neste repositório 
 tê-lo escrito. Descreve o que existe hoje, por que está assim, e o que ainda não
 existe. **Mantenha-o atualizado quando mudar arquitetura ou convenção.**
 
-Última revisão: 2026-09-15.
+Última revisão: 2026-09-17.
 
 **Planejamento da V1 interna (2026-09-15):** a fila atual de trabalho está em
 [docs/backlog-v1.md](docs/backlog-v1.md), com fichas detalhadas para execução
 sob demanda. A [proposta de autorização](docs/proposta-autorizacao-v1.md)
-considera uso interno, sem acesso de bolsistas/externos nesta fase, e distingue
-decisões do responsável de sugestões ainda não adotadas. Esses documentos não
-alteram o comportamento atual nem significam homologação institucional.
+registra o modelo aprovado pelo responsável em 2026-09-15: concessões individuais
+de permissão + escopo na aplicação, Keycloak para autenticação e perfis como
+modelos opcionais. O público é interno, sem autosserviço de bolsistas/externos.
+Esses documentos não significam homologação institucional.
+A V1-010 entregou o contrato em `apps/api/src/auth/autorizacao-v1/` (catálogo,
+concessões Zod, modelos e política administrativa), com o inventário rota a rota
+em [docs/contrato-autorizacao-v1.md](docs/contrato-autorizacao-v1.md).
+A V1-011 criou a persistência dessas concessões (`concessao_acesso`, migration
+`0040`) e **V1-012/V1-017 as puseram em execução em 2026-09-16**: o
+`JwtAuthGuard` resolve o acesso da conta a cada requisição e preenche
+`request.user.permissions`; `permissionsForRoles`, `ROLE_PERMISSIONS`,
+`missao:all-redes`, o escopo global por papel `admin` e o modo permissivo
+`RECORTE_OBRIGATORIO` deixaram de existir. **Sem concessão, sem acesso** — e
+conceder é a API de `/acesso` (V1-017) ou a tela **Acessos**, em
+`/configuracoes/acessos` (V1-018). **V1-019 pôs a interface no mesmo regime**
+(2026-09-17): o menu é montado pelas ações concedidas, cada página confere o que
+precisa antes de consultar, e tela fora do acesso responde **200 com explicação**
+— nunca mais o erro genérico. **O que ainda falta** é o recorte por ação nas
+consultas de plano, orçamento, bolsas e parceiros (V1-013 a V1-016): até lá,
+`escopoDe` serve de ponte, unindo os alvos de todas as ações concedidas, e a
+interface decide *se a tela abre*, não *quais linhas* ela traz.
+
+**Ambiente local recém-subido não enxerga nada**, e isso é o comportamento
+certo: conta nova entra sem concessão. Para trabalhar (e para o
+`pnpm smoke:telas` ter o que conferir), rode uma vez
+`pnpm --filter api acesso:bootstrap --sub <sub> --motivo "..." --aplicar` e
+depois `./scripts/acesso-dev.sh`, que faz a dança de dois logins que a política
+exige — ninguém amplia o próprio acesso, nem em desenvolvimento.
+
+**Decisão do responsável, 2026-09-16: em produção o Keycloak só autentica.**
+Nenhum papel de negócio é criado ou atribuído lá; quem responde "o que esta
+pessoa pode fazer, e sobre o quê" é `concessao_acesso`, concedida pelo admin na
+aplicação, ação a ação. A implantação começa com a base consolidada (catálogo,
+PPGs, programa, ciclo, redes) e **sem conta nenhuma**: o primeiro administrador
+sai de `pnpm --filter api acesso:bootstrap` (V1-021a) — comando local, sem rota
+HTTP equivalente, prévia por padrão, que concede só as capacidades de gestão de
+acesso e recusa quando já existe administrador recuperável. As demais contas são
+cadastradas depois, pela tela de administração (V1-018).
+
+Por isso **não existe conversão do acesso legado**: numa base que começa limpa
+não há o que converter. O planejador e o relatório de conversão, escritos na
+V1-011, foram removidos em 2026-09-16 junto com os dados de acesso emulados no
+banco de desenvolvimento. O que sobreviveu daquela tarefa é a tabela, o
+mapeamento alvo↔colunas (`autorizacao-v1/persistencia.ts`) e o bootstrap.
 Antes de iniciar uma task, confira suas dependências e o código: o
 [diagnóstico de 2026-09-15](docs/diagnostico-v1-2026-09-15.md) registra divergências
 entre descrições antigas abaixo e funcionalidades já entregues.
@@ -98,13 +139,19 @@ apps/
         auth.decorators.ts    @Public, @RequirePermission, @CurrentUser
         auth.module.ts        registra os dois guards como globais
         jwt-auth.guard.ts     exige Bearer válido (global)
-        permissions.ts        catálogo de permissões + mapa papel -> permissões
+        permissions.ts        reexporta o tipo Permission do catálogo V1
         permissions.guard.ts  aplica @RequirePermission (global)
         token-verifier.service.ts  valida o JWT contra o JWKS do realm
-        identidade.service.ts liga `sub` do Keycloak a `pessoa`; resolve escopo
-        escopo.ts             traduz escopo em condição SQL (RECORTE_OBRIGATORIO)
-        acesso.controller.ts  admin concede/revoga escopo e reassocia pessoa
-        me.controller.ts      GET /me e a sonda GET /me/exemplo-restrito
+        identidade.service.ts liga `sub` do Keycloak a `pessoa`; deriva escopo
+        escopo.ts             traduz escopo em condição SQL
+        autorizacao-v1/       catálogo, concessões, modelos e resolver de acesso
+          catalogo.ts           as ações e os alvos que cada uma aceita
+          acesso-v1.service.ts  resolve as concessões da conta por requisição
+          alcance.ts            compõe o alcance e o traduz em SQL
+          concessoes.service.ts administração das concessões (V1-017)
+          bootstrap.ts          primeiro administrador, por comando local
+        acesso.controller.ts  concede, revoga e reassocia pessoa
+        me.controller.ts      GET /me, GET /me/acesso e a sonda restrita
       comum/
         consultar.ts       envelope tipado para SQL cru
         zod-validation.pipe.ts  valida o corpo das requisições
@@ -141,7 +188,9 @@ apps/
         utils.ts           `cn` (clsx + tailwind-merge)
         dominio.ts         espelho dos tipos da API
         formato.ts         moeda, percentual, rótulos de enum, somarMoeda
-        navegacao.ts       menu, incluindo o que ainda não existe
+        acesso.ts          o que falta para a tela abrir; nomes do catálogo
+        me.ts              /me e /me/acesso, deduplicados por requisição
+        navegacao.ts       menu por capacidade, e o que ainda não existe
       acoes/               Server Actions (ppgs, plano, bolsistas, catalogo)
       componentes/
         layout/            menu lateral, sub-nav do ciclo, troca de tema
@@ -150,6 +199,7 @@ apps/
         ui/campos.tsx      inputs, chips, marcadores
         ui/basicos.tsx     Página, Seção, Cartão, Tabela, Moeda, Selo, Aviso
         ui/toast.tsx       feedback global de ações, com provider e hook
+        ui/sem-acesso.tsx  a tela de quem não tem a permissão daquela página
         ui/botao.tsx       variantes de botão com CVA
         ui/popover.tsx     Radix Popover vestido com os tokens daqui
         ui/comando.tsx     lista filtrável por teclado (cmdk)
@@ -186,6 +236,7 @@ scripts/
   db-restaurar.sh          devolve o banco a um backup, conferindo a contagem
   db-zerar.sh              esvazia o operacional, preserva a base e os logins
   db-inventario.sql        contagem exata de linhas por tabela
+  acesso-dev.sh            provisiona acesso das contas de teste (só desenvolvimento)
   api.sh                   chama a API autenticado, pelo BFF (atos ainda sem tela)
 docs/
   autenticacao.md          detalhamento da arquitetura de auth
@@ -231,8 +282,10 @@ reaplicar o arquivo em um Keycloak já rodando: `pnpm kc:import --force`
 | `secretaria.teste` | `secretaria123` | `secretaria` |
 | `discente.teste` | `discente123` | `discente` |
 
-Cobrem os cinco papéis que `permissionsForRoles`
-([permissions.ts](apps/api/src/auth/permissions.ts)) já reconhece.
+Os papéis destes usuários **não concedem mais nada** (V1-012): servem só para
+reconhecer a conta no console. Para que qualquer um deles enxergue algo, é
+preciso conceder — pelo bootstrap (`pnpm --filter api acesso:bootstrap`, que dá
+só a gestão de acessos) e depois pela API de `/acesso`.
 
 **Dois "admin" diferentes, não confundir:**
 
@@ -375,29 +428,45 @@ por padrão (o `JwtAuthGuard` é global e só `@Public()` abre).
 
 ## 6. Modelo de autorização e como estendê-lo
 
-Hoje: papel de realm no Keycloak → conjunto de permissões finas na API.
+Desde 2026-09-16 (V1-012): o Keycloak autentica, e quem autoriza são as
+concessões individuais guardadas na aplicação.
 
 ```
-Keycloak emite:  realm_access.roles = ["coordenador", "docente"]
-API traduz:      permissionsForRoles(roles) -> ["plano:read", "plano:write", ...]
-Controller pede: @RequirePermission('plano:write')
+Keycloak emite:  sub (quem é a pessoa) — o papel não concede nada
+Guard resolve:   concessao_acesso(sub) -> ações + alcance de cada uma
+Controller pede: @RequirePermission('plano:create')
 ```
 
-O mapa vive em [apps/api/src/auth/permissions.ts](apps/api/src/auth/permissions.ts).
+O catálogo vive em
+[autorizacao-v1/catalogo.ts](apps/api/src/auth/autorizacao-v1/catalogo.ts) e o
+resolver em
+[acesso-v1.service.ts](apps/api/src/auth/autorizacao-v1/acesso-v1.service.ts);
+`permissions.ts` sobrou como reexportação do tipo. Uma consulta por requisição,
+**sem cache** — é o que faz a revogação valer na requisição seguinte.
 
 **Para adicionar uma permissão nova:**
 
-1. Acrescente a string em `PERMISSIONS` (o tipo `Permission` é derivado dela, então
-   o TypeScript passa a aceitá-la em `@RequirePermission`).
-2. Conceda-a aos papéis certos em `ROLE_PERMISSIONS`.
-3. Use `@RequirePermission('sua:permissao')` no handler.
-4. Cubra no teste de `permissionsForRoles` se a regra for interessante.
+1. Acrescente a chave em `CATALOGO_PERMISSOES_V1`, com rótulo em português e os
+   tipos de alvo que ela aceita.
+2. Use `@RequirePermission('sua:permissao')` no handler.
+3. Acrescente a rota ao inventário de
+   [docs/contrato-autorizacao-v1.md](docs/contrato-autorizacao-v1.md).
+4. Se a ação couber num modelo, inclua-a em `modelos.ts` — modelo é ponto de
+   partida da tela, não papel: editá-lo não muda quem já foi configurado.
+5. Se ela destrava uma tela, ponha-a no `exige` do item de menu e na porta da
+   página (§8): sem isso, ou a tela não aparece para quem pode, ou aparece para
+   quem a API vai recusar.
 
-**Para adicionar um papel novo:** crie no realm
-([infra/keycloak/import/gerenciador-realm.json](infra/keycloak/import/gerenciador-realm.json))
-e mapeie em `ROLE_PERMISSIONS`. Papel sem entrada no mapa simplesmente não concede
-nada — não é erro (o Keycloak injeta `offline_access` e `uma_authorization` em
-todo token).
+**Duas formas que o decorador não expressa**, e por isso moram no handler: ação
+que depende do corpo (a transição de situação da missão confere
+`missao:confirm`/`cancel`/`close` conforme o destino) e permissão que só se
+conhece em runtime (a exportação de relatório exige a leitura daquele relatório
+mais a exportação do domínio).
+
+**Não crie papel novo no realm** esperando que ele conceda algo: papel deixou de
+ser fonte de autorização. O equivalente é um **modelo** em `modelos.ts`, que a
+tela oferece como ponto de partida e que vira concessões explícitas ao ser
+aplicado.
 
 ### Identidade local e escopo de acesso
 
@@ -406,9 +475,17 @@ em tabelas separadas de propósito:
 
 | Pergunta | Onde vive |
 |---|---|
-| O que pode fazer? | papel no Keycloak → `permissionsForRoles` |
 | Quem é? | `usuario_sistema` — liga `sub` a `pessoa` |
-| Sobre o quê? | `escopo_acesso` — `GLOBAL`, `PPG` ou `REDE` |
+| O que pode fazer, e sobre o quê? | `concessao_acesso` — esta conta, esta ação, este alvo |
+
+O alvo é `GLOBAL`, `CICLO`, `PPG`+ciclo, `REDE`, `TEMATICA` ou `PARTICIPACAO`.
+**As duas perguntas vivem na mesma linha** desde V1-012, porque é assim que elas
+são feitas: não "quais PPGs esta conta enxerga", mas "em quais PPGs ela pode
+lançar bolsa" — e a resposta pode diferir da de "consultar o plano".
+
+`escopo_acesso` ainda existe e **não autoriza mais nada**; sai em V1-021. O
+mesmo vale para o vínculo de equipe: estar na equipe de uma rede é fato de
+cadastro, não concessão.
 
 **O vínculo se faz no primeiro acesso, por e-mail.** O admin cria a conta no
 Keycloak com o mesmo e-mail da pessoa já cadastrada e
@@ -422,17 +499,15 @@ O vínculo acontece em `/me`, e não no guard: o guard roda em toda requisição
 pagar uma escrita por chamada para resolver algo que muda uma vez na vida da
 conta seria desperdício.
 
-**`RECORTE_OBRIGATORIO` em [escopo.ts](apps/api/src/auth/escopo.ts) é a decisão
-mais consequente do módulo.** Enquanto for `false`, conta **sem escopo nenhum**
-continua vendo tudo; quem já tem escopo cadastrado já é recortado hoje. O modo
-permissivo existe porque ligar o recorte antes de a PROPESP atribuir os escopos
-deixaria todo coordenador sem enxergar nada, no mesmo instante e sem explicação.
-Trocar para `true` fecha o sistema. Os dois modos têm teste.
+**Sem concessão, sem dado.** O modo permissivo (`RECORTE_OBRIGATORIO`) existiu
+enquanto a permissão vinha do papel e o escopo de ninguém estava configurado;
+saiu com V1-012, porque conta não configurada já não tem ação alguma a exercer e
+um recorte permissivo só vazaria dado de quem foi configurado pela metade —
+alguém com alcance de rede veria todos os PPGs.
 
-Uma sutileza que a implementação ingênua erra: quem tem escopo **de rede** e
+Uma sutileza que a implementação ingênua erra: quem tem alcance **de rede** e
 nenhum de PPG não está "sem configuração" — foi configurado para outra dimensão,
-e liberar todos os PPGs para ele seria vazamento. Por isso a checagem olha os
-dois tipos antes de concluir que ninguém configurou nada.
+e liberar todos os PPGs para ele seria vazamento.
 
 O recorte entra **na consulta**, nunca numa filtragem em memória: filtrar fora
 do banco traz a tabela inteira para a aplicação e vaza a contagem real em
@@ -442,17 +517,14 @@ qualquer soma feita antes do filtro. PPG fora do escopo responde **404, não
 **Escopo por rede no módulo de missões (CG-028).** Desde 2026-09-07 o recorte
 vale para missões, e não só para PPGs. Três coisas o definem:
 
-1. **"Minha rede" é o vínculo ativo** em `membro_equipe_gestao_rede`, em união
-   com `escopo_acesso`. Vínculo com `data_fim` preenchido não autoriza mais.
-2. **`missao:all-redes` desliga o recorte** e é concedida a `admin` e
-   `comite-gestor`. É a única permissão do catálogo que fala de *quais linhas*;
-   a exceção existe para não fazer o serviço perguntar pelo papel. Quem decide
-   precisa ver o que vai decidir — um Comitê recortado receberia fila
-   incompleta. Ela não concede escrita.
-3. **Aqui não há modo permissivo.** `RECORTE_OBRIGATORIO = false` poupa quem
-   ainda não tem escopo no mundo do PPG; no das missões essa pessoa não existe,
-   porque a única permissão que chega ao recorte é a do Gestor da Rede. Sem
-   rede no escopo, nenhuma missão passa.
+1. **"Minha rede" é o alcance de `missao:read`** — desde V1-012, e não mais o
+   vínculo de equipe, que virou fato de cadastro sem efeito de acesso.
+2. **"Ver todas as redes" é concessão, não permissão.** `missao:all-redes` não
+   existe mais: quem decide sobre as três redes tem `missao:read` em `GLOBAL`, e
+   concessão por ciclo alcança as redes daquele ciclo. Isso não concede escrita
+   nenhuma — a escrita é outra ação, com o seu próprio alcance.
+3. **Missão sem rede cadastrada** (anteriores à CG-016) só aparece para quem não
+   é recortado; é o que `RecorteDeMissoes.semRecorte` responde.
 
 O recorte de leitura de **uma** missão é o `EscopoMissaoGuard`, global: as
 rotas de missão têm todas a mesma forma, e verificação espalhada por serviço é
@@ -462,10 +534,10 @@ verificação que a próxima rota esquece. Ele responde **404, nunca 403**. A
 missão multirrede a rede que você não alcança é 403. **Documento herda o escopo
 do alvo**, senão o anexo seria a porta lateral do recorte.
 
-**Quando a granularidade apertar** (permissão direta por usuário, delegação
-temporária), o ponto de mudança é `permissionsForRoles` — e só ele. Nenhum
-controller precisa mudar, porque nenhum menciona papel. Foi por isso que a
-indireção existe desde o começo.
+**A granularidade apertou, e a indireção pagou-se**: trocar a fonte de
+autorização de papel para concessão individual não exigiu que nenhum controller
+mencionasse papel, porque nenhum mencionava. O que mudou foi de onde
+`user.permissions` vem, mais a troca dos nomes das ações pelos do catálogo.
 
 ---
 
@@ -617,6 +689,7 @@ ficam como estão. O `<dialog>` nativo continua sendo a decisão — foco preso,
 | `CartaoKpi` / `BarraDeProporcao` | [painel/kpis.tsx](apps/web/src/componentes/painel/kpis.tsx) | Indicador com barra e linha de contexto — número sozinho diz pouco. A barra é `aria-hidden` porque o valor já está escrito, e com `semaforo` segue a faixa da RN-07. |
 | `identidadeDaRede` / `chaveDaRede` | [lib/redes.ts](apps/web/src/lib/redes.ts) | Cor e `?rede=` de cada rede, pelo nome. Toda tela que pinta ou linka rede passa por aqui. |
 | `Botao` | [ui/botao.tsx](apps/web/src/componentes/ui/botao.tsx) | Variantes com CVA (`primario`, `contorno`, `suave`, `fantasma`, `perigo`). `comoFilho` renderiza num `<Link>` em vez de `<button>`. |
+| `SemAcesso` | [ui/sem-acesso.tsx](apps/web/src/componentes/ui/sem-acesso.tsx) | A resposta da página que o acesso da conta não cobre: 200 com explicação, e três textos distintos (vínculo pendente, conta sem concessão, acesso que não cobre esta tela). Use junto de `faltando` ([lib/acesso.ts](apps/web/src/lib/acesso.ts)), **antes** de consultar a API. |
 | `Moeda` | [ui/basicos.tsx](apps/web/src/componentes/ui/basicos.tsx) | Nulo vira *A definir* em itálico, **nunca** R$ 0,00 (§9.2 da especificação). |
 | `somarMoeda` | [lib/formato.ts](apps/web/src/lib/formato.ts) | Soma em centavos com `BigInt`. Dinheiro nunca passa por `number` antes de uma conta. Cada parcela é truncada para centavos **antes** da soma, e a ordem importa: mil parcelas de 8,615 dão 8.610,00 aqui e 8.615,00 numa soma em `number` — está fixado em `test/dinheiro.test.mjs`. Se **tudo** for nulo o resultado é nulo, nunca zero. |
 | `ToastProvider` / `useToastDaAcao` | [ui/toast.tsx](apps/web/src/componentes/ui/toast.tsx) | Confirma ações depois que o sidesheet fecha. Erros de validação continuam junto ao formulário. |
@@ -663,6 +736,14 @@ motivo, mas o `MenuLateral` os filtra — item "em breve" lia como sistema
 inacabado nas apresentações. No celular ele continua como gaveta completa. Preserve esse comportamento
 ao incluir novos itens: todo item precisa de rótulo acessível mesmo quando apenas
 o ícone estiver visível.
+
+**Desde V1-019 o menu também filtra por capacidade**: cada item declara em
+`exige` as ações da tela dele, e quem não as tem não o vê. São dois filtros com
+razões diferentes — `disponivel` é escopo futuro, `exige` é acesso —, e juntá-los
+faria o módulo por vir sumir da régua num ambiente sem concessões. Item novo
+precisa de `exige` com **as mesmas ações que o guard cobra** do endpoint
+principal da tela; e a tela, da porta correspondente (`faltando` + `SemAcesso`),
+senão o link some do menu e a URL continua respondendo erro.
 
 ---
 
@@ -815,7 +896,7 @@ o ícone estiver visível.
   declarou. `responderArquivo` mora em
   [comum/resposta-arquivo.ts](apps/api/src/comum/resposta-arquivo.ts) desde
   então — duplicá-lo duplicaria a armadilha do `resposta.send`.
-- **Modelo de dados**: 53 tabelas em 13 módulos de schema Drizzle
+- **Modelo de dados**: 55 tabelas em 13 módulos de schema Drizzle
   ([apps/api/src/database/schema/](apps/api/src/database/schema/)), com migrations.
   Segue [system-structl.md](system-structl.md) §4.
 - **Seed com os dados reais** das planilhas e respostas formais
@@ -1372,12 +1453,12 @@ interface é **Coordenador de Temática**, não “membro do comitê”. Ediçã
 existente exige `plano:edit` (só `admin`), preserva código/rubrica e grava uma
 entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: somente
 2027 vem composto; 2028–2030 começam vazios e nunca copiam a quantidade automaticamente.
-- **Testes**: 199 unitários/regressões (69 API + 130 na web para toast, datas,
+- **Testes**: 246 unitários/regressões (89 API + 157 na web para toast, datas,
   React Hook Form/Zod, erros do multistep, formulários de parceiro,
   acessibilidade, contraste dos tokens, cálculos monetários, montagem de série
-  do gráfico, links do painel, pontas da mobilidade, cor das redes e caminhos
-  do BFF) + 522 de integração contra Postgres
-  real — entre eles os oito da escrita do catálogo
+  do gráfico, links do painel, pontas da mobilidade, cor das redes, caminhos
+  do BFF, concessão de acesso e menu por capacidade) mais as suítes de
+  integração contra Postgres real — entre elas os oito casos da escrita do catálogo
   ([catalogo.int-spec.ts](apps/api/test/catalogo.int-spec.ts)), incluindo a
   recusa de alterar item que já custeia linha de plano. As duas garantias de não duplicação da linha
   histórica do parceiro foram verificadas por mutação: trocar o `exists` +
@@ -1438,7 +1519,10 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
   home do coordenador montada antes disso ou mostraria o programa inteiro sob
   o rótulo "seu PPG", ou recortaria só na tela — e recorte fora da consulta é
   justamente o que o §6 proíbe. Quando o recorte chegar, a home por perfil é a
-  terceira fase da proposta de dashboard.
+  terceira fase da proposta de dashboard. **A V1-019 não a antecipou**: ela
+  decide se a tela abre, e a P01 continua a mesma para todos — o que muda com o
+  acesso é o menu ao lado dela e o bloco de mobilidade, que some sem
+  `bolsa:read`.
 - Cobertura ampla de componentes na `web`. O `node --test` carrega TypeScript em
   modo strip-only: não lê `.tsx` e recusa *parameter property*
   (`constructor(readonly x: number)`). Por isso a lógica testável mora em `.ts`

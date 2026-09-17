@@ -3,8 +3,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import type { AuthUser } from '../src/auth/auth-user';
+import { colunasDoAlvo } from '../src/auth/autorizacao-v1/persistencia';
 import { IdentidadeService } from '../src/auth/identidade.service';
-import { permissionsForRoles } from '../src/auth/permissions';
+import {
+  copiarModelo,
+  type ModeloAcessoV1,
+} from '../src/auth/autorizacao-v1/modelos';
 import { ArmazenamentoService } from '../src/arquivos/armazenamento.service';
 import * as s from '../src/database/schema';
 import {
@@ -12,24 +16,24 @@ import {
   type ArquivoRecebido,
 } from '../src/dominio/anexos.service';
 import { criarContextoTeste, type ContextoTeste } from './db-teste';
-import { criarBase, type BaseFixture } from './fixtures';
+import { criarAcesso, criarBase, type BaseFixture } from './fixtures';
 
 /**
- * Papeis montados por `permissionsForRoles`, e nao a mao: uma lista escrita
+ * Montados a partir dos modelos da V1, e nao a mao: uma lista escrita
  * aqui continuaria passando no dia em que o mapa de permissoes mudasse, e e
  * exatamente essa mudanca que estes casos precisam acompanhar.
  */
-const comoPapel = (id: string, papel: string): AuthUser => ({
+const comoModelo = (id: string, modelo: ModeloAcessoV1): AuthUser => ({
   id,
-  name: `Usuario ${papel}`,
-  roles: [papel],
-  permissions: permissionsForRoles([papel]),
+  name: `Usuario ${modelo}`,
+  roles: [],
+  permissions: copiarModelo(modelo).permissoes,
 });
 
-const admin = comoPapel('admin-bol', 'admin');
-const secretaria = comoPapel('secretaria-bol', 'secretaria');
-const comite = comoPapel('comite-bol', 'comite-gestor');
-const coordenador = comoPapel('coord-bol', 'coordenador');
+const admin = comoModelo('admin-bol', 'administrador');
+const secretaria = comoModelo('secretaria-bol', 'secretaria');
+const comite = comoModelo('comite-bol', 'comite-gestor');
+const coordenador = comoModelo('coord-bol', 'responsavel-ppg');
 
 const bytes = (hex: string, sobra = 64) =>
   Buffer.concat([Buffer.from(hex, 'hex'), Buffer.alloc(sobra, 0x41)]);
@@ -69,6 +73,28 @@ describe('Documentos do bolsista (BOL-021)', () => {
   beforeEach(async () => {
     await ctx.limpar();
     base = await criarBase(ctx.db);
+
+    // Admin, secretaria e Comite enxergam tudo por concessao GLOBAL; a
+    // coordenacao nasce sem alcance, e o caso do recorte concede o PPG.
+    for (const conta of [admin, secretaria, comite]) {
+      await criarAcesso(ctx.db, {
+        sub: conta.id,
+        nome: conta.name,
+        permissoes: conta.permissions,
+      });
+    }
+    // A coordenacao alcanca **um** PPG, o da fixture: e o que torna visivel o
+    // recorte quando ela tenta o documento da bolsa de outro PPG.
+    await criarAcesso(ctx.db, {
+      sub: coordenador.id,
+      nome: coordenador.name,
+      permissoes: coordenador.permissions,
+      alvo: colunasDoAlvo({
+        tipo: 'PPG',
+        ppgId: base.ppgId,
+        cicloId: base.cicloId,
+      }),
+    });
 
     const concessao = async (nome: string, cpf: string, ppgId: string) => {
       const [pessoa] = await ctx.db
@@ -204,7 +230,7 @@ describe('Documentos do bolsista (BOL-021)', () => {
   it('quem nao abre documento pessoal tambem nao envia', async () => {
     // Simetria homologada em 2026-09-09: sem ela o coordenador coletava
     // passaporte de aluno que so ele proprio reabriria depois.
-    expect(coordenador.permissions).toContain('bolsa:write');
+    expect(coordenador.permissions).toContain('bolsa:create');
     await expect(enviar('PASSAPORTE', coordenador)).rejects.toThrow(
       'documento:read-pessoal',
     );
@@ -251,12 +277,7 @@ describe('Documentos do bolsista (BOL-021)', () => {
   });
 
   it('o documento nao contorna o recorte por PPG da BOL-020', async () => {
-    const resolvida = await identidade.resolver(coordenador);
-    await ctx.db.insert(s.escopoAcesso).values({
-      usuarioId: resolvida!.usuarioId,
-      tipo: 'PPG',
-      ppgId: base.ppgId,
-    });
+    // A coordenacao ja alcanca o PPG da fixture (ver `beforeEach`), e so ele.
 
     // Conhecer o UUID da bolsa alheia nao basta — nem para ler, nem para subir.
     await expect(

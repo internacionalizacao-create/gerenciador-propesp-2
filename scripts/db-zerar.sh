@@ -65,6 +65,10 @@ PRESERVAR=(
   requisito_submissao       # politica documental: dado, nao codigo (CG-019/CG-058)
   premissa fonte_documental linha_pesquisa
   usuario_sistema escopo_acesso                   # os acessos, incluindo o admin
+  # Concessoes individuais (V1-011): mesmo motivo dos dois acima. Zera-las
+  # tiraria o acesso de quem ja foi configurado, e o cadastro do zero seria
+  # feito por uma conta sem alcance nenhum.
+  concessao_acesso
   pessoa instituicao                              # limpeza seletiva, mais abaixo
 )
 

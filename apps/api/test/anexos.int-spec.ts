@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import type { AuthUser } from '../src/auth/auth-user';
 import { IdentidadeService } from '../src/auth/identidade.service';
-import { permissionsForRoles } from '../src/auth/permissions';
+import { copiarModelo } from '../src/auth/autorizacao-v1/modelos';
 import { ArmazenamentoService } from '../src/arquivos/armazenamento.service';
 import * as s from '../src/database/schema';
 import {
@@ -12,7 +12,7 @@ import {
   type ArquivoRecebido,
 } from '../src/dominio/anexos.service';
 import { criarContextoTeste, type ContextoTeste } from './db-teste';
-import { criarBase, type BaseFixture } from './fixtures';
+import { criarAcesso, criarBase, type BaseFixture } from './fixtures';
 
 const admin: AuthUser = {
   id: 'admin-anexos',
@@ -22,32 +22,41 @@ const admin: AuthUser = {
     'missao:read',
     'missao:edit',
     'prestacao:read',
-    'prestacao:write',
+    'prestacao:create',
+    'prestacao:edit',
+    'prestacao:delete',
+    'prestacao:submit',
     'parceiro:read',
-    'parceiro:write',
+    'parceiro:create',
+    'parceiro:edit',
+    'parceiro:status',
+    'parceiro:merge',
+    'convenio:create',
+    'convenio:edit',
+    'convenio:status',
   ],
 };
 
 /**
  * Tem leitura de missao, mas nenhuma permissao de prestacao nem de parceiro.
  *
- * `missao:all-redes` entra aqui porque estes casos verificam a **permissao** e
- * a **visibilidade** do documento, e nao o recorte por rede — que tem suite
- * propria em `escopo-rede.int-spec.ts`. Sem ele, o recorte responderia 404
- * antes de a regra sob teste ser alcancada, e o teste passaria a provar outra
- * coisa (CG-028).
+ * As contas desta suite recebem concessao **GLOBAL** no `beforeEach`, porque o
+ * que se verifica aqui e a **permissao** e a **visibilidade** do documento, e
+ * nao o recorte por rede — que tem suite propria em `escopo-rede.int-spec.ts`.
+ * Com alcance parcial, o recorte responderia 404 antes de a regra sob teste ser
+ * alcancada, e o teste passaria a provar outra coisa (CG-028).
  */
 const somenteMissao: AuthUser = {
   id: 'leitor-missao',
   name: 'Leitor de Missões',
   roles: ['coordenador'],
-  permissions: ['missao:read', 'missao:all-redes'],
+  permissions: ['missao:read'],
 };
 
 /**
  * Membro do Comite Gestor, com as permissoes reais do papel.
  *
- * Montado por `permissionsForRoles`, e nao a mao: uma lista escrita aqui
+ * Montado a partir do modelo da V1, e nao a mao: uma lista escrita aqui
  * continuaria passando no dia em que o mapa de permissoes mudasse, e e
  * exatamente essa mudanca que este caso precisa acompanhar.
  */
@@ -55,7 +64,7 @@ const comite: AuthUser = {
   id: 'membro-comite',
   name: 'Membro do Comite',
   roles: ['comite-gestor'],
-  permissions: permissionsForRoles(['comite-gestor']),
+  permissions: copiarModelo('comite-gestor').permissoes,
 };
 
 const bytes = (hex: string, sobra = 64) =>
@@ -100,6 +109,14 @@ describe('AnexosService (CG-051)', () => {
   beforeEach(async () => {
     await ctx.limpar();
     base = await criarBase(ctx.db);
+
+    for (const conta of [admin, somenteMissao, comite]) {
+      await criarAcesso(ctx.db, {
+        sub: conta.id,
+        nome: conta.name,
+        permissoes: conta.permissions,
+      });
+    }
     const [missao] = await ctx.db
       .insert(s.missaoComite)
       .values({

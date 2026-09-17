@@ -21,7 +21,7 @@ export class PessoasController {
   }
 
   @Post()
-  @RequirePermission('equipe-gestao:write')
+  @RequirePermission('equipe-gestao:create-pessoa')
   criar(
     @CurrentUser() usuario: AuthUser,
     @Body(new ZodValidationPipe(pessoaRapidaSchema)) dto: PessoaRapida,

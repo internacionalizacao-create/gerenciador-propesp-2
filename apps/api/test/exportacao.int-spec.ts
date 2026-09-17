@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import type { AuthUser } from '../src/auth/auth-user';
 import { RecorteDeMissoes } from '../src/auth/escopo';
 import { IdentidadeService } from '../src/auth/identidade.service';
-import { permissionsForRoles } from '../src/auth/permissions';
+import { copiarModelo } from '../src/auth/autorizacao-v1/modelos';
 import { ArmazenamentoService } from '../src/arquivos/armazenamento.service';
 import * as s from '../src/database/schema';
 import { NotificacoesService } from '../src/dominio/notificacoes.service';
@@ -31,13 +31,13 @@ import {
   type ContextoTeste,
   type TestDatabase,
 } from './db-teste';
-import { criarBase, type BaseFixture } from './fixtures';
+import { criarAcesso, criarBase, type BaseFixture } from './fixtures';
 
 const admin: AuthUser = {
   id: 'admin-exportacao',
   name: 'Admin da Exportação',
   roles: ['admin'],
-  permissions: permissionsForRoles(['admin']),
+  permissions: copiarModelo('administrador').permissoes,
 };
 
 /**
@@ -96,6 +96,19 @@ describe('Exportacao de relatorios e dossie (CG-069)', () => {
   beforeEach(async () => {
     await ctx.limpar();
     base = await criarBase(ctx.db);
+
+    // Alcance GLOBAL: o que estas suites medem e o arquivo gerado, nao o
+    // recorte por rede — que tem suite propria.
+    await criarAcesso(ctx.db, {
+      sub: admin.id,
+      nome: admin.name,
+      permissoes: admin.permissions,
+    });
+    await criarAcesso(ctx.db, {
+      sub: 'sub-gestor-dossie',
+      nome: 'Gestora',
+      permissoes: copiarModelo('gestor-rede').permissoes,
+    });
     const [pais] = await ctx.db
       .insert(s.pais)
       .values({ codigoIso2: 'PT', codigoIso3: 'PRT', nome: 'Portugal' })
@@ -370,12 +383,9 @@ describe('Exportacao de relatorios e dossie (CG-069)', () => {
       id: 'sub-gestor-dossie',
       name: 'Gestora',
       roles: ['gestor-rede'],
-      permissions: [
-        ...permissionsForRoles(['gestor-rede']),
-        // `missao:all-redes` para isolar o que se testa aqui: a visibilidade
-        // do documento, e nao o recorte por rede (que tem suite propria).
-        'missao:all-redes',
-      ],
+      // A conta recebe alcance GLOBAL no `beforeEach` para isolar o que se
+      // testa aqui: a visibilidade do documento, e nao o recorte por rede.
+      permissions: copiarModelo('gestor-rede').permissoes,
     };
 
     const doAdmin = await exportacao.dossie(base.cicloId, missaoId, admin);

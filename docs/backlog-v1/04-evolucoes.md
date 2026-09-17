@@ -42,8 +42,8 @@ promover a tarefa e atualizar o contrato no [índice](../backlog-v1.md).
 - **Depende de:** V1-019 e V1-020.
 - **Objetivo:** priorizar trabalho do usuário com dados já recortados.
 - **Arquivos:** P01/layout, `painel.service.ts`, navegação e componentes do painel.
-- **Implementação:** definir blocos de admin, responsável e gestor/comitê; múltiplos
-  perfis recebem composição previsível ou seletor, sem escolher um papel aleatório.
+- **Implementação:** definir blocos de admin, responsável e gestor/comitê; concessões
+  individuais recebem composição por capacidades, sem depender de papel Keycloak.
   Reutilizar consultas autorizadas; exibir alcance e próxima ação pertinente.
 - **Aceite:** nenhuma soma ou endpoint paralelo ignora escopo; responsável não vê
   “saldo do PPG” fictício; acesso pendente continua compreensível; links têm
@@ -139,7 +139,7 @@ promover a tarefa e atualizar o contrato no [índice](../backlog-v1.md).
 - **Primeira entrega:** especificar campos editáveis, rascunho, proposta de
   alteração, quem aprova, comparação antes/depois, conflitos concorrentes e
   efeito em concessões existentes. Só depois implementar o fluxo selecionado.
-- **Aceite:** não basta adicionar `plano:edit` ao coordenador; mudança aprovada
+- **Aceite:** conceder edição direta não equivale a implementar o fluxo de revisão; mudança aprovada
   mantém auditoria e regras de catálogo/vaga; responsável não altera registros
   fora do escopo nem reescreve o passado de bolsas já concedidas.
 - **Testes:** alteração devolvida/aprovada, concorrência, perda de acesso durante

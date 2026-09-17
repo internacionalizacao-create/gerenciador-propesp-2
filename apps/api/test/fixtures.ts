@@ -1,3 +1,7 @@
+import {
+  colunasDoAlvo,
+  type ColunasDoAlvo,
+} from '../src/auth/autorizacao-v1/persistencia';
 import * as s from '../src/database/schema';
 import { normalizarNomeInstituicao } from '../src/database/normalizacao';
 import type { TestDatabase } from './db-teste';
@@ -146,4 +150,51 @@ export function bolsaValida(base: BaseFixture, codigo = 'BOL-001') {
     itemCatalogoId: base.itemCatalogoId,
     fluxo: 'OUT' as const,
   };
+}
+
+/**
+ * Conta local com concessoes, do jeito que o sistema passou a funcionar.
+ *
+ * Desde V1-012 a autorizacao sai de `concessao_acesso`: um `AuthUser` montado
+ * no teste diz **o que** a pessoa pode fazer, e so estas linhas dizem **onde**.
+ * Sem elas, servico recortado nega tudo — que e o comportamento certo e o
+ * motivo de tantas fixtures precisarem deste helper.
+ *
+ * `permissoes` aceita a lista do `AuthUser` para as duas metades nao
+ * divergirem: conceder aqui o que o token nao carrega seria testar um estado
+ * que a aplicacao nunca produz.
+ */
+export async function criarAcesso(
+  db: TestDatabase,
+  entrada: {
+    sub: string;
+    nome?: string;
+    permissoes: readonly string[];
+    alvo?: ColunasDoAlvo;
+  },
+): Promise<{ usuarioId: string; pessoaId: string }> {
+  const alvo = entrada.alvo ?? colunasDoAlvo({ tipo: 'GLOBAL' });
+
+  const [pessoa] = await db
+    .insert(s.pessoa)
+    .values({ nome: entrada.nome ?? `Conta ${entrada.sub}`, tipo: 'SERVIDOR' })
+    .returning({ id: s.pessoa.id });
+
+  const [conta] = await db
+    .insert(s.usuarioSistema)
+    .values({ sub: entrada.sub, pessoaId: pessoa.id, origem: 'MANUAL' })
+    .returning({ id: s.usuarioSistema.id });
+
+  if (entrada.permissoes.length > 0) {
+    await db.insert(s.concessaoAcesso).values(
+      entrada.permissoes.map((permissao) => ({
+        usuarioId: conta.id,
+        permissao,
+        justificativa: 'Fixture de teste.',
+        ...alvo,
+      })),
+    );
+  }
+
+  return { usuarioId: conta.id, pessoaId: pessoa.id };
 }

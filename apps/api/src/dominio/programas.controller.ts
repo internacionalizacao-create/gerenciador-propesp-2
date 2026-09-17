@@ -18,6 +18,7 @@ import type { Response } from 'express';
 import { CurrentUser, RequirePermission } from '../auth/auth.decorators';
 import { IdentidadeService } from '../auth/identidade.service';
 import type { AuthUser } from '../auth/auth-user';
+import type { Permission } from '../auth/permissions';
 import { ZodValidationPipe } from '../comum/zod-validation.pipe';
 import {
   atualizarPrestacaoSchema,
@@ -321,7 +322,7 @@ export class ProgramasController {
 
   /** Registra alteracao formal do orcamento de uma tematica em um exercicio. */
   @Patch(':programa/:ciclo/orcamento/:id')
-  @RequirePermission('orcamento:write')
+  @RequirePermission('orcamento:edit')
   async atualizarOrcamento(
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
@@ -359,7 +360,7 @@ export class ProgramasController {
   }
 
   @Post(':programa/:ciclo/plano')
-  @RequirePermission('plano:write')
+  @RequirePermission('plano:create')
   async criarLinhaDePlano(
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
@@ -394,7 +395,7 @@ export class ProgramasController {
   }
 
   @Post(':programa/:ciclo/plano/:id/cancelar')
-  @RequirePermission('plano:write')
+  @RequirePermission('plano:cancel')
   async cancelarLinhaDePlano(
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
@@ -425,7 +426,7 @@ export class ProgramasController {
    * prestacao validada.
    */
   @Get(':programa/:ciclo/comite-gestor/execucao')
-  @RequirePermission('equipe-gestao:read')
+  @RequirePermission('missao:read', 'prestacao:read')
   async execucaoComite(
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
@@ -447,7 +448,7 @@ export class ProgramasController {
    * zod recuse `redeId` que nao seja UUID antes de a string chegar ao SQL.
    */
   @Get(':programa/:ciclo/comite-gestor/painel')
-  @RequirePermission('equipe-gestao:read')
+  @RequirePermission('missao:read', 'prestacao:read')
   async painelDoComite(
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
@@ -492,7 +493,7 @@ export class ProgramasController {
   }
 
   @Get(':programa/:ciclo/comite-gestor/relatorios/parceiros')
-  @RequirePermission('missao:read')
+  @RequirePermission('missao:read', 'parceiro:read')
   async relatorioDeParceiros(
     @CurrentUser() usuario: AuthUser,
     @Param('programa') slug: string,
@@ -530,7 +531,7 @@ export class ProgramasController {
   }
 
   @Get(':programa/:ciclo/comite-gestor/relatorios/resultados')
-  @RequirePermission('missao:read')
+  @RequirePermission('missao:read', 'produto-missao:read')
   async relatorioDeResultados(
     @CurrentUser() usuario: AuthUser,
     @Param('programa') slug: string,
@@ -553,10 +554,11 @@ export class ProgramasController {
    * ha o que expirar nem o que varrer, e nao sobra exportacao no servidor para
    * ser servida depois a quem nao podia ve-la.
    *
-   * A permissao e a mesma do relatorio correspondente — inclusive
-   * `prestacao:read` para financas —, porque exportar e ler noutro formato. Uma
-   * permissao propria de exportacao permitiria as duas divergirem, e a
-   * divergencia so apareceria como vazamento.
+   * **A exigencia e dinamica**: a leitura do relatorio pedido mais a exportacao
+   * do dominio dele (contrato V1). Ler o consolidado e uma decisao; deixa-lo
+   * sair do sistema em arquivo e outra, e a PROPESP quis poder conceder a
+   * primeira sem a segunda. Como o relatorio so se conhece em runtime, o
+   * decorador carrega o minimo comum e o resto e conferido aqui.
    */
   @Get(':programa/:ciclo/comite-gestor/relatorios/:qual/exportacao/:formato')
   @RequirePermission('missao:read')
@@ -576,16 +578,7 @@ export class ProgramasController {
     if (!FORMATOS.includes(formato as Formato)) {
       throw new NotFoundException('Formato não suportado.');
     }
-    // Financas guarda despesa; ler o consolidado dela exige a mesma permissao
-    // que abrir a prestacao de uma missao.
-    if (
-      qual === 'financas' &&
-      !usuario.permissions.includes('prestacao:read')
-    ) {
-      throw new ForbiddenException(
-        'Acesso negado. Permissão necessária: prestacao:read',
-      );
-    }
+    exigirTodas(usuario, permissoesDoRelatorio(qual as NomeDeRelatorio));
 
     const ciclo = await this.contexto.resolver(slug, nome);
     const arquivo = await this.exportacao.relatorio(
@@ -606,7 +599,7 @@ export class ProgramasController {
    * `RESTRITA` e recorte por rede valem sem uma segunda regra escrita aqui.
    */
   @Get(':programa/:ciclo/comite-gestor/missoes/:id/dossie')
-  @RequirePermission('missao:read')
+  @RequirePermission('missao:read', 'missao:export')
   async dossieDaMissao(
     @CurrentUser() usuario: AuthUser,
     @Param('programa') slug: string,
@@ -630,7 +623,7 @@ export class ProgramasController {
   }
 
   @Post(':programa/:ciclo/comite-gestor/equipes')
-  @RequirePermission('equipe-gestao:write')
+  @RequirePermission('equipe-gestao:create')
   async criarMembroEquipe(
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
@@ -643,7 +636,7 @@ export class ProgramasController {
   }
 
   @Patch(':programa/:ciclo/comite-gestor/equipes/:id')
-  @RequirePermission('equipe-gestao:write')
+  @RequirePermission('equipe-gestao:edit')
   async atualizarMembroEquipe(
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
@@ -711,7 +704,7 @@ export class ProgramasController {
   }
 
   @Post(':programa/:ciclo/comite-gestor/missoes/:id/prestacao')
-  @RequirePermission('prestacao:write')
+  @RequirePermission('prestacao:create')
   async iniciarPrestacao(
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
@@ -723,7 +716,7 @@ export class ProgramasController {
   }
 
   @Patch(':programa/:ciclo/comite-gestor/missoes/:id/prestacao')
-  @RequirePermission('prestacao:write')
+  @RequirePermission('prestacao:edit')
   async atualizarPrestacao(
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
@@ -743,7 +736,7 @@ export class ProgramasController {
    * depois de uma devolucao: os dois partem de estado editavel.
    */
   @Post(':programa/:ciclo/comite-gestor/missoes/:id/prestacao/envio')
-  @RequirePermission('prestacao:write')
+  @RequirePermission('prestacao:submit')
   async enviarPrestacao(
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
@@ -789,7 +782,7 @@ export class ProgramasController {
   }
 
   @Post(':programa/:ciclo/comite-gestor/missoes/:id/prestacao/despesas')
-  @RequirePermission('prestacao:write')
+  @RequirePermission('prestacao:create')
   async criarDespesa(
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
@@ -804,7 +797,7 @@ export class ProgramasController {
   @Patch(
     ':programa/:ciclo/comite-gestor/missoes/:id/prestacao/despesas/:despesaId',
   )
-  @RequirePermission('prestacao:write')
+  @RequirePermission('prestacao:edit')
   async atualizarDespesa(
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
@@ -826,7 +819,7 @@ export class ProgramasController {
   @Delete(
     ':programa/:ciclo/comite-gestor/missoes/:id/prestacao/despesas/:despesaId',
   )
-  @RequirePermission('prestacao:write')
+  @RequirePermission('prestacao:delete')
   async removerDespesa(
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
@@ -839,7 +832,7 @@ export class ProgramasController {
   }
 
   @Post(':programa/:ciclo/comite-gestor/missoes')
-  @RequirePermission('missao:write')
+  @RequirePermission('missao:create')
   async criarMissaoComite(
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
@@ -878,7 +871,7 @@ export class ProgramasController {
 
   /** Relato do que aconteceu; nao alcanca nenhum campo de planejamento. */
   @Patch(':programa/:ciclo/comite-gestor/missoes/:id/relato')
-  @RequirePermission('missao:write')
+  @RequirePermission('missao:relato')
   async relatarMissaoComite(
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
@@ -999,7 +992,7 @@ export class ProgramasController {
    * desfaz a decisao do Comite, a outra o encerramento administrativo.
    */
   @Post(':programa/:ciclo/comite-gestor/missoes/:id/analise/reabertura')
-  @RequirePermission('missao:reopen')
+  @RequirePermission('missao:reopen-analise')
   async reabrirAnaliseMissao(
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
@@ -1023,8 +1016,18 @@ export class ProgramasController {
     return this.decisao.historico(ciclo.cicloId, id);
   }
 
+  /**
+   * Confirmar, concluir e cancelar entram pela mesma rota e **exigem
+   * permissoes diferentes** (contrato V1).
+   *
+   * Nao ha decorador fixo aqui, e nao deve haver: um unico
+   * `@RequirePermission` teria de escolher entre exigir as tres de quem so quer
+   * confirmar e aceitar qualquer uma das tres para as outras duas — a segunda
+   * opcao deixaria quem pode cancelar encerrar a missao. A acao so se conhece
+   * depois de ler o corpo, entao a checagem mora aqui, uma permissao por
+   * destino.
+   */
   @Post(':programa/:ciclo/comite-gestor/missoes/:id/situacao')
-  @RequirePermission('missao:write')
   async transicionarMissaoComite(
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
@@ -1032,13 +1035,15 @@ export class ProgramasController {
     @CurrentUser() usuario: AuthUser,
     @Body(new ZodValidationPipe(transicaoMissaoSchema)) dto: TransicaoMissao,
   ) {
+    exigirTodas(usuario, [PERMISSAO_DA_TRANSICAO[dto.acao]]);
+
     const ciclo = await this.contexto.resolver(slug, nome);
     return this.missoesComite.transicionar(ciclo.cicloId, id, dto, usuario);
   }
 
   /** Reabertura e operacao administrativa, nao parte do fluxo normal. */
   @Post(':programa/:ciclo/comite-gestor/missoes/:id/reabertura')
-  @RequirePermission('missao:edit')
+  @RequirePermission('missao:reopen-execucao')
   async reabrirMissaoComite(
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
@@ -1065,7 +1070,7 @@ export class ProgramasController {
    * institucional do parceiro.
    */
   @Get(':programa/:ciclo/comite-gestor/missoes/:id/produtos')
-  @RequirePermission('missao:read')
+  @RequirePermission('produto-missao:read')
   async produtosDaMissao(
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
@@ -1076,7 +1081,7 @@ export class ProgramasController {
   }
 
   @Post(':programa/:ciclo/comite-gestor/missoes/:id/produtos')
-  @RequirePermission('missao:write')
+  @RequirePermission('produto-missao:create')
   async criarProdutoDaMissao(
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
@@ -1090,7 +1095,7 @@ export class ProgramasController {
   }
 
   @Patch(':programa/:ciclo/comite-gestor/missoes/:id/produtos/:produtoId')
-  @RequirePermission('missao:write')
+  @RequirePermission('produto-missao:edit')
   async atualizarProdutoDaMissao(
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
@@ -1111,7 +1116,7 @@ export class ProgramasController {
   }
 
   @Delete(':programa/:ciclo/comite-gestor/missoes/:id/produtos/:produtoId')
-  @RequirePermission('missao:write')
+  @RequirePermission('produto-missao:delete')
   async removerProdutoDaMissao(
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
@@ -1136,7 +1141,7 @@ export class ProgramasController {
    * encerramento precisa saber a diferenca.
    */
   @Post(':programa/:ciclo/comite-gestor/missoes/:id/produtos/resposta')
-  @RequirePermission('missao:write')
+  @RequirePermission('produto-missao:declare')
   async responderProdutosDaMissao(
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
@@ -1170,7 +1175,7 @@ export class ProgramasController {
   }
 
   @Post(':programa/:ciclo/pendencias')
-  @RequirePermission('pendencia:write')
+  @RequirePermission('pendencia:create')
   async criarPendencia(
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
@@ -1191,7 +1196,7 @@ export class PendenciasController {
   constructor(private readonly pendencias: PendenciasService) {}
 
   @Patch(':id')
-  @RequirePermission('pendencia:write')
+  @RequirePermission('pendencia:resolve')
   atualizar(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(atualizarPendenciaSchema))
@@ -1201,7 +1206,7 @@ export class PendenciasController {
   }
 
   @Delete(':id')
-  @RequirePermission('pendencia:write')
+  @RequirePermission('pendencia:delete')
   async remover(@Param('id') id: string) {
     await this.pendencias.remover(id);
     return { ok: true };
@@ -1239,3 +1244,41 @@ function rubricaValida(rubrica: string | undefined): Rubrica | undefined {
  * Cabecalho, e nao corpo, porque o corpo e o proprio arquivo; a tela le e
  * avisa, em vez de o usuario descobrir contando paginas.
  */
+
+/**
+ * O que cada relatorio exige para ser **exportado**.
+ *
+ * Financas guarda despesa: ler o consolidado dela exige a mesma permissao que
+ * abrir a prestacao de uma missao, e exportar exige a exportacao financeira.
+ * Os demais partem da missao. Parceiros e resultados repetem aqui a leitura que
+ * seus endpoints ja exigem, senao a exportacao seria a porta lateral deles.
+ */
+function permissoesDoRelatorio(qual: NomeDeRelatorio): Permission[] {
+  switch (qual) {
+    case 'financas':
+      return ['prestacao:read', 'prestacao:export'];
+    case 'parceiros':
+      return ['parceiro:read', 'missao:export'];
+    case 'resultados':
+      return ['produto-missao:read', 'missao:export'];
+    default:
+      return ['missao:export'];
+  }
+}
+
+/** Recusa citando o que faltou, no mesmo formato do `PermissionsGuard`. */
+function exigirTodas(usuario: AuthUser, permissoes: readonly Permission[]) {
+  const faltando = permissoes.filter((p) => !usuario.permissions.includes(p));
+  if (faltando.length > 0) {
+    throw new ForbiddenException(
+      `Acesso negado. Permissão necessária: ${faltando.join(', ')}`,
+    );
+  }
+}
+
+/** Uma permissao por destino da transicao — nunca um OR entre as tres. */
+const PERMISSAO_DA_TRANSICAO: Record<TransicaoMissao['acao'], Permission> = {
+  CONFIRMAR: 'missao:confirm',
+  CANCELAR: 'missao:cancel',
+  CONCLUIR: 'missao:close',
+};

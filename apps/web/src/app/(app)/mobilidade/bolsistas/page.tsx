@@ -13,27 +13,42 @@ import {
   Tabela,
 } from "@/componentes/ui/basicos";
 import { ProvedorDeConsultas } from "@/componentes/consultas/provedor";
+import { SemAcesso } from "@/componentes/ui/sem-acesso";
+import { faltando } from "@/lib/acesso";
 import { apiFetch } from "@/lib/api";
 import type {
   BolsaConcedidaResumo,
-  Me,
   OpcaoBolsaPlanejada,
   ReferenciasBolsa,
 } from "@/lib/dominio";
+import { carregarMe } from "@/lib/me";
 import { data, inteiro, rotulo } from "@/lib/formato";
 
 export default async function Bolsistas() {
-  const [bolsas, opcoes, referencias, me] = await Promise.all([
+  const me = await carregarMe();
+  // As duas leituras, como o endpoint: a lista traz os produtos de cada bolsa.
+  const falta = faltando(me.permissions, ["bolsa:read", "produto:read"]);
+  if (falta.length > 0) {
+    return (
+      <SemAcesso
+        titulo="Bolsistas"
+        descricao="Concessões individuais, vigência e produtos de cada bolsa."
+        me={me}
+        faltando={falta}
+      />
+    );
+  }
+
+  const [bolsas, opcoes, referencias] = await Promise.all([
     apiFetch<BolsaConcedidaResumo[]>("/bolsistas"),
     apiFetch<OpcaoBolsaPlanejada[]>("/bolsistas/opcoes-planejamento"),
     // Primeira pagina do seletor: o Server Component busca, e o TanStack Query
     // so entra depois da pintura, quando a pessoa digita (AGENTS.md secao 8).
     apiFetch<ReferenciasBolsa>("/bolsistas/referencias"),
-    apiFetch<Me>("/me"),
   ]);
 
   const podeCadastrar =
-    me.permissions.includes("bolsa:write") &&
+    me.permissions.includes("bolsa:create") &&
     opcoes.some((opcao) =>
       opcao.porAno.some((ano) => ano.vagasDisponiveis > 0),
     );

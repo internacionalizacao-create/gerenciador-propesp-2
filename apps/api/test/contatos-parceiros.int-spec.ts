@@ -18,7 +18,16 @@ const admin: AuthUser = {
   id: 'admin-contatos',
   name: 'Admin de Contatos',
   roles: ['admin'],
-  permissions: ['parceiro:read', 'parceiro:write'],
+  permissions: [
+    'parceiro:read',
+    'parceiro:create',
+    'parceiro:edit',
+    'parceiro:status',
+    'parceiro:merge',
+    'convenio:create',
+    'convenio:edit',
+    'convenio:status',
+  ],
 };
 
 describe('ContatosParceirosService', () => {

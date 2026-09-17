@@ -281,6 +281,13 @@
       "when": 1789162047709,
       "tag": "0039_produto_colaboracao_bolsa",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1789528537475,
+      "tag": "0040_concessoes_acesso_v1011",
+      "breakpoints": true
     }
   ]
 }

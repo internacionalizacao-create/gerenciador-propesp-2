@@ -58,5 +58,5 @@ test("o formulario usa RHF, devolve erros da API e mantem a mutacao autorizada",
   assert.match(acoes, /export async function criarModalidade/);
   assert.match(acoes, /export async function atualizarModalidade/);
   assert.match(acoes, /\[MODALIDADES, BOLSAS\]/);
-  assert.match(pagina, /me\.permissions\.includes\("catalogo:write"\)/);
+  assert.match(pagina, /me\.permissions\.includes\("catalogo:create"\)/);
 });

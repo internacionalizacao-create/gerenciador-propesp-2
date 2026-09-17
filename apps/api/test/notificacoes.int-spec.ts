@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 
 import type { AuthUser } from '../src/auth/auth-user';
 import { IdentidadeService } from '../src/auth/identidade.service';
-import { permissionsForRoles } from '../src/auth/permissions';
+import { copiarModelo } from '../src/auth/autorizacao-v1/modelos';
 import * as s from '../src/database/schema';
 import { DecisaoService } from '../src/dominio/decisao.service';
 import {
@@ -43,7 +43,7 @@ describe('Aprovacao, concorrencia e notificacoes (CG-039)', () => {
     id: 'sub-relator',
     name: 'Relatora do Comitê',
     roles: ['admin'],
-    permissions: permissionsForRoles(['admin']),
+    permissions: copiarModelo('administrador').permissoes,
   };
 
   /** Perfil sem `missao:decide`, para o caso de permissao. */
@@ -51,7 +51,7 @@ describe('Aprovacao, concorrencia e notificacoes (CG-039)', () => {
     id: 'sub-sem-permissao',
     name: 'Docente',
     roles: ['docente'],
-    permissions: permissionsForRoles(['docente']),
+    permissions: copiarModelo('consulta').permissoes,
   };
 
   function servico(canal: CanalDeEntrega | null): NotificacoesService {
@@ -330,15 +330,17 @@ describe('Aprovacao, concorrencia e notificacoes (CG-039)', () => {
     // A checagem em si e do guard, com `@RequirePermission`. O que se verifica
     // aqui e o mapa: quem nao tem a permissao nao chega ao servico.
     expect(semPermissao.permissions).not.toContain('missao:decide');
-    expect(semPermissao.permissions).not.toContain('missao:reopen');
+    expect(semPermissao.permissions).not.toContain('missao:reopen-analise');
     expect(semPermissao.permissions).not.toContain('missao:submit');
 
-    expect(permissionsForRoles(['comite-gestor'])).toContain('missao:decide');
+    expect(copiarModelo('comite-gestor').permissoes).toContain('missao:decide');
     // Reabrir decisao ja tomada e ato do `admin`, e so dele.
-    expect(permissionsForRoles(['comite-gestor'])).not.toContain(
-      'missao:reopen',
+    expect(copiarModelo('comite-gestor').permissoes).not.toContain(
+      'missao:reopen-analise',
     );
-    expect(permissionsForRoles(['gestor-rede'])).not.toContain('missao:decide');
+    expect(copiarModelo('gestor-rede').permissoes).not.toContain(
+      'missao:decide',
+    );
   });
 
   // --- notificacoes ----------------------------------------------------------
@@ -365,7 +367,7 @@ describe('Aprovacao, concorrencia e notificacoes (CG-039)', () => {
       id: 'sub-outro-relator',
       name: 'Outro Relator',
       roles: ['admin'],
-      permissions: permissionsForRoles(['admin']),
+      permissions: copiarModelo('administrador').permissoes,
     };
     await criarPessoa(outro, 'Outro Relator');
 
@@ -395,7 +397,7 @@ describe('Aprovacao, concorrencia e notificacoes (CG-039)', () => {
       id: 'sub-revisor',
       name: 'Revisora',
       roles: ['admin'],
-      permissions: permissionsForRoles(['admin']),
+      permissions: copiarModelo('administrador').permissoes,
     };
     await criarPessoa(revisor, 'Revisora');
 
@@ -444,7 +446,7 @@ describe('Aprovacao, concorrencia e notificacoes (CG-039)', () => {
       id: 'sub-relator-canal',
       name: 'Relator com canal',
       roles: ['admin'],
-      permissions: permissionsForRoles(['admin']),
+      permissions: copiarModelo('administrador').permissoes,
     };
     await criarPessoa(outro, 'Relator com canal');
 
@@ -497,7 +499,7 @@ describe('Aprovacao, concorrencia e notificacoes (CG-039)', () => {
       id: 'sub-relator-retry',
       name: 'Relator',
       roles: ['admin'],
-      permissions: permissionsForRoles(['admin']),
+      permissions: copiarModelo('administrador').permissoes,
     };
     await criarPessoa(outro, 'Relator do retry');
     await decisaoComCanal.decidir(
@@ -550,7 +552,7 @@ describe('Aprovacao, concorrencia e notificacoes (CG-039)', () => {
       id: 'sub-membro-comite',
       name: 'Membro do Comitê',
       roles: ['comite-gestor'],
-      permissions: permissionsForRoles(['comite-gestor']),
+      permissions: copiarModelo('comite-gestor').permissoes,
     };
     await ctx.db.insert(s.usuarioSistema).values({
       sub: outro.id,
@@ -570,7 +572,7 @@ describe('Aprovacao, concorrencia e notificacoes (CG-039)', () => {
       id: 'sub-sem-pessoa',
       name: 'Conta sem vínculo',
       roles: ['docente'],
-      permissions: permissionsForRoles(['docente']),
+      permissions: copiarModelo('consulta').permissoes,
       // Sem e-mail: `IdentidadeService` cria pessoa nova, entao o caso real de
       // `vinculoPendente` e o conflito. Aqui basta que a caixa venha vazia.
     };

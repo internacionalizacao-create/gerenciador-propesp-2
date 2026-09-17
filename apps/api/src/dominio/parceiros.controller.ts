@@ -60,12 +60,15 @@ export class ParceirosController {
   /**
    * Ficha de relacionamento institucional em PDF (BOL-034).
    *
-   * `parceiro:read`, a mesma do historico: exportar e ler noutro formato. Uma
-   * permissao propria de exportacao permitiria as duas divergirem, e a
-   * divergencia so apareceria como vazamento (CG-069).
+   * Exige **ler e exportar**, as duas sobre o mesmo registro (contrato V1).
+   * Ate 2026-09-16 bastava `parceiro:read`, pelo argumento de que exportar e
+   * ler noutro formato — verdadeiro quanto ao conteudo e falso quanto ao risco:
+   * o arquivo sai do sistema e circula por fora dele, e a PROPESP quis poder
+   * conceder a leitura sem conceder a saida. `parceiro:read` sozinho nao
+   * exporta, e `parceiro:export` sozinho nao alcanca registro nenhum.
    */
   @Get(':id/ficha')
-  @RequirePermission('parceiro:read')
+  @RequirePermission('parceiro:read', 'parceiro:export')
   async ficha(@Param('id') id: string, @Res() resposta: Response) {
     responderArquivo(resposta, await this.exportacao.fichaDoParceiro(id));
   }
@@ -84,7 +87,7 @@ export class ParceirosController {
   }
 
   @Post()
-  @RequirePermission('parceiro:write')
+  @RequirePermission('parceiro:create')
   criar(
     @CurrentUser() usuario: AuthUser,
     @Body(new ZodValidationPipe(criarParceiroSchema)) dto: CriarParceiro,
@@ -93,7 +96,7 @@ export class ParceirosController {
   }
 
   @Patch(':id')
-  @RequirePermission('parceiro:write')
+  @RequirePermission('parceiro:edit')
   atualizar(
     @Param('id') id: string,
     @CurrentUser() usuario: AuthUser,
@@ -104,7 +107,7 @@ export class ParceirosController {
   }
 
   @Post(':id/inativacao')
-  @RequirePermission('parceiro:write')
+  @RequirePermission('parceiro:status')
   inativar(
     @Param('id') id: string,
     @CurrentUser() usuario: AuthUser,
@@ -115,7 +118,7 @@ export class ParceirosController {
   }
 
   @Post(':id/conciliacao')
-  @RequirePermission('parceiro:write')
+  @RequirePermission('parceiro:merge')
   conciliar(
     @Param('id') id: string,
     @CurrentUser() usuario: AuthUser,

@@ -20,7 +20,13 @@ const admin: AuthUser = {
   id: 'admin-prestacao',
   name: 'Admin da Prestação',
   roles: ['admin'],
-  permissions: ['prestacao:read', 'prestacao:write'],
+  permissions: [
+    'prestacao:read',
+    'prestacao:create',
+    'prestacao:edit',
+    'prestacao:delete',
+    'prestacao:submit',
+  ],
 };
 
 /**

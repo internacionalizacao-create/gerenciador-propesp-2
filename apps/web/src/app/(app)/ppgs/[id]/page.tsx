@@ -14,8 +14,11 @@ import {
   Selo,
   Tabela,
 } from "@/componentes/ui/basicos";
+import { SemAcesso } from "@/componentes/ui/sem-acesso";
+import { faltando } from "@/lib/acesso";
 import { ApiError, apiFetch } from "@/lib/api";
-import type { Me, PpgDetalhe } from "@/lib/dominio";
+import type { PpgDetalhe } from "@/lib/dominio";
+import { carregarMe } from "@/lib/me";
 import { inteiro, meses, rotulo, somarMoeda } from "@/lib/formato";
 
 /** P14 · detalhe do PPG. */
@@ -25,8 +28,21 @@ export default async function DetalheDoPpg({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [ppg, me] = await Promise.all([buscarPpg(id), apiFetch<Me>("/me")]);
-  const podeEditar = me.permissions.includes("ppg:write");
+  const me = await carregarMe();
+  const falta = faltando(me.permissions, ["ppg:read"]);
+  if (falta.length > 0) {
+    return (
+      <SemAcesso
+        titulo="PPG"
+        descricao="Ficha do programa de pós-graduação."
+        me={me}
+        faltando={falta}
+      />
+    );
+  }
+
+  const ppg = await buscarPpg(id);
+  const podeEditar = me.permissions.includes("ppg:create");
 
   return (
     <Pagina

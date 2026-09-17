@@ -3,8 +3,11 @@ import type { Metadata } from "next";
 import { NovoItemCatalogo } from "@/componentes/formularios/form-item-catalogo";
 import { ListaItensCatalogo } from "@/componentes/consultas/lista-itens-catalogo";
 import { Cartao, Cartoes, Pagina } from "@/componentes/ui/basicos";
+import { SemAcesso } from "@/componentes/ui/sem-acesso";
+import { faltando } from "@/lib/acesso";
 import { apiFetch } from "@/lib/api";
-import type { Me, Modalidade, TabelaVigente } from "@/lib/dominio";
+import type { Modalidade, TabelaVigente } from "@/lib/dominio";
+import { carregarMe } from "@/lib/me";
 import { data, inteiro } from "@/lib/formato";
 
 export const metadata: Metadata = {
@@ -30,14 +33,27 @@ export default async function CatalogoDeBolsas({
   searchParams: Promise<{ programa?: string; q?: string; destino?: string }>;
 }) {
   const { programa = "capes-global", q = "", destino } = await searchParams;
-  const [tabela, modalidades, me] = await Promise.all([
+
+  const me = await carregarMe();
+  const falta = faltando(me.permissions, ["catalogo:read"]);
+  if (falta.length > 0) {
+    return (
+      <SemAcesso
+        titulo="Catálogo de bolsas"
+        descricao="A tabela oficial de valores usada por todo cálculo do sistema."
+        me={me}
+        faltando={falta}
+      />
+    );
+  }
+
+  const [tabela, modalidades] = await Promise.all([
     apiFetch<TabelaVigente>(
       `/catalogo/bolsas?programa=${encodeURIComponent(programa)}`,
     ),
     apiFetch<Modalidade[]>("/catalogo/modalidades"),
-    apiFetch<Me>("/me"),
   ]);
-  const podeEditar = me.permissions.includes("catalogo:write");
+  const podeEditar = me.permissions.includes("catalogo:create");
 
   const destinoInicial =
     destino === "BRASIL" || destino === "EXTERIOR" ? destino : "TODOS";

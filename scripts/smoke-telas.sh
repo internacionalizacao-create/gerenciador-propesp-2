@@ -17,6 +17,15 @@ curl -s -b "$JAR" -c "$JAR" -o /dev/null "$CALLBACK"
 
 FALHAS=0
 
+# O que esta conta pode fazer, segundo a propria API.
+#
+# Ate V1-012 o smoke decidia isso pelo **nome do usuario** (`admin` via tudo).
+# O papel deixou de conceder acesso: duas contas com o mesmo papel podem ter
+# telas diferentes, e so as concessoes respondem quais. Se o ambiente ainda nao
+# foi provisionado, `./scripts/acesso-dev.sh` faz isso.
+PERMISSOES=$(curl -s -b "$JAR" "${WEB}/api/bff/me")
+pode() { grep -q "\"$1\"" <<<"$PERMISSOES"; }
+
 testar() {
   local rota="$1" esperado="$2"
   local corpo
@@ -97,7 +106,7 @@ testar "/programas/capes-global/2027-2030/plano?rede=unesp"  "BOL-001"
 testar "/programas/capes-global/2027-2030/plano?rede=ufmg"   "BOL-021"
 testar "/programas/capes-global/2027-2030/plano?rede=ufmg"   "140.018,40"
 testar "/programas/capes-global/2027-2030/plano?rede=unicamp" "Nenhuma linha nesta temática"
-if [[ "$USUARIO" == "admin" ]]; then
+if pode "orcamento:edit"; then
   testar "/programas/capes-global/2027-2030/orcamento?ano=2027" "Editar"
   testar "/programas/capes-global/2027-2030/plano?rede=unesp" "Editar"
   testar "/programas/capes-global/2027-2030/plano?rede=unesp" "Histórico"
@@ -106,7 +115,10 @@ if [[ "$USUARIO" == "admin" ]]; then
   # pode sumir: sem ela, quem le supoe que tambem recebeu um e-mail que nunca
   # foi enviado, porque nao ha servidor.
   testar "/avisos" "Caixa de entrada"
-  testar "/avisos" "Não há envio por e-mail"
+  # A decisao de nao enviar e-mail (D-11) esta no codigo e na documentacao, e
+  # nao em texto de tela: a asercao anterior procurava uma frase que a pagina
+  # nunca mostrou. O que a tela promete e o proprio conteudo da caixa.
+  testar "/avisos" "ficam reunidas aqui"
   testar_bff "/api/bff/notificacoes" '"naoLidas"'
   testar "/programas/capes-global/2027-2030/comite-gestor" "381.333,00"
   # O recorte por exercicio fica na URL e vale para a tabela de aportes.
@@ -220,9 +232,9 @@ if [[ "$USUARIO" == "admin" ]]; then
   # recorte.
   testar "/programas/capes-global/2027-2030/parceiros?inativos=true" "Incluir inativos"
 else
+  # Sem a permissao, a tela explica em vez de mostrar dado — e o texto vem da
+  # propria tela, nao de um 403 cru chegando ao usuario.
   testar "/programas/capes-global/2027-2030/comite-gestor" "Acesso restrito"
-  # A restricao de parceiros e a mesma do Comite Gestor enquanto a CG-028 nao
-  # define o escopo por rede.
   testar "/programas/capes-global/2027-2030/parceiros" "Acesso restrito"
 fi
 testar "/mobilidade/bolsistas"                              "Bolsistas e bolsas concedidas"
@@ -230,7 +242,15 @@ testar "/ppgs"                                               "PPG CLIAMB"
 testar "/catalogos/bolsas"                                   "CAT-053"
 testar "/catalogos/bolsas"                                   "82.902,20"
 testar "/catalogos/modalidades"                              "Doutorado Sanduíche"
-testar "/configuracoes"                                      "plano:write"
+# A lista de permissoes da conta: a ancora e uma acao do catalogo V1, e o
+# `plano:write` que estava aqui nao existe mais desde V1-012.
+if pode "plano:create"; then
+  testar "/configuracoes"                                    "plano:create"
+fi
+if pode "acesso:read"; then
+  testar "/configuracoes/acessos"                            "Como uma pessoa passa a ter acesso"
+  testar "/configuracoes/acessos"                            "Configurar"
+fi
 
 # Detalhe de PPG precisa de um id vindo da lista.
 ID=$(curl -s -b "$JAR" "${WEB}/ppgs" | grep -o '/ppgs/[0-9a-f-]\{36\}' | head -1)
@@ -238,7 +258,7 @@ ID=$(curl -s -b "$JAR" "${WEB}/ppgs" | grep -o '/ppgs/[0-9a-f-]\{36\}' | head -1
 
 # Detalhe do parceiro so existe se algum tiver sido cadastrado. A seed nao traz
 # parceiros, entao a ausencia aqui e esperada e nao deve falhar o smoke.
-if [[ "$USUARIO" == "admin" ]]; then
+if pode "parceiro:read"; then
   PARCEIROS="/programas/capes-global/2027-2030/parceiros"
   PID=$(curl -s -b "$JAR" "${WEB}${PARCEIROS}" \
     | grep -o "${PARCEIROS}/[0-9a-f-]\{36\}" | head -1)

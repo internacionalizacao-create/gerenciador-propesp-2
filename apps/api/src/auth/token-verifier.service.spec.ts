@@ -72,7 +72,7 @@ describe('TokenVerifierService', () => {
       .sign(opcoes.chave ?? privateKey);
   }
 
-  it('aceita um access token valido e resolve papeis em permissoes', async () => {
+  it('aceita um access token valido e devolve a identidade, sem permissoes', async () => {
     const token = await emitir({
       sub: 'u-1',
       preferred_username: 'coord.teste',
@@ -85,7 +85,9 @@ describe('TokenVerifierService', () => {
     expect(user.id).toBe('u-1');
     expect(user.username).toBe('coord.teste');
     expect(user.roles).toContain('coordenador');
-    expect(user.permissions).toContain('plano:write');
+    // Desde V1-012 o token nao concede acao nenhuma: quem preenche
+    // `permissions` e o `JwtAuthGuard`, a partir das concessoes da conta.
+    expect(user.permissions).toEqual([]);
     // Papel interno do Keycloak nao concede nada, e coordenador nao define
     // orcamento — isso e ato da PROPESP (system-structl.md §3.5).
     expect(user.permissions).not.toContain('orcamento:write');

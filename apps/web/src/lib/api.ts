@@ -1,5 +1,7 @@
 import "server-only";
 
+import { unstable_rethrow } from "next/navigation";
+
 import { getSession } from "./auth";
 import { urlDaApi } from "./env";
 import { irParaLogin } from "./sessao-encerrada";
@@ -60,6 +62,32 @@ export async function apiFetch<T>(
   }
 
   return corpo as T;
+}
+
+/**
+ * Consulta cujo 403 é resposta legítima: a tela funciona sem aquele pedaço.
+ *
+ * Existe porque **recorte não é tudo ou nada** (V1-019). Quem tem `plano:read`
+ * e não tem `catalogo:read` deve ver o plano sem o formulário de nova linha, e
+ * não uma tela de erro — a alternativa seria exigir, para abrir uma tela, todas
+ * as permissões que qualquer parte dela usa, que é o oposto do acesso granular.
+ *
+ * Só o 403 vira `null`. 404, 500 e falha de rede continuam estourando: são
+ * defeito ou dado ausente, e engoli-los faria a tela mentir que a pessoa não
+ * tem acesso.
+ */
+export async function apiFetchOuNada<T>(
+  path: string,
+  init: RequestInit = {},
+): Promise<T | null> {
+  try {
+    return await apiFetch<T>(path, init);
+  } catch (erro) {
+    // `redirect` da sessão morta sinaliza por exceção e precisa passar.
+    unstable_rethrow(erro);
+    if (erro instanceof ApiError && erro.status === 403) return null;
+    throw erro;
+  }
 }
 
 async function lerCorpo(response: Response): Promise<unknown> {

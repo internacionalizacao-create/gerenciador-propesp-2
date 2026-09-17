@@ -30,7 +30,7 @@ function guardExigindo(...permissions: Permission[]): {
 const coordenador: AuthUser = {
   id: 'u-1',
   roles: ['coordenador'],
-  permissions: ['plano:read', 'plano:write'],
+  permissions: ['plano:read', 'plano:create'],
 };
 
 describe('PermissionsGuard', () => {
@@ -41,13 +41,13 @@ describe('PermissionsGuard', () => {
   });
 
   it('libera quando o usuario tem a permissao exigida', () => {
-    const { guard } = guardExigindo('plano:write');
+    const { guard } = guardExigindo('plano:create');
 
     expect(guard.canActivate(contextoCom(coordenador))).toBe(true);
   });
 
   it('exige TODAS as permissoes listadas, nao apenas uma', () => {
-    const { guard } = guardExigindo('plano:write', 'orcamento:write');
+    const { guard } = guardExigindo('plano:create', 'orcamento:edit');
 
     expect(() => guard.canActivate(contextoCom(coordenador))).toThrow(
       ForbiddenException,
@@ -55,13 +55,13 @@ describe('PermissionsGuard', () => {
   });
 
   it('nomeia na mensagem apenas o que faltou', () => {
-    const { guard } = guardExigindo('plano:write', 'orcamento:write');
+    const { guard } = guardExigindo('plano:create', 'orcamento:edit');
 
     expect(() => guard.canActivate(contextoCom(coordenador))).toThrow(
-      /orcamento:write/,
+      /orcamento:edit/,
     );
     expect(() => guard.canActivate(contextoCom(coordenador))).not.toThrow(
-      /plano:write/,
+      /plano:create/,
     );
   });
 

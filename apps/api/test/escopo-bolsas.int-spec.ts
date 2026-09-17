@@ -1,10 +1,15 @@
 import type { AuthUser } from '../src/auth/auth-user';
-import { RECORTE_OBRIGATORIO } from '../src/auth/escopo';
+import { colunasDoAlvo } from '../src/auth/autorizacao-v1/persistencia';
 import { IdentidadeService } from '../src/auth/identidade.service';
 import * as s from '../src/database/schema';
 import { BolsistasService } from '../src/dominio/bolsistas.service';
 import { criarContextoTeste, type ContextoTeste } from './db-teste';
-import { bolsaValida, criarBase, type BaseFixture } from './fixtures';
+import {
+  bolsaValida,
+  criarAcesso,
+  criarBase,
+  type BaseFixture,
+} from './fixtures';
 
 const coordenador = (parcial: Partial<AuthUser> = {}): AuthUser => ({
   id: 'sub-coord',
@@ -12,15 +17,23 @@ const coordenador = (parcial: Partial<AuthUser> = {}): AuthUser => ({
   email: 'coord.teste@propesp.local',
   name: 'Coordenação de Teste',
   roles: ['coordenador'],
-  permissions: ['bolsa:read', 'bolsa:write', 'produto:read', 'produto:write'],
+  permissions: [
+    'bolsa:read',
+    'bolsa:create',
+    'bolsa:edit',
+    'produto:read',
+    'produto:create',
+    'produto:edit',
+  ],
   ...parcial,
 });
 
+/** Conta com alcance GLOBAL — a concessao e criada no `beforeEach`. */
 const ADMIN: AuthUser = coordenador({
   id: 'sub-admin',
   username: 'admin',
   email: 'admin@propesp.local',
-  roles: ['admin'],
+  roles: [],
 });
 
 /**
@@ -57,6 +70,12 @@ describe('Recorte por PPG das bolsas concedidas', () => {
   beforeEach(async () => {
     await ctx.limpar();
     base = await criarBase(ctx.db);
+
+    await criarAcesso(ctx.db, {
+      sub: ADMIN.id,
+      nome: 'Admin das bolsas',
+      permissoes: ADMIN.permissions,
+    });
 
     const [outro] = await ctx.db
       .insert(s.ppg)
@@ -119,14 +138,21 @@ describe('Recorte por PPG das bolsas concedidas', () => {
     );
   });
 
-  /** Concede escopo de PPG ao coordenador e devolve o usuario pronto. */
+  /** Concede as acoes de bolsa naquele PPG e devolve o usuario pronto. */
   const comEscopoNo = async (ppgId: string) => {
     const resolvida = await identidade.resolver(coordenador());
-    await ctx.db.insert(s.escopoAcesso).values({
-      usuarioId: resolvida!.usuarioId,
-      tipo: 'PPG',
-      ppgId,
-    });
+    await ctx.db.insert(s.concessaoAcesso).values(
+      coordenador().permissions.map((permissao) => ({
+        usuarioId: resolvida!.usuarioId,
+        permissao,
+        justificativa: 'Alcance do PPG sob teste.',
+        ...colunasDoAlvo({
+          tipo: 'PPG' as const,
+          ppgId,
+          cicloId: base.cicloId,
+        }),
+      })),
+    );
     return coordenador();
   };
 
@@ -244,26 +270,27 @@ describe('Recorte por PPG das bolsas concedidas', () => {
   });
 
   // -------------------------------------------------------------------------
-  // Os dois modos de RECORTE_OBRIGATORIO
+  // Ausencia de concessao
 
-  it('conta sem escopo nenhum segue o modo de RECORTE_OBRIGATORIO', async () => {
-    // Conta resolvida, porem sem nenhum escopo atribuido — o estado real de
-    // todo mundo enquanto a PROPESP nao distribui os escopos.
+  it('conta sem concessao nenhuma nao ve bolsa alguma', async () => {
+    // Ate V1-012 esta conta via **tudo**, pelo modo permissivo do recorte. O
+    // modo acabou junto com o papel: hoje a conta recem-criada nao tem nem a
+    // acao nem o alcance, e a lista vem vazia ate alguem conceder.
     await identidade.resolver(coordenador());
 
-    const vistas = await bolsistas.listar(coordenador());
-    expect(vistas).toHaveLength(RECORTE_OBRIGATORIO ? 0 : 2);
+    expect(await bolsistas.listar(coordenador())).toEqual([]);
   });
 
-  it('escopo de rede sem PPG nao libera PPG nenhum', async () => {
-    // Quem tem escopo de **rede** e nenhum de PPG nao esta "sem configuracao":
-    // foi configurado para outra dimensao, e liberar todos os PPGs seria
-    // vazamento. E o caso que a implementacao ingenua erra.
+  it('alcance de rede sem PPG nao libera PPG nenhum', async () => {
+    // Quem tem alcance de **rede** e nenhum de PPG nao esta "sem
+    // configuracao": foi configurado para outra dimensao, e liberar todos os
+    // PPGs seria vazamento. E o caso que a implementacao ingenua erra.
     const resolvida = await identidade.resolver(coordenador());
-    await ctx.db.insert(s.escopoAcesso).values({
+    await ctx.db.insert(s.concessaoAcesso).values({
       usuarioId: resolvida!.usuarioId,
-      tipo: 'REDE',
-      redeId: base.redeId,
+      permissao: 'bolsa:read',
+      justificativa: 'Alcance de rede, sem PPG.',
+      ...colunasDoAlvo({ tipo: 'REDE', redeId: base.redeId }),
     });
 
     expect(await bolsistas.listar(coordenador())).toEqual([]);

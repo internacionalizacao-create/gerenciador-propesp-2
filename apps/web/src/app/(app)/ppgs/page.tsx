@@ -3,8 +3,11 @@ import type { Metadata } from "next";
 import { CadastroPpg } from "@/componentes/formularios/cadastro-ppg";
 import { ListaPpgs } from "@/componentes/consultas/lista-ppgs";
 import { Pagina } from "@/componentes/ui/basicos";
+import { SemAcesso } from "@/componentes/ui/sem-acesso";
+import { faltando } from "@/lib/acesso";
 import { apiFetch } from "@/lib/api";
-import type { LinhaPpg, Me } from "@/lib/dominio";
+import type { LinhaPpg } from "@/lib/dominio";
+import { carregarMe } from "@/lib/me";
 
 export const metadata: Metadata = {
   title: "PPGs — Gerenciador PROPESP",
@@ -26,11 +29,21 @@ export default async function Ppgs({
   searchParams: Promise<{ q?: string; nivel?: string; situacao?: string }>;
 }) {
   const filtros = await searchParams;
-  const [ppgs, me] = await Promise.all([
-    apiFetch<LinhaPpg[]>("/ppgs"),
-    apiFetch<Me>("/me"),
-  ]);
-  const podeEditar = me.permissions.includes("ppg:write");
+  const me = await carregarMe();
+  const falta = faltando(me.permissions, ["ppg:read"]);
+  if (falta.length > 0) {
+    return (
+      <SemAcesso
+        titulo="PPGs"
+        descricao="Cadastro institucional dos programas de pós-graduação."
+        me={me}
+        faltando={falta}
+      />
+    );
+  }
+
+  const ppgs = await apiFetch<LinhaPpg[]>("/ppgs");
+  const podeEditar = me.permissions.includes("ppg:create");
 
   return (
     <Pagina

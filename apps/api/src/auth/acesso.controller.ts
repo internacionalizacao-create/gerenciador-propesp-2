@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Inject,
   NotFoundException,
   Param,
@@ -17,16 +18,24 @@ import * as s from '../database/schema';
 import { ZodValidationPipe } from '../comum/zod-validation.pipe';
 import type { AuthUser } from './auth-user';
 import { CurrentUser, RequirePermission } from './auth.decorators';
+import {
+  ConcessoesService,
+  lotedeConcessoesSchema,
+  revogacaoSchema,
+  type LoteDeConcessoes,
+  type Revogacao,
+} from './autorizacao-v1/concessoes.service';
 
 /**
- * Administracao de identidade e escopo (CG-003, recorte provisorio).
+ * Administracao de identidade e concessoes (V1-017).
  *
- * O papel continua vindo do Keycloak — quem cria conta e concede papel e o
- * administrador, no console. O que mora aqui e a outra metade, que o Keycloak
- * nao sabe: **sobre quais PPGs e redes** aquela conta manda.
+ * O Keycloak so autentica: quem responde "o que esta conta pode fazer, e sobre
+ * o que" sao as concessoes administradas aqui. Cada linha guarda quem concedeu,
+ * quando e por que, e a politica de `autorizacao-v1/administracao.ts` governa
+ * quem pode administrar o que — inclusive proibindo autoalteracao.
  *
- * Tudo exige `acesso:write`, hoje so do `admin`. Conceder acesso e ato
- * administrativo, e cada linha guarda quem concedeu.
+ * As rotas de `escopo_acesso` continuam no ar enquanto a tabela legada existir;
+ * elas nao concedem mais nada ao resolver e saem em V1-021.
  */
 
 export const concederEscopoSchema = z
@@ -46,7 +55,76 @@ export type ConcederEscopo = z.infer<typeof concederEscopoSchema>;
 
 @Controller('acesso')
 export class AcessoController {
-  constructor(@Inject(DRIZZLE) private readonly db: Database) {}
+  constructor(
+    @Inject(DRIZZLE) private readonly db: Database,
+    private readonly concessoes: ConcessoesService,
+  ) {}
+
+  /** Catalogo de acoes e modelos, para a tela montar as opcoes. */
+  @Get('catalogo')
+  @RequirePermission('acesso:read')
+  catalogo() {
+    return this.concessoes.catalogo();
+  }
+
+  /** Alvos disponiveis para o seletor de alcance da tela. */
+  @Get('alvos')
+  @RequirePermission('acesso:read')
+  async alvos() {
+    return this.concessoes.alvos();
+  }
+
+  /** Concessoes de uma conta, ativas e revogadas, com o alvo tipado. */
+  @Get('usuarios/:id/concessoes')
+  @RequirePermission('acesso:read')
+  async listarConcessoes(
+    @Param('id', new ZodValidationPipe(z.uuid('Usuário inválido.')))
+    usuarioId: string,
+  ) {
+    return this.concessoes.listar(usuarioId);
+  }
+
+  /**
+   * O que o lote faria, sem gravar.
+   *
+   * Rota propria, e nao um `?previa=true` no POST: um parametro que decide
+   * entre gravar e nao gravar e o tipo de coisa que se erra uma vez.
+   */
+  @Post('usuarios/:id/concessoes/previa')
+  @HttpCode(200)
+  @RequirePermission('acesso:read', 'acesso:write')
+  async previa(
+    @Param('id', new ZodValidationPipe(z.uuid('Usuário inválido.')))
+    usuarioId: string,
+    @Body(new ZodValidationPipe(lotedeConcessoesSchema)) dto: LoteDeConcessoes,
+    @CurrentUser() usuario: AuthUser,
+  ) {
+    return this.concessoes.previa(usuario, usuarioId, dto);
+  }
+
+  /** Aplica o lote inteiro, ou nenhum item dele. */
+  @Post('usuarios/:id/concessoes')
+  @RequirePermission('acesso:write')
+  async conceder(
+    @Param('id', new ZodValidationPipe(z.uuid('Usuário inválido.')))
+    usuarioId: string,
+    @Body(new ZodValidationPipe(lotedeConcessoesSchema)) dto: LoteDeConcessoes,
+    @CurrentUser() usuario: AuthUser,
+  ) {
+    return this.concessoes.conceder(usuario, usuarioId, dto);
+  }
+
+  /** Revoga uma concessao; inativa, nunca apaga. */
+  @Post('concessoes/:id/revogacao')
+  @RequirePermission('acesso:write')
+  async revogarConcessao(
+    @Param('id', new ZodValidationPipe(z.uuid('Concessão inválida.')))
+    concessaoId: string,
+    @Body(new ZodValidationPipe(revogacaoSchema)) dto: Revogacao,
+    @CurrentUser() usuario: AuthUser,
+  ) {
+    return this.concessoes.revogar(usuario, concessaoId, dto);
+  }
 
   /** Contas ligadas ao cadastro local, com os escopos de cada uma. */
   @Get('usuarios')
@@ -88,7 +166,7 @@ export class AcessoController {
 
   @Post('usuarios/:id/escopos')
   @RequirePermission('acesso:write')
-  async conceder(
+  async concederEscopo(
     @Param('id', new ZodValidationPipe(z.uuid('Usuário inválido.')))
     usuarioId: string,
     @Body(new ZodValidationPipe(concederEscopoSchema)) dto: ConcederEscopo,
@@ -148,7 +226,7 @@ export class AcessoController {
    */
   @Delete('escopos/:id')
   @RequirePermission('acesso:write')
-  async revogar(
+  async revogarEscopo(
     @Param('id', new ZodValidationPipe(z.uuid('Escopo inválido.')))
     escopoId: string,
   ) {
@@ -171,7 +249,7 @@ export class AcessoController {
    * conta criada sem e-mail, e conta cujo e-mail nao e o mesmo do cadastro.
    */
   @Post('usuarios/:id/pessoa')
-  @RequirePermission('acesso:write')
+  @RequirePermission('acesso:manage-identidade')
   async reassociar(
     @Param('id', new ZodValidationPipe(z.uuid('Usuário inválido.')))
     usuarioId: string,

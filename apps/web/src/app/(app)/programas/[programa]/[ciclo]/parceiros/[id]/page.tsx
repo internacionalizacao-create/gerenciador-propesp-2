@@ -22,10 +22,12 @@ import {
   Selo,
   Tabela,
 } from "@/componentes/ui/basicos";
-import { ApiError, apiFetch } from "@/lib/api";
+import { SemAcesso } from "@/componentes/ui/sem-acesso";
+import { faltando } from "@/lib/acesso";
+import { ApiError, apiFetch, apiFetchOuNada } from "@/lib/api";
+import { carregarMe } from "@/lib/me";
 import type {
   HistoricoParceiro,
-  Me,
   Parceiro,
   ReferenciasMissao,
 } from "@/lib/dominio";
@@ -44,22 +46,24 @@ export default async function ParceiroDetalhe({
   params: Promise<{ programa: string; ciclo: string; id: string }>;
 }) {
   const { programa, ciclo, id } = await params;
-  const me = await apiFetch<Me>("/me");
-
-  if (!me.permissions.includes("parceiro:read")) {
+  const me = await carregarMe();
+  const falta = faltando(me.permissions, ["parceiro:read"]);
+  if (falta.length > 0) {
     return (
-      <Pagina titulo="Parceiro" descricao="Histórico da instituição parceira.">
-        <EstadoVazio
-          titulo="Acesso restrito"
-          descricao="Seu perfil não tem acesso aos parceiros e seus contatos. Fale com a administração da PROPESP."
-        />
-      </Pagina>
+      <SemAcesso
+        titulo="Parceiro"
+        descricao="Histórico da instituição parceira."
+        me={me}
+        faltando={falta}
+      />
     );
   }
 
   const [historico, referencias, ativos] = await Promise.all([
     buscarHistorico(id),
-    apiFetch<ReferenciasMissao>(
+    // Exige `missao:read`; sem ela o histórico continua, sem os formulários
+    // que dependem de rede e país.
+    apiFetchOuNada<ReferenciasMissao>(
       `/programas/${programa}/${ciclo}/comite-gestor/referencias-missao`,
     ),
     // Destinos possiveis da conciliacao. A API exige destino ativo, entao a
@@ -78,7 +82,7 @@ export default async function ParceiroDetalhe({
     convenios,
     produtos,
   } = historico;
-  const podeEscrever = me.permissions.includes("parceiro:write");
+  const podeEscrever = me.permissions.includes("parceiro:edit");
   const base = `/programas/${programa}/${ciclo}/parceiros`;
 
   return (
@@ -94,8 +98,8 @@ export default async function ParceiroDetalhe({
           <div className="flex flex-wrap gap-2">
             <EditarParceiro
               parceiro={parceiro}
-              redes={referencias.redes}
-              paises={referencias.paises}
+              redes={referencias?.redes ?? []}
+              paises={referencias?.paises ?? []}
             />
             <ConciliarParceiroBotao
               parceiro={parceiro}
@@ -377,7 +381,7 @@ export default async function ParceiroDetalhe({
           podeEscrever && parceiro.ativo ? (
             <NovoContato
               instituicaoId={parceiro.id}
-              paises={referencias.paises}
+              paises={referencias?.paises ?? []}
             />
           ) : undefined
         }
@@ -436,7 +440,7 @@ export default async function ParceiroDetalhe({
                         <EditarContato
                           contato={contato}
                           instituicaoId={parceiro.id}
-                          paises={referencias.paises}
+                          paises={referencias?.paises ?? []}
                         />
                       ) : null}
                       <AcoesDoContato

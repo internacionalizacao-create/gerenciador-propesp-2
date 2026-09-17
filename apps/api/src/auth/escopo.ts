@@ -12,21 +12,18 @@ import type { EscopoAcesso } from './identidade.service';
  */
 
 /**
- * **Enquanto for `false`, usuario sem escopo configurado continua vendo tudo.**
+ * **Sem concessao, sem dado** — e nao ha mais modo permissivo (V1-012).
  *
- * Esta e a decisao mais consequente deste arquivo, e por isso esta explicita e
- * num lugar so. O recorte esta sendo introduzido num sistema em que ninguem
- * tem escopo cadastrado ainda: ligar o modo restritivo antes de a PROPESP
- * atribuir os escopos deixaria todo coordenador sem enxergar nada, no mesmo
- * instante, sem nenhuma tela dizendo por que.
+ * Ate 2026-09-16 existia aqui um `RECORTE_OBRIGATORIO = false` que liberava
+ * tudo para quem nao tivesse escopo cadastrado. Ele existia porque o recorte
+ * chegou a um sistema onde permissao vinha do papel e escopo de ninguem estava
+ * configurado: fechar de uma vez cegaria todo coordenador sem explicacao.
  *
- * Quem ja tem escopo cadastrado **ja e recortado hoje** — o modo permissivo nao
- * enfraquece quem foi configurado, so poupa quem ainda nao foi.
- *
- * Trocar para `true` fecha o sistema: sem escopo, sem dado. Faca isso quando os
- * escopos estiverem atribuidos, e nao antes. Os dois modos tem teste.
+ * Esse risco acabou junto com o papel. Hoje a permissao **tambem** vem da
+ * concessao, entao conta sem configuracao ja nao tem acao nenhuma para exercer,
+ * e um recorte permissivo so serviria para vazar dado de quem foi configurado
+ * pela metade — alguem com alcance de rede veria todos os PPGs.
  */
-export const RECORTE_OBRIGATORIO = false;
 
 /** Nao ha o que recortar: o usuario ve tudo dentro do que o papel permite. */
 const SEM_RECORTE = sql`true`;
@@ -48,11 +45,10 @@ export function filtroPorPpg(escopo: EscopoAcesso, coluna: SQL): SQL {
       sql`, `,
     )})`;
   }
-  // Sem escopo de PPG. Um usuario que tem escopo **de rede** e nenhum de PPG
-  // nao esta "sem configuracao": ele foi configurado para outra dimensao, e
-  // deixa-lo ver todos os PPGs seria vazamento. Por isso a checagem olha os
-  // dois tipos antes de concluir que ninguem configurou nada.
-  return semNenhumEscopo(escopo) && !RECORTE_OBRIGATORIO ? SEM_RECORTE : NADA;
+  // Sem alcance de PPG nenhum: nao ha o que liberar. Quem tem alcance de rede
+  // e nenhum de PPG nao esta "sem configuracao" — foi configurado para outra
+  // dimensao, e entregar-lhe todos os PPGs seria vazamento.
+  return NADA;
 }
 
 /** Condicao para uma coluna que guarda `rede_id`. */
@@ -64,7 +60,7 @@ export function filtroPorRede(escopo: EscopoAcesso, coluna: SQL): SQL {
       sql`, `,
     )})`;
   }
-  return semNenhumEscopo(escopo) && !RECORTE_OBRIGATORIO ? SEM_RECORTE : NADA;
+  return NADA;
 }
 
 /**
@@ -99,36 +95,21 @@ export function filtroMissaoPorRede(escopo: EscopoAcesso, coluna: SQL): SQL {
 }
 
 /**
- * Por que o recorte de missao nao tem o modo permissivo do PPG.
+ * Missao sem rede no alcance: nenhuma linha passa, e nunca houve excecao aqui.
  *
- * `RECORTE_OBRIGATORIO = false` existe para nao cegar, de um dia para o outro,
- * quem ja usava o sistema antes de a PROPESP atribuir escopos. Essa pessoa
- * existe no mundo do PPG — todo coordenador — e nao existe no das missoes: a
- * unica permissao que chega ate aqui e a do Gestor da Rede, papel que **nunca
- * foi atribuido a ninguem** (ver `permissions.ts`). `admin` e Comite Gestor nao
- * passam por este caminho, porque tem `missao:all-redes`.
- *
- * Manter o modo permissivo aqui seria, portanto, so um buraco: bastaria
- * conceder `gestor-rede` a alguem sem vinculo de equipe para que essa pessoa
- * enxergasse as tres redes — exatamente o que a CG-028 existe para impedir. Sem
- * rede no escopo, o gestor ve uma lista vazia e a PROPESP descobre que falta
- * cadastrar o vinculo; com o modo permissivo, ele veria tudo e ninguem
- * descobriria nada.
+ * Este comentario sobreviveu a troca do modelo porque a regra sobreviveu: o
+ * recorte de missao nunca teve modo permissivo, nem quando o do PPG tinha.
  */
 export const SEM_ESCOPO_NENHUMA_MISSAO = true;
 
 /** Verdadeiro quando o usuario pode ver aquele PPG. */
 export function podeVerPpg(escopo: EscopoAcesso, ppgId: string): boolean {
-  if (escopo.global) return true;
-  if (escopo.ppgIds.includes(ppgId)) return true;
-  return semNenhumEscopo(escopo) && !RECORTE_OBRIGATORIO;
+  return escopo.global || escopo.ppgIds.includes(ppgId);
 }
 
 /** Verdadeiro quando o usuario pode ver aquela rede. */
 export function podeVerRede(escopo: EscopoAcesso, redeId: string): boolean {
-  if (escopo.global) return true;
-  if (escopo.redeIds.includes(redeId)) return true;
-  return semNenhumEscopo(escopo) && !RECORTE_OBRIGATORIO;
+  return escopo.global || escopo.redeIds.includes(redeId);
 }
 
 /**
@@ -143,18 +124,6 @@ export function podeVerMissao(
 ): boolean {
   if (escopo.global) return true;
   return redesDaMissao.some((rede) => escopo.redeIds.includes(rede));
-}
-
-/**
- * `true` quando este usuario **nao** e recortado por rede no modulo de missoes.
- *
- * Le a permissao, nunca o papel: e a mesma indirecao que faz nenhum controller
- * mencionar `admin` ou `comite-gestor`. Ver `missao:all-redes` no catalogo.
- */
-export function alcancaTodasAsRedes(usuario: {
-  permissions: readonly string[];
-}): boolean {
-  return usuario.permissions.includes('missao:all-redes');
 }
 
 /**
@@ -184,9 +153,20 @@ export class RecorteDeMissoes {
 
   constructor(
     private readonly escopo: EscopoAcesso,
-    /** `missao:all-redes`: nao ha recorte a aplicar. */
+    /** Concessao `GLOBAL` de `missao:read`: nao ha recorte a aplicar. */
     private readonly irrestrito: boolean,
   ) {}
+
+  /**
+   * `true` quando nada e recortado.
+   *
+   * Existe porque "alcanca alguma destas redes" responde errado para a **missao
+   * sem rede nenhuma** (as anteriores a CG-016): a lista vazia nao casa com
+   * alcance nenhum, e quem enxerga tudo perderia o acesso a elas.
+   */
+  get semRecorte(): boolean {
+    return this.irrestrito || this.escopo.global;
+  }
 
   /** Condicao sobre a coluna que identifica a **missao** (`m.id`). */
   sobre(coluna: SQL): SQL {
@@ -222,11 +202,4 @@ export class RecorteDeMissoes {
       this.escopo.redeIds.includes(redeId)
     );
   }
-}
-
-/** Nenhum escopo de nenhum tipo: conta que ainda nao foi configurada. */
-function semNenhumEscopo(escopo: EscopoAcesso): boolean {
-  return (
-    !escopo.global && escopo.ppgIds.length === 0 && escopo.redeIds.length === 0
-  );
 }

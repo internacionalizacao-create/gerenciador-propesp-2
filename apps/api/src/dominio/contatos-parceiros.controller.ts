@@ -44,7 +44,7 @@ export class ContatosParceirosController {
   }
 
   @Post()
-  @RequirePermission('parceiro:write')
+  @RequirePermission('parceiro:create')
   criar(
     @CurrentUser() usuario: AuthUser,
     @Body(new ZodValidationPipe(criarContatoParceiroSchema))
@@ -54,7 +54,7 @@ export class ContatosParceirosController {
   }
 
   @Patch(':id')
-  @RequirePermission('parceiro:write')
+  @RequirePermission('parceiro:edit')
   atualizar(
     @Param('id') id: string,
     @CurrentUser() usuario: AuthUser,
@@ -65,13 +65,13 @@ export class ContatosParceirosController {
   }
 
   @Post(':id/principal')
-  @RequirePermission('parceiro:write')
+  @RequirePermission('parceiro:edit')
   definirPrincipal(@Param('id') id: string, @CurrentUser() usuario: AuthUser) {
     return this.contatos.definirPrincipal(id, usuario);
   }
 
   @Post(':id/inativacao')
-  @RequirePermission('parceiro:write')
+  @RequirePermission('parceiro:status')
   inativar(
     @Param('id') id: string,
     @CurrentUser() usuario: AuthUser,
@@ -82,7 +82,7 @@ export class ContatosParceirosController {
   }
 
   @Post(':id/reativacao')
-  @RequirePermission('parceiro:write')
+  @RequirePermission('parceiro:status')
   reativar(
     @Param('id') id: string,
     @CurrentUser() usuario: AuthUser,

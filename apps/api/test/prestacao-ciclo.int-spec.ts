@@ -16,7 +16,14 @@ const admin: AuthUser = {
   id: 'admin-ciclo',
   name: 'Admin da Prestação',
   roles: ['admin'],
-  permissions: ['prestacao:read', 'prestacao:write', 'prestacao:review'],
+  permissions: [
+    'prestacao:read',
+    'prestacao:create',
+    'prestacao:edit',
+    'prestacao:delete',
+    'prestacao:submit',
+    'prestacao:review',
+  ],
 };
 
 /**

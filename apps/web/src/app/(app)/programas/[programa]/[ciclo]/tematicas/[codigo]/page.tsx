@@ -13,7 +13,10 @@ import {
   Tabela,
   Utilizacao,
 } from "@/componentes/ui/basicos";
+import { SemAcesso } from "@/componentes/ui/sem-acesso";
+import { faltando } from "@/lib/acesso";
 import { apiFetch } from "@/lib/api";
+import { carregarMe } from "@/lib/me";
 import { Ajuda } from "@/componentes/ui/ajuda";
 import { AJUDA_ORCAMENTO } from "@/lib/ajuda-orcamento";
 import type { DetalheTematica } from "@/lib/dominio";
@@ -33,6 +36,19 @@ export default async function DetalheDaTematica({
 }) {
   const { programa, ciclo, codigo } = await params;
   const base = `/programas/${programa}/${ciclo}`;
+
+  const me = await carregarMe();
+  const falta = faltando(me.permissions, ["orcamento:read"]);
+  if (falta.length > 0) {
+    return (
+      <SemAcesso
+        titulo="Área temática"
+        descricao="Orçamento, PPGs e plano de uma temática."
+        me={me}
+        faltando={falta}
+      />
+    );
+  }
 
   const area = await apiFetch<DetalheTematica>(
     `${`/programas/${programa}/${ciclo}`}/tematicas/${encodeURIComponent(codigo)}`,

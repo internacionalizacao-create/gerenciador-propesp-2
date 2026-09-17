@@ -256,6 +256,29 @@ export const tipoEscopoAcessoEnum = pgEnum('tipo_escopo_acesso', [
   'REDE',
 ]);
 
+/**
+ * Alvo de uma **concessao individual** de permissao (V1-011).
+ *
+ * Enum novo, e nao valores acrescentados a `tipo_escopo_acesso`: aquele tipo e
+ * usado pelo `check` de `escopo_acesso`, que so sabe amarrar PPG e rede. Somar
+ * CICLO, TEMATICA e PARTICIPACAO ali criaria tres valores que a tabela antiga
+ * aceita no enum e recusa no `check` — um vocabulario que mente sobre o que
+ * pode ser gravado. Enquanto as duas tabelas coexistirem (a legada some com a
+ * conversao nominal de V1-021), cada uma responde pelo seu vocabulario.
+ *
+ * `PPG` aqui nao e o mesmo `PPG` de la: a concessao de planejamento exige
+ * **PPG + ciclo**, porque um PPG existe em varios ciclos e conceder "o PPG"
+ * sem dizer qual ciclo entregaria os proximos anos junto.
+ */
+export const tipoAlvoConcessaoEnum = pgEnum('tipo_alvo_concessao', [
+  'GLOBAL',
+  'CICLO',
+  'PPG',
+  'REDE',
+  'TEMATICA',
+  'PARTICIPACAO',
+]);
+
 /** Como o `sub` do Keycloak foi ligado a uma pessoa do cadastro local. */
 export const origemVinculoUsuarioEnum = pgEnum('origem_vinculo_usuario', [
   /** E-mail do token bateu com o de uma pessoa ja cadastrada. */

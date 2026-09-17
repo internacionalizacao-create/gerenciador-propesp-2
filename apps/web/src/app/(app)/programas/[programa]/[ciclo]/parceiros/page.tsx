@@ -2,9 +2,12 @@ import type { Metadata } from "next";
 
 import { ListaParceiros } from "@/componentes/consultas/lista-parceiros";
 import { NovoParceiro } from "@/componentes/formularios/form-parceiro";
-import { EstadoVazio, Pagina } from "@/componentes/ui/basicos";
-import { apiFetch } from "@/lib/api";
-import type { Me, Parceiro, ReferenciasMissao } from "@/lib/dominio";
+import { Pagina } from "@/componentes/ui/basicos";
+import { SemAcesso } from "@/componentes/ui/sem-acesso";
+import { faltando } from "@/lib/acesso";
+import { apiFetch, apiFetchOuNada } from "@/lib/api";
+import { carregarMe } from "@/lib/me";
+import type { Parceiro, ReferenciasMissao } from "@/lib/dominio";
 
 export const metadata: Metadata = {
   title: "Parceiros — Gerenciador PROPESP",
@@ -42,19 +45,16 @@ export default async function ParceirosPagina({
 }) {
   const { programa, ciclo } = await params;
   const consulta = await searchParams;
-  const me = await apiFetch<Me>("/me");
-
-  if (!me.permissions.includes("parceiro:read")) {
+  const me = await carregarMe();
+  const falta = faltando(me.permissions, ["parceiro:read"]);
+  if (falta.length > 0) {
     return (
-      <Pagina
+      <SemAcesso
         titulo="Parceiros"
         descricao="Instituições parceiras internacionais reutilizáveis por redes e missões."
-      >
-        <EstadoVazio
-          titulo="Acesso restrito"
-          descricao="Seu perfil não tem acesso aos parceiros e seus contatos. Fale com a administração da PROPESP."
-        />
-      </Pagina>
+        me={me}
+        faltando={falta}
+      />
     );
   }
 
@@ -69,14 +69,18 @@ export default async function ParceirosPagina({
   if (filtrosIniciais.redeId) parametros.set("redeId", filtrosIniciais.redeId);
   if (filtrosIniciais.incluirInativos) parametros.set("incluirInativos", "true");
 
+  // As referências vêm do módulo de missões e exigem `missao:read`: quem
+  // administra parceiros sem acompanhar missões continua vendo a lista, só sem
+  // o filtro por rede e sem o cadastro (que precisa de rede e país).
   const [parceiros, referencias] = await Promise.all([
     apiFetch<Parceiro[]>(`/parceiros?${parametros.toString()}`),
-    apiFetch<ReferenciasMissao>(
+    apiFetchOuNada<ReferenciasMissao>(
       `/programas/${programa}/${ciclo}/comite-gestor/referencias-missao`,
     ),
   ]);
 
-  const podeEscrever = me.permissions.includes("parceiro:write");
+  const podeEscrever =
+    me.permissions.includes("parceiro:edit") && referencias !== null;
 
   return (
     <Pagina
@@ -84,7 +88,10 @@ export default async function ParceirosPagina({
       descricao="Instituições parceiras internacionais. O mesmo cadastro é reutilizado por várias redes e missões, em vez de copiado a cada uma."
       acoes={
         podeEscrever ? (
-          <NovoParceiro redes={referencias.redes} paises={referencias.paises} />
+          <NovoParceiro
+            redes={referencias?.redes ?? []}
+            paises={referencias?.paises ?? []}
+          />
         ) : undefined
       }
     >
@@ -92,7 +99,7 @@ export default async function ParceirosPagina({
         base={`/programas/${programa}/${ciclo}/parceiros`}
         filtrosIniciais={filtrosIniciais}
         dadosIniciais={parceiros}
-        redes={referencias.redes}
+        redes={referencias?.redes ?? []}
       />
     </Pagina>
   );

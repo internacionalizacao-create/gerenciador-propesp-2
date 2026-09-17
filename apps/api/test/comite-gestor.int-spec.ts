@@ -23,7 +23,12 @@ const admin: AuthUser = {
   id: 'admin-keycloak-sub',
   name: 'Admin de Teste',
   roles: ['admin'],
-  permissions: ['equipe-gestao:read', 'equipe-gestao:write'],
+  permissions: [
+    'equipe-gestao:read',
+    'equipe-gestao:create',
+    'equipe-gestao:edit',
+    'equipe-gestao:create-pessoa',
+  ],
 };
 
 describe('ComiteGestorService — equipes', () => {
@@ -361,7 +366,18 @@ const adminMissoes: AuthUser = {
   id: 'admin-keycloak-sub',
   name: 'Admin de Teste',
   roles: ['admin'],
-  permissions: ['missao:read', 'missao:write'],
+  permissions: [
+    'missao:read',
+    'missao:create',
+    'missao:relato',
+    'missao:confirm',
+    'missao:cancel',
+    'missao:close',
+    'produto-missao:create',
+    'produto-missao:edit',
+    'produto-missao:delete',
+    'produto-missao:declare',
+  ],
 };
 
 describe('MissoesComiteService — criacao transacional', () => {

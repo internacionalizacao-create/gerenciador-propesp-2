@@ -22,8 +22,11 @@ import {
   Selo,
   Tabela,
 } from "@/componentes/ui/basicos";
+import { SemAcesso } from "@/componentes/ui/sem-acesso";
+import { faltando } from "@/lib/acesso";
 import { apiFetch } from "@/lib/api";
-import type { AnexoResumo, BolsaConcedidaDetalhe, Me } from "@/lib/dominio";
+import type { AnexoResumo, BolsaConcedidaDetalhe } from "@/lib/dominio";
+import { carregarMe } from "@/lib/me";
 import {
   categoriasDisponiveis,
   ehDocumentoPessoal,
@@ -36,9 +39,21 @@ export default async function DetalheDoBolsista({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [bolsa, me, documentos] = await Promise.all([
+  const me = await carregarMe();
+  const falta = faltando(me.permissions, ["bolsa:read", "produto:read"]);
+  if (falta.length > 0) {
+    return (
+      <SemAcesso
+        titulo="Bolsista"
+        descricao="Concessão, vigência, produtos e documentos."
+        me={me}
+        faltando={falta}
+      />
+    );
+  }
+
+  const [bolsa, documentos] = await Promise.all([
     apiFetch<BolsaConcedidaDetalhe>(`/bolsistas/${id}`),
-    apiFetch<Me>("/me"),
     // A API ja filtra o que este usuario pode ver: documento pessoal nao chega
     // para quem nao tem `documento:read-pessoal`. A tela nao refiltra — dois
     // lugares decidindo a mesma coisa divergem na primeira mudanca.
@@ -46,8 +61,8 @@ export default async function DetalheDoBolsista({
       `/anexos?entidadeTipo=BOLSA_CONCEDIDA&entidadeId=${id}`,
     ),
   ]);
-  const podeEditarBolsa = me.permissions.includes("bolsa:write");
-  const podeEditarProdutos = me.permissions.includes("produto:write");
+  const podeEditarBolsa = me.permissions.includes("bolsa:create");
+  const podeEditarProdutos = me.permissions.includes("produto:create");
   const categoriasDeDocumento = categoriasDisponiveis(me.permissions);
   const atrasados = bolsa.produtos.filter(
     (produto) => produto.situacao === "ATRASADO",

@@ -10,7 +10,7 @@ import { and, desc, eq, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 
 import type { AuthUser } from '../auth/auth-user';
-import { alcancaTodasAsRedes, podeVerMissao, podeVerPpg } from '../auth/escopo';
+import { podeVerPpg } from '../auth/escopo';
 import { IdentidadeService } from '../auth/identidade.service';
 import type { Permission } from '../auth/permissions';
 import { ArmazenamentoService } from '../arquivos/armazenamento.service';
@@ -79,42 +79,43 @@ const POLITICA: Record<
   },
   PRESTACAO_CONTAS_MISSAO: {
     ler: 'prestacao:read',
-    escrever: 'prestacao:write',
+    escrever: 'prestacao:edit',
     tabela: 'prestacao',
   },
   DESPESA_MISSAO: {
     ler: 'prestacao:read',
-    escrever: 'prestacao:write',
+    escrever: 'prestacao:edit',
     tabela: 'despesa',
   },
   COTACAO_PASSAGEM: {
     ler: 'prestacao:read',
-    escrever: 'prestacao:write',
+    escrever: 'prestacao:edit',
     tabela: 'cotacao',
   },
   INSTITUICAO: {
     ler: 'parceiro:read',
-    escrever: 'parceiro:write',
+    escrever: 'parceiro:edit',
     tabela: 'instituicao',
   },
   PARCEIRO: {
     ler: 'parceiro:read',
-    escrever: 'parceiro:write',
+    escrever: 'parceiro:edit',
     tabela: 'instituicao',
   },
   /**
    * O produto e resultado da missao; o convenio e cadastro do parceiro. Por
    * isso as permissoes divergem apesar de os dois nascerem da mesma viagem
-   * (CG-056).
+   * (CG-056) — e desde o catalogo V1 cada um tem o seu proprio dominio de
+   * permissao, em vez de pegar emprestado o da missao e o do parceiro.
    */
   PRODUTO_MISSAO: {
-    ler: 'missao:read',
-    escrever: 'missao:write',
+    ler: 'produto-missao:read',
+    escrever: 'produto-missao:edit',
     tabela: 'produto',
   },
   CONVENIO: {
-    ler: 'parceiro:read',
-    escrever: 'parceiro:write',
+    ler: 'convenio:read',
+    escrever: 'convenio:edit',
     tabela: 'convenio',
   },
   /**
@@ -126,7 +127,7 @@ const POLITICA: Record<
    */
   BOLSA_CONCEDIDA: {
     ler: 'bolsa:read',
-    escrever: 'bolsa:write',
+    escrever: 'bolsa:edit',
     tabela: 'bolsa',
   },
   /**
@@ -695,7 +696,6 @@ export class AnexosService {
       return;
     }
 
-    if (alcancaTodasAsRedes(usuario)) return;
     const missaoId = await this.missaoDaEntidade(tipo, entidadeId);
     if (!missaoId) return;
 
@@ -704,12 +704,12 @@ export class AnexosService {
       .from(s.missaoRede)
       .where(eq(s.missaoRede.missaoId, missaoId));
 
-    const escopo = await this.identidade.escopoDe(usuario);
+    // Mesmo alcance da missao: o documento herda o recorte do alvo, senao o
+    // anexo seria a porta lateral dele.
+    const recorte = await this.identidade.recorteDeMissoes(usuario);
     if (
-      !podeVerMissao(
-        escopo,
-        redes.map((linha) => linha.redeId),
-      )
+      !recorte.semRecorte &&
+      !redes.some((linha) => recorte.alcanca(linha.redeId))
     ) {
       // 404, e não 403: "existe, mas não é seu" já entrega que o documento
       // existe — mesmo critério do PPG e da missão fora do escopo.

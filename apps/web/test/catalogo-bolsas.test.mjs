@@ -44,7 +44,7 @@ test("a interface cobre vazio, acesso restrito, tema e variantes responsivas", a
   const css = await readFile(raiz("src/app/globals.css"), "utf8");
 
   // A permissão continua decidida no servidor; ocultar ações não é autorização.
-  assert.match(pagina, /me\.permissions\.includes\("catalogo:write"\)/);
+  assert.match(pagina, /me\.permissions\.includes\("catalogo:create"\)/);
   assert.match(lista, /podeEditar \? \(/);
   assert.match(lista, /<EstadoVazio/);
   assert.match(lista, /hidden md:block/);

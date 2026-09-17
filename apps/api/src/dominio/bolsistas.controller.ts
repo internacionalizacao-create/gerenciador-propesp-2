@@ -64,7 +64,7 @@ export class BolsistasController {
   }
 
   @Post()
-  @RequirePermission('bolsa:write')
+  @RequirePermission('bolsa:create')
   criar(
     @Body(new ZodValidationPipe(criarBolsaConcedidaSchema))
     dto: CriarBolsaConcedida,
@@ -74,7 +74,7 @@ export class BolsistasController {
   }
 
   @Patch(':id')
-  @RequirePermission('bolsa:write')
+  @RequirePermission('bolsa:edit')
   atualizar(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(atualizarBolsaConcedidaSchema))
@@ -85,7 +85,7 @@ export class BolsistasController {
   }
 
   @Post(':id/produtos')
-  @RequirePermission('produto:write')
+  @RequirePermission('produto:create')
   criarProduto(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(produtoBolsaSchema)) dto: ProdutoBolsaDto,
@@ -95,7 +95,7 @@ export class BolsistasController {
   }
 
   @Patch(':id/produtos/:produtoId')
-  @RequirePermission('produto:write')
+  @RequirePermission('produto:edit')
   atualizarProduto(
     @Param('id') id: string,
     @Param('produtoId') produtoId: string,

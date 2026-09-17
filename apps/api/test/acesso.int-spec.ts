@@ -1,6 +1,9 @@
 import { eq } from 'drizzle-orm';
 
 import type { AuthUser } from '../src/auth/auth-user';
+import { colunasDoAlvo } from '../src/auth/autorizacao-v1/persistencia';
+import { AcessoV1Service } from '../src/auth/autorizacao-v1/acesso-v1.service';
+import { ConcessoesService } from '../src/auth/autorizacao-v1/concessoes.service';
 import { IdentidadeService } from '../src/auth/identidade.service';
 import * as s from '../src/database/schema';
 import { MeController } from '../src/auth/me.controller';
@@ -34,11 +37,15 @@ describe('Identidade e escopo de acesso', () => {
   let ctx: ContextoTeste;
   let base: BaseFixture;
   let identidade: IdentidadeService;
+  let concessoes: ConcessoesService;
   let ppgs: PpgsService;
 
   beforeAll(async () => {
     ctx = await criarContextoTeste();
     identidade = new IdentidadeService(ctx.db);
+    // `/me` passou a servir tambem `/me/acesso` (V1-019); o controller pede o
+    // servico, ainda que estes casos so exercitem o vinculo de identidade.
+    concessoes = new ConcessoesService(ctx.db, new AcessoV1Service(ctx.db));
     ppgs = new PpgsService(ctx.db, identidade);
   });
 
@@ -50,6 +57,42 @@ describe('Identidade e escopo de acesso', () => {
     await ctx.limpar();
     base = await criarBase(ctx.db);
   });
+
+  /** Concede uma acao em GLOBAL para a conta ja vinculada. */
+  async function concederGlobal(conta: AuthUser, permissao: string) {
+    await conceder(conta, permissao, colunasDoAlvo({ tipo: 'GLOBAL' }));
+  }
+
+  /** Concede uma acao no PPG da fixture, com o ciclo que o alvo exige. */
+  async function concederPpg(conta: AuthUser, permissao: string) {
+    await conceder(
+      conta,
+      permissao,
+      colunasDoAlvo({
+        tipo: 'PPG',
+        ppgId: base.ppgId,
+        cicloId: base.cicloId,
+      }),
+    );
+  }
+
+  async function conceder(
+    conta: AuthUser,
+    permissao: string,
+    alvo: ReturnType<typeof colunasDoAlvo>,
+  ) {
+    const [linha] = await ctx.db
+      .select({ id: s.usuarioSistema.id })
+      .from(s.usuarioSistema)
+      .where(eq(s.usuarioSistema.sub, conta.id));
+
+    await ctx.db.insert(s.concessaoAcesso).values({
+      usuarioId: linha.id,
+      permissao,
+      justificativa: 'Concessao de teste.',
+      ...alvo,
+    });
+  }
 
   // -------------------------------------------------------------------------
   // Vinculo
@@ -132,13 +175,17 @@ describe('Identidade e escopo de acesso', () => {
   // -------------------------------------------------------------------------
   // Escopo
 
-  it('o papel admin recebe escopo global sem depender de linha cadastrada', async () => {
-    // Um administrador sem acesso a nada seria a falha mais dificil de
-    // diagnosticar que este modulo poderia ter.
-    const escopo = await identidade.escopoDe(
-      usuario({ roles: ['admin'], email: 'admin@propesp.local' }),
-    );
-    expect(escopo.global).toBe(true);
+  it('o papel admin do Keycloak nao concede mais escopo nenhum', async () => {
+    // Ate V1-012 o papel `admin` recebia escopo global de graca, e com isso a
+    // autorizacao dependia de um papel que o resto do codigo jurava nao
+    // consultar. Hoje quem enxerga tudo e quem tem concessao GLOBAL.
+    const conta = usuario({ roles: ['admin'], email: 'admin@propesp.local' });
+    await identidade.resolver(conta);
+
+    expect((await identidade.escopoDe(conta)).global).toBe(false);
+
+    await concederGlobal(conta, 'ppg:read');
+    expect((await identidade.escopoDe(conta)).global).toBe(true);
   });
 
   it('recorta a listagem de PPGs pelo escopo concedido', async () => {
@@ -150,15 +197,14 @@ describe('Identidade e escopo de acesso', () => {
       situacao: 'ATIVO',
     });
 
-    const todos = await ppgs.listar(usuario({ roles: ['admin'] }));
+    const global = usuario({ id: 'sub-global', email: 'global@propesp.local' });
+    await identidade.resolver(global);
+    await concederGlobal(global, 'ppg:read');
+    const todos = await ppgs.listar(global);
     expect(todos.length).toBeGreaterThan(1);
 
-    const resolvida = await identidade.resolver(usuario());
-    await ctx.db.insert(s.escopoAcesso).values({
-      usuarioId: resolvida.usuarioId,
-      tipo: 'PPG',
-      ppgId: base.ppgId,
-    });
+    await identidade.resolver(usuario());
+    await concederPpg(usuario(), 'ppg:read');
 
     const recortados = await ppgs.listar(usuario());
     expect(recortados.map((p) => p.id)).toEqual([base.ppgId]);
@@ -185,12 +231,8 @@ describe('Identidade e escopo de acesso', () => {
   });
 
   it('o detalhe de PPG fora do escopo responde como inexistente', async () => {
-    const resolvida = await identidade.resolver(usuario());
-    await ctx.db.insert(s.escopoAcesso).values({
-      usuarioId: resolvida.usuarioId,
-      tipo: 'PPG',
-      ppgId: base.ppgId,
-    });
+    await identidade.resolver(usuario());
+    await concederPpg(usuario(), 'ppg:read');
 
     const [outro] = await ctx.db
       .insert(s.ppg)
@@ -255,7 +297,7 @@ describe('Identidade e escopo de acesso', () => {
   it('o /me devolve pessoa e escopo, e e onde o vinculo acontece', async () => {
     // O vinculo mora aqui, e nao no guard: `/me` e a primeira chamada do BFF
     // depois do login, enquanto o guard roda em toda requisicao.
-    const me = new MeController(identidade);
+    const me = new MeController(identidade, concessoes);
     const resposta = await me.me(usuario());
 
     expect(resposta.pessoaId).toEqual(expect.any(String));
@@ -269,12 +311,15 @@ describe('Identidade e escopo de acesso', () => {
     expect(contas).toHaveLength(1);
   });
 
-  it('o /me de um admin ja chega com escopo global', async () => {
-    const me = new MeController(identidade);
-    const resposta = await me.me(
-      usuario({ roles: ['admin'], email: 'admin@propesp.local' }),
-    );
-    expect(resposta.escopo.global).toBe(true);
+  it('o /me traz o escopo das concessoes, nao do papel', async () => {
+    const me = new MeController(identidade, concessoes);
+    const conta = usuario({ roles: ['admin'], email: 'admin@propesp.local' });
+
+    // Primeiro acesso: a conta e criada e ainda nao tem concessao nenhuma.
+    expect((await me.me(conta)).escopo.global).toBe(false);
+
+    await concederGlobal(conta, 'ppg:read');
+    expect((await me.me(conta)).escopo.global).toBe(true);
   });
 
   it('nao derruba o /me quando o e-mail aponta para pessoa ja vinculada', async () => {
@@ -284,13 +329,16 @@ describe('Identidade e escopo de acesso', () => {
     // seja, a aplicacao inteira parava para aquele usuario.
     await identidade.resolver(usuario({ id: 'sub-antigo' }));
 
-    const me = new MeController(identidade);
+    const me = new MeController(identidade, concessoes);
     const resposta = await me.me(usuario({ id: 'sub-novo' }));
 
     expect(resposta.pessoaId).toBeNull();
     expect(resposta.vinculoPendente).toBe(true);
-    // A sessao continua util: papeis e permissoes vem do token.
-    expect(resposta.permissions).toContain('ppg:read');
+    // A sessao continua valida: o `/me` devolve o que o guard resolveu (aqui,
+    // a lista do proprio fixture) e diz que o vinculo ficou pendente, em vez de
+    // derrubar a aplicacao. Sem vinculo, o guard de verdade resolveria vazio.
+    expect(resposta.permissions).toEqual(['ppg:read']);
+    expect(resposta.escopo.global).toBe(false);
 
     // E nao criou pessoa duplicada para contornar o conflito.
     const pessoas = await ctx.db

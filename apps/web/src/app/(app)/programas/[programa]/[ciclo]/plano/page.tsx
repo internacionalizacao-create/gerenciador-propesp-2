@@ -14,7 +14,10 @@ import {
 import { AcoesLinhaPlano } from "@/componentes/formularios/acoes-linha-plano";
 import { NovaLinhaDePlano } from "@/componentes/formularios/nova-linha-plano";
 import { Botao } from "@/componentes/ui/botao";
-import { apiFetch } from "@/lib/api";
+import { SemAcesso } from "@/componentes/ui/sem-acesso";
+import { faltando } from "@/lib/acesso";
+import { apiFetch, apiFetchOuNada } from "@/lib/api";
+import { carregarMe } from "@/lib/me";
 import {
   chaveDaRede,
   identidadeDaRede,
@@ -28,7 +31,6 @@ import type {
   LinhaPpg,
   LinhaRede,
   LinhaTematica,
-  Me,
   TabelaVigente,
 } from "@/lib/dominio";
 import { inteiro, meses, rotulo, somarMoeda } from "@/lib/formato";
@@ -88,15 +90,42 @@ export default async function PlanoDeAplicacao({
   const anoPedido = Array.isArray(consulta.ano) ? consulta.ano[0] : consulta.ano;
   const sufixoAno = anoPedido ? `?ano=${encodeURIComponent(anoPedido)}` : "";
 
-  const [plano, ppgs, catalogo, redes, me] = await Promise.all([
+  const me = await carregarMe();
+  const falta = faltando(me.permissions, ["plano:read"]);
+  if (falta.length > 0) {
+    return (
+      <SemAcesso
+        titulo="Plano de aplicação"
+        descricao="Linhas planejadas por rede, temática e PPG."
+        me={me}
+        faltando={falta}
+      />
+    );
+  }
+
+  /*
+   * Só o plano é obrigatório. As outras três consultas pertencem a domínios
+   * com permissão própria — PPGs, catálogo e orçamento — e quem tem
+   * `plano:read` sem elas deve ver o plano, não uma tela de erro: a estrutura
+   * de redes vira apenas a visão geral, e o cadastro de linha não é oferecido
+   * porque não há como preencher o formulário (V1-019).
+   */
+  const [plano, ppgs, catalogo, redes] = await Promise.all([
     apiFetch<RespostaPlano>(`${base}/plano${sufixoAno}`),
-    apiFetch<LinhaPpg[]>("/ppgs"),
-    apiFetch<TabelaVigente>(`/catalogo/bolsas?programa=${programa}`),
-    apiFetch<RespostaRedes>(`${base}/redes${sufixoAno}`),
-    apiFetch<Me>("/me"),
+    apiFetchOuNada<LinhaPpg[]>("/ppgs"),
+    apiFetchOuNada<TabelaVigente>(`/catalogo/bolsas?programa=${programa}`),
+    apiFetchOuNada<RespostaRedes>(`${base}/redes${sufixoAno}`),
   ]);
 
-  const areas = redes.redes.flatMap((rede) =>
+  const anoPedidoNumero = Number(anoPedido);
+  const estrutura: RespostaRedes = redes ?? {
+    ano: plano.ciclo.anos.includes(anoPedidoNumero)
+      ? anoPedidoNumero
+      : plano.ciclo.anos[0],
+    redes: [],
+  };
+
+  const areas = estrutura.redes.flatMap((rede) =>
     rede.areas.map((area) => ({
       id: area.areaTematicaId,
       codigo: area.codigo,
@@ -111,25 +140,29 @@ export default async function PlanoDeAplicacao({
   const chaveSolicitada = Array.isArray(consulta.rede)
     ? consulta.rede[0]
     : consulta.rede;
-  const indiceRedeSelecionada = redes.redes.findIndex(
+  const indiceRedeSelecionada = estrutura.redes.findIndex(
     (rede) => chaveDaRede(rede.rede) === chaveSolicitada,
   );
   const redeSelecionada =
-    indiceRedeSelecionada >= 0 ? redes.redes[indiceRedeSelecionada] : null;
+    indiceRedeSelecionada >= 0 ? estrutura.redes[indiceRedeSelecionada] : null;
   const contexto: ContextoDaLinha = {
     programa,
     ciclo: cicloNome,
     cicloStatus: plano.ciclo.status,
-    ppgs,
+    ppgs: ppgs ?? [],
     areas,
-    catalogo: catalogo.itens,
+    catalogo: catalogo?.itens ?? [],
     anos: plano.ciclo.anos,
-    anoInicial: redes.ano,
+    anoInicial: estrutura.ano,
     podeEditar: me.permissions.includes("plano:edit"),
   };
+  // Sem PPGs e catálogo o formulário não tem o que oferecer, e um botão que
+  // abre um painel vazio é pior que botão ausente.
   const podeCriar =
-    me.permissions.includes("plano:write") &&
-    plano.ciclo.status !== "ENCERRADO";
+    me.permissions.includes("plano:create") &&
+    plano.ciclo.status !== "ENCERRADO" &&
+    ppgs !== null &&
+    catalogo !== null;
 
   return (
     <Pagina
@@ -145,11 +178,11 @@ export default async function PlanoDeAplicacao({
             programa={programa}
             ciclo={cicloNome}
             cicloStatus={plano.ciclo.status}
-            ppgs={ppgs}
+            ppgs={ppgs ?? []}
             areas={areas}
-            catalogo={catalogo.itens}
+            catalogo={catalogo?.itens ?? []}
             anos={plano.ciclo.anos}
-            anoInicial={redes.ano}
+            anoInicial={estrutura.ano}
           />
         ) : undefined
       }
@@ -157,15 +190,15 @@ export default async function PlanoDeAplicacao({
       <ExerciciosDoPlano
         rotaPlano={rotaPlano}
         anos={plano.ciclo.anos}
-        anoSelecionado={redes.ano}
+        anoSelecionado={estrutura.ano}
         redeSelecionada={redeSelecionada?.rede ?? null}
       />
 
       <AbasDoPlano
         rotaPlano={rotaPlano}
-        redes={redes.redes}
+        redes={estrutura.redes}
         redeSelecionada={redeSelecionada}
-        ano={redes.ano}
+        ano={estrutura.ano}
       />
 
       {redeSelecionada ? (
@@ -180,9 +213,9 @@ export default async function PlanoDeAplicacao({
       ) : (
         <VisaoGeral
           rotaPlano={rotaPlano}
-          redes={redes.redes}
+          redes={estrutura.redes}
           linhas={linhasAtivas}
-          ano={redes.ano}
+          ano={estrutura.ano}
         />
       )}
 

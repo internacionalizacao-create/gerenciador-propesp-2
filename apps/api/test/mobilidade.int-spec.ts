@@ -1,9 +1,17 @@
+import { eq } from 'drizzle-orm';
+
 import type { AuthUser } from '../src/auth/auth-user';
+import { colunasDoAlvo } from '../src/auth/autorizacao-v1/persistencia';
 import { IdentidadeService } from '../src/auth/identidade.service';
 import * as s from '../src/database/schema';
 import { MobilidadeService } from '../src/dominio/mobilidade.service';
 import { criarContextoTeste, type ContextoTeste } from './db-teste';
-import { bolsaValida, criarBase, type BaseFixture } from './fixtures';
+import {
+  bolsaValida,
+  criarAcesso,
+  criarBase,
+  type BaseFixture,
+} from './fixtures';
 
 const admin: AuthUser = {
   id: 'admin-mobilidade',
@@ -50,6 +58,19 @@ describe('Panorama de mobilidade', () => {
   beforeEach(async () => {
     await ctx.limpar();
     base = await criarBase(ctx.db);
+
+    // O admin enxerga tudo por concessao GLOBAL; a coordenacao nasce **sem
+    // alcance**, e cada caso concede o PPG que quer exercitar.
+    await criarAcesso(ctx.db, {
+      sub: admin.id,
+      nome: admin.name,
+      permissoes: admin.permissions,
+    });
+    await criarAcesso(ctx.db, {
+      sub: coordenador.id,
+      nome: coordenador.name,
+      permissoes: [],
+    });
 
     const [pais] = await ctx.db
       .insert(s.pais)
@@ -178,13 +199,27 @@ describe('Panorama de mobilidade', () => {
     expect(panorama.porPpg.reduce((t, l) => t + l.quantidade, 0)).toBe(1);
   });
 
-  it('o recorte por PPG vale para todas as quebras', async () => {
-    const resolvida = await identidade.resolver(coordenador);
-    await ctx.db.insert(s.escopoAcesso).values({
-      usuarioId: resolvida!.usuarioId,
-      tipo: 'PPG',
-      ppgId: base.ppgId,
+  /** Concede `bolsa:read` no PPG da fixture — o recorte que estes casos exercitam. */
+  async function concederPpg(usuario: AuthUser) {
+    const [conta] = await ctx.db
+      .select({ id: s.usuarioSistema.id })
+      .from(s.usuarioSistema)
+      .where(eq(s.usuarioSistema.sub, usuario.id));
+
+    await ctx.db.insert(s.concessaoAcesso).values({
+      usuarioId: conta.id,
+      permissao: 'bolsa:read',
+      justificativa: 'Fixture do recorte por PPG.',
+      ...colunasDoAlvo({
+        tipo: 'PPG',
+        ppgId: base.ppgId,
+        cicloId: base.cicloId,
+      }),
     });
+  }
+
+  it('o recorte por PPG vale para todas as quebras', async () => {
+    await concederPpg(coordenador);
 
     const panorama = await service.panorama(coordenador, {});
 
@@ -205,12 +240,7 @@ describe('Panorama de mobilidade', () => {
     expect(somenteIn[0].fluxo).toBe('IN');
 
     // E o recorte por PPG vale igual — nao ha uma segunda origem.
-    const resolvida = await identidade.resolver(coordenador);
-    await ctx.db.insert(s.escopoAcesso).values({
-      usuarioId: resolvida!.usuarioId,
-      tipo: 'PPG',
-      ppgId: base.ppgId,
-    });
+    await concederPpg(coordenador);
     const recortado = await service.relatorio(coordenador, {});
     expect(recortado).toHaveLength(3);
 

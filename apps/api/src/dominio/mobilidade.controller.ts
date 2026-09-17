@@ -63,11 +63,12 @@ export class MobilidadeController {
   /**
    * Relatorio de mobilidade nos tres formatos (BOL-044).
    *
-   * Mesmo `bolsa:read` do panorama: exportar e ler noutro formato. Uma
-   * permissao propria permitiria as duas divergirem (CG-069).
+   * Exige **ler e exportar**, as duas sobre o mesmo recorte (contrato V1). Os
+   * numeros sao os do panorama; o que a permissao separada governa e o arquivo
+   * saindo do sistema, nao o calculo.
    */
   @Get('relatorio/exportacao/:formato')
-  @RequirePermission('bolsa:read')
+  @RequirePermission('bolsa:read', 'bolsa:export')
   async exportar(
     @CurrentUser() usuario: AuthUser,
     @Param('formato') formato: string,

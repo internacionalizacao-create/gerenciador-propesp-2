@@ -10,9 +10,12 @@ import {
   Secao,
   Tabela,
 } from "@/componentes/ui/basicos";
+import { SemAcesso } from "@/componentes/ui/sem-acesso";
+import { faltando } from "@/lib/acesso";
 import { apiFetch } from "@/lib/api";
 import type { PanoramaMobilidade } from "@/lib/dominio";
 import { inteiro } from "@/lib/formato";
+import { carregarMe } from "@/lib/me";
 
 /**
  * P04 · Mapa e destinos (BOL-042).
@@ -29,6 +32,19 @@ export default async function MapaDeDestinos({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const me = await carregarMe();
+  const falta = faltando(me.permissions, ["bolsa:read"]);
+  if (falta.length > 0) {
+    return (
+      <SemAcesso
+        titulo="Mapa e destinos"
+        descricao="Para onde a mobilidade foi, por país."
+        me={me}
+        faltando={falta}
+      />
+    );
+  }
+
   const parametros = await searchParams;
   const consulta = new URLSearchParams();
   for (const chave of ["ano", "fluxo", "nivel", "redeId", "ppgId", "cicloId"]) {

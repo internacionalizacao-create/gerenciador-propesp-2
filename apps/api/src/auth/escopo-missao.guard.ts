@@ -10,7 +10,6 @@ import { DRIZZLE, type Database } from '../database/database.module';
 import * as s from '../database/schema';
 import { Inject } from '@nestjs/common';
 import type { AuthenticatedRequest } from './auth.decorators';
-import { alcancaTodasAsRedes, podeVerMissao } from './escopo';
 import { IdentidadeService } from './identidade.service';
 
 /**
@@ -47,22 +46,16 @@ export class EscopoMissaoGuard implements CanActivate {
     const missaoId = this.missaoDaRota(request);
     if (!missaoId) return true;
 
-    // Quem alcanca todas as redes nao paga nem a consulta.
-    if (alcancaTodasAsRedes(usuario)) return true;
-
     const redes = await this.db
       .select({ redeId: s.missaoRede.redeId })
       .from(s.missaoRede)
       .where(eq(s.missaoRede.missaoId, missaoId));
 
-    const escopo = await this.identidade.escopoDe(usuario);
-    if (
-      podeVerMissao(
-        escopo,
-        redes.map((linha) => linha.redeId),
-      )
-    )
-      return true;
+    // O alcance vem da concessao de `missao:read` — GLOBAL nao recorta nada,
+    // nem mesmo a missao sem rede cadastrada.
+    const recorte = await this.identidade.recorteDeMissoes(usuario);
+    if (recorte.semRecorte) return true;
+    if (redes.some((linha) => recorte.alcanca(linha.redeId))) return true;
 
     throw new NotFoundException('Missão não encontrada neste ciclo');
   }

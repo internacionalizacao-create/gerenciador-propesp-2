@@ -20,9 +20,12 @@ import {
   Tabela,
 } from "@/componentes/ui/basicos";
 import { Botao } from "@/componentes/ui/botao";
-import { apiFetch } from "@/lib/api";
+import { SemAcesso } from "@/componentes/ui/sem-acesso";
+import { faltando } from "@/lib/acesso";
+import { apiFetch, apiFetchOuNada } from "@/lib/api";
 import type { Painel, PanoramaMobilidade } from "@/lib/dominio";
 import { A_DEFINIR, inteiro, moeda, percentual, rotulo } from "@/lib/formato";
+import { carregarMe } from "@/lib/me";
 
 export const metadata: Metadata = {
   title: "Resumo do Orçamento Anual — Gerenciador PROPESP",
@@ -45,6 +48,21 @@ export default async function PainelExecutivo({
 }: {
   searchParams: Promise<{ ano?: string }>;
 }) {
+  const me = await carregarMe();
+  const falta = faltando(me.permissions, ["painel:read"]);
+  // Esta é a tela inicial: quem chega aqui sem acesso precisa da explicação,
+  // não da fronteira de erro — e é aqui que a conta recém-criada aterrissa.
+  if (falta.length > 0) {
+    return (
+      <SemAcesso
+        titulo="Resumo do Orçamento Anual"
+        descricao="Visão geral do planejamento do ciclo."
+        me={me}
+        faltando={falta}
+      />
+    );
+  }
+
   const { ano } = await searchParams;
   const painel = await apiFetch<Painel | null>(
     `/programas/padrao/painel${ano ? `?ano=${encodeURIComponent(ano)}` : ""}`,
@@ -71,7 +89,10 @@ export default async function PainelExecutivo({
    * cálculo próprio da P01 — quem clicar para `/mobilidade` encontra a mesma
    * contagem do lado de lá.
    */
-  const panorama = await apiFetch<PanoramaMobilidade>(
+  // Nulo quando a conta não tem `bolsa:read`: o bloco 5 some e o resto da
+  // tela continua de pé. Exigir as duas leituras para abrir o painel faria o
+  // acesso a uma parte depender do acesso à outra (V1-019).
+  const panorama = await apiFetchOuNada<PanoramaMobilidade>(
     `/mobilidade/panorama?cicloId=${painel.ciclo.cicloId}`,
   );
 
@@ -325,7 +346,7 @@ export default async function PainelExecutivo({
         fundi-los faria compromisso parecer execução. Sem concessões, vira uma
         faixa discreta — um bloco de gráficos zerados leria como sistema sem uso.
       */}
-      {panorama.totais.mobilidades === 0 ? (
+      {panorama === null ? null : panorama.totais.mobilidades === 0 ? (
         <section
           aria-label="Mobilidade realizada"
           className="mb-9 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-border-strong px-5 py-4 text-sm"

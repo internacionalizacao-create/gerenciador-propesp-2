@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { podeVerPpg, podeVerRede, RECORTE_OBRIGATORIO } from './escopo';
+import { podeVerPpg, podeVerRede } from './escopo';
 import type { EscopoAcesso } from './identidade.service';
 
 const escopo = (parcial: Partial<EscopoAcesso> = {}): EscopoAcesso => ({
@@ -35,18 +35,12 @@ describe('recorte por escopo de acesso', () => {
     expect(podeVerRede(gestorDeRede, REDE_A)).toBe(true);
   });
 
-  it('conta sem escopo nenhum segue o modo de transicao', () => {
-    // Enquanto `RECORTE_OBRIGATORIO` for falso, quem ainda nao foi configurado
-    // continua vendo tudo — do contrario, ligar o recorte antes de a PROPESP
-    // atribuir escopos deixaria todo coordenador sem dado, de uma vez.
+  it('conta sem alcance nenhum nao ve nada', () => {
+    // O modo permissivo acabou com o modelo de papeis (V1-012): sem concessao
+    // nao ha nem acao para exercer, e liberar o recorte so vazaria dado de quem
+    // foi configurado pela metade.
     const naoConfigurado = escopo();
-    expect(podeVerPpg(naoConfigurado, PPG_A)).toBe(!RECORTE_OBRIGATORIO);
-    expect(podeVerRede(naoConfigurado, REDE_A)).toBe(!RECORTE_OBRIGATORIO);
-  });
-
-  it('o modo de transicao esta desligado, e isso e deliberado', () => {
-    // Fixa a decisao: mudar para `true` fecha o sistema para quem nao tem
-    // escopo, e este teste obriga quem mudar a mexer aqui de proposito.
-    expect(RECORTE_OBRIGATORIO).toBe(false);
+    expect(podeVerPpg(naoConfigurado, PPG_A)).toBe(false);
+    expect(podeVerRede(naoConfigurado, REDE_A)).toBe(false);
   });
 });

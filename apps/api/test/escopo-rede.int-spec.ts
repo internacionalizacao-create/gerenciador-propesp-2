@@ -1,10 +1,11 @@
 import type { ExecutionContext } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
 import type { AuthUser } from '../src/auth/auth-user';
 import { EscopoMissaoGuard } from '../src/auth/escopo-missao.guard';
 import { IdentidadeService } from '../src/auth/identidade.service';
-import { permissionsForRoles } from '../src/auth/permissions';
+import { copiarModelo } from '../src/auth/autorizacao-v1/modelos';
+import { colunasDoAlvo } from '../src/auth/autorizacao-v1/persistencia';
 import { ArmazenamentoService } from '../src/arquivos/armazenamento.service';
 import * as s from '../src/database/schema';
 import { AnexosService } from '../src/dominio/anexos.service';
@@ -43,27 +44,31 @@ describe('Recorte por rede das missoes (CG-028)', () => {
   let paisId: string;
   let participanteId: string;
 
-  /** Gestor da rede da fixture; o escopo dele vem do vinculo, nao do token. */
+  /**
+   * As acoes vem dos modelos da V1 — os mesmos que a tela de administracao
+   * oferece como ponto de partida. O **alcance** vem das concessoes criadas no
+   * `beforeEach`: desde V1-012 o vinculo de equipe nao autoriza mais nada, e o
+   * gestor so enxerga a rede que alguem concedeu a ele.
+   */
   const gestor: AuthUser = {
     id: 'sub-gestor-rede',
     name: 'Gestora da Rede',
-    roles: ['gestor-rede'],
-    permissions: permissionsForRoles(['gestor-rede']),
+    roles: [],
+    permissions: copiarModelo('gestor-rede').permissoes,
   };
 
-  /** Comite Gestor: le e decide sobre as tres redes, por `missao:all-redes`. */
   const comite: AuthUser = {
     id: 'sub-comite',
     name: 'Membro do Comite',
-    roles: ['comite-gestor'],
-    permissions: permissionsForRoles(['comite-gestor']),
+    roles: [],
+    permissions: copiarModelo('comite-gestor').permissoes,
   };
 
   const admin: AuthUser = {
     id: 'sub-admin-escopo',
     name: 'Admin',
-    roles: ['admin'],
-    permissions: permissionsForRoles(['admin']),
+    roles: [],
+    permissions: copiarModelo('administrador').permissoes,
   };
 
   beforeAll(async () => {
@@ -101,29 +106,68 @@ describe('Recorte por rede das missoes (CG-028)', () => {
     outraRedeId = segunda.id;
 
     participanteId = await vincularNaRede(gestor, base.redeId);
+    await criarConta(comite, { tipo: 'GLOBAL' });
+    await criarConta(admin, { tipo: 'GLOBAL' });
   });
 
   /**
-   * Liga o `sub` a uma pessoa e a poe na equipe daquela rede.
+   * Cria a conta local e concede `missao:read` no alvo indicado.
    *
-   * E o caminho real: "minha rede" nao e um campo do token, e sim o vinculo
-   * ativo em `membro_equipe_gestao_rede` (CG-003).
+   * E o caminho real do modelo novo: quem enxerga missao e quem tem concessao
+   * de `missao:read` alcancando a rede — nao quem esta na equipe dela.
+   */
+  async function criarConta(
+    usuario: AuthUser,
+    alvo: Parameters<typeof colunasDoAlvo>[0],
+    pessoaExistente?: string,
+  ) {
+    let pessoaId = pessoaExistente;
+    if (!pessoaId) {
+      const [pessoa] = await ctx.db
+        .insert(s.pessoa)
+        .values({ nome: usuario.name!, tipo: 'SERVIDOR' })
+        .returning({ id: s.pessoa.id });
+      pessoaId = pessoa.id;
+    }
+
+    const [conta] = await ctx.db
+      .insert(s.usuarioSistema)
+      .values({ sub: usuario.id, pessoaId, origem: 'MANUAL' })
+      .onConflictDoNothing({ target: s.usuarioSistema.sub })
+      .returning({ id: s.usuarioSistema.id });
+
+    const usuarioId =
+      conta?.id ??
+      (
+        await ctx.db
+          .select({ id: s.usuarioSistema.id })
+          .from(s.usuarioSistema)
+          .where(eq(s.usuarioSistema.sub, usuario.id))
+      )[0].id;
+
+    await ctx.db.insert(s.concessaoAcesso).values({
+      usuarioId,
+      permissao: 'missao:read',
+      justificativa: 'Fixture do recorte por rede.',
+      ...colunasDoAlvo(alvo),
+    });
+
+    return { usuarioId, pessoaId };
+  }
+
+  /**
+   * Conta com concessao naquela rede, mais o vinculo de equipe.
+   *
+   * O vinculo continua aqui porque a missao precisa de participantes — mas ele
+   * **nao autoriza nada** desde V1-012; quem autoriza e a concessao.
    */
   async function vincularNaRede(
     usuario: AuthUser,
     redeId: string,
     opcoes: { encerrado?: boolean } = {},
   ) {
-    const [pessoa] = await ctx.db
-      .insert(s.pessoa)
-      .values({ nome: usuario.name!, tipo: 'SERVIDOR' })
-      .returning({ id: s.pessoa.id });
-
-    await ctx.db.insert(s.usuarioSistema).values({
-      sub: usuario.id,
-      pessoaId: pessoa.id,
-      origem: 'MANUAL',
-    });
+    const { pessoaId } = await criarConta(usuario, { tipo: 'REDE', redeId });
+    const pessoa = { id: pessoaId };
 
     const [membro] = await ctx.db
       .insert(s.membroEquipeGestao)
@@ -203,36 +247,68 @@ describe('Recorte por rede das missoes (CG-028)', () => {
 
   // --- resolucao do escopo ---------------------------------------------------
 
-  it('a rede vem do vinculo ativo, e o vinculo encerrado nao da acesso', async () => {
-    const daRede = await identidade.escopoDe(gestor);
-    expect(daRede.redeIds).toEqual([base.redeId]);
+  it('a rede vem da concessao, e revogar tira o acesso', async () => {
+    expect((await identidade.escopoDe(gestor)).redeIds).toEqual([base.redeId]);
 
-    // Quem saiu da equipe saiu do recorte. Historico que ainda autoriza e a
-    // falha mais silenciosa possivel aqui.
+    // Revogada, a concessao para de valer na consulta seguinte — sem esperar o
+    // token expirar, e sem depender de o vinculo de equipe ter sido encerrado.
     await ctx.db
-      .update(s.membroEquipeGestao)
-      .set({ dataFim: '2027-06-30' })
-      .where(eq(s.membroEquipeGestao.cicloId, base.cicloId));
+      .update(s.concessaoAcesso)
+      .set({ ativo: false, revogadoEm: sql`now()` })
+      .where(eq(s.concessaoAcesso.permissao, 'missao:read'));
 
     expect((await identidade.escopoDe(gestor)).redeIds).toEqual([]);
   });
 
-  it('escopo_acesso soma ao vinculo, em vez de substitui-lo', async () => {
+  it('o vinculo de equipe, sozinho, nao da acesso a rede nenhuma', async () => {
+    // Ate V1-012 o vinculo ativo em `membro_equipe_gestao_rede` autorizava por
+    // si. Deixou de autorizar: estar na equipe e um fato de cadastro, e quem
+    // concede acesso e o administrador, nominalmente.
+    const semConcessao: AuthUser = {
+      id: 'sub-so-vinculo',
+      name: 'Apenas na equipe',
+      roles: [],
+      permissions: copiarModelo('gestor-rede').permissoes,
+    };
+    const [pessoa] = await ctx.db
+      .insert(s.pessoa)
+      .values({ nome: semConcessao.name!, tipo: 'SERVIDOR' })
+      .returning({ id: s.pessoa.id });
+    await ctx.db.insert(s.usuarioSistema).values({
+      sub: semConcessao.id,
+      pessoaId: pessoa.id,
+      origem: 'MANUAL',
+    });
+    const [membro] = await ctx.db
+      .insert(s.membroEquipeGestao)
+      .values({
+        cicloId: base.cicloId,
+        pessoaId: pessoa.id,
+        tipoEquipe: 'ADMINISTRACAO',
+        funcao: 'Gestora sem concessão',
+        dataInicio: '2027-01-01',
+      })
+      .returning({ id: s.membroEquipeGestao.id });
+    await ctx.db
+      .insert(s.membroEquipeGestaoRede)
+      .values({ membroEquipeId: membro.id, redeId: base.redeId });
+
+    expect((await identidade.escopoDe(semConcessao)).redeIds).toEqual([]);
+  });
+
+  it('duas concessoes de rede somam alcance', async () => {
     const [usuario] = await ctx.db
       .select({ id: s.usuarioSistema.id })
       .from(s.usuarioSistema)
       .where(eq(s.usuarioSistema.sub, gestor.id));
 
-    await ctx.db.insert(s.escopoAcesso).values({
+    await ctx.db.insert(s.concessaoAcesso).values({
       usuarioId: usuario.id,
-      tipo: 'REDE',
-      redeId: outraRedeId,
-      concedidoPorId: admin.id,
+      permissao: 'missao:read',
+      justificativa: 'Alcance adicional, concedido pelo administrador.',
+      ...colunasDoAlvo({ tipo: 'REDE', redeId: outraRedeId }),
     });
 
-    // A concessao explicita do administrador existe para quem precisa
-    // enxergar uma rede sem estar na equipe dela; trocar uma fonte pela outra
-    // deixaria uma das duas necessidades sem resposta.
     expect([...(await identidade.escopoDe(gestor)).redeIds].sort()).toEqual(
       [base.redeId, outraRedeId].sort(),
     );
@@ -245,7 +321,7 @@ describe('Recorte por rede das missoes (CG-028)', () => {
       id: 'sub-sem-vinculo',
       name: 'Gestor recem-nomeado',
       roles: ['gestor-rede'],
-      permissions: permissionsForRoles(['gestor-rede']),
+      permissions: copiarModelo('gestor-rede').permissoes,
     };
 
     // O modo permissivo de `RECORTE_OBRIGATORIO` nao vale aqui, e nao pode
@@ -523,24 +599,33 @@ describe('Recorte por rede das missoes (CG-028)', () => {
 
   // --- matriz de permissoes --------------------------------------------------
 
-  it('o Comite Gestor nao valida prestacao; o Administrador valida', () => {
+  it('o modelo do Comite nao valida prestacao; o do Administrador valida', () => {
     // A matriz aprovada na CG-003 poe "le" na coluna de prestacao do Comite.
     // Validar abate o aporte (CG-009), e quem decide sobre a missao nao e quem
-    // confere a despesa dela.
+    // confere a despesa dela. Os modelos da V1 sao sugestoes editaveis, mas o
+    // padrao deles preserva essa separacao.
     expect(comite.permissions).not.toContain('prestacao:review');
     expect(admin.permissions).toContain('prestacao:review');
 
     // O Gestor da Rede preenche e envia, mas nao valida a propria prestacao.
-    expect(gestor.permissions).toContain('prestacao:write');
+    expect(gestor.permissions).toContain('prestacao:submit');
     expect(gestor.permissions).not.toContain('prestacao:review');
   });
 
-  it('somente quem decide alcanca todas as redes', () => {
-    expect(comite.permissions).toContain('missao:all-redes');
-    expect(admin.permissions).toContain('missao:all-redes');
-    expect(gestor.permissions).not.toContain('missao:all-redes');
+  it('alcancar todas as redes e concessao, nao permissao', async () => {
+    // `missao:all-redes` nao existe mais: "ve tudo" virou uma concessao de
+    // `missao:read` em GLOBAL, e por isso nao ha permissao no catalogo que
+    // fale de *quais linhas*.
+    expect(comite.permissions).not.toContain('missao:read-todas');
+    expect(
+      (await identidade.recorteDeMissoes(comite)).alcanca(outraRedeId),
+    ).toBe(true);
+    expect(
+      (await identidade.recorteDeMissoes(gestor)).alcanca(outraRedeId),
+    ).toBe(false);
+
     // E alcancar todas as redes nao concede escrita.
-    expect(comite.permissions).not.toContain('missao:write');
+    expect(comite.permissions).not.toContain('missao:create');
     expect(comite.permissions).not.toContain('missao:edit');
   });
 

@@ -1,10 +1,11 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 
 import { DRIZZLE, type Database } from '../database/database.module';
 import * as s from '../database/schema';
+import { AcessoV1Service } from './autorizacao-v1/acesso-v1.service';
 import type { AuthUser } from './auth-user';
-import { alcancaTodasAsRedes, RecorteDeMissoes } from './escopo';
+import { RecorteDeMissoes } from './escopo';
 
 /**
  * Liga a identidade do Keycloak ao cadastro local e resolve o escopo de acesso.
@@ -56,8 +57,16 @@ export const ESCOPO_VAZIO: EscopoAcesso = {
 @Injectable()
 export class IdentidadeService {
   private readonly logger = new Logger(IdentidadeService.name);
+  /**
+   * Resolvido aqui dentro, e nao injetado, para preservar a assinatura do
+   * construtor: mais de vinte testes de integracao montam este servico a mao, e
+   * a fonte do escopo mudou — a lista de dependencias, nao.
+   */
+  private readonly acesso: AcessoV1Service;
 
-  constructor(@Inject(DRIZZLE) private readonly db: Database) {}
+  constructor(@Inject(DRIZZLE) private readonly db: Database) {
+    this.acesso = new AcessoV1Service(db);
+  }
 
   /**
    * Devolve a identidade local, criando o vinculo no primeiro acesso.
@@ -67,8 +76,8 @@ export class IdentidadeService {
    * **Devolve `null` em vez de falhar quando o vinculo nao e possivel.** O
    * `/me` e a primeira chamada de toda sessao: um erro aqui derruba a
    * aplicacao inteira para aquele usuario, e ele nem chega a uma tela onde
-   * peca ajuda. A autorizacao nao depende deste vinculo — papeis e permissoes
-   * vem do token —, entao o que se perde e so o que precisa de escopo.
+   * peca ajuda. Sem vinculo a conta simplesmente nao tem concessao nenhuma, e
+   * o `/me` diz isso em vez de derrubar a aplicacao.
    */
   async resolver(usuario: AuthUser): Promise<Identidade | null> {
     const existente = await this.buscarPorSub(usuario.id);
@@ -86,46 +95,67 @@ export class IdentidadeService {
     return {
       usuarioId,
       pessoaId: await this.pessoaDoUsuario(usuarioId),
-      escopo: await this.escoposDe(usuarioId, usuario),
+      escopo: await this.escopoPorSub(usuario.id),
     };
   }
 
   /**
-   * Escopo do usuario autenticado, sem criar vinculo.
+   * Escopo do usuario, **derivado das concessoes** (V1-012).
    *
-   * E o que as consultas de listagem usam. O papel `admin` recebe escopo global
-   * mesmo sem linha em `escopo_acesso`: a alternativa seria depender de a seed
-   * ter criado a linha certa, e um administrador sem acesso a nada e a falha
-   * mais dificil de diagnosticar que este modulo poderia ter.
+   * Nao ha mais atalho por papel: o `admin` do Keycloak deixou de receber escopo
+   * global de graca, e quem enxerga tudo e quem tem concessao `GLOBAL`. Enquanto
+   * existia, esse atalho fazia a autorizacao depender de um papel que este
+   * codigo jurava nao consultar.
+   *
+   * **E uma ponte, e uma ponte grossa**: uniao dos alvos de *todas* as acoes
+   * concedidas, sem dizer de qual acao veio cada PPG. Serve as consultas que
+   * ainda nao receberam o recorte por acao (V1-013 a V1-016); quem ja o tiver
+   * deve usar `AcessoResolvido.alcance(permissao)`, que distingue ler de
+   * escrever. O ciclo da concessao de PPG se perde aqui, pelo mesmo motivo.
    */
   async escopoDe(usuario: AuthUser): Promise<EscopoAcesso> {
-    if (usuario.roles.includes('admin')) {
-      return { global: true, ppgIds: [], redeIds: [] };
-    }
-
-    const [linha] = await this.db
-      .select({ id: s.usuarioSistema.id })
-      .from(s.usuarioSistema)
-      .where(
-        and(
-          eq(s.usuarioSistema.sub, usuario.id),
-          eq(s.usuarioSistema.ativo, true),
-        ),
-      );
-
-    if (!linha) return ESCOPO_VAZIO;
-    return this.escoposDe(linha.id, usuario);
+    return this.escopoPorSub(usuario.id);
   }
 
   /**
-   * Recorte de missoes deste usuario, pronto para entrar nas consultas.
+   * Recorte de missoes, a partir do alcance de `missao:read`.
    *
-   * Quem alcanca todas as redes nao paga a resolucao do escopo — que e uma ida
-   * ao banco por requisicao, e nao ha o que resolver quando nao ha recorte.
+   * A permissao `missao:all-redes` sumiu com o modelo antigo, e nao faz falta:
+   * "ve todas as redes" virou o que sempre deveria ter sido — uma concessao de
+   * `missao:read` em `GLOBAL`. Concessao por **ciclo** vale para as redes
+   * daquele ciclo, que e o que "ciclo" significa no modulo de missoes.
+   *
+   * O recorte continua sendo o de **leitura**, inclusive nas escritas que o
+   * consultam; separar por acao e V1-014. Isso nao afrouxa o que o guard ja
+   * negou: sem `missao:create`, a requisicao nem chega ao servico.
    */
   async recorteDeMissoes(usuario: AuthUser): Promise<RecorteDeMissoes> {
-    if (alcancaTodasAsRedes(usuario)) return RecorteDeMissoes.irrestrito();
-    return new RecorteDeMissoes(await this.escopoDe(usuario), false);
+    const acesso = await this.acesso.resolver(usuario.id);
+    const alcance = acesso.alcance('missao:read');
+
+    if (alcance.global) return RecorteDeMissoes.irrestrito();
+
+    const redeIds = new Set(alcance.redes);
+    for (const rede of await this.redesDosCiclos(alcance.ciclos)) {
+      redeIds.add(rede);
+    }
+
+    return new RecorteDeMissoes(
+      { global: false, ppgIds: [], redeIds: [...redeIds] },
+      false,
+    );
+  }
+
+  /** Redes de um ciclo: a concessao por ciclo alcanca as redes dele. */
+  private async redesDosCiclos(ciclos: readonly string[]): Promise<string[]> {
+    if (ciclos.length === 0) return [];
+
+    const linhas = await this.db
+      .select({ id: s.redeCoordenadora.id })
+      .from(s.redeCoordenadora)
+      .where(inArray(s.redeCoordenadora.cicloId, [...ciclos]));
+
+    return linhas.map((linha) => linha.id);
   }
 
   // -------------------------------------------------------------------------
@@ -142,90 +172,29 @@ export class IdentidadeService {
       );
 
     if (!linha) return null;
-    return { ...linha, escopo: await this.escoposDe(linha.usuarioId) };
+    return { ...linha, escopo: await this.escopoPorSub(sub) };
   }
 
-  private async escoposDe(
-    usuarioId: string,
-    usuario?: AuthUser,
-  ): Promise<EscopoAcesso> {
-    if (usuario?.roles.includes('admin')) {
-      return { global: true, ppgIds: [], redeIds: [] };
+  /** Deriva o escopo-ponte do acesso ja resolvido. Ver `escopoDe`. */
+  private async escopoPorSub(sub: string): Promise<EscopoAcesso> {
+    const acesso = await this.acesso.resolver(sub);
+    if (!acesso.ativo) return ESCOPO_VAZIO;
+
+    const global = acesso.permissoes.some((p) => acesso.alcance(p).global);
+    const ppgIds = new Set<string>();
+    const redeIds = new Set<string>();
+
+    for (const permissao of acesso.permissoes) {
+      const alcance = acesso.alcance(permissao);
+      for (const alvo of alcance.ppgs) ppgIds.add(alvo.ppgId);
+      for (const rede of alcance.redes) redeIds.add(rede);
     }
-
-    const linhas = await this.db
-      .select({
-        tipo: s.escopoAcesso.tipo,
-        ppgId: s.escopoAcesso.ppgId,
-        redeId: s.escopoAcesso.redeId,
-      })
-      .from(s.escopoAcesso)
-      .where(
-        and(
-          eq(s.escopoAcesso.usuarioId, usuarioId),
-          eq(s.escopoAcesso.ativo, true),
-        ),
-      );
-
-    const global = linhas.some((l) => l.tipo === 'GLOBAL');
 
     return {
       global,
-      ppgIds: linhas
-        .filter((l) => l.tipo === 'PPG' && l.ppgId)
-        .map((l) => l.ppgId as string),
-      redeIds: global
-        ? []
-        : [
-            ...new Set([
-              ...linhas
-                .filter((l) => l.tipo === 'REDE' && l.redeId)
-                .map((l) => l.redeId as string),
-              ...(await this.redesDoVinculo(usuarioId)),
-            ]),
-          ],
+      ppgIds: [...ppgIds],
+      redeIds: global ? [] : [...redeIds],
     };
-  }
-
-  /**
-   * "Minha rede": as redes do vinculo **ativo** da pessoa (CG-003/CG-028).
-   *
-   * Uniao com `escopo_acesso`, e nao substituicao. O vinculo e a fonte
-   * automatica — a unica com dado ja carregado, e a que a matriz aprovada
-   * escolheu —, e `escopo_acesso` continua como concessao explicita do
-   * administrador para quem precisa enxergar uma rede sem estar na equipe
-   * dela. Trocar uma pela outra deixaria uma das duas necessidades sem
-   * resposta.
-   *
-   * **Ativo e `data_fim is null`**, o mesmo criterio de
-   * `membro_equipe_gestao_ativo_uk`. Vinculo encerrado nao pode continuar
-   * dando acesso: quem saiu da equipe da rede saiu do recorte dela, e um
-   * historico que ainda autoriza e a falha mais silenciosa possivel aqui.
-   *
-   * A rede pertence a um ciclo (`rede_coordenadora.ciclo_id`), entao a lista
-   * ja vem separada por ciclo sem que este metodo precise saber qual: dois
-   * ciclos tem redes de `id` diferente, mesmo com o mesmo nome.
-   */
-  private async redesDoVinculo(usuarioId: string): Promise<string[]> {
-    const linhas = await this.db
-      .selectDistinct({ redeId: s.membroEquipeGestaoRede.redeId })
-      .from(s.membroEquipeGestaoRede)
-      .innerJoin(
-        s.membroEquipeGestao,
-        eq(s.membroEquipeGestao.id, s.membroEquipeGestaoRede.membroEquipeId),
-      )
-      .innerJoin(
-        s.usuarioSistema,
-        eq(s.usuarioSistema.pessoaId, s.membroEquipeGestao.pessoaId),
-      )
-      .where(
-        and(
-          eq(s.usuarioSistema.id, usuarioId),
-          isNull(s.membroEquipeGestao.dataFim),
-        ),
-      );
-
-    return linhas.map((linha) => linha.redeId);
   }
 
   private async pessoaDoUsuario(usuarioId: string): Promise<string> {
@@ -305,6 +274,12 @@ export class IdentidadeService {
           .from(s.usuarioSistema)
           .where(eq(s.usuarioSistema.pessoaId, encontrada.id));
 
+        // Vinculada a **esta mesma conta** nao e conflito: e a corrida das duas
+        // abas, em que a outra chamada acabou de criar pessoa e vinculo. Tratar
+        // isso como conflito mandava o proprio usuario para "vinculo pendente"
+        // no primeiro acesso, e so um administrador desfazia.
+        if (jaVinculada?.sub === usuario.id) return encontrada.id;
+
         if (jaVinculada) {
           this.logger.warn(
             `Conta ${usuario.username ?? usuario.id} tem o e-mail de uma pessoa já ` +
@@ -317,6 +292,10 @@ export class IdentidadeService {
       }
     }
 
+    // `onConflictDoNothing` mais releitura, como em `vincular`: duas abas
+    // abertas ao mesmo tempo chegam aqui as duas, nenhuma tendo encontrado a
+    // pessoa, e a segunda insercao violaria o e-mail unico. Quem perde a
+    // corrida le a linha do vencedor.
     const [criada] = await this.db
       .insert(s.pessoa)
       .values({
@@ -324,7 +303,15 @@ export class IdentidadeService {
         email: usuario.email ?? null,
         tipo: 'SERVIDOR',
       })
+      .onConflictDoNothing({ target: s.pessoa.email })
       .returning({ id: s.pessoa.id });
-    return criada.id;
+
+    if (criada) return criada.id;
+
+    const [vencedora] = await this.db
+      .select({ id: s.pessoa.id })
+      .from(s.pessoa)
+      .where(eq(s.pessoa.email, usuario.email as string));
+    return vencedora.id;
   }
 }

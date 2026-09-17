@@ -11,9 +11,12 @@ import {
   Secao,
   Tabela,
 } from "@/componentes/ui/basicos";
+import { SemAcesso } from "@/componentes/ui/sem-acesso";
+import { faltando } from "@/lib/acesso";
 import { apiFetch } from "@/lib/api";
 import type { PanoramaMobilidade } from "@/lib/dominio";
 import { inteiro, rotulo } from "@/lib/formato";
+import { carregarMe } from "@/lib/me";
 
 /**
  * P02 · Panorama de mobilidade (BOL-040).
@@ -40,6 +43,19 @@ export default async function PanoramaDeMobilidade({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const me = await carregarMe();
+  const falta = faltando(me.permissions, ["bolsa:read"]);
+  if (falta.length > 0) {
+    return (
+      <SemAcesso
+        titulo="Panorama de mobilidade"
+        descricao="O que a internacionalização produziu, por rede, PPG e destino."
+        me={me}
+        faltando={falta}
+      />
+    );
+  }
+
   const parametros = await searchParams;
   const texto = (chave: string) => {
     const valor = parametros[chave];

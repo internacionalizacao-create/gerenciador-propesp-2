@@ -17,7 +17,7 @@ Estado inicial: **Pendente**. Execução e registro de conclusão conforme o
   congelados e relações com aprovação/prestação. Não criar novo enum de status.
 - **Aceite:** missão planejada pode ser confirmada e encerrada pela tela; edição
   válida preserva dados; ação inválida é recusada também via request direto;
-  cancelar não apaga documentos/despesas; comitê não ganha edição por ver a tela.
+  cancelar não apaga documentos/despesas; consulta não concede edição; a ação exige concessão explícita.
 - **Testes:** schemas/payloads, integração das transições existentes e jornada
   criar→analisar→decidir→confirmar→prestar→encerrar, com devolução/reabertura.
 
@@ -47,7 +47,7 @@ Estado inicial: **Pendente**. Execução e registro de conclusão conforme o
   criar/editar/inativar/reativar pelos endpoints existentes; exibir instituição,
   vigência, situação e vínculos. Não tratar convênio como propriedade exclusiva
   de uma missão. Atualizar leitura derivada de parceria formalizada.
-- **Aceite:** gestor autorizado/admin opera; comitê lê; associação de produto é
+- **Aceite:** concessão de escrita permite operar; consulta isolada só permite ler; associação de produto é
   preservada; inativação exige justificativa e não exclui; histórico respeita
   recorte das missões/bolsas mesmo com catálogo institucional compartilhado.
 - **Testes:** jornada de criação→produto associado→inativação→reativação,

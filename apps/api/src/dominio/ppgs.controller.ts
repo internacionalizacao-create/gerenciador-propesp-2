@@ -51,13 +51,13 @@ export class PpgsController {
   }
 
   @Post()
-  @RequirePermission('ppg:write')
+  @RequirePermission('ppg:create')
   criar(@Body(new ZodValidationPipe(ppgSchema)) dto: PpgDto) {
     return this.ppgs.criar(dto);
   }
 
   @Patch(':id')
-  @RequirePermission('ppg:write')
+  @RequirePermission('ppg:edit')
   atualizar(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(ppgParcialSchema)) dto: PpgParcialDto,
@@ -95,7 +95,7 @@ export class CatalogoController {
    * sistema, e quem planeja nao deveria poder mexer no proprio preco.
    */
   @Post('bolsas')
-  @RequirePermission('catalogo:write')
+  @RequirePermission('catalogo:create')
   criarItem(
     @Body(new ZodValidationPipe(criarItemCatalogoSchema))
     dto: CriarItemCatalogo,
@@ -106,7 +106,7 @@ export class CatalogoController {
   }
 
   @Patch('bolsas/:id')
-  @RequirePermission('catalogo:write')
+  @RequirePermission('catalogo:edit')
   atualizarItem(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(atualizarItemCatalogoSchema))
@@ -118,7 +118,7 @@ export class CatalogoController {
 
   @Delete('bolsas/:id')
   @HttpCode(204)
-  @RequirePermission('catalogo:write')
+  @RequirePermission('catalogo:delete')
   removerItem(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() usuario: AuthUser,
@@ -127,7 +127,7 @@ export class CatalogoController {
   }
 
   @Post('modalidades')
-  @RequirePermission('catalogo:write')
+  @RequirePermission('catalogo:create')
   criarModalidade(
     @Body(new ZodValidationPipe(criarModalidadeSchema)) dto: CriarModalidade,
     @CurrentUser() usuario: AuthUser,
@@ -136,7 +136,7 @@ export class CatalogoController {
   }
 
   @Patch('modalidades/:id')
-  @RequirePermission('catalogo:write')
+  @RequirePermission('catalogo:edit')
   atualizarModalidade(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(atualizarModalidadeSchema))

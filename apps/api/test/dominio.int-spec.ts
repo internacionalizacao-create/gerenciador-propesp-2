@@ -27,12 +27,18 @@ import { PlanoService } from '../src/dominio/plano.service';
 import { PpgsService } from '../src/dominio/ppgs.service';
 import { ProgramasController } from '../src/dominio/programas.controller';
 import { criarContextoTeste, type ContextoTeste } from './db-teste';
+import { criarAcesso } from './fixtures';
 
-/** Escopo global: estes casos medem calculo, nao recorte de acesso. */
+/**
+ * Alcance global: estes casos medem calculo, nao recorte de acesso.
+ *
+ * A concessao correspondente e criada no `beforeAll` — desde V1-012 a lista de
+ * permissoes sozinha nao alcanca linha nenhuma.
+ */
 const ADMIN: AuthUser = {
   id: 'sub-admin-dominio',
-  roles: ['admin'],
-  permissions: ['ppg:read'],
+  roles: [],
+  permissions: ['ppg:read', 'bolsa:read', 'bolsa:create', 'bolsa:edit'],
 };
 
 /**
@@ -66,6 +72,11 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
     ctx = await criarContextoTeste();
     await ctx.limpar();
     await executarSeed(ctx.db);
+    await criarAcesso(ctx.db, {
+      sub: ADMIN.id,
+      nome: 'Admin do dominio',
+      permissoes: ADMIN.permissions,
+    });
 
     // Instanciacao manual em vez de `Test.createTestingModule`: estes servicos
     // so dependem do banco, e subir o container do Nest para injetar um unico
@@ -223,7 +234,7 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
             id: 'sub-admin-teste',
             name: 'Admin Teste',
             roles: ['admin'],
-            permissions: ['orcamento:write'],
+            permissions: ['orcamento:edit'],
           },
         );
         expect(atualizado.valorBolsas).toBe('100000.00');

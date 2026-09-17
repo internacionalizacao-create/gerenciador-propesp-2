@@ -6,9 +6,12 @@ import {
   Pagina,
   Secao,
 } from "@/componentes/ui/basicos";
+import { SemAcesso } from "@/componentes/ui/sem-acesso";
+import { faltando } from "@/lib/acesso";
 import { apiFetch } from "@/lib/api";
 import type { ResumoCiclo } from "@/lib/dominio";
 import { inteiro, moeda, rotulo } from "@/lib/formato";
+import { carregarMe } from "@/lib/me";
 
 /**
  * P06 · Visão do programa / ciclo.
@@ -24,6 +27,19 @@ export default async function VisaoDoCiclo({
 }) {
   const { programa, ciclo: cicloNome } = await params;
   const base = `/programas/${programa}/${cicloNome}`;
+
+  const me = await carregarMe();
+  const falta = faltando(me.permissions, ["programa:read"]);
+  if (falta.length > 0) {
+    return (
+      <SemAcesso
+        titulo="Visão do ciclo"
+        descricao="Índice do ciclo, com os números de cada tela."
+        me={me}
+        faltando={falta}
+      />
+    );
+  }
 
   const resumo = await apiFetch<ResumoCiclo>(`/programas/${programa}/${cicloNome}`);
   const { ciclo } = resumo;

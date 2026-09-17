@@ -2,9 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { Pagina, Selo } from "@/componentes/ui/basicos";
+import { SemAcesso } from "@/componentes/ui/sem-acesso";
+import { faltando } from "@/lib/acesso";
 import { apiFetch } from "@/lib/api";
 import type { Programa } from "@/lib/dominio";
 import { inteiro, moeda } from "@/lib/formato";
+import { carregarMe } from "@/lib/me";
 
 export const metadata: Metadata = {
   title: "Programa — Gerenciador PROPESP",
@@ -17,6 +20,19 @@ export const metadata: Metadata = {
  * restrita ao CAPES Global. A API nao devolve cadastros inativos.
  */
 export default async function Programas() {
+  const me = await carregarMe();
+  const falta = faltando(me.permissions, ["programa:read"]);
+  if (falta.length > 0) {
+    return (
+      <SemAcesso
+        titulo="Programa"
+        descricao="Programa de internacionalização gerenciado pela PROPESP."
+        me={me}
+        faltando={falta}
+      />
+    );
+  }
+
   const programas = await apiFetch<Programa[]>("/programas");
 
   return (
