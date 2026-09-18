@@ -28,9 +28,9 @@ import type {
   CoordenadorTematica,
   ItemCatalogo,
   LinhaPlano,
-  LinhaPpg,
   LinhaRede,
   LinhaTematica,
+  ReferenciasPlano,
   TabelaVigente,
 } from "@/lib/dominio";
 import { inteiro, meses, rotulo, somarMoeda } from "@/lib/formato";
@@ -38,6 +38,11 @@ import { inteiro, meses, rotulo, somarMoeda } from "@/lib/formato";
 interface RespostaPlano {
   ciclo: Ciclo;
   linhas: LinhaPlano[];
+  referencias: {
+    criacao: ReferenciasPlano;
+    edicao: ReferenciasPlano;
+    cancelamento: ReferenciasPlano;
+  };
 }
 
 type RedeDoPlano = LinhaRede & {
@@ -53,7 +58,7 @@ interface ContextoDaLinha {
   programa: string;
   ciclo: string;
   cicloStatus: Ciclo["status"];
-  ppgs: LinhaPpg[];
+  ppgs: ReferenciasPlano["ppgs"];
   areas: {
     id: string;
     codigo: string;
@@ -65,6 +70,7 @@ interface ContextoDaLinha {
   anos: number[];
   anoInicial: number;
   podeEditar: boolean;
+  itensEditaveis: string[];
 }
 
 /**
@@ -87,7 +93,9 @@ export default async function PlanoDeAplicacao({
   const base = `/programas/${programa}/${cicloNome}`;
   const rotaPlano = `${base}/plano`;
 
-  const anoPedido = Array.isArray(consulta.ano) ? consulta.ano[0] : consulta.ano;
+  const anoPedido = Array.isArray(consulta.ano)
+    ? consulta.ano[0]
+    : consulta.ano;
   const sufixoAno = anoPedido ? `?ano=${encodeURIComponent(anoPedido)}` : "";
 
   const me = await carregarMe();
@@ -110,9 +118,8 @@ export default async function PlanoDeAplicacao({
    * de redes vira apenas a visão geral, e o cadastro de linha não é oferecido
    * porque não há como preencher o formulário (V1-019).
    */
-  const [plano, ppgs, catalogo, redes] = await Promise.all([
+  const [plano, catalogo, redes] = await Promise.all([
     apiFetch<RespostaPlano>(`${base}/plano${sufixoAno}`),
-    apiFetchOuNada<LinhaPpg[]>("/ppgs"),
     apiFetchOuNada<TabelaVigente>(`/catalogo/bolsas?programa=${programa}`),
     apiFetchOuNada<RespostaRedes>(`${base}/redes${sufixoAno}`),
   ]);
@@ -125,15 +132,6 @@ export default async function PlanoDeAplicacao({
     redes: [],
   };
 
-  const areas = estrutura.redes.flatMap((rede) =>
-    rede.areas.map((area) => ({
-      id: area.areaTematicaId,
-      codigo: area.codigo,
-      nome: area.nome,
-      rede: rede.rede,
-      ppgIds: area.coordenadores.map((coordenador) => coordenador.ppgId),
-    })),
-  );
   const linhasAtivas = plano.linhas.filter(
     (linha) => linha.status !== "CANCELADO",
   );
@@ -149,19 +147,20 @@ export default async function PlanoDeAplicacao({
     programa,
     ciclo: cicloNome,
     cicloStatus: plano.ciclo.status,
-    ppgs: ppgs ?? [],
-    areas,
+    ppgs: plano.referencias.edicao.ppgs,
+    areas: plano.referencias.edicao.areas,
     catalogo: catalogo?.itens ?? [],
     anos: plano.ciclo.anos,
     anoInicial: estrutura.ano,
     podeEditar: me.permissions.includes("plano:edit"),
+    itensEditaveis: plano.referencias.edicao.itens,
   };
   // Sem PPGs e catálogo o formulário não tem o que oferecer, e um botão que
   // abre um painel vazio é pior que botão ausente.
   const podeCriar =
     me.permissions.includes("plano:create") &&
     plano.ciclo.status !== "ENCERRADO" &&
-    ppgs !== null &&
+    plano.referencias.criacao.ppgs.length > 0 &&
     catalogo !== null;
 
   return (
@@ -178,8 +177,8 @@ export default async function PlanoDeAplicacao({
             programa={programa}
             ciclo={cicloNome}
             cicloStatus={plano.ciclo.status}
-            ppgs={ppgs ?? []}
-            areas={areas}
+            ppgs={plano.referencias.criacao.ppgs}
+            areas={plano.referencias.criacao.areas}
             catalogo={catalogo?.itens ?? []}
             anos={plano.ciclo.anos}
             anoInicial={estrutura.ano}
@@ -218,7 +217,6 @@ export default async function PlanoDeAplicacao({
           ano={estrutura.ano}
         />
       )}
-
     </Pagina>
   );
 }
@@ -427,7 +425,6 @@ function VisaoGeral({
           ))}
         </div>
       </section>
-
     </div>
   );
 }
@@ -990,7 +987,14 @@ function Acoes({
   linha: LinhaPlano;
   contexto: ContextoDaLinha;
 }) {
-  return <AcoesLinhaPlano {...contexto} linha={linha} />;
+  const { itensEditaveis, podeEditar, ...props } = contexto;
+  return (
+    <AcoesLinhaPlano
+      {...props}
+      linha={linha}
+      podeEditar={podeEditar && itensEditaveis.includes(linha.id)}
+    />
+  );
 }
 
 function OrigemDoValor({ linha }: { linha: LinhaPlano }) {

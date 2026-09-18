@@ -102,9 +102,7 @@ export default async function Orcamento({
         ))}
       </nav>
 
-      <Secao
-        titulo="Consolidado por rede e exercício"
-      >
+      <Secao titulo="Consolidado por rede e exercício">
         <div className="mb-6">
           <OrcamentoPorRede redes={redes} anos={anos} />
         </div>
@@ -339,11 +337,13 @@ export default async function Orcamento({
                 </Celula>
                 {podeEditar ? (
                   <Celula>
-                    <EditarOrcamento
-                      programa={programa}
-                      ciclo={cicloNome}
-                      linha={linha}
-                    />
+                    {linha.podeEditar ? (
+                      <EditarOrcamento
+                        programa={programa}
+                        ciclo={cicloNome}
+                        linha={linha}
+                      />
+                    ) : null}
                   </Celula>
                 ) : null}
               </tr>

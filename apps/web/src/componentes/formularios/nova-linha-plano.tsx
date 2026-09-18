@@ -1,7 +1,7 @@
 "use client";
 
 import { AbrirSidesheet } from "@/componentes/ui/sidesheet";
-import type { ItemCatalogo, LinhaPpg } from "@/lib/dominio";
+import type { ItemCatalogo, ReferenciasPlano } from "@/lib/dominio";
 import { FormLinhaPlano } from "./form-linha-plano";
 
 /** Botão + sidesheet do cadastro de linha de planejamento (P10). */
@@ -18,7 +18,7 @@ export function NovaLinhaDePlano({
   programa: string;
   ciclo: string;
   cicloStatus: "PLANEJAMENTO" | "VIGENTE" | "ENCERRADO";
-  ppgs: LinhaPpg[];
+  ppgs: ReferenciasPlano["ppgs"];
   areas: {
     id: string;
     codigo: string;

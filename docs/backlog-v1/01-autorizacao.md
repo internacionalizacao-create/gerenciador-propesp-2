@@ -1,10 +1,10 @@
 # Fichas de autorização — V1-010 a V1-021
 
-Estado: **V1-010, V1-011, V1-012, V1-017 e V1-018 concluídas** — a autorização
-em execução é a das concessões, com API e tela de administração —, e **V1-021 em
-andamento** (bootstrap entregue; conversão do legado cancelada em 2026-09-16,
-porque a produção começa sem conta nenhuma). Faltam os recortes por ação
-(V1-013–016), a navegação por capacidade (V1-019) e a regressão (V1-020). Prioridade: **P0**. Regras de execução,
+Estado: **V1-010–014 e V1-017–019 concluídas** — a autorização
+em execução é a das concessões, com API, tela e recorte de leitura do
+planejamento —, e **V1-021 em andamento** (bootstrap e limpeza legada entregues;
+conversão cancelada porque a produção começa sem conta). Faltam V1-015–016, a
+regressão V1-020 e o smoke nominal da V1-021. Prioridade: **P0**. Regras de execução,
 dependências e registro de conclusão no [índice](../backlog-v1.md).
 Contrato de produto: [proposta de autorização](../proposta-autorizacao-v1.md).
 
@@ -149,7 +149,7 @@ Contrato de produto: [proposta de autorização](../proposta-autorizacao-v1.md).
   em runtime.
 - **Ponte declarada:** `escopoDe` devolve a união dos alvos de todas as ações
   concedidas, sem dizer de qual ação veio cada PPG — serve às consultas que
-  ainda não receberam recorte por ação (V1-013 a V1-016) e perde o ciclo da
+  ainda não receberam recorte por ação (V1-015 e V1-016) e perde o ciclo da
   concessão de PPG. Quem já tiver o recorte por ação usa
   `AcessoResolvido.alcance(permissao)`.
 - **Dois bugs reais encontrados pelo caminho**, ambos no vínculo de identidade e
@@ -177,6 +177,18 @@ Contrato de produto: [proposta de autorização](../proposta-autorizacao-v1.md).
 
 ## V1-013 — Recortar leitura de plano, orçamento e painel
 
+- **Estado / data:** Concluída — 2026-09-17.
+- **Entregue:** o alcance já resolvido pelo guard entra em programas, ciclo
+  padrão, plano/histórico, orçamento, redes, temática e painel. Linhas e
+  agregados são recortados no SQL; alvo PPG/participação recebe custo próprio,
+  mas teto, fonte, saldo, divergência e utilização ficam nulos até haver
+  cobertura integral da temática. URL de ciclo fora do alcance responde 404.
+- **Verificações:** builds da API e da web, lint da API, 89 testes unitários e
+  os 588 testes de integração; 5 casos novos em
+  `recorte-planejamento.int-spec.ts`. O smoke OIDC com `admin` passou depois da
+  migration `0041` no banco local.
+- **Limitação:** o smoke nominal por perfil fica na V1-021e/V1-020; bolsas e
+  caminhos indiretos continuam nas V1-015–016.
 - **Depende de:** V1-012.
 - **Objetivo:** proteger consultas e agregados sem fabricar orçamento por PPG.
 - **Arquivos:** `dominio/programas.controller.ts`, `plano.service.ts`,
@@ -197,6 +209,18 @@ Contrato de produto: [proposta de autorização](../proposta-autorizacao-v1.md).
 
 ## V1-014 — Recortar escrita e referências do planejamento
 
+- **Estado / data:** Concluída — 2026-09-17.
+- **Entregue:** criação valida ciclo, PPG, temática e participação contra
+  `plano:create`; edição exige que o registro anterior e o novo alvo estejam no
+  alcance de `plano:edit`; cancelamento e orçamento ocultos respondem 404. O
+  cancelamento usa schema Zod. A resposta do plano separa referências de
+  criação e edição, a interface só oferece edição no item alcançado, e as
+  opções de vagas usam `bolsa:create`.
+- **Verificações:** builds da API e da web, lint, 89 testes unitários e 592
+  testes de integração. Quatro casos novos cobrem referências, UUID externo,
+  transferência, rollback, cancelamento e orçamento fora do alcance.
+- **Limitação:** o recorte completo dos próprios registros de bolsa e seus
+  campos pessoais pertence à V1-015.
 - **Depende de:** V1-012.
 - **Objetivo:** impedir lançamento/cancelamento por UUID ou payload fora do
   recorte, inclusive quando a tela não oferece a opção.
@@ -404,8 +428,9 @@ Contrato de produto: [proposta de autorização](../proposta-autorizacao-v1.md).
   falta; `/me/acesso` responde "PPG CLIAMB no ciclo 2027-2030", sem UUID. As
   concessões temporárias foram revogadas ao fim, e a revogação valeu na
   requisição seguinte, sem novo login.
-- **Limitações:** o recorte por ação nas consultas continua sendo V1-013–016 —
-  esta tarefa decide **se a tela abre**, não quais linhas ela traz; link dentro
+- **Limitações:** V1-013/V1-014 já recortam leitura e escrita do planejamento;
+  bolsas, parceiros e missões restantes continuam nas V1-015–016. Esta tarefa decide **se a tela
+  abre**; link dentro
   de conteúdo (os cartões da P01, por exemplo) ainda pode apontar para tela que
   a conta não abre, e o destino explica em vez de errar; e a P01 continua única
   para todos os perfis (AGENTS.md §9).
@@ -444,9 +469,10 @@ Contrato de produto: [proposta de autorização](../proposta-autorizacao-v1.md).
 
 ## V1-021 — Atribuir contas e ativar modo restritivo
 
-- **Estado / data:** Em andamento — 2026-09-16. Subtarefa **a** entregue; **b e
-  c canceladas** pela decisão de produção limpa; restam **d** e **e**. Nenhuma
-  concessão foi aplicada e o modo restritivo continua desligado.
+- **Estado / data:** Em andamento — 2026-09-17. Subtarefas **a e d entregues**;
+  **b e c canceladas** pela decisão de produção limpa; resta **e**, o smoke
+  nominal e o procedimento de rollback no ambiente autorizado. O modo
+  restritivo já está ativo no código desde V1-012.
 - **Subtarefas** (a ordem importa; ver a justificativa em cada uma):
   - **a — bootstrap e recuperação de administrador.** *Entregue em 2026-09-15:*
     `pnpm --filter api acesso:bootstrap --sub <sub> --motivo "..." [--aplicar]
@@ -459,12 +485,16 @@ Contrato de produto: [proposta de autorização](../proposta-autorizacao-v1.md).
     tela de administração (V1-018), pessoa a pessoa, depois do bootstrap. O
     relatório entregue em 2026-09-15 foi removido junto com o código que o
     sustentava.
-  - **d — remoção dos caminhos legados de autorização implícita:**
+  - **d — remoção dos caminhos legados de autorização implícita:** *entregue em
+    2026-09-17.*
     `permissionsForRoles` como fonte, o escopo global que `escopoDe` concede ao
     papel `admin`, as redes do vínculo de equipe em `identidade.service.ts`,
     `missao:all-redes` e a própria `escopo_acesso`.
   - **e — ativação** do "sem concessão, sem dado", com smoke nominal e rollback
-    documentado.
+    documentado. Em 2026-09-17, o smoke OIDC local passou com conta sem
+    concessão de negócio; o smoke completo por perfil continua pendente porque
+    o realm local não contém uma segunda conta de teste válida para cumprir a
+    política de dupla administração.
   - **Por que d antes de e:** se o vínculo de equipe, o escopo legado e o papel
     continuarem valendo depois da virada, o modo restritivo não fecha nada — a
     conta entra pelo caminho antigo e ninguém percebe.

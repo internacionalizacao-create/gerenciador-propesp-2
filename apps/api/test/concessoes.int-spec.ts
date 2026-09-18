@@ -272,27 +272,6 @@ describe('Concessoes de acesso — persistencia', () => {
     }
   });
 
-  // -------------------------------------------------------------------------
-  // Migration
-
-  it('a migration sobe sobre banco com acesso legado, sem toca-lo', async () => {
-    // `criarContextoTeste` ja aplicou as migrations; o que se verifica e que o
-    // legado continua inteiro e independente da tabela nova.
-    await ctx.db.insert(s.escopoAcesso).values({
-      usuarioId,
-      tipo: 'PPG',
-      ppgId: base.ppgId,
-      concedidoPorId: 'sub-admin',
-    });
-    await conceder(
-      colunasDoAlvo({ tipo: 'PPG', ppgId: base.ppgId, cicloId: base.cicloId }),
-    );
-
-    const legado = await ctx.db.select().from(s.escopoAcesso);
-    expect(legado).toHaveLength(1);
-    expect(legado[0].ativo).toBe(true);
-  });
-
   it('a tabela nasce vazia: nenhuma conta ganha acesso pela migration', async () => {
     // O banco de teste acabou de migrar e de receber a fixture; se a migration
     // ou a seed concedessem algo, apareceria aqui.

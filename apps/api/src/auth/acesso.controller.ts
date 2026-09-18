@@ -2,7 +2,6 @@ import {
   BadRequestException,
   Body,
   Controller,
-  Delete,
   Get,
   HttpCode,
   Inject,
@@ -10,7 +9,7 @@ import {
   Param,
   Post,
 } from '@nestjs/common';
-import { and, asc, eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { DRIZZLE, type Database } from '../database/database.module';
@@ -33,25 +32,7 @@ import {
  * o que" sao as concessoes administradas aqui. Cada linha guarda quem concedeu,
  * quando e por que, e a politica de `autorizacao-v1/administracao.ts` governa
  * quem pode administrar o que — inclusive proibindo autoalteracao.
- *
- * As rotas de `escopo_acesso` continuam no ar enquanto a tabela legada existir;
- * elas nao concedem mais nada ao resolver e saem em V1-021.
  */
-
-export const concederEscopoSchema = z
-  .object({
-    tipo: z.enum(['GLOBAL', 'PPG', 'REDE']),
-    ppgId: z.uuid().optional(),
-    redeId: z.uuid().optional(),
-  })
-  .refine(
-    (v) =>
-      (v.tipo === 'GLOBAL' && !v.ppgId && !v.redeId) ||
-      (v.tipo === 'PPG' && !!v.ppgId && !v.redeId) ||
-      (v.tipo === 'REDE' && !!v.redeId && !v.ppgId),
-    { message: 'Informe exatamente o alvo correspondente ao tipo de escopo.' },
-  );
-export type ConcederEscopo = z.infer<typeof concederEscopoSchema>;
 
 @Controller('acesso')
 export class AcessoController {
@@ -126,7 +107,7 @@ export class AcessoController {
     return this.concessoes.revogar(usuario, concessaoId, dto);
   }
 
-  /** Contas ligadas ao cadastro local, com os escopos de cada uma. */
+  /** Contas ligadas ao cadastro local. O alcance vive nas concessoes. */
   @Get('usuarios')
   @RequirePermission('acesso:read')
   async listar() {
@@ -147,99 +128,7 @@ export class AcessoController {
       .innerJoin(s.pessoa, eq(s.pessoa.id, s.usuarioSistema.pessoaId))
       .orderBy(asc(s.pessoa.nome));
 
-    const escopos = await this.db
-      .select({
-        usuarioId: s.escopoAcesso.usuarioId,
-        id: s.escopoAcesso.id,
-        tipo: s.escopoAcesso.tipo,
-        ppgId: s.escopoAcesso.ppgId,
-        redeId: s.escopoAcesso.redeId,
-      })
-      .from(s.escopoAcesso)
-      .where(eq(s.escopoAcesso.ativo, true));
-
-    return contas.map((conta) => ({
-      ...conta,
-      escopos: escopos.filter((e) => e.usuarioId === conta.id),
-    }));
-  }
-
-  @Post('usuarios/:id/escopos')
-  @RequirePermission('acesso:write')
-  async concederEscopo(
-    @Param('id', new ZodValidationPipe(z.uuid('Usuário inválido.')))
-    usuarioId: string,
-    @Body(new ZodValidationPipe(concederEscopoSchema)) dto: ConcederEscopo,
-    @CurrentUser() usuario: AuthUser,
-  ) {
-    const [conta] = await this.db
-      .select({ id: s.usuarioSistema.id })
-      .from(s.usuarioSistema)
-      .where(eq(s.usuarioSistema.id, usuarioId));
-    if (!conta) throw new NotFoundException('Usuário não encontrado.');
-
-    // Reconceder um escopo ja existente reativa em vez de duplicar: o indice
-    // parcial recusaria a segunda linha, e o erro de unicidade nao explica ao
-    // administrador que o acesso apenas estava inativo.
-    const [existente] = await this.db
-      .select({ id: s.escopoAcesso.id })
-      .from(s.escopoAcesso)
-      .where(
-        and(
-          eq(s.escopoAcesso.usuarioId, usuarioId),
-          eq(s.escopoAcesso.tipo, dto.tipo),
-          dto.ppgId
-            ? eq(s.escopoAcesso.ppgId, dto.ppgId)
-            : dto.redeId
-              ? eq(s.escopoAcesso.redeId, dto.redeId)
-              : eq(s.escopoAcesso.tipo, 'GLOBAL'),
-        ),
-      );
-
-    if (existente) {
-      await this.db
-        .update(s.escopoAcesso)
-        .set({ ativo: true, concedidoPorId: usuario.id })
-        .where(eq(s.escopoAcesso.id, existente.id));
-      return { id: existente.id, reativado: true };
-    }
-
-    const [criado] = await this.db
-      .insert(s.escopoAcesso)
-      .values({
-        usuarioId,
-        tipo: dto.tipo,
-        ppgId: dto.ppgId ?? null,
-        redeId: dto.redeId ?? null,
-        concedidoPorId: usuario.id,
-      })
-      .returning({ id: s.escopoAcesso.id });
-
-    return { id: criado.id, reativado: false };
-  }
-
-  /**
-   * Revoga um escopo.
-   *
-   * Inativa, nao apaga: saber que alguem teve acesso a uma rede e quando o
-   * perdeu e parte da auditoria, e um `delete` levaria isso junto.
-   */
-  @Delete('escopos/:id')
-  @RequirePermission('acesso:write')
-  async revogarEscopo(
-    @Param('id', new ZodValidationPipe(z.uuid('Escopo inválido.')))
-    escopoId: string,
-  ) {
-    const atualizados = await this.db
-      .update(s.escopoAcesso)
-      .set({ ativo: false })
-      .where(eq(s.escopoAcesso.id, escopoId))
-      .returning({ id: s.escopoAcesso.id });
-
-    if (atualizados.length === 0) {
-      throw new NotFoundException('Escopo não encontrado.');
-    }
-    return { revogado: true };
+    return contas;
   }
 
   /**

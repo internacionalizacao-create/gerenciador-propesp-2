@@ -9,7 +9,12 @@ import {
 } from '@nestjs/common';
 
 import type { AuthUser } from '../auth/auth-user';
-import { CurrentUser, RequirePermission } from '../auth/auth.decorators';
+import {
+  AcessoAtual,
+  CurrentUser,
+  RequirePermission,
+} from '../auth/auth.decorators';
+import type { AcessoResolvido } from '../auth/autorizacao-v1/acesso-v1.service';
 import { ZodValidationPipe } from '../comum/zod-validation.pipe';
 import {
   atualizarBolsaConcedidaSchema,
@@ -33,9 +38,9 @@ export class BolsistasController {
   }
 
   @Get('opcoes-planejamento')
-  @RequirePermission('bolsa:read')
-  opcoesPlanejamento(@CurrentUser() usuario: AuthUser) {
-    return this.bolsistas.opcoesPlanejamento(usuario);
+  @RequirePermission('bolsa:create')
+  opcoesPlanejamento(@AcessoAtual() acesso: AcessoResolvido) {
+    return this.bolsistas.opcoesPlanejamento(acesso.alcance('bolsa:create'));
   }
 
   /** Paises e instituicoes do formulario de concessao (BOL-010). */

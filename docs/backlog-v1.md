@@ -50,14 +50,13 @@ Estados: `Pendente`, `Em andamento`, `Bloqueada (motivo explícito)`, `Concluíd
 `Adiada por decisão`. Estado dos IDs: **Pendente**, exceto V1-001, **Em andamento** pelo
 registro da decisão de autorização, V1-010, **Concluída como contrato
 preparatório** (2026-09-15), e V1-011, **Concluída** (2026-09-15) com a tabela
-`concessao_acesso` criada, **V1-012 e V1-017 concluídas** em 2026-09-16 — a
+`concessao_acesso` criada, **V1-012–014 e V1-017 concluídas** — a
 autorização em execução passou a ser a das concessões, e o papel do Keycloak não
 concede mais nada —, **V1-018 e V1-019 concluídas** em 2026-09-17 — a tela de
-administração de acessos e a navegação por acesso efetivo —, e V1-021, **Em andamento**, com o bootstrap entregue; a
-conversão do legado foi cancelada porque a produção começa sem conta nenhuma. Os demais critérios do contrato seguem abertos;
-a autorização em execução já usa as concessões; faltam os recortes por ação
-(V1-013–016) e a regressão (V1-020) — a tela (V1-018) e a navegação (V1-019)
-foram concluídas em 2026-09-17. Evidências na ficha. Dependência
+administração de acessos e a navegação por acesso efetivo —, e V1-021, **Em
+andamento**, com bootstrap e limpeza legada entregues; a conversão foi cancelada
+porque a produção começa sem conta. Faltam os recortes por ação V1-015–016, a
+regressão V1-020 e o smoke nominal da V1-021. Evidências na ficha. Dependência
 pendente significa ordem de execução; não é prova de impedimento externo.
 
 Prioridades: **P0** necessária para liberação ampla interna; **P1** entregar ou
@@ -74,7 +73,7 @@ dedicado com trava de segurança.
 
 Modelo de solicitação:
 
-> Implemente V1-013 seguindo docs/backlog-v1.md e sua ficha. Use as decisões
+> Implemente V1-015 seguindo docs/backlog-v1.md e sua ficha. Use as decisões
 > registradas em docs/proposta-autorizacao-v1.md. Confira as dependências e o
 > estado atual antes de editar, execute os testes pertinentes e atualize a ficha
 > com os resultados. Não execute tarefas seguintes automaticamente.
@@ -103,15 +102,15 @@ dependências são obrigatórios, exceto quando a ficha indicar uma condição.
 | V1-010 | P0 | Catálogo de permissões e modelos opcionais — concluído (preparatório) | 001 (autorização decidida) |
 | V1-011 | P0 | Schema de concessões por permissão/escopo/ciclo — concluído (tabela inerte) | 010 |
 | V1-012 | P0 | Resolução central de acesso por ação — concluída | 011 |
-| V1-013 | P0 | Recorte de leitura de planejamento e indicadores | 012 |
-| V1-014 | P0 | Recorte de escrita e referências de formulários | 012 |
+| V1-013 | P0 | Recorte de leitura de planejamento e indicadores — concluído | 012 |
+| V1-014 | P0 | Recorte de escrita e referências de formulários — concluído | 012 |
 | V1-015 | P0 | Bolsas, produção e campos pessoais | 012 |
 | V1-016 | P0 | Históricos, documentos e exportações | 013, 015 |
 | V1-017 | P0 | API administrativa das concessões — concluída | 012 |
 | V1-018 | P0 | Interface de atribuição e revisão de acesso — concluída | 017 |
 | V1-019 | P0 | Navegação e orientação por acesso efetivo — concluída | 013, 015, 017 (entregue antes de 013/015: não dependia delas) |
 | V1-020 | P0 | Regressão da matriz de autorização | 013–019 |
-| V1-021 | P0 | Atribuição nominal e ativação restritiva — em andamento (subtarefas a–e; b entregue) | 018–020 |
+| V1-021 | P0 | Atribuição nominal e ativação restritiva — em andamento (a/d entregues; b/c canceladas; e pendente) | 018–020 |
 | V1-030 | P0 | Ciclo de vida completo da missão na web | 001 |
 | V1-031 | P0 | Produtos de missão na web | 001 |
 | V1-032 | P1 | Gestão de convênios na web | 016 |

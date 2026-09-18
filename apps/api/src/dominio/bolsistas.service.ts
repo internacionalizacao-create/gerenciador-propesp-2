@@ -10,6 +10,10 @@ import { z } from 'zod';
 import { dataHojeEmManaus } from '../comum/datas';
 
 import type { AuthUser } from '../auth/auth-user';
+import {
+  condicaoDoAlcance,
+  type Alcance,
+} from '../auth/autorizacao-v1/alcance';
 import { filtroPorPpg, podeVerPpg } from '../auth/escopo';
 import { IdentidadeService } from '../auth/identidade.service';
 import { consultar } from '../comum/consultar';
@@ -330,8 +334,14 @@ export class BolsistasService {
    * PPG: sem isso a escolha seria aceita e so morreria na checagem de escrita,
    * depois do cadastro inteiro preenchido.
    */
-  async opcoesPlanejamento(usuario: AuthUser) {
-    const escopo = await this.identidade.escopoDe(usuario);
+  async opcoesPlanejamento(alcance: Alcance) {
+    const visivel = condicaoDoAlcance(alcance, {
+      ciclo: sql`ip.ciclo_id`,
+      ppg: sql`ip.ppg_id`,
+      rede: sql`at.rede_id`,
+      tematica: sql`ip.area_tematica_id`,
+      participacao: sql`pp.id`,
+    });
 
     return consultar<{
       id: string;
@@ -393,11 +403,14 @@ export class BolsistasService {
         join modalidade m            on m.id = ip.modalidade_id
         join item_catalogo_bolsa ic   on ic.id = ip.item_catalogo_id
         join planejamento_anual pa    on pa.item_planejado_id = ip.id
+        left join area_tematica at on at.id = ip.area_tematica_id
+        left join participacao_ppg pp on pp.area_tematica_id = ip.area_tematica_id
+          and pp.ppg_id = ip.ppg_id
         left join concedidas bc       on bc.item_planejado_id = ip.id
                                       and bc.ano = pa.ano
        where ip.rubrica = 'BOLSAS'
          and ip.status = 'PROGRAMADO'
-         and ${filtroPorPpg(escopo, sql`ip.ppg_id`)}
+         and ${visivel}
        group by ip.id, ip.codigo, p.nome, p.slug, c.nome, c.ano_inicio,
                 pg.id, pg.nome, pg.sigla, m.nome, ip.destino,
                 ip.vigencia_meses, ic.valor_brl, ip.mes_implementacao

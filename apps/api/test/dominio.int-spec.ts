@@ -5,6 +5,7 @@ import {
 import { and, eq } from 'drizzle-orm';
 
 import type { AuthUser } from '../src/auth/auth-user';
+import { ALCANCE_GLOBAL } from '../src/auth/autorizacao-v1/alcance';
 import { IdentidadeService } from '../src/auth/identidade.service';
 import * as s from '../src/database/schema';
 import { executarSeed } from '../src/database/seed/seed';
@@ -713,7 +714,7 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
   // ------------------------------------------------------------------ //
   describe('BolsistasService (P03)', () => {
     it('concede uma vaga anual e acompanha produtos individuais', async () => {
-      const opcao = (await bolsistas.opcoesPlanejamento(ADMIN)).find(
+      const opcao = (await bolsistas.opcoesPlanejamento(ALCANCE_GLOBAL)).find(
         (item) => item.codigo === 'BOL-014',
       );
       expect(opcao).toBeDefined();
@@ -820,9 +821,9 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
         ),
       ).rejects.toThrow('País não encontrado');
 
-      const outraModalidade = (await bolsistas.opcoesPlanejamento(ADMIN)).find(
-        (item) => item.codigo === 'BOL-015',
-      );
+      const outraModalidade = (
+        await bolsistas.opcoesPlanejamento(ALCANCE_GLOBAL)
+      ).find((item) => item.codigo === 'BOL-015');
       await expect(
         bolsistas.criar(
           {

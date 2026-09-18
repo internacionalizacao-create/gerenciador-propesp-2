@@ -1,5 +1,11 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, sql } from 'drizzle-orm';
+
+import {
+  ALCANCE_GLOBAL,
+  condicaoDoAlcance,
+  type Alcance,
+} from '../auth/autorizacao-v1/alcance';
 
 import { DRIZZLE, type Database } from '../database/database.module';
 import * as s from '../database/schema';
@@ -34,7 +40,18 @@ export class ContextoService {
   async resolver(
     programaSlug: string,
     cicloNome: string,
+    alcance: Alcance = ALCANCE_GLOBAL,
   ): Promise<CicloResolvido> {
+    const cicloVisivel = condicaoDoAlcance(alcance, {
+      ciclo: sql`${s.ciclo.id}`,
+    });
+    const participacaoVisivel = condicaoDoAlcance(alcance, {
+      ciclo: sql`${s.ciclo.id}`,
+      ppg: sql`pp_escopo.ppg_id`,
+      rede: sql`rc_escopo.id`,
+      tematica: sql`at_escopo.id`,
+      participacao: sql`pp_escopo.id`,
+    });
     const [linha] = await this.db
       .select({
         programaId: s.programa.id,
@@ -55,6 +72,13 @@ export class ContextoService {
           eq(s.programa.slug, programaSlug),
           eq(s.programa.ativo, true),
           eq(s.ciclo.nome, cicloNome),
+          sql`((${cicloVisivel}) or exists (
+            select 1 from rede_coordenadora rc_escopo
+            join area_tematica at_escopo on at_escopo.rede_id = rc_escopo.id
+            join participacao_ppg pp_escopo on pp_escopo.area_tematica_id = at_escopo.id
+            where rc_escopo.ciclo_id = ${s.ciclo.id}
+              and ${participacaoVisivel}
+          ))`,
         ),
       )
       .limit(1);
@@ -75,7 +99,16 @@ export class ContextoService {
    * programa vazio (GCUB, Erasmus) daria a impressao de que o sistema perdeu os
    * dados. Empate se resolve pelo ciclo mais recente.
    */
-  async padrao(): Promise<CicloResolvido | null> {
+  async padrao(
+    alcance: Alcance = ALCANCE_GLOBAL,
+  ): Promise<CicloResolvido | null> {
+    const itemVisivel = condicaoDoAlcance(alcance, {
+      ciclo: sql`${s.itemPlanejado.cicloId}`,
+      ppg: sql`${s.itemPlanejado.ppgId}`,
+      rede: sql`${s.areaTematica.redeId}`,
+      tematica: sql`${s.itemPlanejado.areaTematicaId}`,
+      participacao: sql`${s.participacaoPpg.id}`,
+    });
     const [linha] = await this.db
       .selectDistinct({
         slug: s.programa.slug,
@@ -85,12 +118,23 @@ export class ContextoService {
       .from(s.itemPlanejado)
       .innerJoin(s.ciclo, eq(s.ciclo.id, s.itemPlanejado.cicloId))
       .innerJoin(s.programa, eq(s.programa.id, s.ciclo.programaId))
-      .where(eq(s.programa.ativo, true))
+      .leftJoin(
+        s.areaTematica,
+        eq(s.areaTematica.id, s.itemPlanejado.areaTematicaId),
+      )
+      .leftJoin(
+        s.participacaoPpg,
+        and(
+          eq(s.participacaoPpg.areaTematicaId, s.itemPlanejado.areaTematicaId),
+          eq(s.participacaoPpg.ppgId, s.itemPlanejado.ppgId),
+        ),
+      )
+      .where(and(eq(s.programa.ativo, true), itemVisivel))
       .orderBy(asc(s.programa.slug), desc(s.ciclo.anoInicio))
       .limit(1);
 
     if (!linha) return null;
-    return this.resolver(linha.slug, linha.nome);
+    return this.resolver(linha.slug, linha.nome, alcance);
   }
 }
 

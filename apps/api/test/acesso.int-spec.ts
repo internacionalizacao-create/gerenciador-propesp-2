@@ -120,7 +120,7 @@ describe('Identidade e escopo de acesso', () => {
     expect(conta.origem).toBe('EMAIL');
   });
 
-  it('cria pessoa quando nao ha correspondencia, sem conceder escopo', async () => {
+  it('cria pessoa quando nao ha correspondencia, sem conceder acesso', async () => {
     const resolvida = await identidade.resolver(
       usuario({ email: 'novo@propesp.local' }),
     );
@@ -131,9 +131,9 @@ describe('Identidade e escopo de acesso', () => {
       .where(eq(s.pessoa.id, resolvida.pessoaId));
     expect(pessoa.nome).toBe('Coordenação de Teste');
 
-    // Criar pessoa nao e conceder acesso: escopo nasce vazio e e ato do admin.
-    const escopos = await ctx.db.select().from(s.escopoAcesso);
-    expect(escopos).toEqual([]);
+    // Criar pessoa nao e conceder acesso: concessoes nascem vazias.
+    const concessoes = await ctx.db.select().from(s.concessaoAcesso);
+    expect(concessoes).toEqual([]);
   });
 
   it('reentrar nao duplica a conta e atualiza o ultimo acesso', async () => {
@@ -210,21 +210,24 @@ describe('Identidade e escopo de acesso', () => {
     expect(recortados.map((p) => p.id)).toEqual([base.ppgId]);
   });
 
-  it('escopo revogado deixa de valer', async () => {
+  it('concessao revogada deixa de compor o alcance', async () => {
     const resolvida = await identidade.resolver(usuario());
-    const [escopo] = await ctx.db
-      .insert(s.escopoAcesso)
+    const [concessao] = await ctx.db
+      .insert(s.concessaoAcesso)
       .values({
         usuarioId: resolvida.usuarioId,
-        tipo: 'PPG',
+        permissao: 'ppg:read',
+        tipoAlvo: 'PPG',
         ppgId: base.ppgId,
+        cicloId: base.cicloId,
+        justificativa: 'Teste de revogacao.',
       })
-      .returning({ id: s.escopoAcesso.id });
+      .returning({ id: s.concessaoAcesso.id });
 
     await ctx.db
-      .update(s.escopoAcesso)
-      .set({ ativo: false })
-      .where(eq(s.escopoAcesso.id, escopo.id));
+      .update(s.concessaoAcesso)
+      .set({ ativo: false, revogadoEm: new Date() })
+      .where(eq(s.concessaoAcesso.id, concessao.id));
 
     const escopoAtual = await identidade.escopoDe(usuario());
     expect(escopoAtual.ppgIds).toEqual([]);
@@ -248,47 +251,6 @@ describe('Identidade e escopo de acesso', () => {
       /não encontrado/i,
     );
     await expect(ppgs.detalhar(base.ppgId, usuario())).resolves.toBeDefined();
-  });
-
-  it('escopo aceita so o alvo do proprio tipo', async () => {
-    const resolvida = await identidade.resolver(usuario());
-
-    // Sem o check, um escopo GLOBAL com ppg_id preenchido passaria e ninguem
-    // saberia qual dos dois vale na hora de recortar.
-    await esperarViolacao(
-      ctx.db.insert(s.escopoAcesso).values({
-        usuarioId: resolvida.usuarioId,
-        tipo: 'GLOBAL',
-        ppgId: base.ppgId,
-      }),
-      'escopo_acesso_alvo_ck',
-    );
-
-    await esperarViolacao(
-      ctx.db.insert(s.escopoAcesso).values({
-        usuarioId: resolvida.usuarioId,
-        tipo: 'PPG',
-      }),
-      'escopo_acesso_alvo_ck',
-    );
-  });
-
-  it('nao concede o mesmo escopo duas vezes', async () => {
-    const resolvida = await identidade.resolver(usuario());
-    await ctx.db.insert(s.escopoAcesso).values({
-      usuarioId: resolvida.usuarioId,
-      tipo: 'PPG',
-      ppgId: base.ppgId,
-    });
-
-    await esperarViolacao(
-      ctx.db.insert(s.escopoAcesso).values({
-        usuarioId: resolvida.usuarioId,
-        tipo: 'PPG',
-        ppgId: base.ppgId,
-      }),
-      'escopo_acesso_ppg_uk',
-    );
   });
 
   // -------------------------------------------------------------------------

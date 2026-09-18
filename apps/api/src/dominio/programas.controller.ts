@@ -15,7 +15,17 @@ import {
 import { and, asc, eq, sql } from 'drizzle-orm';
 import type { Response } from 'express';
 
-import { CurrentUser, RequirePermission } from '../auth/auth.decorators';
+import {
+  AcessoAtual,
+  CurrentUser,
+  RequirePermission,
+} from '../auth/auth.decorators';
+import type { AcessoResolvido } from '../auth/autorizacao-v1/acesso-v1.service';
+import {
+  ALCANCE_GLOBAL,
+  alcancaAlvo,
+  condicaoDoAlcance,
+} from '../auth/autorizacao-v1/alcance';
 import { IdentidadeService } from '../auth/identidade.service';
 import type { AuthUser } from '../auth/auth-user';
 import type { Permission } from '../auth/permissions';
@@ -115,10 +125,12 @@ import {
   type CriarPendencia,
 } from './pendencias.service';
 import {
+  cancelarItemSchema,
   criarItemSchema,
   atualizarItemSchema,
   PlanoService,
   type AtualizarItem,
+  type CancelarItem,
   type CriarItem,
   type Rubrica,
 } from './plano.service';
@@ -160,7 +172,30 @@ export class ProgramasController {
   /** P05 · lista somente os programas ativos para operacao. */
   @Get()
   @RequirePermission('programa:read')
-  async listar() {
+  async listar(@AcessoAtual() acesso?: AcessoResolvido) {
+    const alcance = acesso?.alcance('programa:read') ?? ALCANCE_GLOBAL;
+    const cicloVisivel = condicaoDoAlcance(alcance, {
+      ciclo: sql`c.id`,
+    });
+    const participacaoVisivel = condicaoDoAlcance(alcance, {
+      ciclo: sql`c.id`,
+      ppg: sql`pp.ppg_id`,
+      rede: sql`rc.id`,
+      tematica: sql`at.id`,
+      participacao: sql`pp.id`,
+    });
+    const planoVisivel = condicaoDoAlcance(alcance, {
+      ciclo: sql`c.id`,
+      ppg: sql`ip.ppg_id`,
+      rede: sql`rc.id`,
+      tematica: sql`ip.area_tematica_id`,
+      participacao: sql`pp.id`,
+    });
+    const tematicaIntegral = condicaoDoAlcance(alcance, {
+      ciclo: sql`c.id`,
+      rede: sql`rc.id`,
+      tematica: sql`at.id`,
+    });
     return consultar<{
       id: string;
       nome: string;
@@ -185,18 +220,35 @@ export class ProgramasController {
              p.usa_redes         as "usaRedes",
              p.usa_areas_tematicas as "usaAreasTematicas",
              p.ativo,
-             (select count(*)::int from ciclo c where c.programa_id = p.id) as "ciclos",
+             (select count(*)::int from ciclo c where c.programa_id = p.id
+               and ((${cicloVisivel}) or exists (
+                 select 1 from rede_coordenadora rc
+                 join area_tematica at on at.rede_id = rc.id
+                 join participacao_ppg pp on pp.area_tematica_id = at.id
+                 where rc.ciclo_id = c.id and ${participacaoVisivel}
+               ))) as "ciclos",
              (select c.nome from ciclo c where c.programa_id = p.id
+               and ((${cicloVisivel}) or exists (
+                 select 1 from rede_coordenadora rc
+                 join area_tematica at on at.rede_id = rc.id
+                 join participacao_ppg pp on pp.area_tematica_id = at.id
+                 where rc.ciclo_id = c.id and ${participacaoVisivel}
+               ))
                order by c.ano_inicio desc limit 1) as "cicloAtual",
              (select count(*)::int from item_planejado ip
                 join ciclo c on c.id = ip.ciclo_id
-               where c.programa_id = p.id and ip.status <> 'CANCELADO') as "linhasPlano",
+                left join area_tematica at on at.id = ip.area_tematica_id
+                left join rede_coordenadora rc on rc.id = at.rede_id
+                left join participacao_ppg pp on pp.area_tematica_id = ip.area_tematica_id
+                  and pp.ppg_id = ip.ppg_id
+               where c.programa_id = p.id and ip.status <> 'CANCELADO'
+                 and ${planoVisivel}) as "linhasPlano",
              (select count(distinct pp.ppg_id)::int
                 from participacao_ppg pp
                 join area_tematica at on at.id = pp.area_tematica_id
                 join rede_coordenadora rc on rc.id = at.rede_id
                 join ciclo c on c.id = rc.ciclo_id
-               where c.programa_id = p.id) as "ppgs",
+               where c.programa_id = p.id and ${participacaoVisivel}) as "ppgs",
              (select sum(o.valor_bolsas
                        + coalesce(o.valor_manutencao, 0)
                        + coalesce(o.valor_missoes, 0))
@@ -205,6 +257,7 @@ export class ProgramasController {
                 join rede_coordenadora rc on rc.id = at.rede_id
                 join ciclo c on c.id = rc.ciclo_id
                where c.programa_id = p.id
+                 and ${tematicaIntegral}
                  and o.ano = (select min(ano) from orcamento_tematica o2
                                 join area_tematica at2 on at2.id = o2.area_tematica_id
                                 join rede_coordenadora rc2 on rc2.id = at2.rede_id
@@ -212,6 +265,16 @@ export class ProgramasController {
                                where c2.programa_id = p.id)) as "aporteAnual"
         from programa p
        where p.ativo = true
+         and exists (
+           select 1 from ciclo c
+            where c.programa_id = p.id
+              and ((${cicloVisivel}) or exists (
+                select 1 from rede_coordenadora rc
+                join area_tematica at on at.rede_id = rc.id
+                join participacao_ppg pp on pp.area_tematica_id = at.id
+                where rc.ciclo_id = c.id and ${participacaoVisivel}
+              ))
+         )
        order by p.nome
     `,
     );
@@ -220,8 +283,11 @@ export class ProgramasController {
   /** Painel do ciclo aberto por quem entra sem escolher programa. */
   @Get('padrao/painel')
   @RequirePermission('painel:read')
-  async painelPadrao(@Query('ano') ano?: string) {
-    const ciclo = await this.contexto.padrao();
+  async painelPadrao(
+    @AcessoAtual() acesso: AcessoResolvido,
+    @Query('ano') ano?: string,
+  ) {
+    const ciclo = await this.contexto.padrao(acesso.alcance('painel:read'));
     if (!ciclo) {
       // Estado vazio de P01: sem ciclo cadastrado nao ha o que exibir, e a tela
       // oferece "criar ciclo" / "importar planilha" em vez de zeros.
@@ -229,16 +295,50 @@ export class ProgramasController {
     }
     // Ano fora do ciclo cai no primeiro exercicio, como no resto das telas do
     // ciclo — e nao num painel de zeros, indistinguivel de ciclo vazio.
-    return this.painel.montar(ciclo, anoValido(ano, ciclo.anos));
+    return this.painel.montar(
+      ciclo,
+      anoValido(ano, ciclo.anos),
+      acesso.alcance('painel:read'),
+    );
   }
 
   @Get(':programa')
   @RequirePermission('programa:read')
-  async detalhar(@Param('programa') slug: string) {
+  async detalhar(
+    @Param('programa') slug: string,
+    @AcessoAtual() acesso: AcessoResolvido,
+  ) {
+    const alcance = acesso.alcance('programa:read');
+    const cicloVisivel = condicaoDoAlcance(alcance, {
+      ciclo: sql`${s.ciclo.id}`,
+    });
+    const participacaoVisivel = condicaoDoAlcance(alcance, {
+      ciclo: sql`${s.ciclo.id}`,
+      ppg: sql`pp_detalhe.ppg_id`,
+      rede: sql`rc_detalhe.id`,
+      tematica: sql`at_detalhe.id`,
+      participacao: sql`pp_detalhe.id`,
+    });
+    const alcanceDoCiclo = sql`((${cicloVisivel}) or exists (
+      select 1 from rede_coordenadora rc_detalhe
+      join area_tematica at_detalhe on at_detalhe.rede_id = rc_detalhe.id
+      join participacao_ppg pp_detalhe
+        on pp_detalhe.area_tematica_id = at_detalhe.id
+      where rc_detalhe.ciclo_id = ${s.ciclo.id}
+        and ${participacaoVisivel}
+    ))`;
     const [programa] = await this.db
       .select()
       .from(s.programa)
-      .where(and(eq(s.programa.slug, slug), eq(s.programa.ativo, true)))
+      .where(
+        and(
+          eq(s.programa.slug, slug),
+          eq(s.programa.ativo, true),
+          sql`exists (select 1 from ciclo
+            where ciclo.programa_id = ${s.programa.id}
+              and ${alcanceDoCiclo})`,
+        ),
+      )
       .limit(1);
 
     if (!programa) throw new NotFoundException('Programa não encontrado.');
@@ -252,7 +352,7 @@ export class ProgramasController {
         status: s.ciclo.status,
       })
       .from(s.ciclo)
-      .where(eq(s.ciclo.programaId, programa.id))
+      .where(and(eq(s.ciclo.programaId, programa.id), alcanceDoCiclo))
       .orderBy(asc(s.ciclo.anoInicio));
 
     return { ...programa, ciclos };
@@ -266,8 +366,12 @@ export class ProgramasController {
   async resumoDoCiclo(
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
+    @AcessoAtual() acesso: AcessoResolvido,
   ) {
-    return this.ciclos.resumo(await this.contexto.resolver(slug, nome));
+    return this.ciclos.resumo(
+      await this.contexto.resolver(slug, nome, acesso.alcance('programa:read')),
+      acesso.alcance('programa:read'),
+    );
   }
 
   /** P01 · painel executivo do ciclo. */
@@ -276,8 +380,13 @@ export class ProgramasController {
   async painelDoCiclo(
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
+    @AcessoAtual() acesso: AcessoResolvido,
   ) {
-    return this.painel.montar(await this.contexto.resolver(slug, nome));
+    return this.painel.montar(
+      await this.contexto.resolver(slug, nome, acesso.alcance('painel:read')),
+      undefined,
+      acesso.alcance('painel:read'),
+    );
   }
 
   /** P07 · redes e areas tematicas. */
@@ -286,10 +395,19 @@ export class ProgramasController {
   async redes(
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
+    @AcessoAtual() acesso: AcessoResolvido,
     @Query('ano') ano?: string,
   ) {
-    const ciclo = await this.contexto.resolver(slug, nome);
-    return this.ciclos.redes(ciclo, anoValido(ano, ciclo.anos));
+    const ciclo = await this.contexto.resolver(
+      slug,
+      nome,
+      acesso.alcance('orcamento:read'),
+    );
+    return this.ciclos.redes(
+      ciclo,
+      anoValido(ano, ciclo.anos),
+      acesso.alcance('orcamento:read'),
+    );
   }
 
   /** P08 · detalhe de uma area tematica. */
@@ -299,9 +417,18 @@ export class ProgramasController {
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
     @Param('codigo') codigo: string,
+    @AcessoAtual() acesso: AcessoResolvido,
   ) {
-    const ciclo = await this.contexto.resolver(slug, nome);
-    return this.ciclos.tematica(ciclo, codigo);
+    const ciclo = await this.contexto.resolver(
+      slug,
+      nome,
+      acesso.alcance('orcamento:read'),
+    );
+    return this.ciclos.tematica(
+      ciclo,
+      codigo,
+      acesso.alcance('orcamento:read'),
+    );
   }
 
   /** P09 · matriz de orcamento ano x tematica. */
@@ -310,14 +437,39 @@ export class ProgramasController {
   async orcamentoDoCiclo(
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
+    @AcessoAtual() acesso: AcessoResolvido,
   ) {
-    const ciclo = await this.contexto.resolver(slug, nome);
+    const ciclo = await this.contexto.resolver(
+      slug,
+      nome,
+      acesso.alcance('orcamento:read'),
+    );
     const [tematicas, redes] = await Promise.all([
-      this.orcamento.porTematica(ciclo.cicloId),
-      this.orcamento.porRede(ciclo.cicloId),
+      this.orcamento.porTematica(
+        ciclo.cicloId,
+        undefined,
+        acesso.alcance('orcamento:read'),
+      ),
+      this.orcamento.porRede(
+        ciclo.cicloId,
+        undefined,
+        acesso.alcance('orcamento:read'),
+      ),
     ]);
 
-    return { ciclo, tematicas, redes };
+    const alcanceDeEdicao = acesso.alcance('orcamento:edit');
+    return {
+      ciclo,
+      tematicas: tematicas.map((linha) => ({
+        ...linha,
+        podeEditar: alcancaAlvo(alcanceDeEdicao, {
+          cicloId: ciclo.cicloId,
+          redeIds: [linha.redeId],
+          tematicaId: linha.areaTematicaId,
+        }),
+      })),
+      redes,
+    };
   }
 
   /** Registra alteracao formal do orcamento de uma tematica em um exercicio. */
@@ -330,12 +482,15 @@ export class ProgramasController {
     @Body(new ZodValidationPipe(atualizarOrcamentoSchema))
     dto: AtualizarOrcamento,
     @CurrentUser() usuario: AuthUser,
+    @AcessoAtual() acesso: AcessoResolvido,
   ) {
+    const alcance = acesso.alcance('orcamento:edit');
     return this.orcamento.atualizar(
-      await this.contexto.resolver(slug, nome),
+      await this.contexto.resolver(slug, nome, alcance),
       id,
       dto,
       usuario,
+      alcance,
     );
   }
 
@@ -345,18 +500,32 @@ export class ProgramasController {
   async planoDoCiclo(
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
+    @AcessoAtual() acesso: AcessoResolvido,
     @Query('rubrica') rubrica?: string,
     @Query('ppgId') ppgId?: string,
     @Query('ano') ano?: string,
   ) {
-    const ciclo = await this.contexto.resolver(slug, nome);
-    const linhas = await this.plano.listar(ciclo.cicloId, {
-      rubrica: rubricaValida(rubrica),
-      ppgId,
-      ano: anoValido(ano, ciclo.anos),
-    });
+    const ciclo = await this.contexto.resolver(
+      slug,
+      nome,
+      acesso.alcance('plano:read'),
+    );
+    const [linhas, criacao, edicao, cancelamento] = await Promise.all([
+      this.plano.listar(
+        ciclo.cicloId,
+        {
+          rubrica: rubricaValida(rubrica),
+          ppgId,
+          ano: anoValido(ano, ciclo.anos),
+        },
+        acesso.alcance('plano:read'),
+      ),
+      this.plano.referencias(ciclo.cicloId, acesso.alcance('plano:create')),
+      this.plano.referencias(ciclo.cicloId, acesso.alcance('plano:edit')),
+      this.plano.referencias(ciclo.cicloId, acesso.alcance('plano:cancel')),
+    ]);
 
-    return { ciclo, linhas };
+    return { ciclo, linhas, referencias: { criacao, edicao, cancelamento } };
   }
 
   @Post(':programa/:ciclo/plano')
@@ -365,9 +534,11 @@ export class ProgramasController {
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
     @Body(new ZodValidationPipe(criarItemSchema)) dto: CriarItem,
+    @AcessoAtual() acesso: AcessoResolvido,
   ) {
-    const ciclo = await this.contexto.resolver(slug, nome);
-    return this.plano.criar(ciclo, dto);
+    const alcance = acesso.alcance('plano:create');
+    const ciclo = await this.contexto.resolver(slug, nome, alcance);
+    return this.plano.criar(ciclo, dto, alcance);
   }
 
   @Patch(':programa/:ciclo/plano/:id')
@@ -378,9 +549,11 @@ export class ProgramasController {
     @Param('id') id: string,
     @CurrentUser() usuario: AuthUser,
     @Body(new ZodValidationPipe(atualizarItemSchema)) dto: AtualizarItem,
+    @AcessoAtual() acesso: AcessoResolvido,
   ) {
-    const ciclo = await this.contexto.resolver(slug, nome);
-    return this.plano.atualizar(ciclo, id, dto, usuario);
+    const alcance = acesso.alcance('plano:edit');
+    const ciclo = await this.contexto.resolver(slug, nome, alcance);
+    return this.plano.atualizar(ciclo, id, dto, usuario, alcance);
   }
 
   @Get(':programa/:ciclo/plano/:id/historico')
@@ -389,9 +562,11 @@ export class ProgramasController {
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
     @Param('id') id: string,
+    @AcessoAtual() acesso: AcessoResolvido,
   ) {
-    const ciclo = await this.contexto.resolver(slug, nome);
-    return this.plano.historico(ciclo.cicloId, id);
+    const alcance = acesso.alcance('plano:read');
+    const ciclo = await this.contexto.resolver(slug, nome, alcance);
+    return this.plano.historico(ciclo.cicloId, id, alcance);
   }
 
   @Post(':programa/:ciclo/plano/:id/cancelar')
@@ -400,10 +575,12 @@ export class ProgramasController {
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
     @Param('id') id: string,
-    @Body() body: { justificativa?: string },
+    @Body(new ZodValidationPipe(cancelarItemSchema)) body: CancelarItem,
+    @AcessoAtual() acesso: AcessoResolvido,
   ) {
-    const ciclo = await this.contexto.resolver(slug, nome);
-    await this.plano.cancelar(ciclo.cicloId, id, body.justificativa ?? '');
+    const alcance = acesso.alcance('plano:cancel');
+    const ciclo = await this.contexto.resolver(slug, nome, alcance);
+    await this.plano.cancelar(ciclo.cicloId, id, body.justificativa, alcance);
     return { ok: true };
   }
 

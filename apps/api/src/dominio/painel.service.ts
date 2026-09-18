@@ -1,6 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { sql } from 'drizzle-orm';
 
+import {
+  ALCANCE_GLOBAL,
+  condicaoDoAlcance,
+  type Alcance,
+} from '../auth/autorizacao-v1/alcance';
+
 import { consultar, consultarUma } from '../comum/consultar';
 import { DRIZZLE, type Database } from '../database/database.module';
 import type { CicloResolvido } from './contexto.service';
@@ -8,6 +14,7 @@ import {
   OrcamentoService,
   paraCentavos,
   somarMoeda,
+  somarOuNulo,
   type LinhaRede,
   type LinhaTematica,
 } from './orcamento.service';
@@ -143,6 +150,7 @@ export class PainelService {
   async montar(
     ciclo: CicloResolvido,
     ano: number = ciclo.anoInicio,
+    alcance: Alcance = ALCANCE_GLOBAL,
   ): Promise<Painel> {
     const anoBase = ano;
 
@@ -154,18 +162,18 @@ export class PainelService {
       comiteGestor,
       coordenacao,
     ] = await Promise.all([
-      this.orcamento.porTematica(ciclo.cicloId),
-      this.orcamento.porRede(ciclo.cicloId, anoBase),
-      this.porModalidade(ciclo.cicloId, anoBase),
-      this.contagens(ciclo.cicloId, anoBase),
-      this.comiteGestorAnual(ciclo.cicloId),
-      this.coordenacao(ciclo.cicloId),
+      this.orcamento.porTematica(ciclo.cicloId, undefined, alcance),
+      this.orcamento.porRede(ciclo.cicloId, anoBase, alcance),
+      this.porModalidade(ciclo.cicloId, anoBase, alcance),
+      this.contagens(ciclo.cicloId, anoBase, alcance),
+      this.comiteGestorAnual(ciclo.cicloId, alcance),
+      this.coordenacao(ciclo.cicloId, alcance),
     ]);
 
     const doAnoBase = tematicasCiclo.filter((t) => t.ano === anoBase);
 
-    const aporteAnual = somarMoeda(doAnoBase.map((t) => t.totalPrevisto));
-    const aporteCiclo = somarMoeda(tematicasCiclo.map((t) => t.totalPrevisto));
+    const aporteAnual = somarOuNulo(doAnoBase.map((t) => t.totalPrevisto));
+    const aporteCiclo = somarOuNulo(tematicasCiclo.map((t) => t.totalPrevisto));
     const custoAnual = somarMoeda(doAnoBase.map((t) => t.custoBolsas));
     const saldoAnual = somarMoeda(doAnoBase.map((t) => t.saldoPotencial));
     const bolsasAno = doAnoBase.reduce((total, t) => total + t.bolsas, 0);
@@ -285,7 +293,17 @@ export class PainelService {
 
   // ------------------------------------------------------------------ //
 
-  private async coordenacao(cicloId: string): Promise<CoordenacaoRede[]> {
+  private async coordenacao(
+    cicloId: string,
+    alcance: Alcance,
+  ): Promise<CoordenacaoRede[]> {
+    const visivel = condicaoDoAlcance(alcance, {
+      ciclo: sql`rc.ciclo_id`,
+      ppg: sql`pp.ppg_id`,
+      rede: sql`rc.id`,
+      tematica: sql`at.id`,
+      participacao: sql`pp.id`,
+    });
     const linhas = await consultar<{
       redeId: string;
       rede: string;
@@ -309,6 +327,7 @@ export class PainelService {
         left join participacao_ppg pp on pp.area_tematica_id = at.id
         left join pessoa           pe on pe.id = pp.coordenador_tematica_id
        where rc.ciclo_id = ${cicloId}
+         and ${visivel}
        group by rc.id, rc.nome, at.codigo, at.nome
        order by rc.nome, at.codigo
     `,
@@ -373,7 +392,7 @@ export class PainelService {
       const doAno = linhas.filter((l) => l.ano === ano);
       return {
         ano,
-        aporte: somarMoeda(doAno.map((l) => l.totalPrevisto)),
+        aporte: somarOuNulo(doAno.map((l) => l.totalPrevisto)),
         custoBolsas: somarMoeda(doAno.map((l) => l.custoBolsas)),
         custoApoio: somarMoeda(doAno.map((l) => l.custoApoio)),
         saldoPotencial: doAno.some(
@@ -389,7 +408,15 @@ export class PainelService {
   private async porModalidade(
     cicloId: string,
     anoBase: number,
+    alcance: Alcance,
   ): Promise<LinhaModalidade[]> {
+    const visivel = condicaoDoAlcance(alcance, {
+      ciclo: sql`ip.ciclo_id`,
+      ppg: sql`ip.ppg_id`,
+      rede: sql`at.rede_id`,
+      tematica: sql`ip.area_tematica_id`,
+      participacao: sql`pp.id`,
+    });
     return consultar<LinhaModalidade>(
       this.db,
       sql`
@@ -400,8 +427,12 @@ export class PainelService {
           from planejamento_anual  pa
           join item_planejado      ip on ip.id = pa.item_planejado_id
           join item_catalogo_bolsa ic on ic.id = ip.item_catalogo_id
+          left join area_tematica at on at.id = ip.area_tematica_id
+          left join participacao_ppg pp on pp.area_tematica_id = ip.area_tematica_id
+            and pp.ppg_id = ip.ppg_id
          where ip.ciclo_id = ${cicloId}
            and ip.status   = 'PROGRAMADO'
+           and ${visivel}
          group by ip.id
       )
       select m.nome                                     as "modalidade",
@@ -417,15 +448,33 @@ export class PainelService {
         join planejamento_anual pa_ano
           on pa_ano.item_planejado_id = ip.id
          and pa_ano.ano = ${anoBase}
+        left join area_tematica at on at.id = ip.area_tematica_id
+        left join participacao_ppg pp on pp.area_tematica_id = ip.area_tematica_id
+          and pp.ppg_id = ip.ppg_id
        where ip.ciclo_id = ${cicloId}
          and ip.status   = 'PROGRAMADO'
+         and ${visivel}
        group by m.nome, ip.destino
        order by sum(pa_ano.quantidade * ic.valor_brl) desc
     `,
     );
   }
 
-  private async contagens(cicloId: string, anoBase: number) {
+  private async contagens(cicloId: string, anoBase: number, alcance: Alcance) {
+    const planoVisivel = condicaoDoAlcance(alcance, {
+      ciclo: sql`ip.ciclo_id`,
+      ppg: sql`ip.ppg_id`,
+      rede: sql`at.rede_id`,
+      tematica: sql`ip.area_tematica_id`,
+      participacao: sql`pp.id`,
+    });
+    const participacaoVisivel = condicaoDoAlcance(alcance, {
+      ciclo: sql`rc.ciclo_id`,
+      ppg: sql`pp.ppg_id`,
+      rede: sql`rc.id`,
+      tematica: sql`at.id`,
+      participacao: sql`pp.id`,
+    });
     const linha = await consultarUma<{
       ppgs: number;
       ppgsSemBolsa: number;
@@ -437,22 +486,37 @@ export class PainelService {
       this.db,
       sql`
       select
-        (select count(*)::int from ppg) as "ppgs",
+        (select count(distinct pp.ppg_id)::int
+           from participacao_ppg pp
+           join area_tematica at on at.id = pp.area_tematica_id
+           join rede_coordenadora rc on rc.id = at.rede_id
+          where rc.ciclo_id = ${cicloId} and ${participacaoVisivel}) as "ppgs",
 
         -- PPG que participa de tematica mas nao tem nenhuma linha programada.
         -- Sao os 10 da UNICAMP: existem no cadastro e nao existem no plano.
-        (select count(*)::int
+        (select count(distinct p.id)::int
            from ppg p
-          where not exists (
+          join participacao_ppg pp on pp.ppg_id = p.id
+          join area_tematica at on at.id = pp.area_tematica_id
+          join rede_coordenadora rc on rc.id = at.rede_id
+          where rc.ciclo_id = ${cicloId}
+            and ${participacaoVisivel}
+            and not exists (
             select 1 from item_planejado ip
+             left join area_tematica at on at.id = ip.area_tematica_id
+             left join participacao_ppg pp on pp.area_tematica_id = ip.area_tematica_id
+               and pp.ppg_id = ip.ppg_id
              where ip.ppg_id = p.id
                and ip.ciclo_id = ${cicloId}
-               and ip.status = 'PROGRAMADO')) as "ppgsSemBolsa",
+               and ip.status = 'PROGRAMADO'
+               and ${planoVisivel})) as "ppgsSemBolsa",
 
         (select count(*)::int
            from area_tematica at
            join rede_coordenadora rc on rc.id = at.rede_id
-          where rc.ciclo_id = ${cicloId}
+         where rc.ciclo_id = ${cicloId}
+            and exists (select 1 from participacao_ppg pp
+              where pp.area_tematica_id = at.id and ${participacaoVisivel})
             and at.status_orcamento = 'A_DEFINIR') as "tematicasSemOrcamento",
 
         (select count(*)::int
@@ -460,6 +524,8 @@ export class PainelService {
            join area_tematica at on at.id = o.area_tematica_id
            join rede_coordenadora rc on rc.id = at.rede_id
           where rc.ciclo_id = ${cicloId}
+            and exists (select 1 from participacao_ppg pp
+              where pp.area_tematica_id = at.id and ${participacaoVisivel})
             and o.ano = (select min(o2.ano) from orcamento_tematica o2
                           join area_tematica at2 on at2.id = o2.area_tematica_id
                           join rede_coordenadora rc2 on rc2.id = at2.rede_id
@@ -469,14 +535,22 @@ export class PainelService {
         (select coalesce(sum(pa.quantidade), 0)::int
            from planejamento_anual pa
            join item_planejado ip on ip.id = pa.item_planejado_id
+           left join area_tematica at on at.id = ip.area_tematica_id
+           left join participacao_ppg pp on pp.area_tematica_id = ip.area_tematica_id
+             and pp.ppg_id = ip.ppg_id
           where ip.ciclo_id = ${cicloId} and ip.status = 'PROGRAMADO'
-            and pa.ano = ${anoBase} and ip.fluxo = 'IN') as "bolsasIn",
+            and pa.ano = ${anoBase} and ip.fluxo = 'IN'
+            and ${planoVisivel}) as "bolsasIn",
 
         (select coalesce(sum(pa.quantidade), 0)::int
            from planejamento_anual pa
            join item_planejado ip on ip.id = pa.item_planejado_id
+           left join area_tematica at on at.id = ip.area_tematica_id
+           left join participacao_ppg pp on pp.area_tematica_id = ip.area_tematica_id
+             and pp.ppg_id = ip.ppg_id
           where ip.ciclo_id = ${cicloId} and ip.status = 'PROGRAMADO'
-            and pa.ano = ${anoBase} and ip.fluxo = 'OUT') as "bolsasOut"
+            and pa.ano = ${anoBase} and ip.fluxo = 'OUT'
+            and ${planoVisivel}) as "bolsasOut"
     `,
     );
 
@@ -486,7 +560,11 @@ export class PainelService {
     };
   }
 
-  private async comiteGestorAnual(cicloId: string): Promise<string | null> {
+  private async comiteGestorAnual(
+    cicloId: string,
+    alcance: Alcance,
+  ): Promise<string | null> {
+    if (!alcance.global && !alcance.ciclos.includes(cicloId)) return null;
     const [linha] = await consultar<{ total: string | null }>(
       this.db,
       sql`

@@ -288,6 +288,13 @@
       "when": 1789528537475,
       "tag": "0040_concessoes_acesso_v1011",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1789700936746,
+      "tag": "0041_remove_escopo_acesso_legado",
+      "breakpoints": true
     }
   ]
 }

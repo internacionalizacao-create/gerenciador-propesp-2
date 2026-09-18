@@ -18,8 +18,10 @@ antes de persistir concessões. **V1-011 persistiu as concessões** em
 **Não há conversão de acesso legado** (decisão de 2026-09-16): em produção o
 Keycloak só autentica, a base sobe sem conta alguma e as contas nascem do
 bootstrap mais a tela de administração.
-V1-012 integra guards e `/me`; V1-013–016 integram
-os domínios; V1-017 integra a política administrativa; V1-019 integra a navegação.
+V1-012 integrou guards e `/me`; V1-013 integrou planejamento e orçamento;
+V1-014 integrou escrita e referências do planejamento; V1-015–016 integram os
+domínios restantes; V1-017 integrou a política
+administrativa; V1-019 integrou a navegação.
 Após a transição, retirar o mapa legado como fonte de acesso. Não manter dois
 mecanismos permissivos concorrentes.
 
@@ -124,8 +126,6 @@ herdam o catálogo e precisam de entrada explícita neste inventário.
 | Método e rota | Permissão atual / fronteira | Contrato V1 |
 |---|---|---|
 | `GET /acesso/usuarios` | acesso:read | acesso:read |
-| `POST /acesso/usuarios/:id/escopos` | acesso:write | acesso:write; acesso:delegate adicional para permissões acesso:* |
-| `DELETE /acesso/escopos/:id` | acesso:write | acesso:write; acesso:delegate adicional para permissões acesso:* |
 | `POST /acesso/usuarios/:id/pessoa` | acesso:write | acesso:manage-identidade; sem autoalteração e sem contornar delegação |
 
 ### me.controller.ts
@@ -152,7 +152,7 @@ herdam o catálogo e precisam de entrada explícita neste inventário.
 | Método e rota | Permissão atual / fronteira | Contrato V1 |
 |---|---|---|
 | `GET /bolsistas` | bolsa:read + produto:read | bolsa:read; produtos somente com produto:read |
-| `GET /bolsistas/opcoes-planejamento` | bolsa:read | Referências de bolsa:create ou bolsa:edit, alcance da ação |
+| `GET /bolsistas/opcoes-planejamento` | bolsa:create + alcance da ação | bolsa:create |
 | `GET /bolsistas/referencias` | bolsa:read | Referências de bolsa:create ou bolsa:edit, alcance da ação |
 | `GET /bolsistas/instituicoes` | bolsa:read | bolsa:read; somente identificação institucional |
 | `GET /bolsistas/:id` | bolsa:read + produto:read | bolsa:read; produtos somente com produto:read |
@@ -248,12 +248,12 @@ herdam o catálogo e precisam de entrada explícita neste inventário.
 | `GET /programas/:programa/:ciclo/redes` | orcamento:read | orcamento:read |
 | `GET /programas/:programa/:ciclo/tematicas/:codigo` | orcamento:read | orcamento:read |
 | `GET /programas/:programa/:ciclo/orcamento` | orcamento:read | orcamento:read |
-| `PATCH /programas/:programa/:ciclo/orcamento/:id` | orcamento:write | orcamento:edit |
-| `GET /programas/:programa/:ciclo/plano` | plano:read | plano:read |
-| `POST /programas/:programa/:ciclo/plano` | plano:write | plano:create |
-| `PATCH /programas/:programa/:ciclo/plano/:id` | plano:edit | plano:edit |
+| `PATCH /programas/:programa/:ciclo/orcamento/:id` | orcamento:edit + alcance da ação | orcamento:edit |
+| `GET /programas/:programa/:ciclo/plano` | plano:read; referências separadas por plano:create/edit/cancel | plano:read |
+| `POST /programas/:programa/:ciclo/plano` | plano:create + alcance da ação | plano:create |
+| `PATCH /programas/:programa/:ciclo/plano/:id` | plano:edit + alcance antigo e novo | plano:edit |
 | `GET /programas/:programa/:ciclo/plano/:id/historico` | plano:read | plano:read |
-| `POST /programas/:programa/:ciclo/plano/:id/cancelar` | plano:write | plano:cancel |
+| `POST /programas/:programa/:ciclo/plano/:id/cancelar` | plano:cancel + alcance da ação | plano:cancel |
 | `GET /programas/:programa/:ciclo/comite-gestor` | equipe-gestao:read | equipe-gestao:read |
 | `GET /programas/:programa/:ciclo/comite-gestor/execucao` | equipe-gestao:read | missao:read + prestacao:read |
 | `GET /programas/:programa/:ciclo/comite-gestor/painel` | equipe-gestao:read | missao:read + prestacao:read |

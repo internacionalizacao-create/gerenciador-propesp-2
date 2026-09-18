@@ -46,6 +46,12 @@ export const SEM_ALCANCE: Alcance = {
   participacoes: [],
 };
 
+/** Alcance explicito para rotinas internas que operam sobre o dominio inteiro. */
+export const ALCANCE_GLOBAL: Alcance = {
+  ...SEM_ALCANCE,
+  global: true,
+};
+
 export interface LinhaDeConcessao extends LinhaDeAlvo {
   readonly permissao: string;
 }

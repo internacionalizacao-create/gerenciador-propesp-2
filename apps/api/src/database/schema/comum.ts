@@ -250,23 +250,10 @@ export const statusExecucaoEnum = pgEnum('status_execucao', [
  * `GLOBAL` e o administrador: enxerga tudo. `PPG` e `REDE` recortam. Um mesmo
  * usuario pode acumular varios escopos — coordenar dois PPGs, por exemplo.
  */
-export const tipoEscopoAcessoEnum = pgEnum('tipo_escopo_acesso', [
-  'GLOBAL',
-  'PPG',
-  'REDE',
-]);
-
 /**
  * Alvo de uma **concessao individual** de permissao (V1-011).
  *
- * Enum novo, e nao valores acrescentados a `tipo_escopo_acesso`: aquele tipo e
- * usado pelo `check` de `escopo_acesso`, que so sabe amarrar PPG e rede. Somar
- * CICLO, TEMATICA e PARTICIPACAO ali criaria tres valores que a tabela antiga
- * aceita no enum e recusa no `check` — um vocabulario que mente sobre o que
- * pode ser gravado. Enquanto as duas tabelas coexistirem (a legada some com a
- * conversao nominal de V1-021), cada uma responde pelo seu vocabulario.
- *
- * `PPG` aqui nao e o mesmo `PPG` de la: a concessao de planejamento exige
+ * A concessao de planejamento em `PPG` exige
  * **PPG + ciclo**, porque um PPG existe em varios ciclos e conceder "o PPG"
  * sem dizer qual ciclo entregaria os proximos anos junto.
  */

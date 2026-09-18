@@ -107,6 +107,7 @@ export interface LinhaTematica {
   divergencia: string | null;
   utilizacao: number | null;
   ppgs: number;
+  podeEditar?: boolean;
 }
 
 export interface LinhaRede {
@@ -521,6 +522,18 @@ export interface LinhaPpg {
   redes: string[];
 }
 
+export interface ReferenciasPlano {
+  ppgs: { id: string; nome: string; sigla: string }[];
+  areas: {
+    id: string;
+    codigo: string;
+    nome: string;
+    rede: string;
+    ppgIds: string[];
+  }[];
+  itens: string[];
+}
+
 export interface PpgDetalhe {
   id: string;
   nome: string;
@@ -667,7 +680,11 @@ export interface ExecucaoComite {
  * a lista por trás de cada número.
  */
 export interface PainelComite {
-  recorte: { ano: number | null; redeId: string | null; redeNome: string | null };
+  recorte: {
+    ano: number | null;
+    redeId: string | null;
+    redeNome: string | null;
+  };
   /** Missões distintas no recorte; a multirrede conta uma vez (CG-016). */
   missoes: number;
   analise: {
@@ -918,11 +935,7 @@ export interface MembroEquipeGestao {
 }
 
 export type StatusMissao =
-  | "RASCUNHO"
-  | "PLANEJADA"
-  | "CONFIRMADA"
-  | "CONCLUIDA"
-  | "CANCELADA";
+  "RASCUNHO" | "PLANEJADA" | "CONFIRMADA" | "CONCLUIDA" | "CANCELADA";
 
 export type SituacaoTemporalMissao = "FUTURA" | "EM_ANDAMENTO" | "ENCERRADA";
 
@@ -971,11 +984,7 @@ export interface MissaoResumo {
  * confirmada ou concluída. A tela mostra os dois, nunca um só.
  */
 export type StatusAprovacaoMissao =
-  | "RASCUNHO"
-  | "EM_ANALISE"
-  | "AJUSTES_SOLICITADOS"
-  | "APROVADA"
-  | "REPROVADA";
+  "RASCUNHO" | "EM_ANALISE" | "AJUSTES_SOLICITADOS" | "APROVADA" | "REPROVADA";
 
 export interface ParticipanteMissao {
   id: string;
@@ -997,10 +1006,7 @@ export interface ParticipanteMissao {
   observacoes: string | null;
 }
 
-export type StatusAtividadeMissao =
-  | "PLANEJADA"
-  | "REALIZADA"
-  | "NAO_REALIZADA";
+export type StatusAtividadeMissao = "PLANEJADA" | "REALIZADA" | "NAO_REALIZADA";
 
 export interface AtividadeMissao {
   id: string;
@@ -1338,9 +1344,7 @@ export interface Parceiro {
   origemObservacao: string | null;
   /** Estágio declarado — julgamento humano, gravado. */
   estagioRelacionamento:
-    | "IDENTIFICADA"
-    | "CONTATO_INICIADO"
-    | "COOPERACAO_EM_AVALIACAO";
+    "IDENTIFICADA" | "CONTATO_INICIADO" | "COOPERACAO_EM_AVALIACAO";
   /** Derivados na leitura, nunca gravados: são fatos verificáveis no banco. */
   mobilidadeRealizada: boolean;
   parceriaFormalizada: boolean;
@@ -1572,12 +1576,7 @@ export interface ResultadosDaMissao {
 // Administração de acessos (V1-017/018)
 
 export type TipoAlvoAcesso =
-  | "GLOBAL"
-  | "CICLO"
-  | "PPG"
-  | "REDE"
-  | "TEMATICA"
-  | "PARTICIPACAO";
+  "GLOBAL" | "CICLO" | "PPG" | "REDE" | "TEMATICA" | "PARTICIPACAO";
 
 /**
  * Alcance de uma concessão, na forma em que a API o grava e devolve.
@@ -1644,7 +1643,6 @@ export interface ContaDeAcesso {
   ativo: boolean;
   pessoaId: string;
   pessoaNome: string;
-  escopos: { id: string; tipo: string }[];
 }
 
 export interface ConcessaoListada {

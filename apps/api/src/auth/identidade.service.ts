@@ -109,7 +109,7 @@ export class IdentidadeService {
    *
    * **E uma ponte, e uma ponte grossa**: uniao dos alvos de *todas* as acoes
    * concedidas, sem dizer de qual acao veio cada PPG. Serve as consultas que
-   * ainda nao receberam o recorte por acao (V1-013 a V1-016); quem ja o tiver
+   * ainda nao receberam o recorte por acao (V1-015 e V1-016); quem ja o tiver
    * deve usar `AcessoResolvido.alcance(permissao)`, que distingue ler de
    * escrever. O ciclo da concessao de PPG se perde aqui, pelo mesmo motivo.
    */
@@ -254,7 +254,7 @@ export class IdentidadeService {
    * nao consegue entrar.
    *
    * A pessoa criada nasce com `tipo = 'SERVIDOR'` e sem PPG. **Isso nao
-   * concede acesso a nada:** escopo mora em `escopo_acesso`, e nasce vazio.
+   * concede acesso a nada:** alcance mora em `concessao_acesso`, e nasce vazio.
    */
   private async acharOuCriarPessoa(usuario: AuthUser): Promise<string | null> {
     if (usuario.email) {

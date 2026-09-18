@@ -1,4 +1,8 @@
 import type { AuthUser } from '../src/auth/auth-user';
+import {
+  ALCANCE_GLOBAL,
+  type Alcance,
+} from '../src/auth/autorizacao-v1/alcance';
 import { colunasDoAlvo } from '../src/auth/autorizacao-v1/persistencia';
 import { IdentidadeService } from '../src/auth/identidade.service';
 import * as s from '../src/database/schema';
@@ -184,11 +188,19 @@ describe('Recorte por PPG das bolsas concedidas', () => {
   });
 
   it('o formulario so oferece as linhas planejadas do escopo', async () => {
-    const usuario = await comEscopoNo(base.ppgId);
+    await comEscopoNo(base.ppgId);
+    const alcance: Alcance = {
+      global: false,
+      ciclos: [],
+      ppgs: [{ ppgId: base.ppgId, cicloId: base.cicloId }],
+      redes: [],
+      tematicas: [],
+      participacoes: [],
+    };
 
-    const opcoes = await bolsistas.opcoesPlanejamento(usuario);
+    const opcoes = await bolsistas.opcoesPlanejamento(alcance);
     expect(opcoes.map((opcao) => opcao.id)).toEqual([itemDoEscopoId]);
-    expect(await bolsistas.opcoesPlanejamento(ADMIN)).toHaveLength(2);
+    expect(await bolsistas.opcoesPlanejamento(ALCANCE_GLOBAL)).toHaveLength(2);
   });
 
   // -------------------------------------------------------------------------

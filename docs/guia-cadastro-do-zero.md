@@ -262,7 +262,8 @@ não pendência:
 - **Remanejamentos (P12)** — o sistema vai apenas *registrar* movimentação já feita na CAPES, sempre dentro da mesma temática.
 - **Home por perfil** — a P01 é a mesma para todos até o recorte de plano e orçamento existir.
 - **Recorte por PPG em plano, orçamento e parceiros** — hoje só PPGs e bolsas são recortados. `RECORTE_OBRIGATORIO` segue `false`: conta sem escopo nenhum ainda vê tudo.
-- **Escopos de acesso** — concedidos por `POST /acesso/usuarios/:id/escopos` (`admin`); não há tela.
+- **Acessos** — concedidos ação por ação, com alcance, na tela **Acessos** ou
+  pelas rotas de `/acesso/usuarios/:id/concessoes`.
 
 ---
 

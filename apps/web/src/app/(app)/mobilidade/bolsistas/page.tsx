@@ -15,7 +15,7 @@ import {
 import { ProvedorDeConsultas } from "@/componentes/consultas/provedor";
 import { SemAcesso } from "@/componentes/ui/sem-acesso";
 import { faltando } from "@/lib/acesso";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, apiFetchOuNada } from "@/lib/api";
 import type {
   BolsaConcedidaResumo,
   OpcaoBolsaPlanejada,
@@ -41,7 +41,7 @@ export default async function Bolsistas() {
 
   const [bolsas, opcoes, referencias] = await Promise.all([
     apiFetch<BolsaConcedidaResumo[]>("/bolsistas"),
-    apiFetch<OpcaoBolsaPlanejada[]>("/bolsistas/opcoes-planejamento"),
+    apiFetchOuNada<OpcaoBolsaPlanejada[]>("/bolsistas/opcoes-planejamento"),
     // Primeira pagina do seletor: o Server Component busca, e o TanStack Query
     // so entra depois da pintura, quando a pessoa digita (AGENTS.md secao 8).
     apiFetch<ReferenciasBolsa>("/bolsistas/referencias"),
@@ -49,7 +49,7 @@ export default async function Bolsistas() {
 
   const podeCadastrar =
     me.permissions.includes("bolsa:create") &&
-    opcoes.some((opcao) =>
+    (opcoes ?? []).some((opcao) =>
       opcao.porAno.some((ano) => ano.vagasDisponiveis > 0),
     );
   const emCurso = bolsas.filter((bolsa) =>
@@ -66,7 +66,10 @@ export default async function Bolsistas() {
       acoes={
         podeCadastrar ? (
           <ProvedorDeConsultas>
-            <NovaBolsaConcedida opcoes={opcoes} referencias={referencias} />
+            <NovaBolsaConcedida
+              opcoes={opcoes ?? []}
+              referencias={referencias}
+            />
           </ProvedorDeConsultas>
         ) : undefined
       }
@@ -193,7 +196,10 @@ export default async function Bolsistas() {
           acao={
             podeCadastrar ? (
               <ProvedorDeConsultas>
-                <NovaBolsaConcedida opcoes={opcoes} referencias={referencias} />
+                <NovaBolsaConcedida
+                  opcoes={opcoes ?? []}
+                  referencias={referencias}
+                />
               </ProvedorDeConsultas>
             ) : undefined
           }

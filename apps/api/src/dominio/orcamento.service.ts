@@ -7,6 +7,13 @@ import {
 import { and, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
+import {
+  ALCANCE_GLOBAL,
+  alcancaAlvo,
+  condicaoDoAlcance,
+  type Alcance,
+} from '../auth/autorizacao-v1/alcance';
+
 import type { AuthUser } from '../auth/auth-user';
 import { consultar } from '../comum/consultar';
 import { DRIZZLE, type Database } from '../database/database.module';
@@ -135,7 +142,31 @@ export class OrcamentoService {
    * consulta sempre usa o ano explicito para que 2028-2030 permanecam vazios ate
    * uma aprovacao propria (RN-09).
    */
-  async porTematica(cicloId: string, ano?: number): Promise<LinhaTematica[]> {
+  async porTematica(
+    cicloId: string,
+    ano?: number,
+    alcance: Alcance = ALCANCE_GLOBAL,
+  ): Promise<LinhaTematica[]> {
+    const linhaVisivel = condicaoDoAlcance(alcance, {
+      ciclo: sql`ip.ciclo_id`,
+      ppg: sql`ip.ppg_id`,
+      rede: sql`at_custo.rede_id`,
+      tematica: sql`ip.area_tematica_id`,
+      participacao: sql`pp_custo.id`,
+    });
+    const tematicaVisivel = condicaoDoAlcance(alcance, {
+      ciclo: sql`rc.ciclo_id`,
+      rede: sql`rc.id`,
+      tematica: sql`at.id`,
+    });
+    const participacaoVisivel = condicaoDoAlcance(alcance, {
+      ciclo: sql`rc.ciclo_id`,
+      ppg: sql`pp_visivel.ppg_id`,
+      rede: sql`rc.id`,
+      tematica: sql`at.id`,
+      participacao: sql`pp_visivel.id`,
+    });
+    const coberturaIntegral = tematicaVisivel;
     return consultar<LinhaTematica>(
       this.db,
       sql`
@@ -147,9 +178,14 @@ export class OrcamentoService {
           from planejamento_anual pa
           join item_planejado     ip on ip.id = pa.item_planejado_id
           join item_catalogo_bolsa ic on ic.id = ip.item_catalogo_id
+          left join area_tematica at_custo on at_custo.id = ip.area_tematica_id
+          left join participacao_ppg pp_custo
+            on pp_custo.area_tematica_id = ip.area_tematica_id
+           and pp_custo.ppg_id = ip.ppg_id
          where ip.ciclo_id = ${cicloId}
            and ip.rubrica  = 'BOLSAS'
            and ip.status   = 'PROGRAMADO'
+           and ${linhaVisivel}
          group by ip.area_tematica_id, pa.ano
       ),
       custo_apoio as (
@@ -160,9 +196,14 @@ export class OrcamentoService {
                sum(pa.quantidade * coalesce(ip.valor_unitario_informado, 0)) as custo
           from planejamento_anual pa
           join item_planejado     ip on ip.id = pa.item_planejado_id
+          left join area_tematica at_custo on at_custo.id = ip.area_tematica_id
+          left join participacao_ppg pp_custo
+            on pp_custo.area_tematica_id = ip.area_tematica_id
+           and pp_custo.ppg_id = ip.ppg_id
          where ip.ciclo_id = ${cicloId}
            and ip.rubrica <> 'BOLSAS'
            and ip.status  <> 'CANCELADO'
+           and ${linhaVisivel}
          group by ip.area_tematica_id, pa.ano
       ),
       ppgs as (
@@ -179,17 +220,22 @@ export class OrcamentoService {
              o.ano                          as "ano",
              o.status                       as "statusOrcamento",
              o.status_composicao            as "statusComposicao",
-             o.valor_bolsas                 as "valorBolsas",
-             o.valor_manutencao             as "valorManutencao",
-             o.valor_missoes                as "valorMissoes",
-             o.fonte                         as "fonte",
-             o.observacoes                   as "observacoes",
-             case when o.valor_manutencao is null and o.valor_missoes is null
+             case when ${coberturaIntegral} then o.valor_bolsas else null end
+                                                as "valorBolsas",
+             case when ${coberturaIntegral} then o.valor_manutencao else null end
+                                                as "valorManutencao",
+             case when ${coberturaIntegral} then o.valor_missoes else null end
+                                                as "valorMissoes",
+             case when ${coberturaIntegral} then o.fonte else null end as "fonte",
+             case when ${coberturaIntegral} then o.observacoes else null end
+                                                as "observacoes",
+             case when not (${coberturaIntegral}) then null
+                  when o.valor_manutencao is null and o.valor_missoes is null
                   then null
                   else coalesce(o.valor_manutencao, 0)
                      + coalesce(o.valor_missoes, 0)
              end                            as "apoio",
-             case when o.valor_bolsas is null then null
+             case when not (${coberturaIntegral}) or o.valor_bolsas is null then null
                   else coalesce(o.valor_bolsas, 0)
                      + coalesce(o.valor_manutencao, 0)
                      + coalesce(o.valor_missoes, 0)
@@ -198,15 +244,16 @@ export class OrcamentoService {
              coalesce(ca.custo, 0)          as "custoApoio",
              coalesce(cb.custo, 0) + coalesce(ca.custo, 0) as "totalProgramado",
              coalesce(cb.bolsas, 0)         as "bolsas",
-             case when o.valor_bolsas is null
+             case when not (${coberturaIntegral}) or o.valor_bolsas is null
                          or o.status_composicao <> 'APROVADA' then null
                   else o.valor_bolsas - coalesce(cb.custo, 0)
              end                            as "saldoPotencial",
-             o.saldo_informado              as "saldoInformado",
-             case when o.valor_bolsas is null or o.saldo_informado is null then null
+             case when ${coberturaIntegral} then o.saldo_informado else null end
+                                                as "saldoInformado",
+             case when not (${coberturaIntegral}) or o.valor_bolsas is null or o.saldo_informado is null then null
                   else (o.valor_bolsas - coalesce(cb.custo, 0)) - o.saldo_informado
              end                            as "divergencia",
-             case when o.valor_bolsas is null or o.valor_bolsas = 0
+             case when not (${coberturaIntegral}) or o.valor_bolsas is null or o.valor_bolsas = 0
                          or o.status_composicao <> 'APROVADA' then null
                   else (coalesce(cb.custo, 0) / o.valor_bolsas)::float8
              end                            as "utilizacao",
@@ -218,6 +265,11 @@ export class OrcamentoService {
         left join custo_apoio   ca on ca.area_id = o.area_tematica_id and ca.ano = o.ano
         left join ppgs          p  on p.area_id  = o.area_tematica_id
        where rc.ciclo_id = ${cicloId}
+         and ((${tematicaVisivel}) or exists (
+           select 1 from participacao_ppg pp_visivel
+            where pp_visivel.area_tematica_id = at.id
+              and ${participacaoVisivel}
+         ))
          ${ano === undefined ? sql`` : sql`and o.ano = ${ano}`}
        order by rc.nome, at.codigo, o.ano
     `,
@@ -225,71 +277,97 @@ export class OrcamentoService {
   }
 
   /** Consolidado por rede coordenadora, para os cartoes de P01 e P07. */
-  async porRede(cicloId: string, ano?: number): Promise<LinhaRede[]> {
-    return consultar<LinhaRede>(
+  async porRede(
+    cicloId: string,
+    ano?: number,
+    alcance: Alcance = ALCANCE_GLOBAL,
+  ): Promise<LinhaRede[]> {
+    const [tematicas, ppgsPorRede] = await Promise.all([
+      this.porTematica(cicloId, ano, alcance),
+      this.contarPpgsPorRede(cicloId, alcance),
+    ]);
+    const porChave = new Map<
+      string,
+      LinhaRede & { _linhas: LinhaTematica[] }
+    >();
+    for (const linha of tematicas) {
+      const chave = `${linha.redeId}:${linha.ano}`;
+      const atual = porChave.get(chave);
+      const valores = atual ? [...atual._linhas, linha] : [linha];
+      const visiveis = valores;
+      porChave.set(chave, {
+        redeId: linha.redeId,
+        rede: linha.rede,
+        statusOrcamento: visiveis.every((t) => t.statusOrcamento === 'DEFINIDO')
+          ? 'DEFINIDO'
+          : 'A_DEFINIR',
+        statusComposicao: visiveis.every(
+          (t) => t.statusComposicao === 'APROVADA',
+        )
+          ? 'APROVADA'
+          : visiveis.every((t) => t.statusComposicao === 'A_DEFINIR')
+            ? 'A_DEFINIR'
+            : 'EM_ELABORACAO',
+        ano: linha.ano,
+        valorBolsas: somarOuNulo(visiveis.map((t) => t.valorBolsas)),
+        apoio: somarOuNulo(visiveis.map((t) => t.apoio)),
+        totalPrevisto: somarOuNulo(visiveis.map((t) => t.totalPrevisto)),
+        custoBolsas: somarMoeda(visiveis.map((t) => t.custoBolsas)),
+        bolsas: visiveis.reduce((total, t) => total + t.bolsas, 0),
+        saldoPotencial: somarOuNulo(visiveis.map((t) => t.saldoPotencial)),
+        utilizacao: (() => {
+          const tetoVisivel = somarOuNulo(visiveis.map((t) => t.valorBolsas));
+          const teto = tetoVisivel === null ? 0n : paraCentavos(tetoVisivel);
+          return teto > 0n
+            ? Number(
+                paraCentavos(somarMoeda(visiveis.map((t) => t.custoBolsas))),
+              ) / Number(teto)
+            : null;
+        })(),
+        tematicas: new Set(visiveis.map((t) => t.areaTematicaId)).size,
+        ppgs: ppgsPorRede.get(linha.redeId) ?? 0,
+        _linhas: visiveis,
+      });
+    }
+    return [...porChave.values()].map((linha) => ({
+      redeId: linha.redeId,
+      rede: linha.rede,
+      statusOrcamento: linha.statusOrcamento,
+      statusComposicao: linha.statusComposicao,
+      ano: linha.ano,
+      valorBolsas: linha.valorBolsas,
+      apoio: linha.apoio,
+      totalPrevisto: linha.totalPrevisto,
+      custoBolsas: linha.custoBolsas,
+      bolsas: linha.bolsas,
+      saldoPotencial: linha.saldoPotencial,
+      utilizacao: linha.utilizacao,
+      tematicas: linha.tematicas,
+      ppgs: linha.ppgs,
+    }));
+  }
+
+  private async contarPpgsPorRede(cicloId: string, alcance: Alcance) {
+    const visivel = condicaoDoAlcance(alcance, {
+      ciclo: sql`rc.ciclo_id`,
+      ppg: sql`pp.ppg_id`,
+      rede: sql`rc.id`,
+      tematica: sql`at.id`,
+      participacao: sql`pp.id`,
+    });
+    const linhas = await consultar<{ redeId: string; total: number }>(
       this.db,
       sql`
-      with custo_bolsas as (
-        select at.rede_id, pa.ano,
-               sum(pa.quantidade * ic.valor_brl) as custo,
-               sum(pa.quantidade)::int           as bolsas
-          from planejamento_anual pa
-          join item_planejado      ip on ip.id = pa.item_planejado_id
-          join item_catalogo_bolsa ic on ic.id = ip.item_catalogo_id
-          join area_tematica       at on at.id = ip.area_tematica_id
-         where ip.ciclo_id = ${cicloId}
-           and ip.status   = 'PROGRAMADO'
-         group by at.rede_id, pa.ano
-      ),
-      ppgs as (
-        select at.rede_id, count(distinct pp.ppg_id)::int as total
+        select rc.id as "redeId", count(distinct pp.ppg_id)::int as total
           from participacao_ppg pp
-          join area_tematica    at on at.id = pp.area_tematica_id
-         group by at.rede_id
-      )
-      select rc.id                       as "redeId",
-             rc.nome                     as "rede",
-             case when bool_and(o.status = 'DEFINIDO')
-                  then 'DEFINIDO' else 'A_DEFINIR'
-             end                          as "statusOrcamento",
-             case
-               when bool_and(o.status_composicao = 'APROVADA') then 'APROVADA'
-               when bool_and(o.status_composicao = 'A_DEFINIR') then 'A_DEFINIR'
-               else 'EM_ELABORACAO'
-             end                          as "statusComposicao",
-             o.ano                       as "ano",
-             sum(o.valor_bolsas)         as "valorBolsas",
-             case when count(o.valor_manutencao) = 0
-                         and count(o.valor_missoes) = 0 then null
-                  else sum(coalesce(o.valor_manutencao, 0)
-                         + coalesce(o.valor_missoes, 0))
-             end                                            as "apoio",
-             sum(o.valor_bolsas
-               + coalesce(o.valor_manutencao, 0)
-               + coalesce(o.valor_missoes, 0))                as "totalPrevisto",
-             coalesce(cb.custo, 0)       as "custoBolsas",
-             coalesce(cb.bolsas, 0)      as "bolsas",
-             case when sum(o.valor_bolsas) is null
-                         or not bool_and(o.status_composicao = 'APROVADA') then null
-                  else sum(o.valor_bolsas) - coalesce(cb.custo, 0)
-             end                         as "saldoPotencial",
-             case when sum(o.valor_bolsas) is null or sum(o.valor_bolsas) = 0
-                         or not bool_and(o.status_composicao = 'APROVADA') then null
-                  else (coalesce(cb.custo, 0) / sum(o.valor_bolsas))::float8
-             end                         as "utilizacao",
-             count(distinct at.id)::int  as "tematicas",
-             coalesce(p.total, 0)        as "ppgs"
-        from orcamento_tematica o
-        join area_tematica      at on at.id = o.area_tematica_id
-        join rede_coordenadora  rc on rc.id = at.rede_id
-        left join custo_bolsas  cb on cb.rede_id = rc.id and cb.ano = o.ano
-        left join ppgs          p  on p.rede_id  = rc.id
-       where rc.ciclo_id = ${cicloId}
-         ${ano === undefined ? sql`` : sql`and o.ano = ${ano}`}
-       group by rc.id, rc.nome, o.ano, cb.custo, cb.bolsas, p.total
-       order by rc.nome, o.ano
-    `,
+          join area_tematica at on at.id = pp.area_tematica_id
+          join rede_coordenadora rc on rc.id = at.rede_id
+         where rc.ciclo_id = ${cicloId}
+           and ${visivel}
+         group by rc.id
+      `,
     );
+    return new Map(linhas.map((linha) => [linha.redeId, linha.total]));
   }
 
   /** Registra o ato orçamentário anual e preserva cada campo alterado. */
@@ -298,11 +376,13 @@ export class OrcamentoService {
     id: string,
     dto: AtualizarOrcamento,
     usuario: AuthUser,
+    alcance: Alcance = ALCANCE_GLOBAL,
   ): Promise<LinhaTematica> {
     const [anterior] = await this.db
       .select({
         id: s.orcamentoTematica.id,
         areaTematicaId: s.orcamentoTematica.areaTematicaId,
+        redeId: s.areaTematica.redeId,
         ano: s.orcamentoTematica.ano,
         valorBolsas: s.orcamentoTematica.valorBolsas,
         valorManutencao: s.orcamentoTematica.valorManutencao,
@@ -330,6 +410,15 @@ export class OrcamentoService {
       .limit(1);
 
     if (!anterior) {
+      throw new NotFoundException('Orçamento da área temática não encontrado.');
+    }
+    if (
+      !alcancaAlvo(alcance, {
+        cicloId: ciclo.cicloId,
+        redeIds: [anterior.redeId],
+        tematicaId: anterior.areaTematicaId,
+      })
+    ) {
       throw new NotFoundException('Orçamento da área temática não encontrado.');
     }
     if (!ciclo.anos.includes(anterior.ano)) {
@@ -384,7 +473,7 @@ export class OrcamentoService {
     });
 
     const atualizada = (
-      await this.porTematica(ciclo.cicloId, anterior.ano)
+      await this.porTematica(ciclo.cicloId, anterior.ano, alcance)
     ).find((linha) => linha.orcamentoId === anterior.id);
     if (!atualizada) {
       throw new NotFoundException('Orçamento atualizado não encontrado.');

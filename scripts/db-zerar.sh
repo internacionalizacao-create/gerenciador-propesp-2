@@ -16,7 +16,7 @@
 # despesas, parceiros e contatos, convenios, anexos, avisos, pendencias e a
 # trilha de auditoria.
 #
-# Os vinculos de login (`usuario_sistema`, `escopo_acesso`) e as pessoas por tras
+# Os vinculos de login (`usuario_sistema`) e as pessoas por tras
 # deles ficam — inclusive o admin. Zerar o vinculo nao impediria o login, porque
 # `/me` recria a pessoa no primeiro acesso, mas recriaria com identidade nova e
 # escopo vazio.
@@ -64,8 +64,8 @@ PRESERVAR=(
   modalidade item_catalogo_bolsa      # --com-catalogo move estas duas para ZERAR
   requisito_submissao       # politica documental: dado, nao codigo (CG-019/CG-058)
   premissa fonte_documental linha_pesquisa
-  usuario_sistema escopo_acesso                   # os acessos, incluindo o admin
-  # Concessoes individuais (V1-011): mesmo motivo dos dois acima. Zera-las
+  usuario_sistema                                 # vinculo das contas
+  # Concessoes individuais (V1-011): zera-las
   # tiraria o acesso de quem ja foi configurado, e o cadastro do zero seria
   # feito por uma conta sem alcance nenhum.
   concessao_acesso

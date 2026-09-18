@@ -15,7 +15,6 @@ import {
   id,
   origemVinculoUsuarioEnum,
   tipoAlvoConcessaoEnum,
-  tipoEscopoAcessoEnum,
   timestamps,
 } from './comum';
 import { pessoa, ppg } from './institucional';
@@ -27,7 +26,7 @@ import {
 } from './programa';
 
 /**
- * Identidade e escopo de acesso.
+ * Identidade local e concessoes de acesso.
  *
  * Ate aqui a identidade vivia so no token: o `sub` do Keycloak entrava, virava
  * papeis e permissoes, e nada ligava aquilo a uma pessoa do cadastro. Isso
@@ -35,14 +34,9 @@ import {
  * regra que diz "**o seu** PPG", "**a sua** rede", "somente o responsavel pela
  * missao".
  *
- * A separacao entre as duas tabelas e proposital:
- *
- * - `usuario_sistema` responde **quem e** — liga `sub` a `pessoa`.
- * - `escopo_acesso` responde **sobre o que** — recorta PPG e rede.
- *
- * Papel continua respondendo **o que pode fazer**, e continua vindo do
- * Keycloak. Sao tres perguntas independentes, e misturar duas delas e o que
- * costuma produzir a matriz de acesso que ninguem consegue mais ler.
+ * `usuario_sistema` responde **quem e**. `concessao_acesso` guarda **o que a
+ * conta pode fazer e onde**, na mesma linha. O Keycloak autentica e nao concede
+ * acesso de negocio.
  */
 
 /**
@@ -98,67 +92,17 @@ export const usuarioSistema = pgTable(
  * Acumular escopos e o caso normal: quem coordena dois PPGs tem duas linhas.
  * `GLOBAL` dispensa alvo e vence os demais.
  */
-export const escopoAcesso = pgTable(
-  'escopo_acesso',
-  {
-    id: id(),
-    usuarioId: uuid('usuario_id')
-      .notNull()
-      .references(() => usuarioSistema.id, { onDelete: 'cascade' }),
-    tipo: tipoEscopoAcessoEnum('tipo').notNull(),
-    ppgId: uuid('ppg_id').references(() => ppg.id, { onDelete: 'cascade' }),
-    redeId: uuid('rede_id').references(() => redeCoordenadora.id, {
-      onDelete: 'cascade',
-    }),
-    /** `sub` de quem concedeu — concessao de acesso sempre tem responsavel. */
-    concedidoPorId: varchar('concedido_por_id', { length: 200 }),
-    concedidoEm: timestamp('concedido_em', { withTimezone: true })
-      .notNull()
-      .default(sql`now()`),
-    ativo: boolean('ativo').notNull().default(true),
-    ...timestamps,
-  },
-  (t) => [
-    /**
-     * Um escopo por alvo, e nao mais. `coalesce` resolveria os tres casos num
-     * indice so, mas o cast de enum nao e IMMUTABLE e o Postgres recusa a
-     * expressao — por isso sao tres indices parciais, um por tipo.
-     */
-    uniqueIndex('escopo_acesso_global_uk')
-      .on(t.usuarioId)
-      .where(sql`${t.tipo} = 'GLOBAL'`),
-    uniqueIndex('escopo_acesso_ppg_uk')
-      .on(t.usuarioId, t.ppgId)
-      .where(sql`${t.tipo} = 'PPG'`),
-    uniqueIndex('escopo_acesso_rede_uk')
-      .on(t.usuarioId, t.redeId)
-      .where(sql`${t.tipo} = 'REDE'`),
-    index('escopo_acesso_usuario_idx').on(t.usuarioId, t.ativo),
-    check(
-      'escopo_acesso_alvo_ck',
-      sql`(${t.tipo} = 'GLOBAL' and ${t.ppgId} is null and ${t.redeId} is null)
-       or (${t.tipo} = 'PPG' and ${t.ppgId} is not null and ${t.redeId} is null)
-       or (${t.tipo} = 'REDE' and ${t.redeId} is not null and ${t.ppgId} is null)`,
-    ),
-  ],
-);
-
 /**
  * Concessao individual: **esta conta**, **esta acao**, **este alvo** (V1-011).
  *
- * E a tabela do modelo aprovado em 2026-09-15, que substitui "papel do Keycloak
- * decide o que pode, `escopo_acesso` decide sobre o que". Aqui as duas metades
+ * E a tabela do modelo aprovado em 2026-09-15, que substituiu a separacao entre
+ * a capacidade da conta e um alcance geral. Aqui as duas metades
  * vivem na mesma linha, porque e assim que a pergunta e feita de verdade:
  * ninguem precisa saber "quais PPGs esta conta enxerga", precisa saber "em
  * quais PPGs ela pode **lancar bolsa**" — e a resposta pode ser diferente da de
  * "em quais ela pode **consultar o plano**". Com as metades separadas, conceder
  * escrita num PPG obrigava a conceder leitura em todos os outros do mesmo
  * escopo, ou a fatiar a conta em duas.
- *
- * **A tabela legada continua de pe ate V1-021.** As duas coexistem de proposito:
- * apagar `escopo_acesso` agora deixaria o recorte de PPG que ja funciona sem
- * fonte, antes de a conversao nominal ter sido revisada. O resolver de V1-012 e
- * quem passa a ler daqui.
  *
  * ## Por que `permissao` e texto, e nao enum do banco
  *
@@ -181,7 +125,7 @@ export const concessaoAcesso = pgTable(
     permissao: varchar('permissao', { length: 60 }).notNull(),
     tipoAlvo: tipoAlvoConcessaoEnum('tipo_alvo').notNull(),
     /**
-     * Colunas de alvo explicitas, pelo mesmo motivo de `escopo_acesso`: o par
+     * Colunas de alvo explicitas: o par
      * generico `tipo`/`alvo_id` nao aceita chave estrangeira, e sem ela um
      * ciclo apagado deixaria concessao apontando para o nada — a pior forma de
      * uma regra de acesso falhar, porque nao falha, so para de recortar.
@@ -227,13 +171,13 @@ export const concessaoAcesso = pgTable(
      * um indice sem a permissao recusaria a segunda.
      *
      * O indice cobre linha inativa tambem: revogar e reconceder reativa a
-     * mesma linha, como ja acontece em `escopo_acesso`. Quem quiser a historia
+     * mesma linha. Quem quiser a historia
      * do vaivem le `registro_auditoria` — duplicar a linha para guarda-la
      * faria a consulta de acesso ter de escolher entre versoes.
      *
      * Sao seis indices parciais, um por tipo, porque `coalesce` sobre o enum
      * nao e IMMUTABLE e o Postgres recusa a expressao (mesma restricao de
-     * `escopo_acesso`).
+     * indices parciais de alvo).
      */
     uniqueIndex('concessao_global_uk')
       .on(t.usuarioId, t.permissao)
@@ -305,7 +249,6 @@ export const usuarioSistemaRelations = relations(
       fields: [usuarioSistema.pessoaId],
       references: [pessoa.id],
     }),
-    escopos: many(escopoAcesso),
     concessoes: many(concessaoAcesso),
   }),
 );
@@ -336,15 +279,3 @@ export const concessaoAcessoRelations = relations(
     }),
   }),
 );
-
-export const escopoAcessoRelations = relations(escopoAcesso, ({ one }) => ({
-  usuario: one(usuarioSistema, {
-    fields: [escopoAcesso.usuarioId],
-    references: [usuarioSistema.id],
-  }),
-  ppg: one(ppg, { fields: [escopoAcesso.ppgId], references: [ppg.id] }),
-  rede: one(redeCoordenadora, {
-    fields: [escopoAcesso.redeId],
-    references: [redeCoordenadora.id],
-  }),
-}));

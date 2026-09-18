@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
@@ -8,6 +9,12 @@ import { and, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 import type { AuthUser } from '../auth/auth-user';
+import {
+  ALCANCE_GLOBAL,
+  alcancaAlvo,
+  condicaoDoAlcance,
+  type Alcance,
+} from '../auth/autorizacao-v1/alcance';
 import { consultar, consultarUma } from '../comum/consultar';
 import { DRIZZLE, type Database } from '../database/database.module';
 import * as s from '../database/schema';
@@ -163,6 +170,28 @@ export const atualizarItemSchema = criarItemSchema.and(
 
 export type AtualizarItem = z.infer<typeof atualizarItemSchema>;
 
+export const cancelarItemSchema = z.object({
+  justificativa: z
+    .string()
+    .trim()
+    .min(10, 'Cancelar exige justificativa (mínimo 10 caracteres).')
+    .max(2000),
+});
+
+export type CancelarItem = z.infer<typeof cancelarItemSchema>;
+
+export interface ReferenciasPlano {
+  ppgs: { id: string; sigla: string; nome: string }[];
+  areas: {
+    id: string;
+    codigo: string;
+    nome: string;
+    rede: string;
+    ppgIds: string[];
+  }[];
+  itens: string[];
+}
+
 export interface RegistroAuditoriaPlano {
   id: string;
   campo: string | null;
@@ -194,7 +223,15 @@ export class PlanoService {
       areaTematicaId?: string;
       ano?: number;
     } = {},
+    alcance: Alcance = ALCANCE_GLOBAL,
   ): Promise<LinhaPlano[]> {
+    const dentroDoAlcance = condicaoDoAlcance(alcance, {
+      ciclo: sql`ip.ciclo_id`,
+      ppg: sql`ip.ppg_id`,
+      rede: sql`rc.id`,
+      tematica: sql`ip.area_tematica_id`,
+      participacao: sql`pp.id`,
+    });
     return consultar<LinhaPlano>(
       this.db,
       sql`
@@ -267,6 +304,7 @@ export class PlanoService {
         left join pessoa           coord on coord.id = pp.coordenador_tematica_id
         left join anos                a  on a.item_id = ip.id
        where ip.ciclo_id = ${cicloId}
+         and ${dentroDoAlcance}
          ${filtro.rubrica ? sql`and ip.rubrica = ${filtro.rubrica}` : sql``}
          ${filtro.ppgId ? sql`and ip.ppg_id = ${filtro.ppgId}` : sql``}
          ${
@@ -296,11 +334,19 @@ export class PlanoService {
    * criacao falha com 422 em vez de gravar uma linha sem custo. E a mesma regra
    * que a seed aplica ao migrar (RN-01).
    */
-  async criar(ciclo: CicloResolvido, dto: CriarItem): Promise<LinhaPlano> {
+  async criar(
+    ciclo: CicloResolvido,
+    dto: CriarItem,
+    alcance: Alcance = ALCANCE_GLOBAL,
+  ): Promise<LinhaPlano> {
     const anoPlanejamento = dto.ano ?? ciclo.anoInicio;
     this.exigirAnoDoCiclo(ciclo, anoPlanejamento);
-    await this.exigirPpg(dto.ppgId);
-    await this.exigirParticipacao(dto.ppgId, dto.areaTematicaId ?? null);
+    const alvo = await this.exigirAlvo(
+      ciclo.cicloId,
+      dto.ppgId,
+      dto.areaTematicaId ?? null,
+    );
+    this.exigirAlcance(alvo, alcance);
 
     const codigo = await this.proximoCodigo(ciclo.cicloId, dto.rubrica);
 
@@ -393,6 +439,7 @@ export class PlanoService {
     id: string,
     dto: AtualizarItem,
     usuario: AuthUser,
+    alcance: Alcance = ALCANCE_GLOBAL,
   ): Promise<LinhaPlano> {
     const anoPlanejamento = dto.ano ?? ciclo.anoInicio;
     this.exigirAnoDoCiclo(ciclo, anoPlanejamento);
@@ -422,14 +469,22 @@ export class PlanoService {
     if (!anterior) {
       throw new NotFoundException('Linha de planejamento não encontrada.');
     }
+    const alvoAnterior = await this.alvoDoItem(ciclo.cicloId, id);
+    if (!alvoAnterior || !alcancaAlvo(alcance, alvoAnterior)) {
+      throw new NotFoundException('Linha de planejamento não encontrada.');
+    }
     if (anterior.rubrica !== dto.rubrica) {
       throw new BadRequestException(
         'A rubrica de uma linha não pode ser alterada.',
       );
     }
 
-    await this.exigirPpg(dto.ppgId);
-    await this.exigirParticipacao(dto.ppgId, dto.areaTematicaId ?? null);
+    const novoAlvo = await this.exigirAlvo(
+      ciclo.cicloId,
+      dto.ppgId,
+      dto.areaTematicaId ?? null,
+    );
+    this.exigirAlcance(novoAlvo, alcance);
 
     const base = {
       areaTematicaId: dto.areaTematicaId ?? null,
@@ -540,14 +595,11 @@ export class PlanoService {
   async historico(
     cicloId: string,
     id: string,
+    alcance: Alcance = ALCANCE_GLOBAL,
   ): Promise<RegistroAuditoriaPlano[]> {
-    const [item] = await this.db
-      .select({ id: s.itemPlanejado.id })
-      .from(s.itemPlanejado)
-      .where(
-        and(eq(s.itemPlanejado.id, id), eq(s.itemPlanejado.cicloId, cicloId)),
-      )
-      .limit(1);
+    const item = (await this.listar(cicloId, {}, alcance)).find(
+      (linha) => linha.id === id,
+    );
     if (!item)
       throw new NotFoundException('Linha de planejamento não encontrada.');
 
@@ -579,6 +631,7 @@ export class PlanoService {
     cicloId: string,
     id: string,
     justificativa: string,
+    alcance: Alcance = ALCANCE_GLOBAL,
   ): Promise<void> {
     const [item] = await this.db
       .select({
@@ -598,6 +651,10 @@ export class PlanoService {
         'Cancelar exige justificativa (mínimo 10 caracteres).',
       );
     }
+    const alvo = await this.alvoDoItem(cicloId, id);
+    if (!alvo || !alcancaAlvo(alcance, alvo)) {
+      throw new NotFoundException('Linha de planejamento não encontrada.');
+    }
 
     await this.db
       .update(s.itemPlanejado)
@@ -609,6 +666,84 @@ export class PlanoService {
         atualizadoEm: new Date(),
       })
       .where(eq(s.itemPlanejado.id, id));
+  }
+
+  async referencias(
+    cicloId: string,
+    alcance: Alcance,
+  ): Promise<ReferenciasPlano> {
+    const ppgVisivel = condicaoDoAlcance(alcance, {
+      ciclo: sql`c.id`,
+      ppg: sql`p.id`,
+    });
+    const participacaoVisivel = condicaoDoAlcance(alcance, {
+      ciclo: sql`c.id`,
+      ppg: sql`pp.ppg_id`,
+      rede: sql`rc.id`,
+      tematica: sql`at.id`,
+      participacao: sql`pp.id`,
+    });
+    const itemVisivel = condicaoDoAlcance(alcance, {
+      ciclo: sql`ip.ciclo_id`,
+      ppg: sql`ip.ppg_id`,
+      rede: sql`rc.id`,
+      tematica: sql`ip.area_tematica_id`,
+      participacao: sql`pp.id`,
+    });
+
+    const [ppgs, areas, itens] = await Promise.all([
+      consultar<{ id: string; sigla: string; nome: string }>(
+        this.db,
+        sql`
+          select distinct p.id, p.sigla, p.nome
+            from ciclo c
+            cross join ppg p
+           where c.id = ${cicloId}::uuid and p.situacao = 'ATIVO'
+             and ((${ppgVisivel}) or exists (
+               select 1
+                 from participacao_ppg pp
+                 join area_tematica at on at.id = pp.area_tematica_id
+                 join rede_coordenadora rc on rc.id = at.rede_id
+                where pp.ppg_id = p.id and rc.ciclo_id = c.id
+                  and ${participacaoVisivel}
+             ))
+           order by p.sigla`,
+      ),
+      consultar<{
+        id: string;
+        codigo: string;
+        nome: string;
+        rede: string;
+        ppgIds: string[];
+      }>(
+        this.db,
+        sql`
+          select at.id, at.codigo, at.nome, rc.nome as rede,
+                 jsonb_agg(distinct p.id order by p.id) as "ppgIds"
+            from ciclo c
+            join rede_coordenadora rc on rc.ciclo_id = c.id
+            join area_tematica at on at.rede_id = rc.id
+            join participacao_ppg pp on pp.area_tematica_id = at.id
+            join ppg p on p.id = pp.ppg_id
+           where c.id = ${cicloId}::uuid and ${participacaoVisivel}
+           group by at.id, at.codigo, at.nome, rc.nome
+           order by rc.nome, at.codigo`,
+      ),
+      consultar<{ id: string }>(
+        this.db,
+        sql`
+          select distinct ip.id
+            from item_planejado ip
+            left join area_tematica at on at.id = ip.area_tematica_id
+            left join rede_coordenadora rc on rc.id = at.rede_id
+            left join participacao_ppg pp
+              on pp.area_tematica_id = ip.area_tematica_id
+             and pp.ppg_id = ip.ppg_id
+           where ip.ciclo_id = ${cicloId}::uuid and ${itemVisivel}`,
+      ),
+    ]);
+
+    return { ppgs, areas, itens: itens.map((item) => item.id) };
   }
 
   private async exigirPpg(ppgId: string): Promise<void> {
@@ -671,6 +806,97 @@ export class PlanoService {
     );
 
     return `${prefixo}-${String(proximo).padStart(3, '0')}`;
+  }
+
+  private async exigirAlvo(
+    cicloId: string,
+    ppgId: string,
+    areaTematicaId: string | null,
+  ) {
+    await this.exigirPpg(ppgId);
+    await this.exigirParticipacao(ppgId, areaTematicaId);
+
+    if (!areaTematicaId) return { cicloId, ppgId };
+    const [linha] = await this.db
+      .select({
+        redeId: s.areaTematica.redeId,
+        participacaoId: s.participacaoPpg.id,
+      })
+      .from(s.participacaoPpg)
+      .innerJoin(
+        s.areaTematica,
+        eq(s.areaTematica.id, s.participacaoPpg.areaTematicaId),
+      )
+      .innerJoin(
+        s.redeCoordenadora,
+        eq(s.redeCoordenadora.id, s.areaTematica.redeId),
+      )
+      .where(
+        and(
+          eq(s.participacaoPpg.ppgId, ppgId),
+          eq(s.participacaoPpg.areaTematicaId, areaTematicaId),
+          eq(s.redeCoordenadora.cicloId, cicloId),
+        ),
+      )
+      .limit(1);
+    if (!linha) {
+      throw new BadRequestException(
+        'O PPG selecionado não participa desta área temática no ciclo.',
+      );
+    }
+    return {
+      cicloId,
+      ppgId,
+      redeIds: [linha.redeId],
+      tematicaId: areaTematicaId,
+      participacaoId: linha.participacaoId,
+    };
+  }
+
+  private async alvoDoItem(cicloId: string, id: string) {
+    const [item] = await this.db
+      .select({
+        cicloId: s.itemPlanejado.cicloId,
+        ppgId: s.itemPlanejado.ppgId,
+        tematicaId: s.itemPlanejado.areaTematicaId,
+        redeId: s.areaTematica.redeId,
+        participacaoId: s.participacaoPpg.id,
+      })
+      .from(s.itemPlanejado)
+      .leftJoin(
+        s.areaTematica,
+        eq(s.areaTematica.id, s.itemPlanejado.areaTematicaId),
+      )
+      .leftJoin(
+        s.participacaoPpg,
+        and(
+          eq(s.participacaoPpg.areaTematicaId, s.itemPlanejado.areaTematicaId),
+          eq(s.participacaoPpg.ppgId, s.itemPlanejado.ppgId),
+        ),
+      )
+      .where(
+        and(eq(s.itemPlanejado.id, id), eq(s.itemPlanejado.cicloId, cicloId)),
+      )
+      .limit(1);
+    if (!item) return null;
+    return {
+      cicloId: item.cicloId,
+      ppgId: item.ppgId,
+      redeIds: item.redeId ? [item.redeId] : [],
+      tematicaId: item.tematicaId,
+      participacaoId: item.participacaoId,
+    };
+  }
+
+  private exigirAlcance(
+    alvo: Parameters<typeof alcancaAlvo>[1],
+    alcance: Alcance,
+  ): void {
+    if (!alcancaAlvo(alcance, alvo)) {
+      throw new ForbiddenException(
+        'O alvo informado está fora do alcance desta operação.',
+      );
+    }
   }
 }
 

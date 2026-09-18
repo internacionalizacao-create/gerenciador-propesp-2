@@ -355,11 +355,13 @@ describe('Recorte por rede das missoes (CG-028)', () => {
       .select({ id: s.usuarioSistema.id })
       .from(s.usuarioSistema)
       .where(eq(s.usuarioSistema.sub, gestor.id));
-    await ctx.db.insert(s.escopoAcesso).values({
+    await ctx.db.insert(s.concessaoAcesso).values({
       usuarioId: usuario.id,
-      tipo: 'REDE',
+      permissao: 'missao:read',
+      tipoAlvo: 'REDE',
       redeId: outraRedeId,
       concedidoPorId: admin.id,
+      justificativa: 'Segunda rede sob teste.',
     });
 
     // `exists`, e nao `join` (CG-016): um `join` traria a missao duas vezes e

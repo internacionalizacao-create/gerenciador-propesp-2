@@ -26,10 +26,13 @@ conceder é a API de `/acesso` (V1-017) ou a tela **Acessos**, em
 `/configuracoes/acessos` (V1-018). **V1-019 pôs a interface no mesmo regime**
 (2026-09-17): o menu é montado pelas ações concedidas, cada página confere o que
 precisa antes de consultar, e tela fora do acesso responde **200 com explicação**
-— nunca mais o erro genérico. **O que ainda falta** é o recorte por ação nas
-consultas de plano, orçamento, bolsas e parceiros (V1-013 a V1-016): até lá,
-`escopoDe` serve de ponte, unindo os alvos de todas as ações concedidas, e a
-interface decide *se a tela abre*, não *quais linhas* ela traz.
+— nunca mais o erro genérico. **V1-013 foi concluída em 2026-09-17:** plano,
+orçamento, painel, programas e ciclos recortam linhas e agregados pela ação de
+leitura; alcance parcial mostra custo próprio sem expor teto ou saldo da
+temática. **V1-014 também foi concluída em 2026-09-17:** criação, edição,
+cancelamento, orçamento e referências de formulário usam o alcance da própria
+ação. Ainda faltam bolsas e caminhos indiretos (V1-015 e V1-016), onde
+`escopoDe` continua temporariamente como ponte.
 
 **Ambiente local recém-subido não enxerga nada**, e isso é o comportamento
 certo: conta nova entra sem concessão. Para trabalhar (e para o
@@ -483,8 +486,8 @@ O alvo é `GLOBAL`, `CICLO`, `PPG`+ciclo, `REDE`, `TEMATICA` ou `PARTICIPACAO`.
 são feitas: não "quais PPGs esta conta enxerga", mas "em quais PPGs ela pode
 lançar bolsa" — e a resposta pode diferir da de "consultar o plano".
 
-`escopo_acesso` ainda existe e **não autoriza mais nada**; sai em V1-021. O
-mesmo vale para o vínculo de equipe: estar na equipe de uma rede é fato de
+`escopo_acesso` foi removida na migration `0041`: toda autorização e todo
+alcance vêm de `concessao_acesso`. O vínculo de equipe continua sendo fato de
 cadastro, não concessão.
 
 **O vínculo se faz no primeiro acesso, por e-mail.** O admin cria a conta no
@@ -492,8 +495,9 @@ Keycloak com o mesmo e-mail da pessoa já cadastrada e
 [identidade.service.ts](apps/api/src/auth/identidade.service.ts) liga as duas em
 `GET /me` — é o caminho das pessoas já registradas em missões. Sem
 correspondência, cria pessoa nova: recusar o login deixaria o usuário preso sem
-nenhuma tela para pedir ajuda. Criar pessoa **não concede acesso** — escopo
-nasce vazio e é ato do `admin`, por `/acesso/usuarios/:id/escopos`.
+nenhuma tela para pedir ajuda. Criar pessoa **não concede acesso** — a conta
+nasce sem concessões e a atribuição é feita pelo administrador na tela
+**Acessos**.
 
 O vínculo acontece em `/me`, e não no guard: o guard roda em toda requisição, e
 pagar uma escrita por chamada para resolver algo que muda uma vez na vida da

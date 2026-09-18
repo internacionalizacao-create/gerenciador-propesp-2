@@ -1,6 +1,12 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { asc, eq, sql } from 'drizzle-orm';
 
+import {
+  ALCANCE_GLOBAL,
+  condicaoDoAlcance,
+  type Alcance,
+} from '../auth/autorizacao-v1/alcance';
+
 import { consultarUma } from '../comum/consultar';
 import { DRIZZLE, type Database } from '../database/database.module';
 import * as s from '../database/schema';
@@ -28,10 +34,10 @@ export class CicloService {
   ) {}
 
   /** P06 · pagina-indice, com um numero vivo em cada atalho. */
-  async resumo(ciclo: CicloResolvido) {
+  async resumo(ciclo: CicloResolvido, alcance: Alcance = ALCANCE_GLOBAL) {
     const [tematicas, contagens] = await Promise.all([
-      this.orcamento.porTematica(ciclo.cicloId, ciclo.anoInicio),
-      this.contagens(ciclo.cicloId),
+      this.orcamento.porTematica(ciclo.cicloId, ciclo.anoInicio, alcance),
+      this.contagens(ciclo.cicloId, alcance),
     ]);
 
     return {
@@ -50,15 +56,19 @@ export class CicloService {
   }
 
   /** P07 · redes com suas tematicas embaixo. */
-  async redes(ciclo: CicloResolvido, ano: number) {
+  async redes(
+    ciclo: CicloResolvido,
+    ano: number,
+    alcance: Alcance = ALCANCE_GLOBAL,
+  ) {
     const [redes, tematicas] = await Promise.all([
-      this.orcamento.porRede(ciclo.cicloId, ano),
-      this.orcamento.porTematica(ciclo.cicloId, ano),
+      this.orcamento.porRede(ciclo.cicloId, ano, alcance),
+      this.orcamento.porTematica(ciclo.cicloId, ano, alcance),
     ]);
 
     const [coordenadores, participacoes] = await Promise.all([
-      this.coordenadoresPorTematica(ciclo.cicloId),
-      this.ppgsPorTematica(ciclo.cicloId),
+      this.coordenadoresPorTematica(ciclo.cicloId, alcance),
+      this.ppgsPorTematica(ciclo.cicloId, alcance),
     ]);
 
     return {
@@ -83,8 +93,16 @@ export class CicloService {
   }
 
   /** P08 · tudo sobre uma tematica em uma pagina. */
-  async tematica(ciclo: CicloResolvido, codigo: string) {
-    const anos = await this.orcamento.porTematica(ciclo.cicloId);
+  async tematica(
+    ciclo: CicloResolvido,
+    codigo: string,
+    alcance: Alcance = ALCANCE_GLOBAL,
+  ) {
+    const anos = await this.orcamento.porTematica(
+      ciclo.cicloId,
+      undefined,
+      alcance,
+    );
     const doCodigo = anos.filter((t) => t.codigo === codigo);
 
     if (doCodigo.length === 0) {
@@ -92,7 +110,17 @@ export class CicloService {
     }
 
     const base = doCodigo.find((t) => t.ano === ciclo.anoInicio) ?? doCodigo[0];
-    const coordenadores = await this.coordenadoresPorTematica(ciclo.cicloId);
+    const coordenadores = await this.coordenadoresPorTematica(
+      ciclo.cicloId,
+      alcance,
+    );
+    const participacaoVisivel = condicaoDoAlcance(alcance, {
+      ciclo: sql`${s.redeCoordenadora.cicloId}`,
+      ppg: sql`${s.participacaoPpg.ppgId}`,
+      rede: sql`${s.redeCoordenadora.id}`,
+      tematica: sql`${s.areaTematica.id}`,
+      participacao: sql`${s.participacaoPpg.id}`,
+    });
 
     const [participacoes, plano] = await Promise.all([
       this.db
@@ -113,12 +141,27 @@ export class CicloService {
           s.pessoa,
           eq(s.pessoa.id, s.participacaoPpg.coordenadorTematicaId),
         )
-        .where(eq(s.participacaoPpg.areaTematicaId, base.areaTematicaId))
+        .innerJoin(
+          s.areaTematica,
+          eq(s.areaTematica.id, s.participacaoPpg.areaTematicaId),
+        )
+        .innerJoin(
+          s.redeCoordenadora,
+          eq(s.redeCoordenadora.id, s.areaTematica.redeId),
+        )
+        .where(
+          sql`${s.participacaoPpg.areaTematicaId} = ${base.areaTematicaId}::uuid
+            and ${participacaoVisivel}`,
+        )
         .orderBy(asc(s.ppg.sigla)),
 
-      this.plano.listar(ciclo.cicloId, {
-        areaTematicaId: base.areaTematicaId,
-      }),
+      this.plano.listar(
+        ciclo.cicloId,
+        {
+          areaTematicaId: base.areaTematicaId,
+        },
+        alcance,
+      ),
     ]);
 
     const custoTotal = somarMoeda(plano.map((l) => l.custoAnual));
@@ -212,7 +255,17 @@ export class CicloService {
 
   // ------------------------------------------------------------------ //
 
-  private async coordenadoresPorTematica(cicloId: string) {
+  private async coordenadoresPorTematica(
+    cicloId: string,
+    alcance: Alcance = ALCANCE_GLOBAL,
+  ) {
+    const visivel = condicaoDoAlcance(alcance, {
+      ciclo: sql`${s.redeCoordenadora.cicloId}`,
+      ppg: sql`${s.participacaoPpg.ppgId}`,
+      rede: sql`${s.redeCoordenadora.id}`,
+      tematica: sql`${s.areaTematica.id}`,
+      participacao: sql`${s.participacaoPpg.id}`,
+    });
     const linhas = await this.db
       .select({
         areaTematicaId: s.participacaoPpg.areaTematicaId,
@@ -235,7 +288,9 @@ export class CicloService {
         s.redeCoordenadora,
         eq(s.redeCoordenadora.id, s.areaTematica.redeId),
       )
-      .where(eq(s.redeCoordenadora.cicloId, cicloId))
+      .where(
+        sql`${s.redeCoordenadora.cicloId} = ${cicloId}::uuid and ${visivel}`,
+      )
       .orderBy(asc(s.pessoa.nome), asc(s.ppg.sigla));
 
     const mapa = new Map<string, typeof linhas>();
@@ -247,7 +302,17 @@ export class CicloService {
     return mapa;
   }
 
-  private async ppgsPorTematica(cicloId: string) {
+  private async ppgsPorTematica(
+    cicloId: string,
+    alcance: Alcance = ALCANCE_GLOBAL,
+  ) {
+    const visivel = condicaoDoAlcance(alcance, {
+      ciclo: sql`${s.redeCoordenadora.cicloId}`,
+      ppg: sql`${s.participacaoPpg.ppgId}`,
+      rede: sql`${s.redeCoordenadora.id}`,
+      tematica: sql`${s.areaTematica.id}`,
+      participacao: sql`${s.participacaoPpg.id}`,
+    });
     const linhas = await this.db
       .select({
         areaTematicaId: s.participacaoPpg.areaTematicaId,
@@ -266,7 +331,9 @@ export class CicloService {
         s.redeCoordenadora,
         eq(s.redeCoordenadora.id, s.areaTematica.redeId),
       )
-      .where(eq(s.redeCoordenadora.cicloId, cicloId))
+      .where(
+        sql`${s.redeCoordenadora.cicloId} = ${cicloId}::uuid and ${visivel}`,
+      )
       .orderBy(asc(s.ppg.nome));
 
     const mapa = new Map<string, typeof linhas>();
@@ -278,7 +345,21 @@ export class CicloService {
     return mapa;
   }
 
-  private async contagens(cicloId: string) {
+  private async contagens(cicloId: string, alcance: Alcance = ALCANCE_GLOBAL) {
+    const planoVisivel = condicaoDoAlcance(alcance, {
+      ciclo: sql`ip.ciclo_id`,
+      ppg: sql`ip.ppg_id`,
+      rede: sql`at.rede_id`,
+      tematica: sql`ip.area_tematica_id`,
+      participacao: sql`pp.id`,
+    });
+    const participacaoVisivel = condicaoDoAlcance(alcance, {
+      ciclo: sql`rc.ciclo_id`,
+      ppg: sql`pp.ppg_id`,
+      rede: sql`rc.id`,
+      tematica: sql`at.id`,
+      participacao: sql`pp.id`,
+    });
     return consultarUma<{
       redes: number;
       tematicas: number;
@@ -291,16 +372,24 @@ export class CicloService {
       this.db,
       sql`
       select
-        (select count(*)::int from rede_coordenadora where ciclo_id = ${cicloId}) as "redes",
-        (select count(*)::int from area_tematica at
+        (select count(distinct rc.id)::int from participacao_ppg pp
+           join area_tematica at on at.id = pp.area_tematica_id
            join rede_coordenadora rc on rc.id = at.rede_id
-          where rc.ciclo_id = ${cicloId}) as "tematicas",
+          where rc.ciclo_id = ${cicloId} and ${participacaoVisivel}) as "redes",
+        (select count(distinct at.id)::int from area_tematica at
+           join rede_coordenadora rc on rc.id = at.rede_id
+          join participacao_ppg pp on pp.area_tematica_id = at.id
+          where rc.ciclo_id = ${cicloId} and ${participacaoVisivel}) as "tematicas",
         (select count(distinct pp.ppg_id)::int from participacao_ppg pp
            join area_tematica at on at.id = pp.area_tematica_id
            join rede_coordenadora rc on rc.id = at.rede_id
-          where rc.ciclo_id = ${cicloId}) as "ppgs",
-        (select count(*)::int from item_planejado
-          where ciclo_id = ${cicloId} and status <> 'CANCELADO') as "linhasPlano",
+          where rc.ciclo_id = ${cicloId} and ${participacaoVisivel}) as "ppgs",
+        (select count(distinct ip.id)::int from item_planejado ip
+          left join area_tematica at on at.id = ip.area_tematica_id
+          left join participacao_ppg pp on pp.area_tematica_id = ip.area_tematica_id
+            and pp.ppg_id = ip.ppg_id
+          where ip.ciclo_id = ${cicloId} and ip.status <> 'CANCELADO'
+            and ${planoVisivel}) as "linhasPlano",
         (select count(*)::int from pendencia
           where ciclo_id = ${cicloId} and status <> 'RESOLVIDA') as "pendenciasAbertas",
         (select count(*)::int from premissa where ciclo_id = ${cicloId}) as "premissas",
@@ -309,7 +398,8 @@ export class CicloService {
            join area_tematica at on at.id = pp.area_tematica_id
            join rede_coordenadora rc on rc.id = at.rede_id
           where rc.ciclo_id = ${cicloId}
-            and pp.coordenador_tematica_id is not null) as "coordenadores"
+            and pp.coordenador_tematica_id is not null
+            and ${participacaoVisivel}) as "coordenadores"
     `,
     );
   }

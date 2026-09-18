@@ -1,7 +1,12 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { startTransition, useActionState, useMemo, type FormEvent } from "react";
+import {
+  startTransition,
+  useActionState,
+  useMemo,
+  type FormEvent,
+} from "react";
 import { useForm, useWatch } from "react-hook-form";
 
 import { atualizarLinhaDePlano, criarLinhaDePlano } from "@/acoes/plano";
@@ -20,11 +25,14 @@ import { ESTADO_INICIAL } from "@/lib/acao-tipos";
 import type {
   ItemCatalogo,
   LinhaPlano,
-  LinhaPpg,
+  ReferenciasPlano,
   Rubrica,
 } from "@/lib/dominio";
 import { meses as formatarMeses, moeda, rotulo } from "@/lib/formato";
-import { formularioLinhaPlanoSchema, type DadosFormularioLinhaPlano } from "@/lib/formularios/plano";
+import {
+  formularioLinhaPlanoSchema,
+  type DadosFormularioLinhaPlano,
+} from "@/lib/formularios/plano";
 
 const MESES = [
   "JANEIRO",
@@ -68,7 +76,7 @@ export function FormLinhaPlano({
 }: {
   programa: string;
   ciclo: string;
-  ppgs: LinhaPpg[];
+  ppgs: ReferenciasPlano["ppgs"];
   areas: {
     id: string;
     codigo: string;
@@ -91,11 +99,39 @@ export function FormLinhaPlano({
       })
     : criarLinhaDePlano.bind(null, { programa, ciclo });
   const [estado, executar, enviando] = useActionState(acao, ESTADO_INICIAL);
-  const { setValue, trigger, getValues, setError, control } = useForm<DadosFormularioLinhaPlano>({
-    resolver: zodResolver(formularioLinhaPlanoSchema),
-    defaultValues: { rubrica: linha?.rubrica ?? "BOLSAS", ppgId: linha?.ppgId ?? "", areaTematicaId: linha?.areaTematicaId ?? "", ano: String(linha?.anoPlanejamento ?? anoInicial), quantidadeAnual: String(linha?.quantidadeAnual ?? 1), mesImplementacao: linha?.mesImplementacao ?? "", descricao: linha?.descricao ?? "", textoFonte: linha?.textoFonte ?? "", destino: linha?.destino ?? "EXTERIOR", modalidadeId: linha?.modalidadeId ?? "", vigenciaMeses: linha?.vigenciaMeses ?? "", fluxo: linha?.fluxo ?? "", tipoDespesa: linha?.tipoDespesa ?? "", tipoMissao: linha?.tipoMissao ?? "", numeroParticipantes: String(linha?.numeroParticipantes ?? ""), numeroDiarias: String(linha?.numeroDiarias ?? ""), incluiPassagem: linha?.incluiPassagem ?? false, valorUnitarioInformado: linha?.valorUnitario ?? "", justificativaEstimativa: linha?.justificativaEstimativa ?? "", status: linha?.status ?? "PROGRAMADO", justificativaEdicao: "" },
+  const { setValue, trigger, getValues, setError, control } =
+    useForm<DadosFormularioLinhaPlano>({
+      resolver: zodResolver(formularioLinhaPlanoSchema),
+      defaultValues: {
+        rubrica: linha?.rubrica ?? "BOLSAS",
+        ppgId: linha?.ppgId ?? "",
+        areaTematicaId: linha?.areaTematicaId ?? "",
+        ano: String(linha?.anoPlanejamento ?? anoInicial),
+        quantidadeAnual: String(linha?.quantidadeAnual ?? 1),
+        mesImplementacao: linha?.mesImplementacao ?? "",
+        descricao: linha?.descricao ?? "",
+        textoFonte: linha?.textoFonte ?? "",
+        destino: linha?.destino ?? "EXTERIOR",
+        modalidadeId: linha?.modalidadeId ?? "",
+        vigenciaMeses: linha?.vigenciaMeses ?? "",
+        fluxo: linha?.fluxo ?? "",
+        tipoDespesa: linha?.tipoDespesa ?? "",
+        tipoMissao: linha?.tipoMissao ?? "",
+        numeroParticipantes: String(linha?.numeroParticipantes ?? ""),
+        numeroDiarias: String(linha?.numeroDiarias ?? ""),
+        incluiPassagem: linha?.incluiPassagem ?? false,
+        valorUnitarioInformado: linha?.valorUnitario ?? "",
+        justificativaEstimativa: linha?.justificativaEstimativa ?? "",
+        status: linha?.status ?? "PROGRAMADO",
+        justificativaEdicao: "",
+      },
+    });
+  useErrosDaAcao(estado, setError, {
+    ppgId: "ppgId",
+    modalidadeId: "modalidadeId",
+    vigenciaMeses: "vigenciaMeses",
+    quantidadeAnual: "quantidadeAnual",
   });
-  useErrosDaAcao(estado, setError, { ppgId: "ppgId", modalidadeId: "modalidadeId", vigenciaMeses: "vigenciaMeses", quantidadeAnual: "quantidadeAnual" });
 
   const rubrica = useWatch({ control, name: "rubrica" });
   const destino = useWatch({ control, name: "destino" });
@@ -472,9 +508,13 @@ export function FormLinhaPlano({
         evento.preventDefault();
         const dados = new FormData(evento.currentTarget);
         for (const [campo, valor] of dados.entries()) {
-          if (typeof valor === "string" && campo in getValues()) setValue(campo as keyof DadosFormularioLinhaPlano, valor as never);
+          if (typeof valor === "string" && campo in getValues())
+            setValue(campo as keyof DadosFormularioLinhaPlano, valor as never);
         }
-        setValue("incluiPassagem", dados.getAll("incluiPassagem").includes("true"));
+        setValue(
+          "incluiPassagem",
+          dados.getAll("incluiPassagem").includes("true"),
+        );
         if (await trigger()) startTransition(() => executar(getValues()));
       }}
       className="flex min-h-0 flex-1 flex-col"
