@@ -1,10 +1,11 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, asc, eq, ilike, ne, or, sql } from 'drizzle-orm';
+import { and, asc, eq, ilike, ne, or, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { dataHojeEmManaus } from '../comum/datas';
@@ -14,7 +15,9 @@ import {
   condicaoDoAlcance,
   type Alcance,
 } from '../auth/autorizacao-v1/alcance';
-import { filtroPorPpg, podeVerPpg } from '../auth/escopo';
+import type { AcessoResolvido } from '../auth/autorizacao-v1/acesso-v1.service';
+import type { PermissaoV1 } from '../auth/autorizacao-v1/catalogo';
+import { condicaoDaBolsa } from '../auth/autorizacao-v1/recorte-bolsa';
 import { IdentidadeService } from '../auth/identidade.service';
 import { consultar } from '../comum/consultar';
 import { DRIZZLE, type Database } from '../database/database.module';
@@ -43,6 +46,7 @@ const periodo = z
 
 const cpf = z
   .string()
+  .regex(/^[0-9.\-\s]+$/, 'Informe um CPF válido.')
   .transform((valor) => valor.replace(/\D/g, ''))
   .refine((valor) => cpfValido(valor), 'Informe um CPF válido.');
 
@@ -149,6 +153,7 @@ export type CriarBolsaConcedida = z.infer<typeof criarBolsaConcedidaSchema>;
 
 export const atualizarBolsaConcedidaSchema = z
   .object({
+    cpf: cpf.optional(),
     dataInicio: dataCompleta,
     dataFim: dataCompleta,
     status: z.enum([
@@ -291,8 +296,15 @@ interface BolsaBase {
   status: StatusBolsa;
   processo: string | null;
   observacoes: string | null;
-  produtos: number;
-  produtosPendentes: number;
+  produtos: number | null;
+  produtosPendentes: number | null;
+  podeLerCpf: boolean;
+  podeLerContato: boolean;
+  podeLerProdutos: boolean;
+  podeEditar: boolean;
+  podeAlterarCpf: boolean;
+  podeCriarProduto: boolean;
+  podeEditarProduto: boolean;
 }
 
 export interface ProdutoBolsa {
@@ -431,7 +443,7 @@ export class BolsistasService {
    * compartilhado, como a matriz aprovada manda e como `referencias-missao` ja
    * fazia.
    */
-  async referencias() {
+  async referencias(alcance: Alcance) {
     const [paises, instituicoes, linhasPesquisa] = await Promise.all([
       this.db
         .select({
@@ -442,18 +454,26 @@ export class BolsistasService {
         .from(s.pais)
         .orderBy(asc(s.pais.nome)),
       this.instituicoes(),
-      // Todas de uma vez, com o `ppgId` junto: a tela filtra pelo PPG da linha
-      // planejada escolhida. Buscar por PPG exigiria uma segunda ida ao
-      // servidor a cada troca de seleção, para um conjunto que cabe inteiro.
-      this.db
-        .select({
-          id: s.linhaPesquisa.id,
-          nome: s.linhaPesquisa.nome,
-          ppgId: s.linhaPesquisa.ppgId,
-        })
-        .from(s.linhaPesquisa)
-        .where(eq(s.linhaPesquisa.ativa, true))
-        .orderBy(asc(s.linhaPesquisa.nome)),
+      consultar<{ id: string; nome: string; ppgId: string }>(
+        this.db,
+        sql`
+        select lp.id, lp.nome, lp.ppg_id as "ppgId" from linha_pesquisa lp
+        where lp.ativa and exists (
+          select 1 from item_planejado ip
+          left join area_tematica at on at.id = ip.area_tematica_id
+          left join participacao_ppg pp on pp.ppg_id = ip.ppg_id
+            and pp.area_tematica_id = ip.area_tematica_id
+          where ip.ppg_id = lp.ppg_id and ip.rubrica = 'BOLSAS'
+            and ip.status = 'PROGRAMADO' and ${condicaoDoAlcance(alcance, {
+              ciclo: sql`ip.ciclo_id`,
+              ppg: sql`ip.ppg_id`,
+              tematica: sql`ip.area_tematica_id`,
+              rede: sql`at.rede_id`,
+              participacao: sql`pp.id`,
+            })}
+        ) order by lp.nome
+      `,
+      ),
     ]);
 
     return { paises, instituicoes, linhasPesquisa };
@@ -505,8 +525,22 @@ export class BolsistasService {
    *
    * `bc.ppg_id` e `notNull`, entao nenhuma concessao escapa por falta de PPG.
    */
-  async listar(usuario: AuthUser) {
-    const escopo = await this.identidade.escopoDe(usuario);
+  async listar(usuario: AuthUser, acesso?: AcessoResolvido) {
+    return this.consultarBolsas(
+      acesso ?? (await this.identidade.acessoDe(usuario)),
+    );
+  }
+
+  private async consultarBolsas(
+    acesso: AcessoResolvido,
+    acao: PermissaoV1 = 'bolsa:read',
+    id?: string,
+  ) {
+    const recorte = condicaoDaBolsa(acesso.alcance(acao));
+    const leitura = condicaoDaBolsa(acesso.alcance('bolsa:read'));
+    const lerCpf = sql`(${leitura} and ${condicaoDaBolsa(acesso.alcance('pessoa:read-cpf'))})`;
+    const lerContato = sql`(${leitura} and ${condicaoDaBolsa(acesso.alcance('pessoa:read-contato'))})`;
+    const lerProdutos = sql`(${leitura} and ${condicaoDaBolsa(acesso.alcance('produto:read'))})`;
     const hoje = dataHojeEmManaus();
     const linhas = await consultar<BolsaBase>(
       this.db,
@@ -531,9 +565,16 @@ export class BolsistasService {
              pg.sigla                      as "ppgSigla",
              pe.id                         as "pessoaId",
              pe.nome                       as "bolsista",
-             pe.email                      as "email",
-             pe.cpf                        as "cpf",
-             pe.telefone                   as "telefone",
+             case when ${lerContato} then pe.email end as "email",
+             case when ${lerCpf} then pe.cpf end as "cpf",
+             case when ${lerContato} then pe.telefone end as "telefone",
+             ${lerCpf} as "podeLerCpf",
+             ${lerContato} as "podeLerContato",
+             ${lerProdutos} as "podeLerProdutos",
+             ${condicaoDaBolsa(acesso.alcance('bolsa:edit'))} as "podeEditar",
+             ${condicaoDeCorrecaoCpf(acesso, sql`pe.id`)} as "podeAlterarCpf",
+             ${condicaoDaBolsa(acesso.alcance('produto:create'))} as "podeCriarProduto",
+             ${condicaoDaBolsa(acesso.alcance('produto:edit'))} as "podeEditarProduto",
              pe.lattes                     as "lattes",
              pe.orcid                      as "orcid",
              -- coalesce: a tematica da concessao e a fonte, e o item planejado
@@ -571,8 +612,8 @@ export class BolsistasService {
              bc.status                     as "status",
              bc.processo                   as "processo",
              bc.observacoes                as "observacoes",
-             coalesce(pr.total, 0)          as "produtos",
-             coalesce(pr.pendentes, 0)      as "produtosPendentes"
+             case when ${lerProdutos} then coalesce(pr.total, 0) end as "produtos",
+             case when ${lerProdutos} then coalesce(pr.pendentes, 0) end as "produtosPendentes"
         from bolsa_concedida bc
         join programa prog     on prog.id = bc.programa_id
         join ciclo c           on c.id = bc.ciclo_id
@@ -591,7 +632,7 @@ export class BolsistasService {
         left join linha_pesquisa lp on lp.id = bc.linha_pesquisa_id
         left join pessoa ori        on ori.id = bc.orientador_id
         left join pessoa coord      on coord.id = pg.coordenador_id
-       where ${filtroPorPpg(escopo, sql`bc.ppg_id`)}
+       where ${recorte} and ${id ? sql`bc.id = ${id}::uuid` : sql`true`}
        order by bc.data_inicio, pe.nome
     `,
     );
@@ -609,8 +650,19 @@ export class BolsistasService {
    * responde **404, nunca 403** — dizer "existe, mas nao e seu" ja entrega que
    * a pessoa tem bolsa, que e justamente o dado protegido aqui.
    */
-  async detalhar(id: string, usuario: AuthUser) {
-    const bolsa = (await this.listar(usuario)).find((item) => item.id === id);
+  async detalhar(id: string, usuario: AuthUser, acesso?: AcessoResolvido) {
+    return this.detalhe(
+      id,
+      acesso ?? (await this.identidade.acessoDe(usuario)),
+    );
+  }
+
+  private async detalhe(
+    id: string,
+    acesso: AcessoResolvido,
+    acao: PermissaoV1 = 'bolsa:read',
+  ) {
+    const [bolsa] = await this.consultarBolsas(acesso, acao, id);
     if (!bolsa) throw new NotFoundException('Bolsa concedida não encontrada.');
 
     const hoje = dataHojeEmManaus();
@@ -631,7 +683,7 @@ export class BolsistasService {
              pais_colaboracao   as "paisColaboracao",
              observacoes
         from produto_bolsa
-       where bolsa_concedida_id = ${id}
+       where bolsa_concedida_id = ${id} and ${bolsa.podeLerProdutos}
        order by prazo_entrega, titulo
     `,
     );
@@ -645,124 +697,141 @@ export class BolsistasService {
     };
   }
 
-  /**
-   * Concede a bolsa a uma pessoa.
-   *
-   * **A escrita usa o mesmo `podeVerPpg` da leitura, com o modo permissivo**,
-   * e nao a regra estrita que `RecorteDeMissoes.alcanca` adota. Os dois casos
-   * parecem iguais e nao sao: `gestor-rede` nunca foi atribuido a ninguem, e
-   * fechar a escrita de missao nao tira nada de ninguem; `bolsa:write` e do
-   * `coordenador`, que existe e trabalha hoje sem escopo cadastrado. Fechar a
-   * escrita aqui pararia o cadastro de bolsa no mesmo instante, para todo
-   * mundo — exatamente o que `RECORTE_OBRIGATORIO = false` existe para evitar.
-   * Quando a flag virar `true`, leitura e escrita fecham juntas.
-   */
-  async criar(dto: CriarBolsaConcedida, usuario: AuthUser) {
-    const escopo = await this.identidade.escopoDe(usuario);
+  /** Criacao confere somente o alcance de bolsa:create, antes de qualquer escrita. */
+  async criar(
+    dto: CriarBolsaConcedida,
+    usuario: AuthUser,
+    resolvido?: AcessoResolvido,
+  ) {
+    const acesso = resolvido ?? (await this.identidade.acessoDe(usuario));
     const ano = Number(dto.dataInicio.slice(0, 4));
 
-    const id = await this.db.transaction(async (tx) => {
-      const [item] = await tx
-        .select({
-          id: s.itemPlanejado.id,
-          programaId: s.programa.id,
-          cicloId: s.ciclo.id,
-          ppgId: s.itemPlanejado.ppgId,
-          areaTematicaId: s.itemPlanejado.areaTematicaId,
-          modalidadeId: s.itemPlanejado.modalidadeId,
-          destino: s.itemPlanejado.destino,
-          vigenciaMeses: s.itemPlanejado.vigenciaMeses,
-          valorConcedido: s.itemCatalogoBolsa.valorBrl,
-          fluxo: s.itemPlanejado.fluxo,
-        })
-        .from(s.itemPlanejado)
-        .innerJoin(s.ciclo, eq(s.ciclo.id, s.itemPlanejado.cicloId))
-        .innerJoin(s.programa, eq(s.programa.id, s.ciclo.programaId))
-        .innerJoin(
-          s.itemCatalogoBolsa,
-          eq(s.itemCatalogoBolsa.id, s.itemPlanejado.itemCatalogoId),
-        )
-        .where(
-          and(
-            eq(s.itemPlanejado.id, dto.itemPlanejadoId),
-            eq(s.itemPlanejado.rubrica, 'BOLSAS'),
-            eq(s.itemPlanejado.status, 'PROGRAMADO'),
-          ),
-        )
-        .limit(1);
+    const id = await this.db
+      .transaction(async (tx) => {
+        const [item] = await tx
+          .select({
+            id: s.itemPlanejado.id,
+            programaId: s.programa.id,
+            cicloId: s.ciclo.id,
+            ppgId: s.itemPlanejado.ppgId,
+            areaTematicaId: s.itemPlanejado.areaTematicaId,
+            modalidadeId: s.itemPlanejado.modalidadeId,
+            destino: s.itemPlanejado.destino,
+            vigenciaMeses: s.itemPlanejado.vigenciaMeses,
+            valorConcedido: s.itemCatalogoBolsa.valorBrl,
+            fluxo: s.itemPlanejado.fluxo,
+          })
+          .from(s.itemPlanejado)
+          .innerJoin(s.ciclo, eq(s.ciclo.id, s.itemPlanejado.cicloId))
+          .innerJoin(s.programa, eq(s.programa.id, s.ciclo.programaId))
+          .innerJoin(
+            s.itemCatalogoBolsa,
+            eq(s.itemCatalogoBolsa.id, s.itemPlanejado.itemCatalogoId),
+          )
+          .leftJoin(
+            s.areaTematica,
+            eq(s.areaTematica.id, s.itemPlanejado.areaTematicaId),
+          )
+          .leftJoin(
+            s.participacaoPpg,
+            and(
+              eq(s.participacaoPpg.ppgId, s.itemPlanejado.ppgId),
+              eq(
+                s.participacaoPpg.areaTematicaId,
+                s.itemPlanejado.areaTematicaId,
+              ),
+            ),
+          )
+          .where(
+            and(
+              condicaoDoAlcance(acesso.alcance('bolsa:create'), {
+                ciclo: sql`${s.itemPlanejado.cicloId}`,
+                ppg: sql`${s.itemPlanejado.ppgId}`,
+                tematica: sql`${s.itemPlanejado.areaTematicaId}`,
+                rede: sql`${s.areaTematica.redeId}`,
+                participacao: sql`${s.participacaoPpg.id}`,
+              }),
+              eq(s.itemPlanejado.id, dto.itemPlanejadoId),
+              eq(s.itemPlanejado.rubrica, 'BOLSAS'),
+              eq(s.itemPlanejado.status, 'PROGRAMADO'),
+            ),
+          )
+          .limit(1);
 
-      if (
-        !item ||
-        !item.modalidadeId ||
-        !item.destino ||
-        !item.vigenciaMeses ||
-        !item.fluxo
-      ) {
-        throw new BadRequestException(
-          'A linha selecionada não é uma bolsa programada válida.',
-        );
-      }
+        if (!item)
+          throw new NotFoundException('Bolsa planejada não encontrada.');
+        if (
+          !item.modalidadeId ||
+          !item.destino ||
+          !item.vigenciaMeses ||
+          !item.fluxo
+        ) {
+          throw new BadRequestException(
+            'A linha selecionada não é uma bolsa programada válida.',
+          );
+        }
 
-      // 404 e nao 403, pela mesma razao de `detalhar`: a linha do plano de
-      // outro PPG nem aparece em `opcoesPlanejamento`, entao para quem esta
-      // recortado ela simplesmente nao existe.
-      if (!podeVerPpg(escopo, item.ppgId)) {
-        throw new NotFoundException('Bolsa planejada não encontrada.');
-      }
+        // Antes de `exigirVaga`, de proposito: aquela funcao trava a linha de
+        // `planejamento_anual` com `for update` ate o fim da transacao. Validar
+        // as pontas depois manteria o lock preso durante leituras que so podem
+        // recusar a requisicao — e recusaria a vaga por um erro de referencia.
+        const pontas = await resolverPontas(tx, dto);
 
-      // Antes de `exigirVaga`, de proposito: aquela funcao trava a linha de
-      // `planejamento_anual` com `for update` ate o fim da transacao. Validar
-      // as pontas depois manteria o lock preso durante leituras que so podem
-      // recusar a requisicao — e recusaria a vaga por um erro de referencia.
-      const pontas = await resolverPontas(tx, dto);
+        await exigirVaga(tx, item.id, ano);
 
-      await exigirVaga(tx, item.id, ano);
+        const [modalidadeJaUtilizada] = await tx
+          .select({ modalidadeId: s.bolsaConcedida.modalidadeId })
+          .from(s.bolsaConcedida)
+          .innerJoin(s.pessoa, eq(s.pessoa.id, s.bolsaConcedida.pessoaId))
+          .where(
+            and(
+              eq(s.bolsaConcedida.cicloId, item.cicloId),
+              eq(s.pessoa.cpf, dto.cpf),
+              ne(s.bolsaConcedida.modalidadeId, item.modalidadeId),
+            ),
+          )
+          .limit(1);
+        if (modalidadeJaUtilizada) {
+          throw new BadRequestException(
+            'Não foi possível vincular os dados informados. Solicite revisão do cadastro à equipe autorizada.',
+          );
+        }
 
-      const [modalidadeJaUtilizada] = await tx
-        .select({ modalidadeId: s.bolsaConcedida.modalidadeId })
-        .from(s.bolsaConcedida)
-        .innerJoin(s.pessoa, eq(s.pessoa.id, s.bolsaConcedida.pessoaId))
-        .where(
-          and(
-            eq(s.bolsaConcedida.cicloId, item.cicloId),
-            eq(s.pessoa.cpf, dto.cpf),
-            ne(s.bolsaConcedida.modalidadeId, item.modalidadeId),
-          ),
-        )
-        .limit(1);
-      if (modalidadeJaUtilizada) {
-        throw new BadRequestException(
-          'Este CPF já utilizou outra modalidade de bolsa neste ciclo.',
-        );
-      }
+        const email = dto.email?.toLocaleLowerCase('pt-BR') ?? null;
+        const [existente] = await tx
+          .select({ id: s.pessoa.id, cpf: s.pessoa.cpf })
+          .from(s.pessoa)
+          .where(
+            email
+              ? or(eq(s.pessoa.cpf, dto.cpf), eq(s.pessoa.email, email))
+              : eq(s.pessoa.cpf, dto.cpf),
+          )
+          .limit(1)
+          .for('update');
 
-      const email = dto.email?.toLocaleLowerCase('pt-BR') ?? null;
-      const [existente] = await tx
-        .select({ id: s.pessoa.id })
-        .from(s.pessoa)
-        .where(
-          email
-            ? or(eq(s.pessoa.cpf, dto.cpf), eq(s.pessoa.email, email))
-            : eq(s.pessoa.cpf, dto.cpf),
-        )
-        .limit(1);
-
-      const pessoaId = existente
-        ? (
-            await tx
-              .update(s.pessoa)
-              .set({
-                nome: dto.nome,
-                email,
-                cpf: dto.cpf,
-                ppgId: item.ppgId,
-                ...dadosDeContato(dto),
-                atualizadoEm: new Date(),
-              })
-              .where(eq(s.pessoa.id, existente.id))
-              .returning({ id: s.pessoa.id })
-          )[0].id
-        : (
+        // CPF identifica; e-mail nunca autoriza trocar a identidade de outra pessoa.
+        // Reutilizar nao atualiza o cadastro compartilhado, nem devolve seus dados.
+        if (existente) {
+          const [visivel] = await consultar<{ id: string }>(
+            tx,
+            sql`
+          select bc.id from bolsa_concedida bc
+          where bc.pessoa_id = ${existente.id}::uuid
+            and ${condicaoDaBolsa(acesso.alcance('bolsa:create'))} limit 1
+        `,
+          );
+          if (
+            existente.cpf !== dto.cpf ||
+            (!visivel && !acesso.alcance('bolsa:create').global)
+          ) {
+            throw new BadRequestException(
+              'Não foi possível vincular os dados informados. Solicite revisão do cadastro à equipe autorizada.',
+            );
+          }
+        }
+        const pessoaId =
+          existente?.id ??
+          (
             await tx
               .insert(s.pessoa)
               .values({
@@ -776,84 +845,130 @@ export class BolsistasService {
               .returning({ id: s.pessoa.id })
           )[0].id;
 
-      const [criada] = await tx
-        .insert(s.bolsaConcedida)
-        .values({
-          itemPlanejadoId: item.id,
-          programaId: item.programaId,
-          cicloId: item.cicloId,
-          ppgId: item.ppgId,
-          areaTematicaId: item.areaTematicaId,
-          pessoaId,
-          linhaPesquisaId: await linhaDoPpg(tx, dto, item.ppgId),
-          orientadorId: await orientador(tx, dto, item.ppgId),
-          modalidadeId: item.modalidadeId,
-          destino: item.destino,
-          ...pontas,
-          nivelBeneficiario: dto.nivelBeneficiario,
-          dataInicio: dto.dataInicio,
-          dataFim: dto.dataFim,
-          vigenciaMeses: item.vigenciaMeses,
-          valorConcedido: item.valorConcedido,
-          fluxo: item.fluxo,
-          status: dto.status,
-          processo: dto.processo ?? null,
-          observacoes: dto.observacoes ?? null,
-        })
-        .returning({ id: s.bolsaConcedida.id });
+        const [criada] = await tx
+          .insert(s.bolsaConcedida)
+          .values({
+            itemPlanejadoId: item.id,
+            programaId: item.programaId,
+            cicloId: item.cicloId,
+            ppgId: item.ppgId,
+            areaTematicaId: item.areaTematicaId,
+            pessoaId,
+            linhaPesquisaId: await linhaDoPpg(tx, dto, item.ppgId),
+            orientadorId: await orientador(tx, dto, item.ppgId),
+            modalidadeId: item.modalidadeId,
+            destino: item.destino,
+            ...pontas,
+            nivelBeneficiario: dto.nivelBeneficiario,
+            dataInicio: dto.dataInicio,
+            dataFim: dto.dataFim,
+            vigenciaMeses: item.vigenciaMeses,
+            valorConcedido: item.valorConcedido,
+            fluxo: item.fluxo,
+            status: dto.status,
+            processo: dto.processo ?? null,
+            observacoes: dto.observacoes ?? null,
+          })
+          .returning({ id: s.bolsaConcedida.id });
 
-      return criada.id;
-    });
+        return criada.id;
+      })
+      .catch(recusarConflitoDePessoa);
 
-    return this.detalhar(id, usuario);
+    return this.detalhe(id, acesso, 'bolsa:create');
   }
 
-  async atualizar(id: string, dto: AtualizarBolsaConcedida, usuario: AuthUser) {
-    const escopo = await this.identidade.escopoDe(usuario);
-    const [atual] = await this.db
-      .select({
-        itemPlanejadoId: s.bolsaConcedida.itemPlanejadoId,
-        ppgId: s.bolsaConcedida.ppgId,
-      })
-      .from(s.bolsaConcedida)
-      .where(eq(s.bolsaConcedida.id, id))
-      .limit(1);
-
-    if (!atual || !podeVerPpg(escopo, atual.ppgId)) {
-      throw new NotFoundException('Bolsa concedida não encontrada.');
-    }
-
-    if (atual.itemPlanejadoId && dto.status !== 'CANCELADA') {
-      await exigirVaga(
-        this.db,
-        atual.itemPlanejadoId,
-        Number(dto.dataInicio.slice(0, 4)),
-        id,
-      );
-    }
-
+  async atualizar(
+    id: string,
+    dto: AtualizarBolsaConcedida,
+    usuario: AuthUser,
+    resolvido?: AcessoResolvido,
+  ) {
+    const acesso = resolvido ?? (await this.identidade.acessoDe(usuario));
     await this.db
-      .update(s.bolsaConcedida)
-      .set({
-        dataInicio: dto.dataInicio,
-        dataFim: dto.dataFim,
-        status: dto.status,
-        processo: dto.processo ?? null,
-        observacoes: dto.observacoes ?? null,
-        atualizadoEm: new Date(),
+      .transaction(async (tx) => {
+        const atual = await this.exigirBolsa(tx, id, acesso, 'bolsa:edit');
+        if (dto.cpf !== undefined) {
+          // Pessoa e compartilhada: corrigir CPF exige alcance de edicao e de
+          // dados pessoais sobre todas as suas bolsas, nao so a URL escolhida.
+          await tx.execute(
+            sql`select id from pessoa where id = ${atual.pessoaId}::uuid for update`,
+          );
+          const [permitida] = await consultar<{ id: string }>(
+            tx,
+            sql`
+          select bc.id from bolsa_concedida bc where bc.id = ${id}::uuid
+            and ${condicaoDeCorrecaoCpf(acesso, sql`${atual.pessoaId}::uuid`)}
+        `,
+          );
+          if (!permitida)
+            throw new ForbiddenException(
+              'Sem permissão para corrigir o CPF deste cadastro.',
+            );
+          const [duplicada] = await tx
+            .select({ id: s.pessoa.id })
+            .from(s.pessoa)
+            .where(
+              and(eq(s.pessoa.cpf, dto.cpf), ne(s.pessoa.id, atual.pessoaId)),
+            )
+            .limit(1);
+          if (duplicada)
+            throw new BadRequestException(
+              'Não foi possível vincular os dados informados. Solicite revisão do cadastro à equipe autorizada.',
+            );
+          await tx
+            .update(s.pessoa)
+            .set({ cpf: dto.cpf, atualizadoEm: new Date() })
+            .where(eq(s.pessoa.id, atual.pessoaId));
+          await tx.insert(s.registroAuditoria).values({
+            entidadeTipo: 'PESSOA',
+            entidadeId: atual.pessoaId,
+            acao: 'EDICAO',
+            campo: 'cpf',
+            usuarioId: usuario.id,
+            usuarioNome: usuario.name,
+            justificativa: 'Correção de CPF pela edição de bolsa autorizada.',
+          });
+        }
+        if (atual.itemPlanejadoId && dto.status !== 'CANCELADA') {
+          await exigirVaga(
+            tx,
+            atual.itemPlanejadoId,
+            Number(dto.dataInicio.slice(0, 4)),
+            id,
+          );
+        }
+        await tx
+          .update(s.bolsaConcedida)
+          .set({
+            dataInicio: dto.dataInicio,
+            dataFim: dto.dataFim,
+            status: dto.status,
+            processo: dto.processo ?? null,
+            observacoes: dto.observacoes ?? null,
+            atualizadoEm: new Date(),
+          })
+          .where(eq(s.bolsaConcedida.id, id));
       })
-      .where(eq(s.bolsaConcedida.id, id));
-
-    return this.detalhar(id, usuario);
+      .catch(recusarConflitoDePessoa);
+    return this.detalhe(id, acesso, 'bolsa:edit');
   }
 
-  async criarProduto(bolsaId: string, dto: ProdutoBolsaDto, usuario: AuthUser) {
-    await this.exigirBolsa(bolsaId, usuario);
-    const [produto] = await this.db
-      .insert(s.produtoBolsa)
-      .values(valoresProduto(bolsaId, dto))
-      .returning({ id: s.produtoBolsa.id });
-    return this.produto(bolsaId, produto.id, usuario);
+  async criarProduto(
+    bolsaId: string,
+    dto: ProdutoBolsaDto,
+    usuario: AuthUser,
+    resolvido?: AcessoResolvido,
+  ) {
+    const acesso = resolvido ?? (await this.identidade.acessoDe(usuario));
+    return this.db.transaction(async (tx) => {
+      await this.exigirBolsa(tx, bolsaId, acesso, 'produto:create');
+      const [produto] = await tx
+        .insert(s.produtoBolsa)
+        .values(valoresProduto(bolsaId, dto))
+        .returning();
+      return { ...produto, situacao: classificarSituacaoProduto(produto) };
+    });
   }
 
   async atualizarProduto(
@@ -861,52 +976,74 @@ export class BolsistasService {
     produtoId: string,
     dto: ProdutoBolsaDto,
     usuario: AuthUser,
+    resolvido?: AcessoResolvido,
   ) {
-    await this.exigirBolsa(bolsaId, usuario);
-    const [produto] = await this.db
-      .update(s.produtoBolsa)
-      .set({
-        ...valoresProduto(bolsaId, dto),
-        atualizadoEm: new Date(),
-      })
-      .where(
-        and(
-          eq(s.produtoBolsa.id, produtoId),
-          eq(s.produtoBolsa.bolsaConcedidaId, bolsaId),
-        ),
-      )
-      .returning({ id: s.produtoBolsa.id });
-
-    if (!produto) throw new NotFoundException('Produto não encontrado.');
-    return this.produto(bolsaId, produto.id, usuario);
+    const acesso = resolvido ?? (await this.identidade.acessoDe(usuario));
+    return this.db.transaction(async (tx) => {
+      await this.exigirBolsa(tx, bolsaId, acesso, 'produto:edit');
+      const [produto] = await tx
+        .update(s.produtoBolsa)
+        .set({ ...valoresProduto(bolsaId, dto), atualizadoEm: new Date() })
+        .where(
+          and(
+            eq(s.produtoBolsa.id, produtoId),
+            eq(s.produtoBolsa.bolsaConcedidaId, bolsaId),
+          ),
+        )
+        .returning();
+      if (!produto) throw new NotFoundException('Produto não encontrado.');
+      return { ...produto, situacao: classificarSituacaoProduto(produto) };
+    });
   }
 
-  private async produto(bolsaId: string, produtoId: string, usuario: AuthUser) {
-    const detalhe = await this.detalhar(bolsaId, usuario);
-    const produto = detalhe.produtos.find((item) => item.id === produtoId);
-    if (!produto) throw new NotFoundException('Produto não encontrado.');
-    return produto;
+  private async exigirBolsa(
+    db: Database,
+    id: string,
+    acesso: AcessoResolvido,
+    acao: PermissaoV1,
+  ) {
+    const [bolsa] = await consultar<{
+      itemPlanejadoId: string | null;
+      pessoaId: string;
+    }>(
+      db,
+      sql`
+      select bc.item_planejado_id as "itemPlanejadoId", bc.pessoa_id as "pessoaId"
+      from bolsa_concedida bc where bc.id = ${id}::uuid
+        and ${condicaoDaBolsa(acesso.alcance(acao))} for update
+    `,
+    );
+    if (!bolsa) throw new NotFoundException('Bolsa concedida não encontrada.');
+    return bolsa;
   }
+}
 
-  /**
-   * A concessao existe **e** esta no escopo de quem pediu.
-   *
-   * O produto herda o recorte da bolsa, e nao tem recorte proprio: quem alcanca
-   * a concessao alcanca a cobranca feita sobre ela. Sem isto, `produto:write`
-   * seria a porta lateral do recorte — conhecer o UUID bastaria para escrever
-   * na bolsa de outro PPG, que e a mesma falha que a CG-051 fechou nos anexos.
-   */
-  private async exigirBolsa(id: string, usuario: AuthUser) {
-    const escopo = await this.identidade.escopoDe(usuario);
-    const [bolsa] = await this.db
-      .select({ ppgId: s.bolsaConcedida.ppgId })
-      .from(s.bolsaConcedida)
-      .where(eq(s.bolsaConcedida.id, id))
-      .limit(1);
-    if (!bolsa || !podeVerPpg(escopo, bolsa.ppgId)) {
-      throw new NotFoundException('Bolsa concedida não encontrada.');
-    }
+/** Todas as bolsas da pessoa precisam aceitar a correcao compartilhada. */
+function condicaoDeCorrecaoCpf(acesso: AcessoResolvido, pessoaId: SQL) {
+  return sql`(${condicaoDaBolsa(acesso.alcance('bolsa:edit'))}
+    and ${condicaoDaBolsa(acesso.alcance('pessoa:edit-cpf'))}
+    and not exists (select 1 from bolsa_concedida bc
+      where bc.pessoa_id = ${pessoaId}
+        and not (${condicaoDaBolsa(acesso.alcance('bolsa:edit'))}
+          and ${condicaoDaBolsa(acesso.alcance('pessoa:edit-cpf'))})))`;
+}
+
+/** Conflito concorrente de identidade recebe a mesma resposta da previa. */
+function recusarConflitoDePessoa(erro: unknown): never {
+  const causa = (erro as { cause?: unknown })?.cause ?? erro;
+  const { code, constraint } = (causa ?? {}) as {
+    code?: string;
+    constraint?: string;
+  };
+  if (
+    code === '23505' &&
+    (constraint === 'pessoa_cpf_uk' || constraint === 'pessoa_email_uk')
+  ) {
+    throw new BadRequestException(
+      'Não foi possível vincular os dados informados. Solicite revisão do cadastro à equipe autorizada.',
+    );
   }
+  throw erro;
 }
 
 export function classificarSituacaoTemporal(

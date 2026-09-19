@@ -79,7 +79,7 @@ export function menu(
           rotulo: "Bolsistas",
           href: "/mobilidade/bolsistas",
           disponivel: true,
-          exige: ["bolsa:read", "produto:read"],
+          exige: ["bolsa:read"],
         },
       ],
     },

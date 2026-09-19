@@ -4,6 +4,8 @@ import test from "node:test";
 
 import {
   formularioBolsaConcedidaSchema,
+  formularioEdicaoBolsaSchema,
+  payloadEdicaoBolsa,
   payloadBolsaConcedida,
 } from "../src/lib/formularios/bolsa-concedida.ts";
 
@@ -133,7 +135,10 @@ test("o payload converte data BR para ISO e vazio para nulo", () => {
 
 test("o formulario nao volta a usar FormData", async () => {
   const fonte = await readFile(
-    new URL("../src/componentes/formularios/form-bolsa-concedida.tsx", import.meta.url),
+    new URL(
+      "../src/componentes/formularios/form-bolsa-concedida.tsx",
+      import.meta.url,
+    ),
     "utf8",
   );
   // A concessao migrou para React Hook Form na BOL-010 (AGENTS.md secao 7).
@@ -146,12 +151,57 @@ test("o formulario nao volta a usar FormData", async () => {
 
 test("o seletor de instituicao nao refiltra no cliente o que o servidor filtrou", async () => {
   const fonte = await readFile(
-    new URL("../src/componentes/consultas/campo-instituicao.tsx", import.meta.url),
+    new URL(
+      "../src/componentes/consultas/campo-instituicao.tsx",
+      import.meta.url,
+    ),
     "utf8",
   );
   assert.match(fonte, /filtrarNoCliente=\{false\}/);
   // `initialData` so vale para o termo vazio: e a lista que o servidor buscou.
-  assert.match(fonte, /initialData: termoAdiado === "" \? iniciais : undefined/);
+  assert.match(
+    fonte,
+    /initialData: termoAdiado === "" \? iniciais : undefined/,
+  );
   // A escolhida fica fixada, senao sumiria da lista ao buscar outra coisa.
   assert.match(fonte, /fixada && !encontradas\.some/);
+});
+
+test("edicao sem CPF preserva identidade e converte datas", () => {
+  const dados = formularioEdicaoBolsaSchema.parse({
+    dataInicio: "01/03/2027",
+    dataFim: "31/08/2027",
+    status: "EM_ANDAMENTO",
+    processo: "",
+    observacoes: "",
+    cpf: "",
+  });
+  const payload = payloadEdicaoBolsa(dados);
+  assert.equal(Object.hasOwn(payload, "cpf"), false);
+  assert.equal(payload.dataInicio, "2027-03-01");
+});
+
+test("correcao aceita CPF informado e recusa mascara ou periodo invertido", () => {
+  const dados = {
+    dataInicio: "01/03/2027",
+    dataFim: "31/08/2027",
+    status: "EM_ANDAMENTO",
+    processo: "",
+    observacoes: "",
+    cpf: "529.982.247-25",
+  };
+  assert.equal(
+    payloadEdicaoBolsa(formularioEdicaoBolsaSchema.parse(dados)).cpf,
+    dados.cpf,
+  );
+  assert.equal(
+    formularioEdicaoBolsaSchema.safeParse({ ...dados, cpf: "***.982.247-**" })
+      .success,
+    false,
+  );
+  assert.equal(
+    formularioEdicaoBolsaSchema.safeParse({ ...dados, dataFim: "01/02/2027" })
+      .success,
+    false,
+  );
 });

@@ -111,10 +111,17 @@ describe('Recorte por rede das missoes (CG-028)', () => {
   });
 
   /**
-   * Cria a conta local e concede `missao:read` no alvo indicado.
+   * Cria a conta local e concede **as acoes do modelo** no alvo indicado.
    *
    * E o caminho real do modelo novo: quem enxerga missao e quem tem concessao
    * de `missao:read` alcancando a rede — nao quem esta na equipe dela.
+   *
+   * Ate a V1-016 esta fixture concedia so `missao:read`, e bastava: o anexo
+   * era recortado por um alcance generico de missao, qualquer que fosse a
+   * acao cobrada. Agora cada acao carrega o seu, entao a conta que **envia**
+   * documento precisa de `missao:edit` concedido — que e o que a tela de
+   * acessos faria ao aplicar o modelo. Conceder so a leitura descreveria uma
+   * conta que a aplicacao nao produz.
    */
   async function criarConta(
     usuario: AuthUser,
@@ -145,12 +152,14 @@ describe('Recorte por rede das missoes (CG-028)', () => {
           .where(eq(s.usuarioSistema.sub, usuario.id))
       )[0].id;
 
-    await ctx.db.insert(s.concessaoAcesso).values({
-      usuarioId,
-      permissao: 'missao:read',
-      justificativa: 'Fixture do recorte por rede.',
-      ...colunasDoAlvo(alvo),
-    });
+    await ctx.db.insert(s.concessaoAcesso).values(
+      usuario.permissions.map((permissao) => ({
+        usuarioId,
+        permissao,
+        justificativa: 'Fixture do recorte por rede.',
+        ...colunasDoAlvo(alvo),
+      })),
+    );
 
     return { usuarioId, pessoaId };
   }
@@ -250,12 +259,14 @@ describe('Recorte por rede das missoes (CG-028)', () => {
   it('a rede vem da concessao, e revogar tira o acesso', async () => {
     expect((await identidade.escopoDe(gestor)).redeIds).toEqual([base.redeId]);
 
-    // Revogada, a concessao para de valer na consulta seguinte — sem esperar o
-    // token expirar, e sem depender de o vinculo de equipe ter sido encerrado.
-    await ctx.db
-      .update(s.concessaoAcesso)
-      .set({ ativo: false, revogadoEm: sql`now()` })
-      .where(eq(s.concessaoAcesso.permissao, 'missao:read'));
+    // Revogadas, as concessoes param de valer na consulta seguinte — sem
+    // esperar o token expirar, e sem depender de o vinculo de equipe ter sido
+    // encerrado. Revoga-se a conta inteira porque `escopoDe` soma o alcance de
+    // **todas** as acoes: deixar uma de pe deixaria a rede de pe com ela.
+    await ctx.db.update(s.concessaoAcesso).set({
+      ativo: false,
+      revogadoEm: sql`now()`,
+    });
 
     expect((await identidade.escopoDe(gestor)).redeIds).toEqual([]);
   });

@@ -10,7 +10,13 @@ import {
 } from "@/acoes/bolsistas";
 import { CampoInstituicao } from "@/componentes/consultas/campo-instituicao";
 import { CampoCombobox } from "@/componentes/ui/campo-combobox";
-import { AreaTexto, Data, Grade, Selecao, Texto } from "@/componentes/ui/campos";
+import {
+  AreaTexto,
+  Data,
+  Grade,
+  Selecao,
+  Texto,
+} from "@/componentes/ui/campos";
 import { useErrosDaAcao } from "@/componentes/ui/formulario";
 import { Multistep, type Passo } from "@/componentes/ui/multistep";
 import { AbrirSidesheet } from "@/componentes/ui/sidesheet";
@@ -23,10 +29,12 @@ import type {
 } from "@/lib/dominio";
 import {
   formularioBolsaConcedidaSchema,
+  formularioEdicaoBolsaSchema,
+  type DadosEdicaoBolsa,
   NIVEIS_BENEFICIARIO,
   type DadosFormularioBolsaConcedida,
 } from "@/lib/formularios/bolsa-concedida";
-import { meses, moeda, rotulo } from "@/lib/formato";
+import { data, meses, moeda, rotulo } from "@/lib/formato";
 
 export function NovaBolsaConcedida({
   opcoes,
@@ -539,29 +547,58 @@ function FormEditarBolsa({
     atualizarBolsaConcedida.bind(null, bolsa.id),
     ESTADO_INICIAL,
   );
+  const {
+    register,
+    handleSubmit,
+    setError,
+    formState: { errors },
+  } = useForm<DadosEdicaoBolsa>({
+    resolver: zodResolver(formularioEdicaoBolsaSchema),
+    defaultValues: {
+      dataInicio: data(bolsa.dataInicio),
+      dataFim: data(bolsa.dataFim),
+      status: bolsa.status,
+      processo: bolsa.processo ?? "",
+      observacoes: bolsa.observacoes ?? "",
+      cpf: "",
+    },
+  });
   useToastDaAcao(estado, aoConcluir);
-
+  useErrosDaAcao(estado, setError, {
+    dataInicio: "dataInicio",
+    dataFim: "dataFim",
+    status: "status",
+    processo: "processo",
+    observacoes: "observacoes",
+    cpf: "cpf",
+  });
   return (
-    <form action={executar} className="flex min-h-0 flex-1 flex-col">
+    <form
+      onSubmit={handleSubmit((dados) => startTransition(() => executar(dados)))}
+      className="flex min-h-0 flex-1 flex-col"
+    >
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
         <Grade>
           <Data
             rotulo="Data inicial"
             nome="dataInicio"
             obrigatorio
-            padrao={bolsa.dataInicio}
+            registro={register("dataInicio")}
+            erro={errors.dataInicio?.message}
           />
           <Data
             rotulo="Data final"
             nome="dataFim"
             obrigatorio
-            padrao={bolsa.dataFim}
+            registro={register("dataFim")}
+            erro={errors.dataFim?.message}
           />
         </Grade>
         <Selecao
           rotulo="Situação registrada"
           nome="status"
-          padrao={bolsa.status}
+          registro={register("status")}
+          erro={errors.status?.message}
           opcoes={[
             { valor: "SELECIONADO", texto: "Selecionado" },
             { valor: "EM_ANDAMENTO", texto: "Em andamento" },
@@ -570,23 +607,34 @@ function FormEditarBolsa({
             { valor: "INTERROMPIDA", texto: "Interrompida" },
           ]}
         />
+        {bolsa.podeAlterarCpf ? (
+          <Texto
+            rotulo="Corrigir CPF"
+            nome="cpf"
+            registro={register("cpf")}
+            erro={errors.cpf?.message}
+            dica="Deixe vazio para preservar o CPF atual. Preencha somente para corrigir o cadastro."
+          />
+        ) : null}
         <Texto
           rotulo="Processo"
           nome="processo"
-          padrao={bolsa.processo ?? undefined}
+          registro={register("processo")}
+          erro={errors.processo?.message}
         />
         <AreaTexto
           rotulo="Observações"
           nome="observacoes"
           linhas={4}
-          padrao={bolsa.observacoes ?? undefined}
+          registro={register("observacoes")}
+          erro={errors.observacoes?.message}
         />
       </div>
       <RodapeForm
         enviando={enviando}
         erro={estado.ok ? null : (estado.mensagem ?? null)}
         aoCancelar={aoConcluir}
-        rotulo="Salvar situação"
+        rotulo="Salvar alterações"
       />
     </form>
   );

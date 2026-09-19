@@ -3,7 +3,11 @@ import { sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 
 import type { AuthUser } from '../auth/auth-user';
-import { filtroPorPpg } from '../auth/escopo';
+import type { AcessoResolvido } from '../auth/autorizacao-v1/acesso-v1.service';
+import {
+  condicaoDaBolsa,
+  condicaoDaMissao,
+} from '../auth/autorizacao-v1/recorte-bolsa';
 import { IdentidadeService } from '../auth/identidade.service';
 import { consultar, consultarUma } from '../comum/consultar';
 import { DRIZZLE, type Database } from '../database/database.module';
@@ -78,7 +82,7 @@ export interface LinhaRede {
   paises: number;
   instituicoes: number;
   ppgs: number;
-  produtos: number;
+  produtos: number | null;
 }
 
 /**
@@ -148,7 +152,7 @@ export interface LinhaRelatorioMobilidade {
   dataFim: string;
   status: string;
   valor: string;
-  produtos: number;
+  produtos: number | null;
 }
 
 export interface PanoramaMobilidade {
@@ -216,9 +220,13 @@ export class MobilidadeService {
   async panorama(
     usuario: AuthUser,
     filtro: FiltroMobilidade,
+    resolvido?: AcessoResolvido,
   ): Promise<PanoramaMobilidade> {
-    const escopo = await this.identidade.escopoDe(usuario);
-    const onde = this.condicao(filtro, filtroPorPpg(escopo, sql`bc.ppg_id`));
+    const acesso = resolvido ?? (await this.identidade.acessoDe(usuario));
+    const onde = this.condicao(
+      filtro,
+      condicaoDaBolsa(acesso.alcance('bolsa:read')),
+    );
 
     const [
       totais,
@@ -244,7 +252,7 @@ export class MobilidadeService {
         sql`bc.nivel_beneficiario::text`,
         sql``,
       ),
-      this.porRede(onde),
+      this.porRede(onde, condicaoDaBolsa(acesso.alcance('produto:read'))),
       this.porPais(onde),
       this.quebra(
         onde,
@@ -291,15 +299,20 @@ export class MobilidadeService {
   async relatorio(
     usuario: AuthUser,
     filtro: FiltroMobilidade,
+    resolvido?: AcessoResolvido,
   ): Promise<LinhaRelatorioMobilidade[]> {
-    const escopo = await this.identidade.escopoDe(usuario);
-    const onde = this.condicao(filtro, filtroPorPpg(escopo, sql`bc.ppg_id`));
+    const acesso = resolvido ?? (await this.identidade.acessoDe(usuario));
+    const onde = this.condicao(
+      filtro,
+      sql`(${condicaoDaBolsa(acesso.alcance('bolsa:read'))}
+      and ${condicaoDaBolsa(acesso.alcance('bolsa:export'))})`,
+    );
 
     return consultar<LinhaRelatorioMobilidade>(
       this.db,
       sql`
       select pe.nome                                as "bolsista",
-             pe.cpf                                 as "cpf",
+             case when ${condicaoDaBolsa(acesso.alcance('pessoa:read-cpf'))} then pe.cpf end as "cpf",
              coalesce(pe.orcid, '')                 as "orcid",
              pg.sigla                               as "ppg",
              prog.nome                              as "programa",
@@ -315,7 +328,7 @@ export class MobilidadeService {
              bc.data_fim                            as "dataFim",
              bc.status::text                        as "status",
              bc.valor_concedido                     as "valor",
-             coalesce(pr.total, 0)::int             as "produtos"
+             case when ${condicaoDaBolsa(acesso.alcance('produto:read'))} then coalesce(pr.total, 0)::int end as "produtos"
         from bolsa_concedida bc
         join pessoa pe          on pe.id = bc.pessoa_id
         join ppg pg             on pg.id = bc.ppg_id
@@ -347,10 +360,15 @@ export class MobilidadeService {
    * PPG e responde ao recorte por rede, que este metodo nao aplica, entao ele
    * so aparece para quem tem `missao:read` — a rota exige as duas permissoes.
    */
-  async producao(usuario: AuthUser): Promise<LinhaProducao[]> {
-    const escopo = await this.identidade.escopoDe(usuario);
-    const recorte = filtroPorPpg(escopo, sql`bc.ppg_id`);
-    const veMissao = usuario.permissions.includes('missao:read');
+  async producao(
+    usuario: AuthUser,
+    resolvido?: AcessoResolvido,
+  ): Promise<LinhaProducao[]> {
+    const acesso = resolvido ?? (await this.identidade.acessoDe(usuario));
+    const recorte = sql`(${condicaoDaBolsa(acesso.alcance('bolsa:read'))}
+      and ${condicaoDaBolsa(acesso.alcance('produto:read'))})`;
+    const recorteMissao = sql`(${condicaoDaMissao(acesso.alcance('missao:read'))}
+      and ${condicaoDaMissao(acesso.alcance('produto-missao:read'))})`;
 
     return consultar<LinhaProducao>(
       this.db,
@@ -385,7 +403,7 @@ export class MobilidadeService {
              null::text                 as "paisColaboracao"
         from produto_missao pm
         join missao_comite mc on mc.id = pm.missao_id
-       where ${veMissao ? sql`true` : sql`false`}
+       where ${recorteMissao}
 
        order by "ano" desc nulls last, "titulo"
     `,
@@ -497,7 +515,7 @@ export class MobilidadeService {
    * fora do planejamento — cai numa linha "sem rede" em vez de sumir. Some-la
    * as outras seria pior: ela existe e nao pertence a nenhuma.
    */
-  private async porRede(onde: SQL): Promise<LinhaRede[]> {
+  private async porRede(onde: SQL, lerProdutos: SQL): Promise<LinhaRede[]> {
     return consultar<LinhaRede>(
       this.db,
       sql`
@@ -510,10 +528,10 @@ export class MobilidadeService {
              count(distinct ${CHAVE_PAIS})::int                as "paises",
              count(distinct ${CHAVE_INSTITUICAO})::int         as "instituicoes",
              count(distinct bc.ppg_id)::int                    as "ppgs",
-             coalesce(sum(
+             case when bool_and(${lerProdutos}) then coalesce(sum(
                (select count(*) from produto_bolsa pb
                  where pb.bolsa_concedida_id = bc.id)
-             ), 0)::int                                        as "produtos"
+             ), 0)::int end                                     as "produtos"
         from bolsa_concedida bc
         left join item_planejado ip on ip.id = bc.item_planejado_id
         left join area_tematica at  on at.id = coalesce(bc.area_tematica_id, ip.area_tematica_id)

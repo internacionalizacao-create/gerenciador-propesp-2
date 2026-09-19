@@ -253,16 +253,23 @@ describe('AnexosService (CG-051)', () => {
     expect(await ctx.db.select().from(s.anexo)).toEqual([]);
   });
 
-  it('recusa upload apontando para entidade inexistente', async () => {
+  it('recusa upload apontando para entidade inexistente, sem dizer que nao existe', async () => {
     // `entidade_id` nao tem chave estrangeira; sem esta checagem o upload
     // criaria um orfao no ato.
+    //
+    // Desde a V1-016 a recusa e a **mesma** de quem aponta para uma entidade
+    // real fora do alcance. A mensagem "nao existe" distinguia as duas, e
+    // distinguir e o oraculo: bastaria variar o UUID ate o texto mudar para
+    // mapear quais missoes existem. O que este caso garante continua sendo o
+    // que garantia — nenhum orfao e gravado.
     await expect(
       service.enviar(
         envio({ entidadeId: '11111111-1111-4111-8111-111111111111' }),
         PDF(),
         admin,
       ),
-    ).rejects.toThrow(/não existe/i);
+    ).rejects.toThrow(/não encontrado/i);
+    expect(await ctx.db.select().from(s.anexo)).toEqual([]);
   });
 
   it('id existente de documento financeiro nao amplia permissao por referencia direta', async () => {

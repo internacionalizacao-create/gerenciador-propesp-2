@@ -80,6 +80,10 @@ export const CATALOGO_PERMISSOES_V1 = {
     rotulo: 'Consultar CPF completo',
     escopos: PLANEJAMENTO,
   },
+  'pessoa:edit-cpf': {
+    rotulo: 'Corrigir CPF cadastrado',
+    escopos: PLANEJAMENTO,
+  },
   'pessoa:read-contato': {
     rotulo: 'Consultar contatos pessoais',
     escopos: PLANEJAMENTO,

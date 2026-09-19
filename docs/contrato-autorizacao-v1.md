@@ -19,8 +19,10 @@ antes de persistir concessões. **V1-011 persistiu as concessões** em
 Keycloak só autentica, a base sobe sem conta alguma e as contas nascem do
 bootstrap mais a tela de administração.
 V1-012 integrou guards e `/me`; V1-013 integrou planejamento e orçamento;
-V1-014 integrou escrita e referências do planejamento; V1-015–016 integram os
-domínios restantes; V1-017 integrou a política
+V1-014 integrou escrita e referências do planejamento; V1-015 integrou bolsas,
+produção, exportação de mobilidade e a projeção dos campos pessoais; V1-016
+integrou os caminhos indiretos — histórico do parceiro, anexos e ficha PDF, cada
+um pelo alcance da ação que ele mesmo exige; V1-017 integrou a política
 administrativa; V1-019 integrou a navegação.
 Após a transição, retirar o mapa legado como fonte de acesso. Não manter dois
 mecanismos permissivos concorrentes.
@@ -43,7 +45,8 @@ As escolhas abaixo concretizam tecnicamente a decisão, sem alegar homologação
 - Premissas: GLOBAL ou CICLO; não são dados particulares de um PPG.
 - Documentos: catálogo admite alcances de planejamento, mas cada alvo restringe
   os tipos válidos ao seu domínio. Parceiro/convênio exige GLOBAL; missão exige
-  GLOBAL/CICLO/REDE; bolsa permite participação. V1-016 valida o alvo e herança.
+  GLOBAL/CICLO/REDE; bolsa permite participação. A V1-016 pôs isso em execução:
+  o anexo herda o alvo pelo alcance da permissão que ele mesmo exige.
 
 Zod recusa permissão desconhecida, campos extras, alvo ambíguo, PPG sem ciclo e
 combinação ação/escopo incompatível. Existência e pertencimento dos IDs dependem
@@ -78,7 +81,9 @@ pessoal somente no alvo autorizado. Na ausência de capacidade, CPF é mascarado
 para quem já pode ler a bolsa e contatos são omitidos; buscas não revelam pessoas
 fora do alcance. Modelos de acompanhamento não recebem essas capacidades;
 responsáveis recebem contato e secretaria recebe ambas. Escrita pode receber CPF
-para identificação sem devolver seu valor completo. V1-015 implementa projeções.
+para identificação sem devolver seu valor completo — a V1-015 implementou as
+projeções e acrescentou `pessoa:edit-cpf`, exigida para corrigir um CPF já
+cadastrado sobre todas as bolsas daquela pessoa.
 Documentos PESSOAL exigem `documento:read-pessoal`; RESTRITA exige
 `documento:read-restrito`. Autor do upload não cria exceção ao alcance.
 
@@ -151,15 +156,15 @@ herdam o catálogo e precisam de entrada explícita neste inventário.
 
 | Método e rota | Permissão atual / fronteira | Contrato V1 |
 |---|---|---|
-| `GET /bolsistas` | bolsa:read + produto:read | bolsa:read; produtos somente com produto:read |
+| `GET /bolsistas` | bolsa:read (V1-015) | bolsa:read; produtos somente com produto:read |
 | `GET /bolsistas/opcoes-planejamento` | bolsa:create + alcance da ação | bolsa:create |
-| `GET /bolsistas/referencias` | bolsa:read | Referências de bolsa:create ou bolsa:edit, alcance da ação |
-| `GET /bolsistas/instituicoes` | bolsa:read | bolsa:read; somente identificação institucional |
-| `GET /bolsistas/:id` | bolsa:read + produto:read | bolsa:read; produtos somente com produto:read |
-| `POST /bolsistas` | bolsa:write | bolsa:create |
-| `PATCH /bolsistas/:id` | bolsa:write | bolsa:edit |
-| `POST /bolsistas/:id/produtos` | produto:write | produto:create |
-| `PATCH /bolsistas/:id/produtos/:produtoId` | produto:write | produto:edit |
+| `GET /bolsistas/referencias` | bolsa:create ou bolsa:edit por `?acao=` (V1-015) | Referências de bolsa:create ou bolsa:edit, alcance da ação |
+| `GET /bolsistas/instituicoes` | bolsa:read, create ou edit (V1-015) | bolsa:read; somente identificação institucional |
+| `GET /bolsistas/:id` | bolsa:read (V1-015) | bolsa:read; produtos somente com produto:read |
+| `POST /bolsistas` | bolsa:create + alcance (V1-015) | bolsa:create |
+| `PATCH /bolsistas/:id` | bolsa:edit + alcance; CPF exige pessoa:edit-cpf (V1-015) | bolsa:edit |
+| `POST /bolsistas/:id/produtos` | produto:create + alcance (V1-015) | produto:create |
+| `PATCH /bolsistas/:id/produtos/:produtoId` | produto:edit + alcance (V1-015) | produto:edit |
 
 ### comite-gestor.controller.ts
 
@@ -195,9 +200,9 @@ herdam o catálogo e precisam de entrada explícita neste inventário.
 
 | Método e rota | Permissão atual / fronteira | Contrato V1 |
 |---|---|---|
-| `GET /mobilidade/panorama` | bolsa:read | bolsa:read |
-| `GET /mobilidade/producao` | bolsa:read + produto:read | bolsa:read + produto:read; parcela de missão exige produto-missao:read |
-| `GET /mobilidade/relatorio/exportacao/:formato` | bolsa:read | bolsa:read + bolsa:export |
+| `GET /mobilidade/panorama` | bolsa:read + alcance (V1-015) | bolsa:read |
+| `GET /mobilidade/producao` | bolsa:read + produto:read; missão exige missao:read + produto-missao:read (V1-015) | bolsa:read + produto:read; parcela de missão exige produto-missao:read |
+| `GET /mobilidade/relatorio/exportacao/:formato` | bolsa:read + bolsa:export, interseção dos alcances (V1-015) | bolsa:read + bolsa:export |
 
 ### notificacoes.controller.ts
 

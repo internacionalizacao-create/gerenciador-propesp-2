@@ -304,7 +304,7 @@ export interface LinhaRedeMobilidade extends LinhaContagemMobilidade {
   paises: number;
   instituicoes: number;
   ppgs: number;
-  produtos: number;
+  produtos: number | null;
 }
 
 /** País de destino, com o código ISO numérico que o mapa usa (BOL-042). */
@@ -362,7 +362,7 @@ export interface InstituicaoOpcao {
 export interface ReferenciasBolsa {
   paises: { id: string; nome: string; codigoIso2: string }[];
   instituicoes: InstituicaoOpcao[];
-  /** Linhas ativas de todos os PPGs; a tela filtra pelo PPG selecionado. */
+  /** Linhas ativas dos PPGs no alcance da acao; a tela seleciona o PPG da vaga. */
   linhasPesquisa: { id: string; nome: string; ppgId: string }[];
 }
 
@@ -410,8 +410,15 @@ export interface BolsaConcedidaResumo {
   situacaoTemporal: SituacaoTemporalBolsa;
   processo: string | null;
   observacoes: string | null;
-  produtos: number;
-  produtosPendentes: number;
+  produtos: number | null;
+  produtosPendentes: number | null;
+  podeLerCpf: boolean;
+  podeLerContato: boolean;
+  podeLerProdutos: boolean;
+  podeEditar: boolean;
+  podeAlterarCpf: boolean;
+  podeCriarProduto: boolean;
+  podeEditarProduto: boolean;
 }
 
 export type TipoProdutoBolsa =
@@ -1443,6 +1450,13 @@ export interface DocumentoDoHistorico {
  * Vazio desde a CG-056; o campo permanece para o próximo módulo entrar sem
  * quebrar o contrato.
  */
+export interface AcessoDoHistorico {
+  bolsas: boolean;
+  missoes: boolean;
+  produtos: boolean;
+  convenios: boolean;
+}
+
 export interface ModuloPendente {
   modulo: "PRODUTOS" | "CONVENIOS";
   task: string;
@@ -1510,6 +1524,14 @@ export interface HistoricoParceiro {
   convenios: ConvenioDoHistorico[];
   produtos: ProdutoDoHistorico[];
   modulosPendentes: ModuloPendente[];
+  /**
+   * O que a conta podia ler em cada seção (V1-016).
+   *
+   * Lista vazia significa "não aconteceu" **ou** "você não alcança", e o texto
+   * do estado vazio precisa saber qual das duas — a mesma distinção que
+   * `podeLerCpf` faz na bolsa.
+   */
+  acesso: AcessoDoHistorico;
 }
 
 /** Referência nomeada devolvida junto dos produtos (CG-056). */

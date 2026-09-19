@@ -31,7 +31,21 @@ import {
   type ContextoTeste,
   type TestDatabase,
 } from './db-teste';
-import { criarAcesso, criarBase, type BaseFixture } from './fixtures';
+import {
+  acessoGlobalDeTeste,
+  criarAcesso,
+  criarBase,
+  type BaseFixture,
+} from './fixtures';
+
+/** Estas suites verificam o conteudo, nao o recorte (V1-016). */
+const acessoAmplo = acessoGlobalDeTeste([
+  'parceiro:read',
+  'bolsa:read',
+  'missao:read',
+  'produto-missao:read',
+  'convenio:read',
+]);
 
 const admin: AuthUser = {
   id: 'admin-exportacao',
@@ -466,7 +480,7 @@ describe('Exportacao de relatorios e dossie (CG-069)', () => {
       admin,
     );
 
-    const arquivo = await exportacao.fichaDoParceiro(parceiro.id);
+    const arquivo = await exportacao.fichaDoParceiro(parceiro.id, acessoAmplo);
     expect(arquivo.mimeType).toBe('application/pdf');
     expect(arquivo.nomeArquivo).toBe('ficha-uficha.pdf');
 

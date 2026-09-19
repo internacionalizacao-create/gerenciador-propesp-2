@@ -22,9 +22,44 @@ pela tela de administração. Não há conversão de acesso legado a fazer.
 **Modelo aprovado pelo responsável em 2026-09-15:** concessões individuais de
 permissão + escopo, administradas na aplicação; Keycloak autentica e perfis são
 modelos opcionais. Substitui a proposta anterior de perfil–escopo condicionado
-a papel do Keycloak. Máscaras de campos, projeção do orçamento e detalhes dos
-modelos ainda serão especificados nas tarefas. Rede
-interna não elimina login, HTTPS ou recorte de dados.
+a papel do Keycloak. A projeção de orçamento foi entregue na V1-013; a política
+de campos pessoais foi decidida em 2026-09-18 e implementada na V1-015 no
+mesmo dia.
+Rede interna não elimina login, HTTPS ou recorte de dados.
+
+**Decisões do responsável em 2026-09-18**, em resposta à lista de decisões
+para prosseguir com o desenvolvimento:
+
+- **Dados pessoais:** CPF, e-mail pessoal e telefone exigem capacidades
+  específicas e alcance sobre o alvo. Sem elas, os valores não são enviados ao
+  navegador, nem parcialmente mascarados. Nome e dados acadêmicos continuam
+  disponíveis a quem pode consultar a bolsa. Os modelos de administrador e
+  secretaria incluem essas capacidades por padrão; concessões individuais são
+  personalizáveis, sem autorização automática por cargo.
+- **Cadastro e edição:** quem pode cadastrar bolsa pode informar CPF mesmo sem
+  poder consultá-lo completo. Na edição, CPF não reenviado é preservado;
+  alterar CPF existente exige capacidade específica de dados pessoais e edição
+  no alcance do alvo. Duplicidade não revela cadastro alheio. Executado na
+  V1-015, em 2026-09-18.
+- **Escopo:** todas as 15 tarefas P1 estão incluídas: V1-002, V1-032–042 e
+  V1-055–057. Nenhuma foi adiada. A V1 inclui as 38 tarefas P0/P1; as nove P2
+  continuam opcionais. Inclusão não significa implementação concluída.
+- **Implantação:** preparar o sistema para Docker (V1-050/051). Host, DNS,
+  certificado e responsável de infraestrutura serão definidos na preparação
+  da implantação; a escolha não autoriza publicação em ambiente institucional.
+- **Validação e aceite:** o responsável sugeriu atribuição por permissão.
+  Aplicar concessões explícitas e alcance às operações de validação do sistema
+  (V1-038/060); a designação nominal dos participantes e responsáveis permanece
+  necessária. Isso não constitui aceite institucional nem define uma nova tela
+  de homologação da versão.
+- **Backup:** diário durante a madrugada (V1-053). Horário exato, fuso,
+  retenção e destino serão documentados na tarefa. A frequência não define por
+  si só a perda máxima aceitável nem o prazo de restauração, ainda pendentes
+  para o ensaio V1-054.
+
+A política de campos foi aplicada na V1-015 sem nova aprovação, como estas
+decisões previam.
+Não encerram V1-001 nem executam automaticamente as tarefas seguintes.
 
 **Fora da V1 interna:** autosserviço de bolsista/participante, acesso externo e
 execução financeira da UEA para pagamentos diretos da CAPES. O último é exclusão
@@ -53,14 +88,17 @@ preparatório** (2026-09-15), e V1-011, **Concluída** (2026-09-15) com a tabela
 `concessao_acesso` criada, **V1-012–014 e V1-017 concluídas** — a
 autorização em execução passou a ser a das concessões, e o papel do Keycloak não
 concede mais nada —, **V1-018 e V1-019 concluídas** em 2026-09-17 — a tela de
-administração de acessos e a navegação por acesso efetivo —, e V1-021, **Em
-andamento**, com bootstrap e limpeza legada entregues; a conversão foi cancelada
-porque a produção começa sem conta. Faltam os recortes por ação V1-015–016, a
-regressão V1-020 e o smoke nominal da V1-021. Evidências na ficha. Dependência
+administração de acessos e a navegação por acesso efetivo —, **V1-015 concluída**
+em 2026-09-18, com o recorte por ação das bolsas e a projeção de CPF, e-mail e
+telefone por capacidade mais alcance, **V1-016 concluída** no mesmo dia, com o
+histórico do parceiro, os anexos e a ficha PDF recortados pela ação exercida, e
+V1-021, **Em andamento**, com bootstrap e limpeza legada entregues; a conversão
+foi cancelada porque a produção começa sem conta. Faltam a regressão V1-020 e o
+smoke nominal da V1-021. Evidências na ficha. Dependência
 pendente significa ordem de execução; não é prova de impedimento externo.
 
 Prioridades: **P0** necessária para liberação ampla interna; **P1** entregar ou
-excluir expressamente da V1; **P2** evolução opcional. Selecionar uma P2 não
+excluir expressamente da V1 (todas incluídas em 2026-09-18); **P2** evolução opcional. Selecionar uma P2 não
 promove automaticamente todas as outras para o escopo da V1.
 
 Regras comuns de aceite: autorização na API e no SQL; Server Actions/BFF do
@@ -104,8 +142,8 @@ dependências são obrigatórios, exceto quando a ficha indicar uma condição.
 | V1-012 | P0 | Resolução central de acesso por ação — concluída | 011 |
 | V1-013 | P0 | Recorte de leitura de planejamento e indicadores — concluído | 012 |
 | V1-014 | P0 | Recorte de escrita e referências de formulários — concluído | 012 |
-| V1-015 | P0 | Bolsas, produção e campos pessoais | 012 |
-| V1-016 | P0 | Históricos, documentos e exportações | 013, 015 |
+| V1-015 | P0 | Bolsas, produção e campos pessoais — concluída | 012 |
+| V1-016 | P0 | Históricos, documentos e exportações — concluída | 013, 015 |
 | V1-017 | P0 | API administrativa das concessões — concluída | 012 |
 | V1-018 | P0 | Interface de atribuição e revisão de acesso — concluída | 017 |
 | V1-019 | P0 | Navegação e orientação por acesso efetivo — concluída | 013, 015, 017 (entregue antes de 013/015: não dependia delas) |
@@ -152,15 +190,24 @@ Fichas: [autorização](backlog-v1/01-autorizacao.md),
 
 ## V1-001 — Registrar contrato e escolhas iniciais
 
-- **Estado / data:** Em andamento — 2026-09-15.
+- **Estado / data:** Em andamento — atualizado em 2026-09-18.
 - **Decisão registrada:** responsável aprovou nesta conversa o modelo individual
   permissão + escopo, com modelos opcionais, configuração revisável pelo admin,
   negação por ausência de concessão, auditoria e revogação na requisição seguinte.
   A proposta de autorização e as fichas foram ajustadas documentalmente; nenhuma
   permissão em execução foi alterada. Não representa homologação institucional.
-- **Ainda necessário:** selecionar/adiar P1, detalhar projeções de orçamento/dados
-  pessoais e registrar responsáveis por dados/infraestrutura. Não concluir a
-  tarefa só pela aprovação do modelo.
+- **Decisões complementares:** registro de 2026-09-18 em “Direção desta versão”:
+  todas as P1 incluídas, política de campos/cadastro/edição aprovada, preparação
+  para Docker, validação por permissão e backup diário de madrugada. A projeção
+  de orçamento já está implementada na V1-013.
+- **Ainda necessário:** registrar responsáveis nominais por dados/infraestrutura
+  e aceite (V1-038/050/060); detalhar ambiente Docker (V1-050/051) e metas de
+  perda/restauração (V1-053/054). Permissão define capacidade, mas não substitui
+  a indicação de quem assume a responsabilidade. Não concluir a tarefa só pela
+  aprovação das decisões técnicas.
+- **Registro desta atualização:** contrato e fichas ajustados documentalmente;
+  revisão de diff e links locais, sem mudança de código, migration, conta ou
+  infraestrutura. As decisões não representam homologação institucional.
 
 - **Objetivo:** fixar o que será considerado V1 concluída e as decisões A01–A07
   da proposta, sem aguardar o questionário inteiro nem presumir aceite da PROPESP.

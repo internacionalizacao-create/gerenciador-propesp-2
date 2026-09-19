@@ -270,7 +270,9 @@ export default async function PanoramaDeMobilidade({
                   {inteiro(linha.instituicoes)}
                 </Celula>
                 <Celula direita className="tabular-nums">
-                  {inteiro(linha.produtos)}
+                  {linha.produtos === null
+                    ? "Sem acesso ao total"
+                    : inteiro(linha.produtos)}
                 </Celula>
                 <Celula direita>
                   <Moeda valor={linha.valor} />

@@ -2,6 +2,9 @@ import {
   colunasDoAlvo,
   type ColunasDoAlvo,
 } from '../src/auth/autorizacao-v1/persistencia';
+import { AcessoResolvido } from '../src/auth/autorizacao-v1/acesso-v1.service';
+import { ALCANCE_GLOBAL } from '../src/auth/autorizacao-v1/alcance';
+import type { PermissaoV1 } from '../src/auth/autorizacao-v1/catalogo';
 import * as s from '../src/database/schema';
 import { normalizarNomeInstituicao } from '../src/database/normalizacao';
 import type { TestDatabase } from './db-teste';
@@ -197,4 +200,23 @@ export async function criarAcesso(
   }
 
   return { usuarioId: conta.id, pessoaId: pessoa.id };
+}
+
+/**
+ * Acesso global montado em memoria, para as suites que testam **calculo** e
+ * nao autorizacao.
+ *
+ * Elas ja declaravam isso ao usar um `AuthUser` de admin; o alcance por acao
+ * so tornou a declaracao explicita. As suites de recorte nao usam este helper:
+ * la o acesso vem de `concessao_acesso` pelo resolver de verdade, porque o que
+ * esta sob teste e justamente a leitura daquela tabela.
+ */
+export function acessoGlobalDeTeste(
+  permissoes: readonly PermissaoV1[],
+): AcessoResolvido {
+  return new AcessoResolvido(
+    'usuario-de-teste',
+    'pessoa-de-teste',
+    new Map(permissoes.map((permissao) => [permissao, ALCANCE_GLOBAL])),
+  );
 }

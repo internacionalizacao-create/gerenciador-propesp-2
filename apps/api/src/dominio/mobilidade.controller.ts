@@ -9,7 +9,12 @@ import {
 import type { Response } from 'express';
 
 import type { AuthUser } from '../auth/auth-user';
-import { CurrentUser, RequirePermission } from '../auth/auth.decorators';
+import type { AcessoResolvido } from '../auth/autorizacao-v1/acesso-v1.service';
+import {
+  AcessoAtual,
+  CurrentUser,
+  RequirePermission,
+} from '../auth/auth.decorators';
 import { responderArquivo } from '../comum/resposta-arquivo';
 import { ZodValidationPipe } from '../comum/zod-validation.pipe';
 import {
@@ -40,10 +45,11 @@ export class MobilidadeController {
   @RequirePermission('bolsa:read')
   panorama(
     @CurrentUser() usuario: AuthUser,
+    @AcessoAtual() acesso: AcessoResolvido,
     @Query(new ZodValidationPipe(filtroMobilidadeSchema))
     filtro: FiltroMobilidade,
   ) {
-    return this.mobilidade.panorama(usuario, filtro);
+    return this.mobilidade.panorama(usuario, filtro, acesso);
   }
 
   /**
@@ -56,8 +62,11 @@ export class MobilidadeController {
    */
   @Get('producao')
   @RequirePermission('bolsa:read', 'produto:read')
-  producao(@CurrentUser() usuario: AuthUser) {
-    return this.mobilidade.producao(usuario);
+  producao(
+    @CurrentUser() usuario: AuthUser,
+    @AcessoAtual() acesso: AcessoResolvido,
+  ) {
+    return this.mobilidade.producao(usuario, acesso);
   }
 
   /**
@@ -71,6 +80,7 @@ export class MobilidadeController {
   @RequirePermission('bolsa:read', 'bolsa:export')
   async exportar(
     @CurrentUser() usuario: AuthUser,
+    @AcessoAtual() acesso: AcessoResolvido,
     @Param('formato') formato: string,
     @Query(new ZodValidationPipe(filtroMobilidadeSchema))
     filtro: FiltroMobilidade,
@@ -85,6 +95,7 @@ export class MobilidadeController {
         usuario,
         filtro,
         formato as Formato,
+        acesso,
       ),
     );
   }

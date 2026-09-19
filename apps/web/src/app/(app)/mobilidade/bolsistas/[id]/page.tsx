@@ -24,7 +24,7 @@ import {
 } from "@/componentes/ui/basicos";
 import { SemAcesso } from "@/componentes/ui/sem-acesso";
 import { faltando } from "@/lib/acesso";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, apiFetchOuNada } from "@/lib/api";
 import type { AnexoResumo, BolsaConcedidaDetalhe } from "@/lib/dominio";
 import { carregarMe } from "@/lib/me";
 import {
@@ -40,7 +40,7 @@ export default async function DetalheDoBolsista({
 }) {
   const { id } = await params;
   const me = await carregarMe();
-  const falta = faltando(me.permissions, ["bolsa:read", "produto:read"]);
+  const falta = faltando(me.permissions, ["bolsa:read"]);
   if (falta.length > 0) {
     return (
       <SemAcesso
@@ -52,17 +52,18 @@ export default async function DetalheDoBolsista({
     );
   }
 
-  const [bolsa, documentos] = await Promise.all([
+  const [bolsa, documentosPermitidos] = await Promise.all([
     apiFetch<BolsaConcedidaDetalhe>(`/bolsistas/${id}`),
     // A API ja filtra o que este usuario pode ver: documento pessoal nao chega
     // para quem nao tem `documento:read-pessoal`. A tela nao refiltra — dois
     // lugares decidindo a mesma coisa divergem na primeira mudanca.
-    apiFetch<AnexoResumo[]>(
+    apiFetchOuNada<AnexoResumo[]>(
       `/anexos?entidadeTipo=BOLSA_CONCEDIDA&entidadeId=${id}`,
     ),
   ]);
-  const podeEditarBolsa = me.permissions.includes("bolsa:create");
-  const podeEditarProdutos = me.permissions.includes("produto:create");
+  const documentos = documentosPermitidos ?? [];
+  const podeEditarBolsa = bolsa.podeEditar;
+  const podeEditarProdutos = bolsa.podeEditarProduto;
   const categoriasDeDocumento = categoriasDisponiveis(me.permissions);
   const atrasados = bolsa.produtos.filter(
     (produto) => produto.situacao === "ATRASADO",
@@ -125,8 +126,16 @@ export default async function DetalheDoBolsista({
           />
           <Cartao
             titulo="Produtos"
-            valor={inteiro(bolsa.produtos.length)}
-            nota={`${inteiro(atrasados.length)} com prazo vencido`}
+            valor={
+              bolsa.podeLerProdutos
+                ? inteiro(bolsa.produtos.length)
+                : "Sem acesso"
+            }
+            nota={
+              bolsa.podeLerProdutos
+                ? `${inteiro(atrasados.length)} com prazo vencido`
+                : "Consulta de produtos não concedida neste alcance"
+            }
             destaque={atrasados.length > 0}
           />
         </Cartoes>
@@ -138,9 +147,28 @@ export default async function DetalheDoBolsista({
       >
         <dl className="grid gap-4 rounded-2xl border border-border bg-surface p-5 text-sm sm:grid-cols-2 lg:grid-cols-4">
           <Dado rotulo="Bolsista" valor={bolsa.bolsista} />
-          <Dado rotulo="E-mail" valor={bolsa.email ?? "Não informado"} />
-          <Dado rotulo="CPF" valor={bolsa.cpf ?? "Não informado"} />
-          <Dado rotulo="Telefone" valor={bolsa.telefone ?? "Não informado"} />
+          <Dado
+            rotulo="E-mail"
+            valor={
+              bolsa.podeLerContato
+                ? (bolsa.email ?? "Não informado")
+                : "Sem acesso"
+            }
+          />
+          <Dado
+            rotulo="CPF"
+            valor={
+              bolsa.podeLerCpf ? (bolsa.cpf ?? "Não informado") : "Sem acesso"
+            }
+          />
+          <Dado
+            rotulo="Telefone"
+            valor={
+              bolsa.podeLerContato
+                ? (bolsa.telefone ?? "Não informado")
+                : "Sem acesso"
+            }
+          />
           <Dado rotulo="Nível" valor={rotulo(bolsa.nivelBeneficiario)} />
           <Dado
             rotulo="Lattes"
@@ -246,12 +274,16 @@ export default async function DetalheDoBolsista({
         titulo="Produtos e entregas do bolsista"
         descricao="Cada compromisso tem prazo próprio. A situação “Atrasado” é calculada quando o prazo passa sem entrega ou validação."
         acoes={
-          podeEditarProdutos ? (
+          bolsa.podeCriarProduto ? (
             <NovoProdutoBolsa bolsaId={bolsa.id} />
           ) : undefined
         }
       >
-        {bolsa.produtos.length > 0 ? (
+        {!bolsa.podeLerProdutos ? (
+          <p className="text-sm text-muted">
+            Você não tem acesso aos produtos desta bolsa.
+          </p>
+        ) : bolsa.produtos.length > 0 ? (
           <Tabela
             colunas={[
               { chave: "produto", texto: "Produto" },

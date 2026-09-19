@@ -1,10 +1,11 @@
 # Fichas de autorização — V1-010 a V1-021
 
-Estado: **V1-010–014 e V1-017–019 concluídas** — a autorização
-em execução é a das concessões, com API, tela e recorte de leitura do
-planejamento —, e **V1-021 em andamento** (bootstrap e limpeza legada entregues;
-conversão cancelada porque a produção começa sem conta). Faltam V1-015–016, a
-regressão V1-020 e o smoke nominal da V1-021. Prioridade: **P0**. Regras de execução,
+Estado: **V1-010–019 concluídas** — a autorização em execução é a das
+concessões, com API, tela, recorte de leitura do planejamento, o recorte por
+ação das bolsas com projeção dos campos pessoais (V1-015) e os caminhos
+indiretos fechados (V1-016) —, e **V1-021 em andamento** (bootstrap e limpeza
+legada entregues; conversão cancelada porque a produção começa sem conta).
+Faltam a regressão V1-020 e o smoke nominal da V1-021. Prioridade: **P0**. Regras de execução,
 dependências e registro de conclusão no [índice](../backlog-v1.md).
 Contrato de produto: [proposta de autorização](../proposta-autorizacao-v1.md).
 
@@ -241,7 +242,81 @@ Contrato de produto: [proposta de autorização](../proposta-autorizacao-v1.md).
 
 ## V1-015 — Bolsistas, produção e minimização de campos
 
+- **Estado / data:** Concluída — 2026-09-18.
+- **Entregue:** o recorte de bolsa deixou de ser por PPG e passou a ser **por
+  ação**, em `auth/autorizacao-v1/recorte-bolsa.ts`: uma função usada por
+  listagem, detalhe, criação, edição, produtos, panorama, produção, relatório e
+  exportação. A temática da concessão prevalece sobre a do item planejado, que
+  só completa registros anteriores ao campo, e alvo `PARTICIPACAO` resolve pelo
+  par PPG–temática. Bolsa sem classificação **não passa**: a subconsulta devolve
+  `NULL` e o `coalesce(..., false)` a nega explicitamente, porque `NULL` dentro
+  de `not` e de `bool_and` escaparia. Missão multirrede entra por `exists`, uma
+  vez só.
+- **Campos pessoais projetados no SQL:** CPF sob `pessoa:read-cpf`, e-mail e
+  telefone sob `pessoa:read-contato`, cada um **cruzado com o alcance daquela
+  bolsa** — capacidade global não vale sobre alvo fora do alcance. Sem a
+  capacidade o campo vem nulo e a linha carrega `podeLerCpf`/`podeLerContato`,
+  para a tela escrever *Sem acesso* em vez de *Não informado*. Sem máscara
+  parcial, como a decisão manda. A contagem de produtos segue a mesma regra e é
+  nula sem `produto:read`; `bolsa:read` deixou de exigir `produto:read` junto,
+  na rota, no menu e na porta da página.
+- **Permissão nova `pessoa:edit-cpf`**, no modelo de administrador. Cadastrar
+  CPF continua sendo `bolsa:create` — quem cadastra informa sem poder consultar.
+  Na edição o CPF é opcional e **ausente significa preservar**; corrigir um CPF
+  existente exige `pessoa:edit-cpf` mais `bolsa:edit` sobre **todas** as bolsas
+  daquela pessoa, porque `pessoa` é compartilhada e alcançar uma bolsa não
+  autoriza reescrever a identidade que as outras usam. A correção trava a linha
+  com `for update`, grava auditoria por campo e faz rollback junto com o resto.
+  `pessoa:read-contato` saiu do modelo de responsável.
+- **Duplicidade não vira oráculo:** CPF repetido, e-mail pertencente a outra
+  pessoa e colisão concorrente (`23505` em `pessoa_cpf_uk`/`pessoa_email_uk`)
+  respondem todos a **mesma** frase genérica. Mensagens distintas deixariam
+  descobrir quem já está cadastrado variando o CPF até o texto mudar. E-mail
+  nunca troca a identidade de uma pessoa existente — só o CPF identifica.
+- **Exportação não reintroduz o que o JSON removeu:** o relatório exige a
+  interseção de `bolsa:read` com `bolsa:export` e reaplica a projeção de CPF; a
+  célula nula sai vazia em vez de `"null"`. O schema do CPF ganhou `regex` antes
+  do `transform`, senão uma máscara de asteriscos seria limpa em dígitos e
+  passaria pelo validador.
+- **Interface:** a edição migrou de `FormData` para React Hook Form + Zod, com o
+  campo *Corrigir CPF* aparecendo só sob `podeAlterarCpf` e vazio significando
+  preservar. Botões de editar e de lançar produto passaram a seguir o que a API
+  respondeu sobre aquela linha, não a permissão bruta do token. Cartão e coluna
+  de produtos dizem *Sem acesso*, e o consolidado por rede do panorama diz *Sem
+  acesso ao total* em vez de somar o que não pode ler.
+- **Arquivos:** `auth/autorizacao-v1/{recorte-bolsa,catalogo,modelos}.ts`,
+  `auth/identidade.service.ts` (`acessoDe`), `dominio/bolsistas.{service,
+  controller}.ts`, `dominio/mobilidade.{service,controller}.ts`,
+  `exportacao/exportacao.service.ts`; na web, `acoes/bolsistas.ts`,
+  `lib/{dominio,acesso,navegacao}.ts`, `lib/formularios/bolsa-concedida.ts`,
+  `componentes/formularios/form-bolsa-concedida.tsx` e as páginas de
+  `/mobilidade`. **Sem migration:** a política é de projeção e alcance, e nada
+  disso é coluna nova.
+- **Verificações executadas:** build da API e da web, ESLint e TypeScript
+  limpos nos dois; 89 testes unitários da API e 159 da web; **606 testes de
+  integração em 35 suítes**, entre eles os 14 casos novos de
+  `test/recorte-bolsas-v1.int-spec.ts`, que cobrem participação/temática,
+  PPG+ciclo, projeção por capacidade, escrita sem leitura, preservação e
+  correção de CPF com rollback, pessoa compartilhada fora do alcance,
+  duplicidade, produto de missão, revogação na chamada seguinte e os arquivos
+  reais de CSV, XLSX e PDF. Os erros de tipo em `acesso.int-spec.ts`,
+  `comite-gestor.int-spec.ts` e `dominio.int-spec.ts` são anteriores a esta
+  tarefa e não foram introduzidos por ela.
+- **Limitações:** parceiros, anexos, convênios, contatos e as fichas/dossiês em
+  PDF continuam na ponte legada — é a V1-016, que esta tarefa destrava.
+  `anexos.service.ts` ainda decide o anexo de bolsa por `podeVerPpg`. A
+  regressão da matriz inteira é a V1-020, e nenhuma conta real foi alterada
+  aqui. Sem execução de `pnpm smoke:telas` nesta entrega.
 - **Depende de:** V1-012.
+- **Decisão aprovada em 2026-09-18:** CPF, e-mail pessoal e telefone só são
+  retornados com capacidade específica e alcance sobre o alvo; sem capacidade,
+  não enviar os valores, nem CPF parcialmente mascarado. Nome e dados acadêmicos
+  permanecem na consulta autorizada. Modelos de administrador e secretaria
+  incluem as capacidades por padrão, com concessões individuais personalizáveis.
+  Quem pode cadastrar pode informar CPF sem poder lê-lo completo; edição sem
+  CPF preserva o valor existente. Alteração de CPF existente exige capacidade
+  específica de dados pessoais e edição no alcance do alvo. Duplicidade não
+  revela cadastro fora do alcance. Esta decisão não marca a tarefa como entregue.
 - **Objetivo:** estender o recorte atual de PPG a participação/temática e aplicar
   a política de campos sem quebrar concessão e edição.
 - **Arquivos:** `bolsistas.service.ts`, `mobilidade.service.ts`, respectivos
@@ -256,11 +331,85 @@ Contrato de produto: [proposta de autorização](../proposta-autorizacao-v1.md).
   CPF completo não o recebe no JSON; coordenador consegue cadastrar
   e editar sem corromper CPF; dados não classificados aparecem ao admin para
   correção; totais de panorama/mapa/exportação são coerentes.
-- **Testes:** integração de recorte e payloads por perfil; fluxo de edição com
-  máscara; bolsas com e sem item/temática; produto de missão mantém seu domínio.
+- **Testes:** integração de recorte e payloads por capacidade; cadastro com CPF
+  sem capacidade de leitura; edição sem CPF preserva o valor, alteração sem
+  capacidade é recusada e máscara nunca é persistida; bolsas com e sem
+  item/temática; produto de missão mantém seu domínio.
 
 ## V1-016 — Proteger caminhos indiretos e exportações
 
+- **Estado / data:** Concluída — 2026-09-18.
+- **Entregue:** o histórico do parceiro deixou de ser o caminho indireto para o
+  que a tela do próprio domínio recusa mostrar. **O cadastro segue
+  compartilhado** — `listar`, `detalhar` e `candidatos` não recortam nada, e é
+  isso que faz o catálogo servir de catálogo —, mas cada parcela do histórico
+  passou a responder à ação que a cobre: bolsa por `bolsa:read`, missão, roteiro
+  e evento por `missao:read`, produto por `produto-missao:read` **mais** o
+  alcance da missão que o gerou, convênio por `convenio:read`. O convênio não
+  segue a missão de origem de propósito: o acordo sobrevive à viagem e ao ciclo
+  (CG-056), e recortá-lo pela missão o esconderia de quem cuida de convênio e
+  não participa daquela rede.
+- **O recorte entra na consulta, inclusive no agregado.** `vinculos` conta
+  mobilidades por temática; somar antes de filtrar publicaria o número real a
+  quem não pode ver as linhas. É a mesma regra do §6 do AGENTS, no lugar onde
+  ela é mais fácil de esquecer.
+- **Um `or` sem parênteses derrubava o recorte, e o teste pegou.** A condição
+  dos produtos era `exists (...) or exists (...)` como cláusula única; ao entrar
+  num `and` com o recorte, a precedência ligou o `and` só ao segundo `exists` e
+  o produto vinculado pela instituição voltou a passar inteiro. Enquanto a
+  condição era sozinha no `where`, a falta de parênteses não aparecia.
+- **O anexo passou a cobrar o alcance da própria permissão exercida.** Até aqui
+  o documento da prestação era recortado pelo alcance de `missao:read`, embora a
+  permissão cobrada fosse `prestacao:read`: quem tivesse leitura de missão numa
+  rede e de prestação noutra baixava o comprovante da rede errada. Agora
+  `exigirAcesso` resolve o acesso, toma o alcance de `POLITICA[tipo][acao]` — a
+  mesma permissão que acabou de exigir — e confere o alvo no banco. `escopoDe` e
+  `podeVerPpg` saíram de `anexos.service.ts`.
+- **A recusa ficou uniforme, e isso é mudança de comportamento.** Alvo
+  inexistente e alvo fora do alcance respondem os dois *Documento não
+  encontrado*. Antes, quem tinha alcance global recebia "a entidade não existe"
+  — um oráculo: bastaria variar o UUID até o texto mudar para mapear quais
+  missões existem. O caso de `anexos.int-spec.ts` que fixava a mensagem antiga
+  foi reescrito para cobrar o que de fato importava ali: **nenhum órfão é
+  gravado**. Instituição e convênio continuam sem recorte, porque não pendem de
+  missão nenhuma.
+- **A ficha PDF do parceiro usa a consulta da tela**, com o acesso de quem
+  pediu. "Pesquisadores envolvidos" é deduzido das mobilidades: sem o recorte, o
+  arquivo publicaria o nome do bolsista de outro PPG — e arquivo, uma vez
+  baixado, circula por fora do sistema.
+- **A tela distingue vazio de sem acesso.** `HistoricoParceiro.acesso` diz, por
+  seção, se a ação foi concedida. Sem ele o estado vazio afirmaria "não houve
+  mobilidade" para quem apenas não pode consultá-la — a mesma distinção que a
+  V1-015 fez com `podeLerCpf`. O campo responde pela **concessão**, não pelo
+  alcance: quem tem a ação noutra rede recebe `true` e lê "nada dentro do seu
+  alcance", porque dizer "sem acesso" ali esconderia que a ação existe.
+- **Arquivos:** `auth/autorizacao-v1/recorte-bolsa.ts` (`condicaoDaMissao` ganhou
+  as colunas, porque o alias gerado pelo Drizzle não é `mc`),
+  `dominio/parceiros.{service,controller}.ts`, `dominio/anexos.service.ts`,
+  `exportacao/exportacao.service.ts`; na web, `lib/dominio.ts` e a página do
+  parceiro. **Sem migration:** nada disso é coluna nova.
+- **Fixtures corrigidas:** `escopo-rede.int-spec.ts` concedia apenas
+  `missao:read` e bastava enquanto o anexo usava um alcance genérico de missão;
+  agora concede as ações do modelo no mesmo alvo, que é o que a tela de acessos
+  faz ao aplicá-lo. `acessoGlobalDeTeste` entrou em `fixtures.ts` para as suítes
+  que verificam **cálculo** e não autorização — as de recorte continuam
+  resolvendo de `concessao_acesso` pelo resolver real.
+- **Verificações executadas:** build da API e da web, ESLint e TypeScript limpos
+  nos dois; 89 testes unitários da API e 159 da web; **614 testes de integração
+  em 36 suítes**, entre eles os 8 casos novos de
+  `test/recorte-indiretos-v1.int-spec.ts` — parceiro pesquisável sem alcance,
+  bolsa e contagem de vínculos, missão com roteiro e evento, produto exigindo as
+  duas ações, convênio independente da missão, troca de UUID na leitura e na
+  injeção, e o caso que separa `prestacao:read` de `missao:read`. Os erros de
+  tipo em `acesso.int-spec.ts`, `comite-gestor.int-spec.ts` e
+  `dominio.int-spec.ts` são anteriores a esta tarefa.
+- **Limitações:** o dossiê da missão já passava por `anexos.listar`/`baixar` e
+  herdou a correção sem mudança própria, mas **não há caso novo extraindo o
+  conteúdo do PDF** nesta entrega — a asserção sobre bytes de PDF exige
+  `pdftotext` (CG-069), e o que foi verificado aqui é a ficha do parceiro pela
+  consulta recortada. A regressão de fórmula em CSV/XLSX continua a da V1-015.
+  A regressão da matriz inteira é a V1-020. Nenhuma conta real foi alterada, e
+  `pnpm smoke:telas` não foi executado.
 - **Depende de:** V1-013 e V1-015.
 - **Objetivo:** preservar catálogo compartilhado de parceiros sem abrir seus
   históricos restritos nem documentos por referência indireta.

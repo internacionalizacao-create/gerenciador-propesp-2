@@ -9,6 +9,11 @@ import { and, asc, desc, eq, ilike, inArray, ne, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 import type { AuthUser } from '../auth/auth-user';
+import type { AcessoResolvido } from '../auth/autorizacao-v1/acesso-v1.service';
+import {
+  condicaoDaBolsa,
+  condicaoDaMissao,
+} from '../auth/autorizacao-v1/recorte-bolsa';
 import { consultar } from '../comum/consultar';
 import { DRIZZLE, type Database } from '../database/database.module';
 import { normalizarNomeInstituicao } from '../database/normalizacao';
@@ -253,6 +258,26 @@ export interface HistoricoParceiro {
    * ja consome a resposta.
    */
   modulosPendentes: ModuloPendente[];
+  /**
+   * O que esta conta podia ler, secao a secao (V1-016).
+   *
+   * Sem isto a tela nao consegue ser honesta: lista vazia significa tanto
+   * "nao aconteceu" quanto "voce nao alcanca", e o texto do estado vazio
+   * afirma a primeira. E a mesma distincao que a V1-015 fez com `podeLerCpf` —
+   * ausencia de permissao e ausencia de dado nao sao a mesma frase.
+   *
+   * Responde pela **concessao**, nao pelo alcance: quem tem a acao noutra rede
+   * recebe `true` e a lista sai vazia, que e "nada dentro do seu alcance". A
+   * tela diz isso; dizer "sem acesso" ali esconderia que a acao existe.
+   */
+  acesso: AcessoDoHistorico;
+}
+
+export interface AcessoDoHistorico {
+  bolsas: boolean;
+  missoes: boolean;
+  produtos: boolean;
+  convenios: boolean;
 }
 
 export interface ModuloPendente {
@@ -499,16 +524,38 @@ export class ParceirosService {
   }
 
   /**
-   * Historico consolidado do parceiro (CG-027).
+   * Historico consolidado do parceiro (CG-027), recortado por acao (V1-016).
    *
    * A missao entra pela existencia de atividade com este parceiro, e a lista de
    * missoes e resolvida por `distinct` sobre a propria missao, nunca por join
    * com atividade ou com rede: parceiro visitado em duas paradas do roteiro, ou
    * missao de mais de uma rede, apareceria varias vezes na linha historica. As
    * atividades voltam em consulta propria e sao agrupadas em memoria.
+   *
+   * **O cadastro do parceiro e compartilhado; o historico dele nao.** Quem tem
+   * `parceiro:read` continua encontrando a instituicao e lendo a ficha
+   * institucional — e o que a matriz aprovada quer, e o que faz o catalogo
+   * servir de catalogo. O que este metodo recorta e cada parcela: bolsa pela
+   * acao `bolsa:read`, missao e roteiro por `missao:read`, produto por
+   * `produto-missao:read`, convenio por `convenio:read`. Sem isso o parceiro
+   * seria o caminho indireto para ler a bolsa e a missao que a propria tela
+   * daquele dominio recusa mostrar.
+   *
+   * **O recorte entra em cada consulta**, e nao numa filtragem do resultado:
+   * `vinculos` e uma contagem agregada, e somar antes de filtrar publicaria o
+   * numero real de mobilidades de quem nao pode ve-las.
    */
-  async historico(id: string): Promise<HistoricoParceiro> {
+  async historico(
+    id: string,
+    acesso: AcessoResolvido,
+  ): Promise<HistoricoParceiro> {
     const parceiro = await this.detalhar(id);
+    // As atividades, os eventos e os documentos pendem da missao: recortar a
+    // missao e deixar as tres abertas devolveria o roteiro sem a viagem.
+    const missoesVisiveis = condicaoDaMissao(acesso.alcance('missao:read'), {
+      id: sql`${s.missaoComite.id}`,
+      ciclo: sql`${s.missaoComite.cicloId}`,
+    });
 
     const [contatos, missoes, documentos, convenios, produtos] =
       await Promise.all([
@@ -547,11 +594,14 @@ export class ParceirosService {
           .innerJoin(s.ciclo, eq(s.ciclo.id, s.missaoComite.cicloId))
           .innerJoin(s.programa, eq(s.programa.id, s.ciclo.programaId))
           .where(
-            sql`exists (
+            and(
+              sql`exists (
             select 1 from ${s.atividadeMissao}
             where ${s.atividadeMissao.missaoId} = ${s.missaoComite.id}
               and ${s.atividadeMissao.instituicaoId} = ${id}
           )`,
+              missoesVisiveis,
+            ),
           )
           .orderBy(desc(s.missaoComite.dataInicio), asc(s.missaoComite.codigo)),
         this.db
@@ -564,6 +614,10 @@ export class ParceirosService {
             enviadoEm: s.anexo.enviadoEm,
           })
           .from(s.anexo)
+          // Documento da propria instituicao, nao da missao: segue o cadastro
+          // compartilhado, como `INSTITUICAO`/`PARCEIRO` ja faziam em
+          // `anexos.service.ts`. O download continua passando por `/anexos`,
+          // que reaplica permissao e visibilidade — a lista nao e a porta.
           .where(
             and(
               eq(s.anexo.entidadeId, id),
@@ -590,7 +644,16 @@ export class ParceirosService {
             s.missaoComite,
             eq(s.missaoComite.id, s.convenio.missaoOrigemId),
           )
-          .where(eq(s.convenio.instituicaoId, id))
+          .where(
+            and(
+              eq(s.convenio.instituicaoId, id),
+              // O acordo sobrevive a viagem e ao ciclo (CG-056), entao o
+              // alcance dele e o de `convenio:read`, nunca o da missao de
+              // origem: recortar pela missao esconderia o acordo vigente de
+              // quem cuida de convenio e nao participa daquela rede.
+              acesso.permite('convenio:read') ? sql`true` : sql`false`,
+            ),
+          )
           .orderBy(desc(s.convenio.dataInicio), asc(s.convenio.titulo)),
         /**
          * Produto entra pela instituicao relacionada, com `selectDistinct` sobre
@@ -614,7 +677,12 @@ export class ParceirosService {
             eq(s.missaoComite.id, s.produtoMissao.missaoId),
           )
           .where(
-            sql`exists (
+            and(
+              // Os parenteses em volta do `or` nao sao estilo: sem eles o
+              // `and` do recorte se liga so ao segundo `exists`, e o produto
+              // ligado pela instituicao volta a passar inteiro. Enquanto esta
+              // condicao era a unica do `where`, a falta nao aparecia.
+              sql`(exists (
             select 1 from ${s.produtoMissaoInstituicao}
             where ${s.produtoMissaoInstituicao.produtoId} = ${s.produtoMissao.id}
               and ${s.produtoMissaoInstituicao.instituicaoId} = ${id}
@@ -622,7 +690,16 @@ export class ParceirosService {
             select 1 from ${s.convenio}
             where ${s.convenio.id} = ${s.produtoMissao.convenioId}
               and ${s.convenio.instituicaoId} = ${id}
-          )`,
+          ))`,
+              // O produto pende da missao (CG-056): alcance proprio da acao
+              // **e** alcance da missao que o gerou. Só a primeira metade
+              // devolveria o resultado de uma viagem de outra rede.
+              condicaoDaMissao(acesso.alcance('produto-missao:read'), {
+                id: sql`${s.missaoComite.id}`,
+                ciclo: sql`${s.missaoComite.cicloId}`,
+              }),
+              missoesVisiveis,
+            ),
           )
           .orderBy(asc(s.produtoMissao.titulo)),
       ]);
@@ -685,8 +762,8 @@ export class ParceirosService {
     return {
       parceiro,
       contatos,
-      mobilidades: await this.carregarMobilidades(id),
-      vinculos: await this.carregarVinculos(id),
+      mobilidades: await this.carregarMobilidades(id, acesso),
+      vinculos: await this.carregarVinculos(id, acesso),
       missoes: missoes.map((missao) => ({
         ...missao,
         redes: redesPorMissao.get(missao.id) ?? [],
@@ -697,6 +774,12 @@ export class ParceirosService {
       convenios,
       produtos,
       modulosPendentes: [],
+      acesso: {
+        bolsas: acesso.permite('bolsa:read'),
+        missoes: acesso.permite('missao:read'),
+        produtos: acesso.permite('produto-missao:read'),
+        convenios: acesso.permite('convenio:read'),
+      },
     };
   }
 
@@ -1084,6 +1167,7 @@ export class ParceirosService {
    */
   private async carregarVinculos(
     instituicaoId: string,
+    acesso: AcessoResolvido,
   ): Promise<VinculoParceiro[]> {
     return consultar<VinculoParceiro>(
       this.db,
@@ -1099,8 +1183,9 @@ export class ParceirosService {
         left join area_tematica     at
           on at.id = coalesce(bc.area_tematica_id, ip.area_tematica_id)
         left join rede_coordenadora rc on rc.id = at.rede_id
-       where bc.instituicao_destino_id = ${instituicaoId}
-          or bc.instituicao_origem_id = ${instituicaoId}
+       where (bc.instituicao_destino_id = ${instituicaoId}
+          or bc.instituicao_origem_id = ${instituicaoId})
+         and ${condicaoDaBolsa(acesso.alcance('bolsa:read'))}
        group by rc.nome, at.codigo, at.nome
        order by at.codigo nulls last
     `,
@@ -1109,6 +1194,7 @@ export class ParceirosService {
 
   private async carregarMobilidades(
     instituicaoId: string,
+    acesso: AcessoResolvido,
   ): Promise<MobilidadeHistorico[]> {
     return consultar<MobilidadeHistorico>(
       this.db,
@@ -1139,8 +1225,9 @@ export class ParceirosService {
         left join area_tematica     at
           on at.id = coalesce(bc.area_tematica_id, ip.area_tematica_id)
         left join rede_coordenadora rc on rc.id = at.rede_id
-       where bc.instituicao_destino_id = ${instituicaoId}
-          or bc.instituicao_origem_id = ${instituicaoId}
+       where (bc.instituicao_destino_id = ${instituicaoId}
+          or bc.instituicao_origem_id = ${instituicaoId})
+         and ${condicaoDaBolsa(acesso.alcance('bolsa:read'))}
        order by bc.data_inicio desc, pe.nome
     `,
     );

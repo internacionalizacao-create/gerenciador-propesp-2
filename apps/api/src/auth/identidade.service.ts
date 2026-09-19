@@ -68,6 +68,11 @@ export class IdentidadeService {
     this.acesso = new AcessoV1Service(db);
   }
 
+  /** Chamadores internos sem guard resolvem as mesmas concessoes da API. */
+  acessoDe(usuario: AuthUser) {
+    return this.acesso.resolver(usuario.id);
+  }
+
   /**
    * Devolve a identidade local, criando o vinculo no primeiro acesso.
    *

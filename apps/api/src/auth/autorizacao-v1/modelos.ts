@@ -25,7 +25,6 @@ const RESPONSAVEL = [
   'produto:edit',
   'pendencia:create',
   'pendencia:resolve',
-  'pessoa:read-contato',
   'documento:create',
   'documento:replace',
 ] as const satisfies readonly PermissaoV1[];
@@ -57,6 +56,7 @@ const MODELOS = {
       'pendencia:create',
       'pendencia:resolve',
       'pessoa:read-cpf',
+      'pessoa:edit-cpf',
       'pessoa:read-contato',
       'documento:read-pessoal',
       'documento:create',

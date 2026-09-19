@@ -61,7 +61,6 @@ export const NOME_DO_MODULO: Record<string, string> = {
   ppg: "PPGs",
 };
 
-
 /**
  * Verbo de cada sufixo de ação.
  *
@@ -72,6 +71,9 @@ export const NOME_DO_MODULO: Record<string, string> = {
  */
 const VERBO_DA_ACAO: Record<string, string> = {
   read: "consultar",
+  "read-cpf": "consultar CPF completo",
+  "edit-cpf": "corrigir CPF cadastrado",
+  "read-contato": "consultar contatos pessoais",
   "read-pessoal": "consultar documentos pessoais",
   "read-restrito": "consultar documentos restritos",
   create: "cadastrar",

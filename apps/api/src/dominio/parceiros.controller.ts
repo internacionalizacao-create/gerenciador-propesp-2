@@ -10,8 +10,13 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 
-import { CurrentUser, RequirePermission } from '../auth/auth.decorators';
+import {
+  AcessoAtual,
+  CurrentUser,
+  RequirePermission,
+} from '../auth/auth.decorators';
 import type { AuthUser } from '../auth/auth-user';
+import type { AcessoResolvido } from '../auth/autorizacao-v1/acesso-v1.service';
 import { responderArquivo } from '../comum/resposta-arquivo';
 import { ZodValidationPipe } from '../comum/zod-validation.pipe';
 import { ExportacaoService } from '../exportacao/exportacao.service';
@@ -69,8 +74,15 @@ export class ParceirosController {
    */
   @Get(':id/ficha')
   @RequirePermission('parceiro:read', 'parceiro:export')
-  async ficha(@Param('id') id: string, @Res() resposta: Response) {
-    responderArquivo(resposta, await this.exportacao.fichaDoParceiro(id));
+  async ficha(
+    @Param('id') id: string,
+    @AcessoAtual() acesso: AcessoResolvido,
+    @Res() resposta: Response,
+  ) {
+    responderArquivo(
+      resposta,
+      await this.exportacao.fichaDoParceiro(id, acesso),
+    );
   }
 
   @Get(':id')
@@ -79,11 +91,11 @@ export class ParceirosController {
     return this.parceiros.detalhar(id);
   }
 
-  /** Linha historica consolidada do parceiro (CG-027). */
+  /** Linha historica consolidada do parceiro (CG-027), recortada por acao. */
   @Get(':id/historico')
   @RequirePermission('parceiro:read')
-  historico(@Param('id') id: string) {
-    return this.parceiros.historico(id);
+  historico(@Param('id') id: string, @AcessoAtual() acesso: AcessoResolvido) {
+    return this.parceiros.historico(id, acesso);
   }
 
   @Post()

@@ -3,10 +3,15 @@
 Estado inicial: **Pendente**. Seguir o [índice](../backlog-v1.md). Preparar arquivos
 e ensaios é diferente de implantar na rede institucional. Usar dados fictícios
 nas verificações e registrar qual ambiente foi efetivamente validado.
+Todas as P1 deste grupo foram incluídas na V1 pelo responsável em 2026-09-18.
 
 ## V1-050 — Definir implantação interna e responsabilidades
 
 - **Prioridade/dependência:** P0; V1-001.
+- **Decisão em 2026-09-18:** preparar execução do sistema em Docker. A escolha
+  cobre o empacotamento de web/API/SSO/bancos; host, DNS, certificado e responsável
+  de infraestrutura permanecem pendentes para implantação. Documentar as lacunas
+  sem impedir a preparação local dos artefatos.
 - **Objetivo:** ter um desenho operacional concreto para a intranet.
 - **Referências:** `infra/docker-compose.yml`, `spec.server.md`, env examples,
   arquitetura BFF, scripts de banco e compartilhamento ngrok.
@@ -24,6 +29,8 @@ nas verificações e registrar qual ambiente foi efetivamente validado.
 ## V1-051 — Implantação de produção na intranet
 
 - **Prioridade/dependência:** P0; V1-050 e V1-052.
+- **Decisão em 2026-09-18:** usar Docker para preparar a execução do sistema.
+  Preparação e ensaio local não equivalem a publicação ou aceite na intranet.
 - **Objetivo:** empacotar e ensaiar execução persistente de web/API/SSO/bancos.
 - **Arquivos:** infraestrutura, Dockerfiles ou serviço escolhido em V1-050,
   proxy reverso, env examples, scripts de deploy e documentação de operação.
@@ -58,6 +65,9 @@ nas verificações e registrar qual ambiente foi efetivamente validado.
 ## V1-053 — Backup completo e agendado
 
 - **Prioridade/dependência:** P0; V1-050.
+- **Decisão em 2026-09-18:** executar backup diário durante a madrugada.
+  Documentar horário exato e fuso na implementação, além de destino, retenção e
+  responsável pelo acompanhamento. O agendamento ainda não foi implementado.
 - **Objetivo:** proteger domínio, anexos, identidades e configuração necessária
   para recuperação, evoluindo os scripts existentes.
 - **Arquivos:** `scripts/db-backup.sh`, `db-comum.sh`, inventário/restauração,
@@ -77,6 +87,10 @@ nas verificações e registrar qual ambiente foi efetivamente validado.
 ## V1-054 — Ensaio de recuperação, atualização e rollback
 
 - **Prioridade/dependência:** P0; V1-051 e V1-053.
+- **Pendente após a decisão de 2026-09-18:** frequência diária de madrugada
+  aprovada para backup; perda máxima aceitável e prazo máximo de restauração
+  ainda não definidos. Não apresentar o intervalo entre backups como garantia
+  de recuperação, pois ela depende de sucesso, consistência e restauração testada.
 - **Objetivo:** demonstrar recuperação real, não apenas existência de dumps.
 - **Arquivos:** scripts de restauração, configuração de produção e runbook;
   ambiente isolado com volumes/bancos distintos.
@@ -175,6 +189,12 @@ nas verificações e registrar qual ambiente foi efetivamente validado.
 
 ## V1-060 — Homologação e aceite da V1 interna
 
+- **Decisões em 2026-09-18:** todas as P1 estão incluídas e devem ser entregues,
+  salvo posterior adiamento explícito. O responsável sugeriu validação/aceite
+  por permissão: operações no sistema usam concessões e alcance, sem cargo
+  fixo. Registrar participantes nominais e evidências do aceite da versão;
+  possuir uma permissão não constitui homologação. Nenhuma nova interface de
+  homologação foi definida por esta decisão.
 - **Prioridade/dependência:** P0; todas as P0 anteriores concluídas e todas as P1
   explicitamente entregues ou adiadas no contrato V1-001. Em especial V1-021,
   V1-054 e V1-059. Atribuição nominal/ativação exige ambiente e autorização aplicáveis.

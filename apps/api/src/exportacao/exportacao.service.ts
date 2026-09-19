@@ -1,3 +1,4 @@
+import type { AcessoResolvido } from '../auth/autorizacao-v1/acesso-v1.service';
 import { Injectable, NotFoundException } from '@nestjs/common';
 
 import type { AuthUser } from '../auth/auth-user';
@@ -257,8 +258,9 @@ export class ExportacaoService {
     usuario: AuthUser,
     filtro: FiltroMobilidade,
     formato: Formato,
+    acesso?: AcessoResolvido,
   ): Promise<Exportacao> {
-    const linhas = await this.mobilidade.relatorio(usuario, filtro);
+    const linhas = await this.mobilidade.relatorio(usuario, filtro, acesso);
     const planilha: Planilha = {
       titulo: 'Mobilidade',
       colunas: [
@@ -299,7 +301,7 @@ export class ExportacaoService {
         linha.dataFim,
         linha.status,
         linha.valor,
-        String(linha.produtos),
+        linha.produtos === null ? null : String(linha.produtos),
       ]),
     };
 
@@ -353,8 +355,17 @@ export class ExportacaoService {
    * **A autorizacao e a da propria consulta**: chama `historico`, o mesmo
    * metodo da tela, com nada de checagem paralela.
    */
-  async fichaDoParceiro(id: string): Promise<Exportacao> {
-    const historico = await this.parceiros.historico(id);
+  /**
+   * A autorizacao e a da propria consulta: a ficha chama `historico` com o
+   * acesso de quem pediu, entao o PDF nao pode conter linha que a tela recusa.
+   * "Pesquisadores envolvidos" sai das mobilidades ja recortadas — sem isso o
+   * arquivo publicaria o nome do bolsista de outro PPG (V1-016).
+   */
+  async fichaDoParceiro(
+    id: string,
+    acesso: AcessoResolvido,
+  ): Promise<Exportacao> {
+    const historico = await this.parceiros.historico(id, acesso);
     const { parceiro } = historico;
 
     const conteudo = await gerarPdf({

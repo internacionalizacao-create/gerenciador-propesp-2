@@ -59,13 +59,16 @@ esvazia **34 das 54 tabelas** — todas as que se alimentam pela interface.
 
 ### O que fica, e por quê
 
-`pnpm db:zerar` não é `pnpm db:seed --reset`. O reset apaga tudo, inclusive o que
-**nenhum endpoint da API sabe criar**: programa, ciclo, rede coordenadora, área
-temática, participação PPG–temática, teto orçamentário anual, aporte do Comitê e
-o catálogo ISO de países. Sem isso não existe nem rota — `/programas/capes-global/2027-2030`
-desaparece e nenhuma tela oferece como recriar. O que sobra depois de zerar é a
-carcaça de planejamento vinda das planilhas, e é sobre ela que o cadastro manual
-acontece:
+`pnpm db:zerar` não é `pnpm db:seed --reset`. Desde 2026-09-18 os dois chegam a
+um estado parecido por caminhos diferentes: o `db:zerar` **preserva** as contas e
+as concessões de quem já estava configurado, e o reset devolve o banco ao dia um
+— recarregando a base estrutural e apagando todo acesso. O que **nenhum endpoint
+da API sabe criar** entra pelos dois lados: programa, ciclo, rede coordenadora,
+área temática, participação PPG–temática, teto orçamentário anual, aporte do
+Comitê e o catálogo ISO de países. Sem isso não existe nem rota —
+`/programas/capes-global/2027-2030` desaparece e nenhuma tela oferece como
+recriar. O que sobra depois de zerar é a carcaça de planejamento, e é sobre ela
+que o cadastro manual acontece:
 
 | Preservado | Por quê |
 |---|---|
@@ -261,7 +264,7 @@ não pendência:
 - **Execução financeira (P11)** — no CAPES Global a CAPES paga direto, e nada passa pelo caixa da UEA.
 - **Remanejamentos (P12)** — o sistema vai apenas *registrar* movimentação já feita na CAPES, sempre dentro da mesma temática.
 - **Home por perfil** — a P01 é a mesma para todos até o recorte de plano e orçamento existir.
-- **Recorte por PPG em plano, orçamento e parceiros** — hoje só PPGs e bolsas são recortados. `RECORTE_OBRIGATORIO` segue `false`: conta sem escopo nenhum ainda vê tudo.
+- **Recorte por ação** — plano, orçamento, PPGs, bolsas, parceiros, anexos e fichas recortam pela ação concedida. Não existe modo permissivo: conta sem concessão não vê nada.
 - **Acessos** — concedidos ação por ação, com alcance, na tela **Acessos** ou
   pelas rotas de `/acesso/usuarios/:id/concessoes`.
 
@@ -283,5 +286,8 @@ pnpm api GET me               # chama a API autenticado, pelo BFF
 Todos aceitam `--sim` para pular a confirmação, e `db:zerar` aceita
 `--sem-backup` para não gerar o snapshot automático.
 
-Para voltar aos dados das planilhas em vez de um backup:
-`cd apps/api && pnpm db:seed --reset`.
+Para recarregar a base estrutural em vez de um backup:
+`cd apps/api && pnpm db:seed --reset`. Acrescente
+`--admin-sub <id do Keycloak>` para já sair com o administrador configurado, e
+`--com-dados` para trazer também o plano, as equipes e as pendências das
+planilhas.

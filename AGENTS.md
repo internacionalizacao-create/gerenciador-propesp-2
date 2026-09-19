@@ -4,7 +4,16 @@ Documento de referência para quem (pessoa ou LLM) vai mexer neste repositório 
 tê-lo escrito. Descreve o que existe hoje, por que está assim, e o que ainda não
 existe. **Mantenha-o atualizado quando mudar arquitetura ou convenção.**
 
-Última revisão: 2026-09-17.
+Última revisão: 2026-09-18.
+
+**Decisões da V1 em 2026-09-18:** todas as P1 incluídas; preparação para Docker;
+backup diário de madrugada; validação atribuída por permissão, com responsáveis
+nominais ainda a registrar. Na V1-015, CPF, e-mail pessoal e telefone não serão
+enviados sem capacidade específica e alcance. Cadastro pode informar CPF sem
+capacidade de leitura; edição preserva CPF ausente do payload e sua alteração
+exige capacidade específica mais edição. Política aprovada **e implementada na
+V1-015** no mesmo dia. Contrato e detalhes em
+[docs/backlog-v1.md](docs/backlog-v1.md).
 
 **Planejamento da V1 interna (2026-09-15):** a fila atual de trabalho está em
 [docs/backlog-v1.md](docs/backlog-v1.md), com fichas detalhadas para execução
@@ -31,25 +40,51 @@ orçamento, painel, programas e ciclos recortam linhas e agregados pela ação d
 leitura; alcance parcial mostra custo próprio sem expor teto ou saldo da
 temática. **V1-014 também foi concluída em 2026-09-17:** criação, edição,
 cancelamento, orçamento e referências de formulário usam o alcance da própria
-ação. Ainda faltam bolsas e caminhos indiretos (V1-015 e V1-016), onde
-`escopoDe` continua temporariamente como ponte.
+ação. **V1-015 e V1-016 foram concluídas em 2026-09-18:** bolsas, produção,
+panorama, exportação, histórico do parceiro, anexos e ficha PDF recortam pela
+ação exercida, e CPF, e-mail e telefone só saem no JSON para quem tem a
+capacidade específica **e** alcance sobre aquele alvo. `escopoDe` sobrou em
+`ppgs.service.ts` e no `/me`, onde ainda descreve o escopo agregado da conta.
 
-**Ambiente local recém-subido não enxerga nada**, e isso é o comportamento
-certo: conta nova entra sem concessão. Para trabalhar (e para o
-`pnpm smoke:telas` ter o que conferir), rode uma vez
-`pnpm --filter api acesso:bootstrap --sub <sub> --motivo "..." --aplicar` e
-depois `./scripts/acesso-dev.sh`, que faz a dança de dois logins que a política
-exige — ninguém amplia o próprio acesso, nem em desenvolvimento.
+**Conta sem concessão não enxerga nada**, e isso é o comportamento certo. Em
+desenvolvimento, o caminho curto é semear o administrador junto com a base:
+
+```bash
+pnpm db:seed --reset --admin-sub <id do usuário no Keycloak>
+```
+
+O `<id>` é o `sub` daquele realm, visível no console ou em `GET /me` depois do
+primeiro login — ele muda a cada `kc:import --force`, e por isso não há valor
+padrão. Sem `--admin-sub`, nenhuma conta é criada e o caminho continua sendo
+`pnpm --filter api acesso:bootstrap --sub <sub> --motivo "..." --aplicar`
+seguido de `./scripts/acesso-dev.sh`, que faz a dança de dois logins que a
+política exige — ninguém amplia o próprio acesso, nem em desenvolvimento.
+
+**Cuidado com o `acesso-dev.sh` num banco recém-resetado:** ele faz o login
+OIDC, mas o vínculo local nasce em `GET /me`, que o script não chama. Abra a
+aplicação (ou chame `/api/bff/me`) uma vez com cada conta antes de rodá-lo.
 
 **Decisão do responsável, 2026-09-16: em produção o Keycloak só autentica.**
 Nenhum papel de negócio é criado ou atribuído lá; quem responde "o que esta
 pessoa pode fazer, e sobre o quê" é `concessao_acesso`, concedida pelo admin na
 aplicação, ação a ação. A implantação começa com a base consolidada (catálogo,
-PPGs, programa, ciclo, redes) e **sem conta nenhuma**: o primeiro administrador
-sai de `pnpm --filter api acesso:bootstrap` (V1-021a) — comando local, sem rota
-HTTP equivalente, prévia por padrão, que concede só as capacidades de gestão de
-acesso e recusa quando já existe administrador recuperável. As demais contas são
-cadastradas depois, pela tela de administração (V1-018).
+PPGs, programa, ciclo, redes) e, desde **2026-09-18**, com **um administrador
+semeado**: `pnpm db:seed --admin-sub <id do Keycloak>` grava a conta e o catálogo
+inteiro em GLOBAL. As demais contas são cadastradas depois, pela tela de
+administração (V1-018).
+
+**Isso contraria o desenho anterior, e o responsável decidiu assim sabendo
+disso.** O argumento contra semear continua escrito em
+[bootstrap.ts](apps/api/src/auth/autorizacao-v1/bootstrap.ts): instalação que
+nasce com conta previsível de acesso total não distingue o administrador
+legítimo de quem apenas conhece o padrão. **O que segura o risco é não haver
+padrão algum** — sem `--admin-sub` nenhuma conta é criada, não há busca por
+e-mail nem "primeiro usuário do realm", e o `sub` muda a cada import do realm,
+então a conta semeada só existe se alguém olhou aquele Keycloak e digitou o
+identificador. `pnpm --filter api acesso:bootstrap` (V1-021a) continua existindo
+e continua sendo o caminho quando não se quer conta semeada — comando local, sem
+rota HTTP equivalente, prévia por padrão, que concede só as capacidades de
+gestão de acesso e recusa quando já existe administrador recuperável.
 
 Por isso **não existe conversão do acesso legado**: numa base que começa limpa
 não há o que converter. O planejador e o relatório de conversão, escritos na
@@ -175,6 +210,7 @@ apps/
         *.controller.ts       rotas REST, uma permissão por endpoint
       config/env.ts        validação de ambiente com zod (falha no boot)
       database/            schema Drizzle, migrations e seed
+        seed/admin.ts        administrador semeado, so com --admin-sub
       health/              GET /health (público)
   web/                     Next.js — BFF + interface
     src/
@@ -324,9 +360,26 @@ a UI de login do Keycloak, por isso a confusão é fácil.
 cd apps/api
 pnpm db:generate        # gera migration a partir do schema
 pnpm db:migrate         # aplica no banco de DATABASE_URL
-pnpm db:seed --reset    # APAGA o dominio e recarrega os dados das planilhas
+pnpm db:seed --reset    # APAGA o dominio e recarrega a base estrutural
 pnpm db:studio          # inspetor visual do Drizzle
 ```
+
+**A seed sobe a base estrutural, não a planilha inteira** (decisão de
+2026-09-18). Programa, ciclo, redes, temáticas, participações, PPGs,
+modalidades, catálogo, teto anual e aporte do Comitê entram; plano de aplicação,
+equipes do Comitê e pendências ficam de fora, porque a interface os cadastra. O
+corte segue a classificação de [db-zerar.sh](scripts/db-zerar.sh), e não uma
+lista própria — duas definições de "base" divergiriam na primeira tabela nova.
+
+```bash
+pnpm db:seed --reset --admin-sub <id>   # ja deixa o administrador pronto
+pnpm db:seed --reset --com-dados        # inclui plano, equipes e pendencias
+```
+
+**`--com-dados` é o que o teste de aceite da migração exige:** sem plano não há
+custo, saldo nem utilização para conferir contra `system-structl.md` §8.3. A
+função `executarSeed` mantém `operacional: true` como padrão justamente para que
+os testes de integração não precisem saber disso; quem inverte é a CLI.
 
 ### Congelar, restaurar e zerar o banco
 
@@ -339,11 +392,11 @@ pnpm db:zerar --com-catalogo     # zera tambem modalidades e itens de catalogo
 pnpm api GET me                  # chama a API autenticado, pelo BFF
 ```
 
-**`pnpm db:zerar` não é `pnpm db:seed --reset`.** O reset apaga tudo, inclusive o
-que nenhum endpoint da API sabe criar — programa, ciclo, rede, temática,
-participação PPG–temática, teto anual, aporte do Comitê, catálogo ISO. Um banco
-sem isso não é um banco em branco: é um banco sem a rota
-`/programas/capes-global/2027-2030` e sem nenhuma tela que a recrie. O `db:zerar`
+**`pnpm db:zerar` não é `pnpm db:seed --reset`.** O reset apaga tudo — inclusive
+as contas e as concessões, que o `db:zerar` preserva — e recarrega a base do
+zero. Os dois chegam a um estado parecido por caminhos diferentes: o `db:zerar`
+**mantém** quem já estava configurado, e o reset devolve o banco ao dia um. O
+`db:zerar`
 esvazia só o que a interface alimenta (34 das 54 tabelas), e **falha se aparecer
 tabela nova não classificada** — sem essa checagem, a tabela da próxima migration
 sobreviveria à zeragem em silêncio.
@@ -907,9 +960,11 @@ senão o link some do menu e a URL continua respondendo erro.
   ([apps/api/src/database/seed/](apps/api/src/database/seed/)): 24 PPGs, 60 itens
   de catálogo, 23 linhas de plano (18 aprovadas, 4 UFMG pendentes e 1 cancelada),
   48 orçamentos anuais e 14 pendências históricas (5 abertas).
-  **A produção sobe com essa mesma seed completa** (decisão de 2026-09-08) e a
-  equipe corrige pela interface — é o que mantém o teste de aceite valendo
-  contra a base que de fato é carregada. As correções confirmadas depois da
+  **A produção passou a subir só com a base estrutural** (decisão de 2026-09-18,
+  que substitui a de 2026-09-08): plano, equipes e pendências ficam para a
+  equipe cadastrar pela interface. Os dados da planilha continuam no código e
+  entram com `--com-dados`, que é como o teste de aceite segue valendo contra
+  eles. As correções confirmadas depois da
   extração ficam em
   [dados-capes-global.ts](apps/api/src/database/seed/dados-capes-global.ts), e
   não no arquivo gerado pelo `extrair-planilhas.py`: uma nova extração não pode
@@ -1004,15 +1059,36 @@ senão o link some do menu e a URL continua respondendo erro.
     **O produto herda o recorte da bolsa** e não tem recorte próprio; sem isso
     `produto:write` seria a porta lateral, e conhecer o UUID bastaria para
     escrever na bolsa de outro PPG.
-  - **A escrita de bolsa usa o modo permissivo de `RECORTE_OBRIGATORIO`**, e
-    não a regra estrita de `RecorteDeMissoes.alcanca`. Os dois casos só parecem
-    iguais: `gestor-rede` nunca foi atribuído a ninguém, então fechar a escrita
-    de missão não tira nada de ninguém; `bolsa:write` é do `coordenador`, que
-    trabalha hoje sem escopo cadastrado, e fechar pararia o cadastro de bolsa no
-    mesmo instante para todo mundo. Quando a flag virar `true`, leitura e
-    escrita fecham juntas. Os dois modos têm teste em
-    [escopo-bolsas.int-spec.ts](apps/api/test/escopo-bolsas.int-spec.ts), e seis
-    dos oito casos foram verificados por mutação: remover o recorte os derruba.
+  - **Desde a V1-015 cada ação tem o seu próprio alcance** (2026-09-18), e o
+    modo permissivo acabou junto com a flag. Ler, cadastrar, editar e lançar
+    produto são quatro perguntas separadas: quem tem `bolsa:read` global e
+    `bolsa:edit` em um PPG enxerga o ciclo inteiro e só edita ali. O recorte
+    mora em [recorte-bolsa.ts](apps/api/src/auth/autorizacao-v1/recorte-bolsa.ts)
+    e é **uma função para todas as consultas** — a temática da concessão
+    prevalece, o item planejado só completa registros anteriores ao campo, e
+    subconsulta sem classificação vira `false` explícito, porque `NULL` dentro
+    de `not` e de `bool_and` passaria batido. Cobertura em
+    [escopo-bolsas.int-spec.ts](apps/api/test/escopo-bolsas.int-spec.ts) e
+    [recorte-bolsas-v1.int-spec.ts](apps/api/test/recorte-bolsas-v1.int-spec.ts).
+  - **Campo pessoal é projetado no SQL, nunca filtrado depois** (V1-015): CPF sai
+    sob `pessoa:read-cpf`, e-mail e telefone sob `pessoa:read-contato`, cada um
+    **cruzado com o alcance daquela bolsa**. Sem a capacidade o campo vem nulo e
+    um `podeLerCpf`/`podeLerContato` acompanha a linha, para a tela escrever
+    *Sem acesso* em vez de *Não informado* — ausência de permissão e ausência de
+    dado não são a mesma frase. **Não há máscara parcial**: meio CPF ainda é CPF.
+  - **Cadastrar CPF e ler CPF são capacidades distintas.** Quem tem
+    `bolsa:create` informa o CPF sem poder consultá-lo depois; na edição, CPF
+    não reenviado é **preservado**, e corrigir um CPF existente exige
+    `pessoa:edit-cpf` mais `bolsa:edit` sobre **todas** as bolsas daquela pessoa
+    — `pessoa` é compartilhada, e alcançar uma bolsa não autoriza reescrever a
+    identidade que outras usam. A correção trava a linha com `for update` e
+    grava auditoria por campo.
+  - **Duplicidade não revela cadastro alheio.** CPF repetido, e-mail de outra
+    pessoa e colisão concorrente (`23505`) respondem todos a **mesma** frase
+    genérica, pedindo revisão à equipe autorizada. Mensagens distintas seriam um
+    oráculo: bastaria variar o CPF até a recusa mudar de texto para descobrir
+    quem já está cadastrado. E-mail nunca troca a identidade de uma pessoa
+    existente — só o CPF identifica.
 - **Comitê Gestor e Administração (P17, equipes e cadastro de missões)**:
   cadastro de vínculos por ciclo, separação entre as duas equipes, criação
   reutilizável de pessoas, vigência, auditoria e acesso provisório exclusivo de
@@ -1112,6 +1188,31 @@ senão o link some do menu e a URL continua respondendo erro.
   prestação recusa remover uma despesa documentada ou apagar, durante edição,
   uma cotação que tenha documento — preservar a linha é o que mantém o vínculo
   histórico válido.
+
+  **O anexo herda o alcance da permissão que ele mesmo exige** (V1-016,
+  2026-09-18). `exigirAcesso` toma o alcance de `POLITICA[tipo][acao]` — a
+  mesma permissão que acabou de cobrar — e confere o alvo no banco. Antes o
+  documento da prestação era recortado por `missao:read` embora cobrasse
+  `prestacao:read`, e quem tivesse leitura de missão numa rede e de prestação
+  noutra baixava o comprovante da rede errada. **Alvo inexistente e alvo fora do
+  alcance respondem a mesma coisa** — *Documento não encontrado* —, porque
+  mensagens distintas deixariam mapear quais missões existem trocando o UUID até
+  o texto mudar. Instituição e convênio seguem sem recorte: não pendem de missão
+  nenhuma.
+
+  **O histórico do parceiro é recortado parcela a parcela** (V1-016). O cadastro
+  continua compartilhado — `listar`, `detalhar` e `candidatos` não recortam
+  nada, e é isso que faz o catálogo servir de catálogo —, mas bolsa responde a
+  `bolsa:read`, missão/roteiro/evento a `missao:read`, produto a
+  `produto-missao:read` **mais** o alcance da missão que o gerou, e convênio a
+  `convenio:read`. O convênio **não** segue a missão de origem: o acordo
+  sobrevive à viagem (CG-056). O recorte entra na consulta inclusive no
+  agregado, porque `vinculos` conta mobilidades e somar antes de filtrar
+  publicaria o número real. **Cuidado com `or` sem parênteses**: a condição dos
+  produtos era `exists (...) or exists (...)` sozinha no `where`, e ao entrar num
+  `and` com o recorte a precedência ligou o `and` só ao segundo `exists`.
+  `HistoricoParceiro.acesso` diz por seção se a ação foi concedida, para o estado
+  vazio não afirmar "não houve mobilidade" a quem apenas não pode consultá-la.
 
   **Segurança documental (CG-061)** valida UUID antes do banco, rejeita nome
   com caracteres de controle e monta `Content-Disposition` com fallback ASCII
@@ -1457,12 +1558,18 @@ interface é **Coordenador de Temática**, não “membro do comitê”. Ediçã
 existente exige `plano:edit` (só `admin`), preserva código/rubrica e grava uma
 entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: somente
 2027 vem composto; 2028–2030 começam vazios e nunca copiam a quantidade automaticamente.
-- **Testes**: 246 unitários/regressões (89 API + 157 na web para toast, datas,
+- **Testes**: 248 unitários/regressões (89 API + 159 na web para toast, datas,
   React Hook Form/Zod, erros do multistep, formulários de parceiro,
   acessibilidade, contraste dos tokens, cálculos monetários, montagem de série
   do gráfico, links do painel, pontas da mobilidade, cor das redes, caminhos
-  do BFF, concessão de acesso e menu por capacidade) mais as suítes de
-  integração contra Postgres real — entre elas os oito casos da escrita do catálogo
+  do BFF, concessão de acesso, menu por capacidade e preservação do CPF na
+  edição) mais 614 casos de integração em 36 suítes contra Postgres real —
+  entre eles os 14 do recorte por ação da V1-015
+  ([recorte-bolsas-v1.int-spec.ts](apps/api/test/recorte-bolsas-v1.int-spec.ts),
+  que confere CSV, XLSX e PDF reais para a exportação não reintroduzir o campo
+  que o JSON removeu), os oito dos caminhos indiretos da V1-016
+  ([recorte-indiretos-v1.int-spec.ts](apps/api/test/recorte-indiretos-v1.int-spec.ts))
+  e os oito casos da escrita do catálogo
   ([catalogo.int-spec.ts](apps/api/test/catalogo.int-spec.ts)), incluindo a
   recusa de alterar item que já custeia linha de plano. As duas garantias de não duplicação da linha
   histórica do parceiro foram verificadas por mutação: trocar o `exists` +
@@ -1513,11 +1620,11 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
   (lista, busca, cadastro, edição, contatos e histórico); o que falta dela
   depende da CG-045, ainda bloqueada. A visibilidade por rede é a CG-028 —
   hoje parceiros e contatos são exclusivos do `admin`.
-- **Escopo aplicado além de PPGs e bolsas.** O recorte já existe e funciona
-  (ver §6). **As bolsas concedidas entraram na BOL-020** (2026-09-09): listagem,
-  detalhe, opções de planejamento, concessão, edição e produtos. Plano,
-  orçamento e parceiros continuam sem recorte — é trabalho mecânico, uma
-  consulta por vez, e cada uma precisa de regressão própria.
+- **Regressão da matriz inteira (V1-020).** O recorte por ação cobre PPGs,
+  plano, orçamento, painel, programas, ciclos, bolsas, produtos, panorama,
+  produção, exportação, histórico do parceiro, anexos e ficha PDF. O que falta
+  não é mais uma consulta por vez: é a **regressão cruzada** de duas contas com
+  recortes diferentes sobre a matriz toda, e o smoke nominal por perfil.
 - **Home por perfil.** A P01 é a mesma para todos os perfis, e **continua assim
   até existir o recorte de plano e orçamento** (decisão de 2026-09-10). Uma
   home do coordenador montada antes disso ou mostraria o programa inteiro sob

@@ -81,7 +81,11 @@ export default async function ParceiroDetalhe({
     documentos,
     convenios,
     produtos,
+    acesso,
   } = historico;
+  // Seção vazia por falta de concessão não é seção vazia por falta de fato.
+  // O texto de cada estado vazio afirma uma das duas, e afirmar a errada
+  // publicaria "não houve mobilidade" para quem apenas não pode consultá-la.
   const podeEscrever = me.permissions.includes("parceiro:edit");
   const base = `/programas/${programa}/${ciclo}/parceiros`;
 
@@ -146,7 +150,10 @@ export default async function ParceiroDetalhe({
       )}
 
       <Cartoes>
-        <Cartao titulo="Missões" valor={inteiro(missoes.length)} />
+        <Cartao
+          titulo="Missões"
+          valor={acesso.missoes ? inteiro(missoes.length) : "Sem acesso"}
+        />
         <Cartao titulo="Eventos" valor={inteiro(eventos.length)} />
         <Cartao
           titulo="Contatos ativos"
@@ -179,10 +186,15 @@ export default async function ParceiroDetalhe({
             <span className="italic text-subtle">Nenhuma rede vinculada</span>
           )}
         </div>
-        {vinculos.length === 0 ? (
+        {!acesso.bolsas ? (
+          <EstadoVazio
+            titulo="Sem acesso ao vínculo por mobilidade"
+            descricao="Temática e PPG são derivados das bolsas concedidas, cuja consulta não foi concedida a esta conta. As redes acima continuam visíveis, porque são declaradas no cadastro."
+          />
+        ) : vinculos.length === 0 ? (
           <EstadoVazio
             titulo="Nenhuma mobilidade com esta instituição"
-            descricao="Temática e PPG aparecem aqui assim que houver bolsa concedida com origem ou destino nesta instituição."
+            descricao="Temática e PPG aparecem aqui assim que houver, dentro do seu alcance, bolsa concedida com origem ou destino nesta instituição."
           />
         ) : (
           <Tabela
@@ -324,10 +336,15 @@ export default async function ParceiroDetalhe({
         titulo="Histórico de mobilidades"
         descricao="Bolsistas da UEA que passaram por esta instituição, ou que vieram dela. Uma linha por concessão, mesmo quando a instituição é origem e destino."
       >
-        {mobilidades.length === 0 ? (
+        {!acesso.bolsas ? (
+          <EstadoVazio
+            titulo="Sem acesso às mobilidades"
+            descricao="A consulta de bolsas concedidas não foi concedida a esta conta. O cadastro do parceiro continua disponível."
+          />
+        ) : mobilidades.length === 0 ? (
           <EstadoVazio
             titulo="Nenhuma mobilidade registrada"
-            descricao="Nenhuma bolsa concedida aponta para esta instituição. Isso não diz nada sobre o relacionamento — diz apenas que não houve mobilidade."
+            descricao="Nenhuma bolsa concedida dentro do seu alcance aponta para esta instituição. Isso não diz nada sobre o relacionamento — diz apenas que não houve mobilidade que você acompanhe."
           />
         ) : (
           <Tabela
@@ -460,10 +477,15 @@ export default async function ParceiroDetalhe({
         titulo="Missões"
         descricao="Uma linha por missão, mesmo quando ela pertence a mais de uma rede ou visita este parceiro em mais de uma parada do roteiro."
       >
-        {missoes.length === 0 ? (
+        {!acesso.missoes ? (
+          <EstadoVazio
+            titulo="Sem acesso às missões"
+            descricao="A consulta de missões não foi concedida a esta conta. O cadastro do parceiro continua disponível."
+          />
+        ) : missoes.length === 0 ? (
           <EstadoVazio
             titulo="Nenhuma missão registrada"
-            descricao="As missões aparecem aqui quando uma atividade do roteiro apontar para este parceiro."
+            descricao="As missões dentro do seu alcance aparecem aqui quando uma atividade do roteiro apontar para este parceiro."
           />
         ) : (
           <ul className="space-y-4">

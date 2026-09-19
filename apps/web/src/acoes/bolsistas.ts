@@ -3,6 +3,8 @@
 import { enviar, texto, type EstadoDaAcao } from "@/lib/acao";
 import {
   payloadBolsaConcedida,
+  payloadEdicaoBolsa,
+  type DadosEdicaoBolsa,
   type DadosFormularioBolsaConcedida,
 } from "@/lib/formularios/bolsa-concedida";
 import { dataBrParaIso } from "@/lib/formato";
@@ -33,31 +35,18 @@ export async function criarBolsaConcedida(
   );
 }
 
-/**
- * Edição da concessão: só período e situação administrativa.
- *
- * Continua em `FormData` de propósito. O §7 do AGENTS.md manda migrar o
- * formulário legado **quando ele for alterado**, e a BOL-010 não o altera —
- * origem e destino não são editáveis aqui. Migrar junto seria reescrita ampla
- * sem necessidade, que é exatamente o que a convenção exclui.
- */
+/** Edicao validada pela API, incluindo capacidade especifica para corrigir CPF. */
 export async function atualizarBolsaConcedida(
   id: string,
   _anterior: EstadoDaAcao,
-  formulario: FormData,
+  dados: DadosEdicaoBolsa,
 ): Promise<EstadoDaAcao> {
   return enviar(
     `/bolsistas/${id}`,
     "PATCH",
-    {
-      dataInicio: dataDoFormulario(formulario, "dataInicio"),
-      dataFim: dataDoFormulario(formulario, "dataFim"),
-      status: texto(formulario, "status") ?? "SELECIONADO",
-      processo: texto(formulario, "processo"),
-      observacoes: texto(formulario, "observacoes"),
-    },
+    payloadEdicaoBolsa(dados),
     ["/mobilidade/bolsistas", `/mobilidade/bolsistas/${id}`],
-    "Situação da bolsa atualizada.",
+    "Bolsa atualizada.",
   );
 }
 

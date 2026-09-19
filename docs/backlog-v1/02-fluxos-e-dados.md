@@ -2,6 +2,7 @@
 
 Estado inicial: **Pendente**. Execução e registro de conclusão conforme o
 [índice](../backlog-v1.md). Permissões e decisões já homologadas continuam valendo.
+Todas as P1 deste grupo foram incluídas na V1 pelo responsável em 2026-09-18.
 
 ## V1-030 — Completar edição e ciclo de vida da missão
 
@@ -142,6 +143,11 @@ Estado inicial: **Pendente**. Execução e registro de conclusão conforme o
 ## V1-038 — Completar dados institucionais e composições
 
 - **Prioridade/dependência:** P1; V1-034; dados formais da equipe/responsável.
+- **Direção registrada em 2026-09-18:** validação atribuída por permissão e
+  alcance, conforme sugestão do responsável. Mapear as capacidades necessárias
+  aos atos existentes durante a tarefa; a identidade de quem fornece e confere
+  cada dado ainda deve ser registrada. Permissão não comprova o dado nem
+  substitui sua origem institucional.
 - **Objetivo:** separar dado ainda não informado de funcionalidade faltante.
 - **Referências:** `system-structl.md` §11, seed/dados-capes-global, P09/P10/P03,
   guia de cadastro, fontes institucionais entregues durante a tarefa.

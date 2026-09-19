@@ -12,7 +12,16 @@ import {
 import { ParceirosService } from '../src/dominio/parceiros.service';
 import { ResultadosService } from '../src/dominio/resultados.service';
 import { criarContextoTeste, type ContextoTeste } from './db-teste';
-import { criarBase, type BaseFixture } from './fixtures';
+import { acessoGlobalDeTeste, criarBase, type BaseFixture } from './fixtures';
+
+/** Estas suites verificam o conteudo, nao o recorte (V1-016). */
+const acessoAmplo = acessoGlobalDeTeste([
+  'parceiro:read',
+  'bolsa:read',
+  'missao:read',
+  'produto-missao:read',
+  'convenio:read',
+]);
 
 const admin: AuthUser = {
   id: 'admin-cg059',
@@ -486,7 +495,7 @@ describe('Resultados e encerramento (CG-059)', () => {
       admin,
     );
 
-    const historico = await parceiros.historico(parceiroId);
+    const historico = await parceiros.historico(parceiroId, acessoAmplo);
     // Tres redes num convenio nao sao tres convenios. `join` com
     // `convenio_rede` devolveria a mesma linha tres vezes — e o produto que
     // aponta o acordo daria a quarta.

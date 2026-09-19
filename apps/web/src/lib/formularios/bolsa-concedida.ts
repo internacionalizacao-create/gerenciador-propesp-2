@@ -101,7 +101,10 @@ export const formularioBolsaConcedidaSchema = z
     observacoes: opcional(4000),
   })
   .superRefine((valor, contexto) => {
-    if (valor.modoInstituicaoOrigem === "catalogo" && !valor.instituicaoOrigemId) {
+    if (
+      valor.modoInstituicaoOrigem === "catalogo" &&
+      !valor.instituicaoOrigemId
+    ) {
       contexto.addIssue({
         code: "custom",
         path: ["instituicaoOrigemId"],
@@ -174,5 +177,54 @@ export function payloadBolsaConcedida(dados: DadosFormularioBolsaConcedida) {
     status: dados.status,
     processo: dados.processo || null,
     observacoes: dados.observacoes || null,
+  };
+}
+
+/** CPF vazio significa preservar; nunca enviar mascara ou null como correcao. */
+export const formularioEdicaoBolsaSchema = z
+  .object({
+    dataInicio: dataBr,
+    dataFim: dataBr,
+    status: z.enum([
+      "SELECIONADO",
+      "EM_ANDAMENTO",
+      "CONCLUIDA",
+      "CANCELADA",
+      "INTERROMPIDA",
+    ]),
+    processo: opcional(120),
+    observacoes: opcional(4000),
+    cpf: z
+      .string()
+      .trim()
+      .refine(
+        (valor) =>
+          valor === "" ||
+          (/^[0-9.\-\s]+$/.test(valor) &&
+            valor.replace(/\D/g, "").length === 11),
+        "Informe um CPF com 11 dígitos ou deixe vazio para preservar o atual.",
+      ),
+  })
+  .superRefine((valor, contexto) => {
+    const inicio = dataBrParaIso(valor.dataInicio);
+    const fim = dataBrParaIso(valor.dataFim);
+    if (inicio && fim && fim < inicio)
+      contexto.addIssue({
+        code: "custom",
+        path: ["dataFim"],
+        message: "A data final não pode ser anterior à data inicial.",
+      });
+  });
+
+export type DadosEdicaoBolsa = z.infer<typeof formularioEdicaoBolsaSchema>;
+
+export function payloadEdicaoBolsa(dados: DadosEdicaoBolsa) {
+  return {
+    dataInicio: dataBrParaIso(dados.dataInicio),
+    dataFim: dataBrParaIso(dados.dataFim),
+    status: dados.status,
+    processo: dados.processo || null,
+    observacoes: dados.observacoes || null,
+    ...(dados.cpf ? { cpf: dados.cpf } : {}),
   };
 }

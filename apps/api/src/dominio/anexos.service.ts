@@ -10,9 +10,13 @@ import { and, desc, eq, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 
 import type { AuthUser } from '../auth/auth-user';
-import { podeVerPpg } from '../auth/escopo';
+import {
+  condicaoDaBolsa,
+  condicaoDaMissao,
+} from '../auth/autorizacao-v1/recorte-bolsa';
 import { IdentidadeService } from '../auth/identidade.service';
 import type { Permission } from '../auth/permissions';
+import { consultar } from '../comum/consultar';
 import { ArmazenamentoService } from '../arquivos/armazenamento.service';
 import {
   EXTENSOES_ACEITAS,
@@ -685,59 +689,52 @@ export class AnexosService {
     entidadeId: string,
     acao: 'ler' | 'escrever',
   ): Promise<void> {
-    this.exigir(usuario, POLITICA[tipo][acao]);
+    const permissao = POLITICA[tipo][acao];
+    this.exigir(usuario, permissao);
 
-    // Bolsista e recortado por PPG, nao por rede (BOL-020/BOL-021). Sem isto o
-    // documento seria a porta lateral do recorte que a BOL-020 acabou de
-    // fechar: conhecer o UUID bastaria para baixar o passaporte de um bolsista
-    // de outro PPG.
+    // **O alcance e o da mesma permissao que acabou de ser exigida**, e nao um
+    // recorte generico de missao (V1-016). Ate 2026-09-18 o documento da
+    // prestacao era recortado pelo alcance de `missao:read`, embora a permissao
+    // cobrada fosse `prestacao:read`: quem tivesse leitura de missao numa rede
+    // e de prestacao noutra baixava o comprovante da rede errada. Uma pergunta
+    // so, feita da acao exercida, nao tem como divergir dela.
+    const alcance = (await this.identidade.acessoDe(usuario)).alcance(
+      permissao,
+    );
+
+    // Bolsista e recortado pela propria bolsa (BOL-020/BOL-021, V1-015). Sem
+    // isto o documento seria a porta lateral do recorte: conhecer o UUID
+    // bastaria para baixar o passaporte de um bolsista fora do alcance.
     if (tipo === 'BOLSA_CONCEDIDA') {
-      await this.exigirPpgDaBolsa(usuario, entidadeId);
+      await this.exigirAlvo(
+        sql`select 1 as existe from bolsa_concedida bc where bc.id = ${entidadeId}::uuid
+              and ${condicaoDaBolsa(alcance)}`,
+      );
       return;
     }
 
     const missaoId = await this.missaoDaEntidade(tipo, entidadeId);
+    // Instituicao e convenio nao pendem de missao nenhuma: o cadastro
+    // institucional e compartilhado, como `historico` tambem trata.
     if (!missaoId) return;
 
-    const redes = await this.db
-      .select({ redeId: s.missaoRede.redeId })
-      .from(s.missaoRede)
-      .where(eq(s.missaoRede.missaoId, missaoId));
-
-    // Mesmo alcance da missao: o documento herda o recorte do alvo, senao o
-    // anexo seria a porta lateral dele.
-    const recorte = await this.identidade.recorteDeMissoes(usuario);
-    if (
-      !recorte.semRecorte &&
-      !redes.some((linha) => recorte.alcanca(linha.redeId))
-    ) {
-      // 404, e não 403: "existe, mas não é seu" já entrega que o documento
-      // existe — mesmo critério do PPG e da missão fora do escopo.
-      throw new NotFoundException('Documento não encontrado.');
-    }
+    await this.exigirAlvo(
+      sql`select 1 as existe from missao_comite mc where mc.id = ${missaoId}::uuid
+            and ${condicaoDaMissao(alcance)}`,
+    );
   }
 
   /**
-   * A concessao esta no escopo por PPG de quem pediu (BOL-021).
+   * O alvo existe **e** esta no alcance: uma consulta so, feita no banco.
    *
    * 404 e nao 403, pelo mesmo criterio do resto: "existe, mas nao e seu" ja
-   * entrega que aquele bolsista tem documento — e, num anexo pessoal, que
-   * aquela pessoa e bolsista.
+   * entrega que o documento existe — e, num anexo pessoal, que aquela pessoa e
+   * bolsista. Por isso as duas metades respondem igual: quem troca o UUID nao
+   * distingue "nao existe" de "nao alcanco".
    */
-  private async exigirPpgDaBolsa(
-    usuario: AuthUser,
-    bolsaId: string,
-  ): Promise<void> {
-    const [bolsa] = await this.db
-      .select({ ppgId: s.bolsaConcedida.ppgId })
-      .from(s.bolsaConcedida)
-      .where(eq(s.bolsaConcedida.id, bolsaId))
-      .limit(1);
-
-    const escopo = await this.identidade.escopoDe(usuario);
-    if (!bolsa || !podeVerPpg(escopo, bolsa.ppgId)) {
-      throw new NotFoundException('Documento não encontrado.');
-    }
+  private async exigirAlvo(consulta: SQL): Promise<void> {
+    const [linha] = await consultar<{ existe: number }>(this.db, consulta);
+    if (!linha) throw new NotFoundException('Documento não encontrado.');
   }
 
   /**

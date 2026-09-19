@@ -10,7 +10,16 @@ import {
   esperarViolacao,
   type ContextoTeste,
 } from './db-teste';
-import { criarBase, type BaseFixture } from './fixtures';
+import { acessoGlobalDeTeste, criarBase, type BaseFixture } from './fixtures';
+
+/** Estas suites verificam o conteudo, nao o recorte (V1-016). */
+const acessoAmplo = acessoGlobalDeTeste([
+  'parceiro:read',
+  'bolsa:read',
+  'missao:read',
+  'produto-missao:read',
+  'convenio:read',
+]);
 
 const admin: AuthUser = {
   id: 'admin-resultados',
@@ -540,7 +549,7 @@ describe('Produtos da missao e convenios (CG-056)', () => {
       admin,
     );
 
-    const historico = await parceiros.historico(parceiroId);
+    const historico = await parceiros.historico(parceiroId, acessoAmplo);
     expect(historico.convenios).toHaveLength(1);
     expect(historico.produtos).toHaveLength(1);
     expect(historico.produtos[0].missaoCodigo).toBe('MCG-900');

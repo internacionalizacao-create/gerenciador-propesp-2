@@ -1,11 +1,12 @@
 # Autorização da V1 interna — modelo aprovado pelo responsável
 
-Data: 2026-09-15. Estado: **modelo de autorização aprovado pelo responsável pelo
+Data: 2026-09-15; decisões complementares em 2026-09-18. Estado: **modelo de autorização aprovado pelo responsável pelo
 projeto nesta conversa**, após a proposta de concessões individuais de permissão
 + escopo e sua confirmação de acordo com o novo modelo. Isso não equivale
 a homologação institucional nem altera permissões em execução. Implementação em
-[backlog-v1.md](backlog-v1.md), V1-010 a V1-021: V1-010 tem contrato preparatório entregue; implementação
-operacional de V1-011 a V1-021 permanece pendente. Detalhamento e inventário em
+[backlog-v1.md](backlog-v1.md): V1-010–019 concluídas; V1-020 pendente e
+V1-021 em andamento. A autorização central por
+concessões já está ativa desde V1-012. Detalhamento e inventário em
 [contrato-autorizacao-v1.md](contrato-autorizacao-v1.md).
 
 ## Público e responsabilidade
@@ -69,8 +70,8 @@ para cada ação, inclusive operações que são necessariamente institucionais.
 
 Rede e temática pertencem a um ciclo; participação o herda pela temática.
 PPG é cadastro global e exige ciclo explícito para concessões do planejamento.
-Concessões legadas sem ciclo exigem inventário e conversão explícita; não recebem
-GLOBAL ou novos ciclos automaticamente.
+Na decisão de 2026-09-16, a produção começa sem contas e não há conversão de
+concessões legadas. Nenhum alvo recebe GLOBAL ou novos ciclos automaticamente.
 
 Exemplo: Ana recebe consulta de planejamento na rede B, criação de linhas no
 PPG A/ciclo 2027–2030 e escrita de bolsas na participação A/T1. Consultar B não
@@ -92,30 +93,42 @@ outra ação, sem contornar suas regras de negócio.
 
 Sugestões por `participacao_ppg.coordenador_tematica_id` exigem confirmação do
 admin. Alterar o responsável no cadastro não transfere acesso silenciosamente.
-O vínculo ativo de equipe das missões deve ter sua compatibilidade tratada na
-migração: não produzir acesso implícito permanente fora do novo modelo. Inventariar
-as origens existentes e convertê-las em concessões explícitas revisadas, preservando
-os alcances aprovados. Após a transição, mudança de equipe sugere revisão e não
-concede acesso sozinha. Essa concretização mantém a regra aprovada de que a
-aplicação explica e administra todas as concessões efetivas.
+O vínculo ativo de equipe das missões não produz acesso implícito. A conversão
+legada foi cancelada em 2026-09-16 porque a produção começa sem contas; mudança
+de equipe sugere revisão e não concede acesso sozinha. A aplicação explica e
+administra todas as concessões efetivas.
 
 ## Orçamento e dados pessoais
 
-O teto é da temática/exercício, não de cada PPG. A proposta inicial de projeção
-continua sendo: recorte parcial vê seus custos e quantidades; teto/saldo só são
+O teto é da temática/exercício, não de cada PPG. A projeção entregue na V1-013
+é: recorte parcial vê seus custos e quantidades; teto/saldo só são
 expostos quando há cobertura autorizada da temática inteira. Uma eventual
 permissão específica de consolidado compartilhado precisa ter projeção e alcance
 próprios, sem revelar linhas ocultas. Não calcular saldo fictício do PPG nem
 vazar valores por gráficos, totais, alertas ou denominadores. Indisponível é
 `null`, não zero.
 
-CPF completo, contatos pessoais, documentos `PESSOAL` e documentos `RESTRITA`
-precisam de capacidades específicas e alcance sobre o alvo. Os modelos iniciais
-reservam CPF completo/documentos pessoais a admin e secretaria; atribuições
-individuais poderão ser personalizadas. `PESSOAL` e `RESTRITA` não são equivalentes.
-A matriz de campos e os padrões de máscara ainda devem ser detalhados em V1-010/015.
-Nunca salvar máscara como CPF nem devolver CPF completo em busca de duplicidade
-para quem não pode consultá-lo.
+**Política aprovada pelo responsável em 2026-09-18 e implementada na V1-015:**
+CPF, e-mail pessoal e telefone exigem capacidades específicas e alcance sobre o
+alvo. Sem capacidade, os valores não são enviados ao navegador, nem CPF
+parcialmente mascarado. Nome e dados acadêmicos continuam disponíveis a quem
+pode consultar a bolsa. Modelos de administrador e secretaria incluem as
+capacidades por padrão; atribuições individuais são personalizáveis.
+
+Quem pode cadastrar bolsa pode informar CPF mesmo sem poder consultá-lo completo.
+Na edição, CPF não reenviado é preservado. Alterar CPF existente exige capacidade
+específica de dados pessoais e edição no alcance do alvo. Nunca salvar máscara
+como CPF nem revelar cadastro fora do alcance na verificação de duplicidade.
+A V1-015 entregou isso em 2026-09-18: a projeção acontece no SQL, cruzando a
+capacidade com o alcance sobre aquela bolsa, e `pessoa:edit-cpf` passou a existir
+para a correção. As exportações de mobilidade reaplicam a projeção, e a
+V1-016 estendeu o mesmo critério ao histórico do parceiro, aos anexos e à ficha
+em PDF.
+
+Documentos `PESSOAL` e `RESTRITA` também exigem capacidades específicas e alcance
+sobre o alvo; as duas visibilidades não são equivalentes. Os modelos iniciais
+reservam documentos pessoais a administrador e secretaria, com personalização
+por concessão individual.
 
 Parceiros permanecem catálogo institucional compartilhado para quem tem a
 permissão; seus históricos, contagens, produtos e PDFs aplicam o recorte das
@@ -144,16 +157,18 @@ implementada; a V1 pode manter o provisionamento de identidade no console.
 
 ## Transição e decisões ainda necessárias
 
-1. V1-001 registra o contrato e quais P1 entram; a aprovação deste modelo resolve
-   a direção de autorização, não encerra o contrato inteiro.
+1. V1-001 registra o contrato: todas as P1 foram incluídas em 2026-09-18, junto
+   com preparação para Docker, validação por permissão e backup diário de
+   madrugada. Responsáveis nominais e detalhes operacionais continuam pendentes
+   nas fichas correspondentes; a decisão não encerra o contrato inteiro.
 2. V1-010 detalha ações, escopos compatíveis, modelos iniciais e proteção da
    administração de acesso. V1-011/012 implementam concessões e resolução central.
-3. Inventariar papéis, escopos e origens de equipe legados; produzir prévia de
-   conversão nominal sem multiplicar todas as permissões por todos os escopos.
-   Após o corte, papel do token sozinho não concede domínio.
+3. Produção começa sem contas, por decisão de 2026-09-16. Bootstrap cria o
+   primeiro administrador local; não há conversão legada. Papel do token sozinho
+   não concede domínio.
 4. V1-013 a V1-020 cobrem leituras/escritas, campos, arquivos, administração,
    orientação e testes com personalizações fora dos modelos.
-5. V1-021 confere contas nominais, recuperação e ativa a política restritiva.
+5. V1-021 confere contas nominais, recuperação e smoke da política já restritiva.
    Não implantar ou alterar contas reais pelo simples registro desta decisão.
 
 A proposta anterior de concessão por **perfil + escopo**, condicionada a papel
@@ -166,8 +181,8 @@ passam a ter este tratamento:
 | A02 | Perfis são modelos opcionais; novo papel `responsavel-tematica` não é requisito |
 | A03 | Adotada concessão individual permissão + escopo; PPG do planejamento exige ciclo |
 | A04 | Edição/orçamento são permissões concedíveis; padrão administrativo, com regras de negócio preservadas |
-| A05 | Projeção de teto/saldo continua recomendação a detalhar, sem saldo fictício por PPG |
-| A06 | Dados pessoais têm capacidades específicas; padrões/máscaras a detalhar, sem exclusividade rígida por papel |
+| A05 | Projeção entregue na V1-013: custo próprio no alcance parcial; teto/saldo só com cobertura integral da temática |
+| A06 | Política aprovada em 2026-09-18 e implementada na V1-015 no mesmo dia: valores pessoais não enviados sem capacidade; CPF preservado na edição e alteração protegida por `pessoa:edit-cpf` |
 | A07 | Secretaria global é sugestão de modelo; cada permissão pode ter alcance personalizado |
 
 As definições operacionais restantes pertencem às tarefas; não significam

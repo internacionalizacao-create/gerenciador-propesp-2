@@ -61,9 +61,27 @@ export interface ResultadoSeed {
   requisitosSubmissao: number;
 }
 
+export interface OpcoesSeed {
+  /**
+   * Carrega tambem o que a interface cadastra: plano de aplicacao, equipes do
+   * Comite e pendencias.
+   *
+   * Padrao `true` para nao mudar quem ja chama esta funcao — em especial o
+   * teste de aceite da migracao, que so faz sentido contra a planilha inteira.
+   * A CLI inverte o padrao: `pnpm db:seed` sobe a **base estrutural**, que e o
+   * que uma instalacao nova precisa e nada alem disso.
+   *
+   * O corte segue a classificacao de `scripts/db-zerar.sh`, e nao uma lista
+   * propria: duas definicoes de "base" divergiriam na primeira tabela nova.
+   */
+  readonly operacional?: boolean;
+}
+
 export async function executarSeed(
   db: NodePgDatabase<typeof s>,
+  opcoes: OpcoesSeed = {},
 ): Promise<ResultadoSeed> {
+  const operacional = opcoes.operacional ?? true;
   const d = dadosCapesGlobal;
 
   // --- Paises -------------------------------------------------------------
@@ -307,26 +325,28 @@ export async function executarSeed(
   }
 
   const vinculosFonte = [...composicoesPorVinculo.values()];
-  const membrosEquipeGestao = await db
-    .insert(s.membroEquipeGestao)
-    .values(
-      vinculosFonte.map((membro) => ({
-        cicloId: ciclo.id,
-        pessoaId: exigir(
-          pessoaPorNome.get(chave(membro.nome)),
-          `membro da equipe ${membro.nome}`,
-        ),
-        tipoEquipe: membro.tipoEquipe,
-        funcao: membro.funcao,
-        dataInicio: `${CICLO_ANOS[0]}-01-01`,
-        observacoes: `Composição formal das redes ${[...membro.redes].sort().join(', ')}. Fontes: ${[...membro.fontes].sort().join(', ')}.`,
-      })),
-    )
-    .returning({
-      id: s.membroEquipeGestao.id,
-      pessoaId: s.membroEquipeGestao.pessoaId,
-      tipoEquipe: s.membroEquipeGestao.tipoEquipe,
-    });
+  const membrosEquipeGestao = !operacional
+    ? []
+    : await db
+        .insert(s.membroEquipeGestao)
+        .values(
+          vinculosFonte.map((membro) => ({
+            cicloId: ciclo.id,
+            pessoaId: exigir(
+              pessoaPorNome.get(chave(membro.nome)),
+              `membro da equipe ${membro.nome}`,
+            ),
+            tipoEquipe: membro.tipoEquipe,
+            funcao: membro.funcao,
+            dataInicio: `${CICLO_ANOS[0]}-01-01`,
+            observacoes: `Composição formal das redes ${[...membro.redes].sort().join(', ')}. Fontes: ${[...membro.fontes].sort().join(', ')}.`,
+          })),
+        )
+        .returning({
+          id: s.membroEquipeGestao.id,
+          pessoaId: s.membroEquipeGestao.pessoaId,
+          tipoEquipe: s.membroEquipeGestao.tipoEquipe,
+        });
   const membroPorPessoaEquipe = new Map(
     membrosEquipeGestao.map((membro) => [
       `${membro.pessoaId}|${membro.tipoEquipe}`,
@@ -334,22 +354,23 @@ export async function executarSeed(
     ]),
   );
 
-  await db.insert(s.membroEquipeGestaoRede).values(
-    vinculosFonte.flatMap((membro) => {
-      const pessoaId = exigir(
-        pessoaPorNome.get(chave(membro.nome)),
-        `membro da equipe ${membro.nome}`,
-      );
-      const membroEquipeId = exigir(
-        membroPorPessoaEquipe.get(`${pessoaId}|${membro.tipoEquipe}`),
-        `vínculo da equipe ${membro.nome}`,
-      );
-      return [...membro.redes].map((rede) => ({
-        membroEquipeId,
-        redeId: exigir(redePorNome.get(rede), `rede ${rede}`),
-      }));
-    }),
-  );
+  if (operacional)
+    await db.insert(s.membroEquipeGestaoRede).values(
+      vinculosFonte.flatMap((membro) => {
+        const pessoaId = exigir(
+          pessoaPorNome.get(chave(membro.nome)),
+          `membro da equipe ${membro.nome}`,
+        );
+        const membroEquipeId = exigir(
+          membroPorPessoaEquipe.get(`${pessoaId}|${membro.tipoEquipe}`),
+          `vínculo da equipe ${membro.nome}`,
+        );
+        return [...membro.redes].map((rede) => ({
+          membroEquipeId,
+          redeId: exigir(redePorNome.get(rede), `rede ${rede}`),
+        }));
+      }),
+    );
 
   const areas = await db
     .insert(s.areaTematica)
@@ -419,89 +440,95 @@ export async function executarSeed(
     .returning();
 
   // --- Plano de aplicação (rubrica BOLSAS) --------------------------------
-  const itensPlanejados = await db
-    .insert(s.itemPlanejado)
-    .values(
-      d.plano.map((i) => {
-        const modalidadeId = i.modalidade
-          ? modalidadePorNome.get(i.modalidade)
-          : null;
+  const itensPlanejados = !operacional
+    ? []
+    : await db
+        .insert(s.itemPlanejado)
+        .values(
+          d.plano.map((i) => {
+            const modalidadeId = i.modalidade
+              ? modalidadePorNome.get(i.modalidade)
+              : null;
 
-        // Resolver o catálogo aqui é a própria RN-01 em ação: se alguma linha do
-        // plano não achar preço oficial, a seed quebra em vez de gravar um custo
-        // sem origem.
-        const itemCatalogoId =
-          i.destino && modalidadeId && i.vigenciaMeses
-            ? exigir(
-                catalogoPorChave.get(
-                  `${i.destino}|${modalidadeId}|${Number(i.vigenciaMeses)}`,
-                ),
-                `item de catálogo para ${i.codigo} (${i.destino}, ${i.modalidade}, ${i.vigenciaMeses}m)`,
-              )
-            : null;
+            // Resolver o catálogo aqui é a própria RN-01 em ação: se alguma linha do
+            // plano não achar preço oficial, a seed quebra em vez de gravar um custo
+            // sem origem.
+            const itemCatalogoId =
+              i.destino && modalidadeId && i.vigenciaMeses
+                ? exigir(
+                    catalogoPorChave.get(
+                      `${i.destino}|${modalidadeId}|${Number(i.vigenciaMeses)}`,
+                    ),
+                    `item de catálogo para ${i.codigo} (${i.destino}, ${i.modalidade}, ${i.vigenciaMeses}m)`,
+                  )
+                : null;
 
-        return {
-          codigo: i.codigo,
-          cicloId: ciclo.id,
-          rubrica: 'BOLSAS' as const,
-          areaTematicaId: areaPorCodigo.get(i.temaId) ?? null,
-          ppgId: exigir(
-            ppgPorNome.get(chave(i.ppg)),
-            `PPG "${i.ppg}" do ${i.codigo}`,
+            return {
+              codigo: i.codigo,
+              cicloId: ciclo.id,
+              rubrica: 'BOLSAS' as const,
+              areaTematicaId: areaPorCodigo.get(i.temaId) ?? null,
+              ppgId: exigir(
+                ppgPorNome.get(chave(i.ppg)),
+                `PPG "${i.ppg}" do ${i.codigo}`,
+              ),
+              quantidadeAnual: i.quantidadeAnual,
+              mesImplementacao: (i.mesImplementacao ?? null) as never,
+              status: i.status,
+              destino: i.destino,
+              modalidadeId: modalidadeId ?? null,
+              vigenciaMeses: i.vigenciaMeses,
+              itemCatalogoId,
+              fluxo: i.fluxo,
+              textoFonte: i.textoFonte,
+              validacaoPendencia: i.validacao,
+            };
+          }),
+        )
+        .returning();
+
+  const planejamentoAnual = !operacional
+    ? []
+    : await db
+        .insert(s.planejamentoAnual)
+        .values(
+          itensPlanejados.flatMap((item) =>
+            CICLO_ANOS.map((ano) => ({
+              itemPlanejadoId: item.id,
+              ano,
+              // As fontes recebidas confirmam apenas a composicao de 2027. O teto
+              // orcamentario se repete, mas modalidades e quantidades futuras
+              // permanecem a definir e nao podem ser inventadas pela seed.
+              quantidade: ano === 2027 ? item.quantidadeAnual : 0,
+            })),
           ),
-          quantidadeAnual: i.quantidadeAnual,
-          mesImplementacao: (i.mesImplementacao ?? null) as never,
-          status: i.status,
-          destino: i.destino,
-          modalidadeId: modalidadeId ?? null,
-          vigenciaMeses: i.vigenciaMeses,
-          itemCatalogoId,
-          fluxo: i.fluxo,
-          textoFonte: i.textoFonte,
-          validacaoPendencia: i.validacao,
-        };
-      }),
-    )
-    .returning();
-
-  const planejamentoAnual = await db
-    .insert(s.planejamentoAnual)
-    .values(
-      itensPlanejados.flatMap((item) =>
-        CICLO_ANOS.map((ano) => ({
-          itemPlanejadoId: item.id,
-          ano,
-          // As fontes recebidas confirmam apenas a composicao de 2027. O teto
-          // orcamentario se repete, mas modalidades e quantidades futuras
-          // permanecem a definir e nao podem ser inventadas pela seed.
-          quantidade: ano === 2027 ? item.quantidadeAnual : 0,
-        })),
-      ),
-    )
-    .returning();
+        )
+        .returning();
 
   // --- Governança ---------------------------------------------------------
-  const pendencias = await db
-    .insert(s.pendencia)
-    .values(
-      d.pendencias.map((p) => ({
-        codigo: p.codigo,
-        cicloId: ciclo.id,
-        escopoTipo: escopoDe(p.escopoRede, p.escopoTema),
-        escopoDescricao:
-          [p.escopoRede, p.escopoTema].filter(Boolean).join(' · ') || null,
-        assunto: p.assunto ?? '(sem assunto)',
-        descricao: p.descricao ?? '(sem descrição)',
-        impacto: p.impacto,
-        nivelImpacto: p.nivelImpacto ?? nivelDe(p.impacto),
-        responsavelSugerido: p.responsavel,
-        prazoMomento: p.prazo,
-        status: statusPendenciaDe(p.status),
-        origem: 'MANUAL' as const,
-        resolucao: p.resolucao ?? null,
-      })),
-    )
-    .returning();
+  const pendencias = !operacional
+    ? []
+    : await db
+        .insert(s.pendencia)
+        .values(
+          d.pendencias.map((p) => ({
+            codigo: p.codigo,
+            cicloId: ciclo.id,
+            escopoTipo: escopoDe(p.escopoRede, p.escopoTema),
+            escopoDescricao:
+              [p.escopoRede, p.escopoTema].filter(Boolean).join(' · ') || null,
+            assunto: p.assunto ?? '(sem assunto)',
+            descricao: p.descricao ?? '(sem descrição)',
+            impacto: p.impacto,
+            nivelImpacto: p.nivelImpacto ?? nivelDe(p.impacto),
+            responsavelSugerido: p.responsavel,
+            prazoMomento: p.prazo,
+            status: statusPendenciaDe(p.status),
+            origem: 'MANUAL' as const,
+            resolucao: p.resolucao ?? null,
+          })),
+        )
+        .returning();
 
   const premissas = await db
     .insert(s.premissa)

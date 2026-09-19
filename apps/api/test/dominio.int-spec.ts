@@ -39,7 +39,17 @@ import { criarAcesso } from './fixtures';
 const ADMIN: AuthUser = {
   id: 'sub-admin-dominio',
   roles: [],
-  permissions: ['ppg:read', 'bolsa:read', 'bolsa:create', 'bolsa:edit'],
+  permissions: [
+    'ppg:read',
+    'bolsa:read',
+    'bolsa:create',
+    'bolsa:edit',
+    'produto:read',
+    'produto:create',
+    'produto:edit',
+    'pessoa:read-cpf',
+    'pessoa:read-contato',
+  ],
 };
 
 /**
@@ -840,7 +850,7 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
           },
           ADMIN,
         ),
-      ).rejects.toThrow('já utilizou outra modalidade de bolsa neste ciclo');
+      ).rejects.toThrow('Não foi possível vincular os dados informados.');
 
       const produto = await bolsistas.criarProduto(
         criada.id,

@@ -26,8 +26,7 @@ import { data, inteiro, rotulo } from "@/lib/formato";
 
 export default async function Bolsistas() {
   const me = await carregarMe();
-  // As duas leituras, como o endpoint: a lista traz os produtos de cada bolsa.
-  const falta = faltando(me.permissions, ["bolsa:read", "produto:read"]);
+  const falta = faltando(me.permissions, ["bolsa:read"]);
   if (falta.length > 0) {
     return (
       <SemAcesso
@@ -44,7 +43,9 @@ export default async function Bolsistas() {
     apiFetchOuNada<OpcaoBolsaPlanejada[]>("/bolsistas/opcoes-planejamento"),
     // Primeira pagina do seletor: o Server Component busca, e o TanStack Query
     // so entra depois da pintura, quando a pessoa digita (AGENTS.md secao 8).
-    apiFetch<ReferenciasBolsa>("/bolsistas/referencias"),
+    me.permissions.includes("bolsa:create")
+      ? apiFetch<ReferenciasBolsa>("/bolsistas/referencias?acao=bolsa:create")
+      : Promise.resolve(null),
   ]);
 
   const podeCadastrar =
@@ -64,7 +65,7 @@ export default async function Bolsistas() {
       titulo="Bolsistas e bolsas concedidas"
       descricao="Acompanhamento individual do beneficiário, do período real e dos produtos que ele deve entregar."
       acoes={
-        podeCadastrar ? (
+        podeCadastrar && referencias ? (
           <ProvedorDeConsultas>
             <NovaBolsaConcedida
               opcoes={opcoes ?? []}
@@ -101,12 +102,16 @@ export default async function Bolsistas() {
           />
           <Cartao
             titulo="Produtos a acompanhar"
-            valor={inteiro(
-              bolsas.reduce(
-                (total, bolsa) => total + bolsa.produtosPendentes,
-                0,
-              ),
-            )}
+            valor={
+              bolsas.some((bolsa) => bolsa.produtosPendentes === null)
+                ? "Acesso parcial"
+                : inteiro(
+                    bolsas.reduce(
+                      (total, bolsa) => total + (bolsa.produtosPendentes ?? 0),
+                      0,
+                    ),
+                  )
+            }
             nota="Previstos ou ainda em desenvolvimento"
           />
         </Cartoes>
@@ -171,10 +176,12 @@ export default async function Bolsistas() {
                 <SeloSituacaoBolsa situacao={bolsa.situacaoTemporal} />
               </Celula>
               <Celula direita>
-                {inteiro(bolsa.produtos)}
-                {bolsa.produtosPendentes > 0 ? (
+                {bolsa.produtos === null
+                  ? "Sem acesso"
+                  : inteiro(bolsa.produtos)}
+                {(bolsa.produtosPendentes ?? 0) > 0 ? (
                   <span className="block text-xs text-warning">
-                    {inteiro(bolsa.produtosPendentes)} a acompanhar
+                    {inteiro(bolsa.produtosPendentes ?? 0)} a acompanhar
                   </span>
                 ) : null}
               </Celula>
@@ -194,7 +201,7 @@ export default async function Bolsistas() {
           titulo="Nenhuma bolsa concedida a uma pessoa"
           descricao="As planilhas trazem apenas o planejamento agregado. Use “Conceder bolsa” quando o beneficiário e as datas completas forem conhecidos."
           acao={
-            podeCadastrar ? (
+            podeCadastrar && referencias ? (
               <ProvedorDeConsultas>
                 <NovaBolsaConcedida
                   opcoes={opcoes ?? []}

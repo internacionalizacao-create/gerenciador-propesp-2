@@ -10,7 +10,7 @@ import {
 } from '../src/dominio/parceiros.service';
 import { criarContextoTeste, type ContextoTeste } from './db-teste';
 import { normalizarNomeInstituicao } from '../src/database/normalizacao';
-import { criarBase, type BaseFixture } from './fixtures';
+import { acessoGlobalDeTeste, criarBase, type BaseFixture } from './fixtures';
 
 const admin: AuthUser = {
   id: 'admin-parceiros',
@@ -27,6 +27,15 @@ const admin: AuthUser = {
     'convenio:status',
   ],
 };
+
+/** Estas suites verificam a linha historica (CG-027), nao o recorte (V1-016). */
+const acessoAmplo = acessoGlobalDeTeste([
+  'parceiro:read',
+  'bolsa:read',
+  'missao:read',
+  'produto-missao:read',
+  'convenio:read',
+]);
 
 describe('ParceirosService', () => {
   let ctx: ContextoTeste;
@@ -430,7 +439,7 @@ describe('ParceirosService', () => {
       },
     ]);
 
-    const historico = await service.historico(parceiro.id);
+    const historico = await service.historico(parceiro.id, acessoAmplo);
 
     expect(historico.parceiro).toMatchObject({
       id: parceiro.id,
@@ -518,7 +527,7 @@ describe('ParceirosService', () => {
       enviadoPor: 'Admin de Parceiros',
     });
 
-    const historico = await service.historico(parceiro.id);
+    const historico = await service.historico(parceiro.id, acessoAmplo);
 
     expect(historico.missoes).toEqual([]);
     expect(historico.eventos).toEqual([]);
@@ -526,7 +535,7 @@ describe('ParceirosService', () => {
       expect.objectContaining({ nome: 'memorando.pdf', tamanho: 2048 }),
     ]);
     // O vizinho enxerga a propria missao, e nao o documento alheio.
-    const historicoVizinho = await service.historico(vizinho.id);
+    const historicoVizinho = await service.historico(vizinho.id, acessoAmplo);
     expect(historicoVizinho.missoes).toHaveLength(1);
     expect(historicoVizinho.documentos).toEqual([]);
   });
@@ -584,7 +593,7 @@ describe('ParceirosService', () => {
     ]);
 
     // Antes de conciliar cada um enxerga a missao uma vez, com a propria parada.
-    const antesOrigem = await service.historico(origem.id);
+    const antesOrigem = await service.historico(origem.id, acessoAmplo);
     expect(antesOrigem.missoes).toHaveLength(1);
     expect(antesOrigem.missoes[0].atividades.map((a) => a.titulo)).toEqual([
       'Reuniao na origem',
@@ -599,7 +608,7 @@ describe('ParceirosService', () => {
       admin,
     );
 
-    const depoisDestino = await service.historico(destino.id);
+    const depoisDestino = await service.historico(destino.id, acessoAmplo);
     // O ponto do teste: duas atividades, uma unica linha de missao.
     expect(depoisDestino.missoes).toHaveLength(1);
     expect(depoisDestino.missoes[0].codigo).toBe('MCG-910');
@@ -611,7 +620,7 @@ describe('ParceirosService', () => {
 
     // A origem continua consultavel — a interface linka para ela a partir do
     // aviso de cadastro conciliado. O que ela perde e o vinculo, nao o acesso.
-    const depoisOrigem = await service.historico(origem.id);
+    const depoisOrigem = await service.historico(origem.id, acessoAmplo);
     expect(depoisOrigem.parceiro).toMatchObject({
       ativo: false,
       substituidaPorId: destino.id,
@@ -726,7 +735,7 @@ describe('ParceirosService', () => {
       fluxo: 'OUT',
     });
 
-    const historico = await service.historico(criado.id);
+    const historico = await service.historico(criado.id, acessoAmplo);
     expect(historico.mobilidades).toHaveLength(1);
     expect(historico.mobilidades[0]).toMatchObject({
       bolsista: 'Pessoa em Dupla Titulacao',
@@ -754,7 +763,7 @@ describe('ParceirosService', () => {
       parceiroValido('Universidade de Bolonha', [base.redeId]),
       admin,
     );
-    const historico = await service.historico(criado.id);
+    const historico = await service.historico(criado.id, acessoAmplo);
     // A rede declarada no cadastro continua la; o vinculo por tematica e PPG
     // so nasce quando uma bolsa passa pela instituicao.
     expect(historico.parceiro.redes.map((r) => r.id)).toEqual([base.redeId]);

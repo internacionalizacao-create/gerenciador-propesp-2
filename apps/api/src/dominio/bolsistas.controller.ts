@@ -1,5 +1,6 @@
 import {
   Body,
+  ForbiddenException,
   Controller,
   Get,
   Param,
@@ -32,9 +33,12 @@ export class BolsistasController {
   constructor(private readonly bolsistas: BolsistasService) {}
 
   @Get()
-  @RequirePermission('bolsa:read', 'produto:read')
-  listar(@CurrentUser() usuario: AuthUser) {
-    return this.bolsistas.listar(usuario);
+  @RequirePermission('bolsa:read')
+  listar(
+    @CurrentUser() usuario: AuthUser,
+    @AcessoAtual() acesso: AcessoResolvido,
+  ) {
+    return this.bolsistas.listar(usuario, acesso);
   }
 
   @Get('opcoes-planejamento')
@@ -45,9 +49,19 @@ export class BolsistasController {
 
   /** Paises e instituicoes do formulario de concessao (BOL-010). */
   @Get('referencias')
-  @RequirePermission('bolsa:read')
-  referencias() {
-    return this.bolsistas.referencias();
+  referencias(
+    @AcessoAtual() acesso: AcessoResolvido,
+    @Query('acao') acao = 'bolsa:create',
+  ) {
+    if (
+      (acao !== 'bolsa:create' && acao !== 'bolsa:edit') ||
+      !acesso.permite(acao)
+    ) {
+      throw new ForbiddenException(
+        'Sem permissão para consultar estas referências.',
+      );
+    }
+    return this.bolsistas.referencias(acesso.alcance(acao));
   }
 
   /**
@@ -57,15 +71,30 @@ export class BolsistasController {
    * declarada depois esta seria engolida por `/bolsistas/:id`.
    */
   @Get('instituicoes')
-  @RequirePermission('bolsa:read')
-  instituicoes(@Query('busca') busca?: string) {
+  instituicoes(
+    @AcessoAtual() acesso: AcessoResolvido,
+    @Query('busca') busca?: string,
+  ) {
+    if (
+      !acesso.permite('bolsa:read') &&
+      !acesso.permite('bolsa:create') &&
+      !acesso.permite('bolsa:edit')
+    ) {
+      throw new ForbiddenException(
+        'Sem permissão para consultar instituições.',
+      );
+    }
     return this.bolsistas.instituicoes(busca);
   }
 
   @Get(':id')
-  @RequirePermission('bolsa:read', 'produto:read')
-  detalhar(@Param('id') id: string, @CurrentUser() usuario: AuthUser) {
-    return this.bolsistas.detalhar(id, usuario);
+  @RequirePermission('bolsa:read')
+  detalhar(
+    @Param('id') id: string,
+    @CurrentUser() usuario: AuthUser,
+    @AcessoAtual() acesso: AcessoResolvido,
+  ) {
+    return this.bolsistas.detalhar(id, usuario, acesso);
   }
 
   @Post()
@@ -74,8 +103,9 @@ export class BolsistasController {
     @Body(new ZodValidationPipe(criarBolsaConcedidaSchema))
     dto: CriarBolsaConcedida,
     @CurrentUser() usuario: AuthUser,
+    @AcessoAtual() acesso: AcessoResolvido,
   ) {
-    return this.bolsistas.criar(dto, usuario);
+    return this.bolsistas.criar(dto, usuario, acesso);
   }
 
   @Patch(':id')
@@ -85,8 +115,9 @@ export class BolsistasController {
     @Body(new ZodValidationPipe(atualizarBolsaConcedidaSchema))
     dto: AtualizarBolsaConcedida,
     @CurrentUser() usuario: AuthUser,
+    @AcessoAtual() acesso: AcessoResolvido,
   ) {
-    return this.bolsistas.atualizar(id, dto, usuario);
+    return this.bolsistas.atualizar(id, dto, usuario, acesso);
   }
 
   @Post(':id/produtos')
@@ -95,8 +126,9 @@ export class BolsistasController {
     @Param('id') id: string,
     @Body(new ZodValidationPipe(produtoBolsaSchema)) dto: ProdutoBolsaDto,
     @CurrentUser() usuario: AuthUser,
+    @AcessoAtual() acesso: AcessoResolvido,
   ) {
-    return this.bolsistas.criarProduto(id, dto, usuario);
+    return this.bolsistas.criarProduto(id, dto, usuario, acesso);
   }
 
   @Patch(':id/produtos/:produtoId')
@@ -106,7 +138,8 @@ export class BolsistasController {
     @Param('produtoId') produtoId: string,
     @Body(new ZodValidationPipe(produtoBolsaSchema)) dto: ProdutoBolsaDto,
     @CurrentUser() usuario: AuthUser,
+    @AcessoAtual() acesso: AcessoResolvido,
   ) {
-    return this.bolsistas.atualizarProduto(id, produtoId, dto, usuario);
+    return this.bolsistas.atualizarProduto(id, produtoId, dto, usuario, acesso);
   }
 }

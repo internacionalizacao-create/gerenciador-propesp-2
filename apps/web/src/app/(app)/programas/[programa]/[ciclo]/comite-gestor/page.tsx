@@ -2054,12 +2054,23 @@ function RelatorioDeMissoes({
   dados: RelatorioMissoes;
   base: string;
 }) {
+  // O estado vazio entra **no lugar da tabela**, e não no lugar do relatório.
+  // Trocar a seção inteira tirava da tela o título e a contagem do recorte, e
+  // quem chegasse por um filtro sem resultado não via o que estava filtrando —
+  // os outros três relatórios desta aba sempre mantiveram as duas coisas.
   if (dados.linhas.length === 0) {
     return (
-      <EstadoVazio
-        titulo="Nenhuma missão neste recorte"
-        descricao="Ajuste os filtros acima para montar o relatório."
-      />
+      <Secao titulo="Relatório de missões" descricao={dados.cabecalho.aviso}>
+        <CabecalhoDoRelatorio
+          cabecalho={dados.cabecalho}
+          titulo="Missões do recorte"
+          descricao="Uma linha por missão, com as duas dimensões da aprovação e da execução lado a lado."
+        />
+        <EstadoVazio
+          titulo="Nenhuma missão neste recorte"
+          descricao="Ajuste os filtros acima para montar o relatório."
+        />
+      </Secao>
     );
   }
 

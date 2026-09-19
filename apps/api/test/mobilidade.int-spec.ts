@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 import type { AuthUser } from '../src/auth/auth-user';
 import { colunasDoAlvo } from '../src/auth/autorizacao-v1/persistencia';
@@ -17,7 +17,7 @@ const admin: AuthUser = {
   id: 'admin-mobilidade',
   name: 'Admin da Mobilidade',
   roles: ['admin'],
-  permissions: ['bolsa:read'],
+  permissions: ['bolsa:read', 'bolsa:export', 'produto:read'],
 };
 
 const coordenador: AuthUser = {
@@ -200,7 +200,7 @@ describe('Panorama de mobilidade', () => {
   });
 
   /** Concede `bolsa:read` no PPG da fixture — o recorte que estes casos exercitam. */
-  async function concederPpg(usuario: AuthUser) {
+  async function concederPpg(usuario: AuthUser, permissao = 'bolsa:read') {
     const [conta] = await ctx.db
       .select({ id: s.usuarioSistema.id })
       .from(s.usuarioSistema)
@@ -208,7 +208,7 @@ describe('Panorama de mobilidade', () => {
 
     await ctx.db.insert(s.concessaoAcesso).values({
       usuarioId: conta.id,
-      permissao: 'bolsa:read',
+      permissao,
       justificativa: 'Fixture do recorte por PPG.',
       ...colunasDoAlvo({
         tipo: 'PPG',
@@ -241,6 +241,7 @@ describe('Panorama de mobilidade', () => {
 
     // E o recorte por PPG vale igual — nao ha uma segunda origem.
     await concederPpg(coordenador);
+    await concederPpg(coordenador, 'bolsa:export');
     const recortado = await service.relatorio(coordenador, {});
     expect(recortado).toHaveLength(3);
 
@@ -270,7 +271,7 @@ describe('Panorama de mobilidade', () => {
     expect(total).toBe(4);
     expect(panorama.totais.valor).toBe('4000.00');
 
-    const comProduto = panorama.porRede.find((l) => l.produtos > 0);
+    const comProduto = panorama.porRede.find((l) => (l.produtos ?? 0) > 0);
     expect(comProduto?.produtos).toBe(3);
     // Alcance e `distinct`: um PPG, um pais, uma instituicao na fixture.
     expect(comProduto?.ppgs).toBeGreaterThanOrEqual(1);
@@ -315,10 +316,19 @@ describe('Panorama de mobilidade', () => {
       ano: 2027,
     });
 
-    const producao = await service.producao({
-      ...admin,
-      permissions: ['bolsa:read', 'produto:read', 'missao:read'],
-    });
+    const [conta] = await ctx.db
+      .select({ id: s.usuarioSistema.id })
+      .from(s.usuarioSistema)
+      .where(eq(s.usuarioSistema.sub, admin.id));
+    await ctx.db.insert(s.concessaoAcesso).values(
+      ['missao:read', 'produto-missao:read'].map((permissao) => ({
+        usuarioId: conta.id,
+        permissao,
+        justificativa: 'Consulta das duas origens.',
+        ...colunasDoAlvo({ tipo: 'GLOBAL' }),
+      })),
+    );
+    const producao = await service.producao(admin);
 
     // As duas origens aparecem, marcadas — a soma nao apaga a diferenca.
     expect(producao).toHaveLength(2);
@@ -328,6 +338,14 @@ describe('Panorama de mobilidade', () => {
 
     // Sem `missao:read`, o produto de missao nao entra: quem nao alcanca a
     // missao nao deve ler o que ela rendeu.
+    await ctx.db
+      .delete(s.concessaoAcesso)
+      .where(
+        and(
+          eq(s.concessaoAcesso.usuarioId, conta.id),
+          eq(s.concessaoAcesso.permissao, 'missao:read'),
+        ),
+      );
     const semMissao = await service.producao(admin);
     expect(semMissao.map((l) => l.origem)).toEqual(['BOLSA']);
   });
