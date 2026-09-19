@@ -25,7 +25,8 @@
     "test:int": "NODE_OPTIONS=--experimental-vm-modules jest --config ./jest.integration.mjs",
     "test:all": "pnpm test && pnpm test:int",
     "db:seed": "nest build && node dist/database/seed/executar.js",
-    "acesso:bootstrap": "nest build && node dist/auth/autorizacao-v1/bootstrap-cli.js"
+    "acesso:bootstrap": "nest build && node dist/auth/autorizacao-v1/bootstrap-cli.js",
+    "acesso:contas": "nest build && node dist/auth/autorizacao-v1/desativacao-cli.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

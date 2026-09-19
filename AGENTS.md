@@ -64,6 +64,16 @@ política exige — ninguém amplia o próprio acesso, nem em desenvolvimento.
 OIDC, mas o vínculo local nasce em `GET /me`, que o script não chama. Abra a
 aplicação (ou chame `/api/bff/me`) uma vez com cada conta antes de rodá-lo.
 
+**O roteiro de ativação e de rollback está em
+[docs/ativacao-acesso-v1.md](docs/ativacao-acesso-v1.md)** (V1-021e): instalação
+nova, primeiro administrador, retirada das contas de demonstração e as cinco
+saídas de rollback. A regra que governa todas elas: **voltar atrás preserva a
+restrição** — não existe chave que reabra a leitura para todos, e a ausência
+dela é o desenho, não uma lacuna. `pnpm --filter api acesso:contas` desativa e
+reativa conta por comando local, e **recusa desativar o último administrador
+recuperável**: desativar fecha tudo de uma vez, `acesso:*` incluído, e uma
+instalação sem administrador ativo não consegue conceder nada a ninguém.
+
 **Decisão do responsável, 2026-09-16: em produção o Keycloak só autentica.**
 Nenhum papel de negócio é criado ou atribuído lá; quem responde "o que esta
 pessoa pode fazer, e sobre o quê" é `concessao_acesso`, concedida pelo admin na
@@ -188,6 +198,7 @@ apps/
           alcance.ts            compõe o alcance e o traduz em SQL
           concessoes.service.ts administração das concessões (V1-017)
           bootstrap.ts          primeiro administrador, por comando local
+        desativacao.ts        desativa e reativa conta, por comando local
         acesso.controller.ts  concede, revoga e reassocia pessoa
         me.controller.ts      GET /me, GET /me/acesso e a sonda restrita
       comum/
@@ -270,6 +281,7 @@ packages/
 scripts/
   smoke-login.sh           percorre o login inteiro sem browser
   smoke-telas.sh           abre cada tela logado e confere os números
+  smoke-acesso.sh          duas contas, dois recortes: a matriz pela sessão real
   db-comum.sh              base dos scripts de banco (container, credenciais, avisos)
   db-backup.sh             dump + anexos + inventário; --congelar define o baseline
   db-restaurar.sh          devolve o banco a um backup, conferindo a contagem
@@ -433,6 +445,7 @@ pnpm --filter api test:int                  # integracao (exige Postgres no ar)
 pnpm smoke:login                            # fluxo de login completo, apps no ar
 pnpm smoke:login docente.teste docente123   # confere o 403 do endpoint restrito
 pnpm smoke:telas                            # abre cada tela e confere os numeros
+pnpm smoke:acesso                           # a matriz de acesso, por perfil
 ```
 
 `test:int` inclui o **teste de aceite da migração**: com a seed carregada, o
@@ -440,8 +453,17 @@ sistema tem que reproduzir os indicadores das planilhas
 ([system-structl.md](system-structl.md) §8.3). Se algum falhar, ou a fórmula está
 errada ou o dado migrou sujo.
 
+`smoke:acesso` (V1-020) cobre a outra metade: o `smoke:telas` percorre as telas
+de **uma** conta que enxerga tudo, e este prova que **duas contas veem coisas
+diferentes** — quais ações `/me` devolve, se a tela fora do alcance responde 200
+com a explicação certa das três de `SemAcesso`, se a API recusa com 403 o que a
+tela esconde, e se revogar vale na requisição seguinte. Ele afirma sobre o
+**acesso**, nunca sobre o volume, e por isso roda igual depois de qualquer seed.
+
 `smoke:telas` fecha o círculo do outro lado: faz login de verdade, abre cada
-tela e procura os números na resposta HTML. É o que impede um serviço correto de
+tela e procura os números na resposta HTML. **Ele pressupõe `--com-dados`**
+desde que a seed passou a subir só a base (2026-09-18): sem as linhas da
+planilha, as asserções de número não têm o que encontrar. É o que impede um serviço correto de
 ficar invisível por causa de um erro na página. A `web` também roda regressões
 pequenas em `node:test`; o smoke continua sendo a cobertura das páginas completas.
 
@@ -1563,13 +1585,16 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
   acessibilidade, contraste dos tokens, cálculos monetários, montagem de série
   do gráfico, links do painel, pontas da mobilidade, cor das redes, caminhos
   do BFF, concessão de acesso, menu por capacidade e preservação do CPF na
-  edição) mais 614 casos de integração em 36 suítes contra Postgres real —
+  edição) mais 635 casos de integração em 38 suítes contra Postgres real —
   entre eles os 14 do recorte por ação da V1-015
   ([recorte-bolsas-v1.int-spec.ts](apps/api/test/recorte-bolsas-v1.int-spec.ts),
   que confere CSV, XLSX e PDF reais para a exportação não reintroduzir o campo
   que o JSON removeu), os oito dos caminhos indiretos da V1-016
-  ([recorte-indiretos-v1.int-spec.ts](apps/api/test/recorte-indiretos-v1.int-spec.ts))
-  e os oito casos da escrita do catálogo
+  ([recorte-indiretos-v1.int-spec.ts](apps/api/test/recorte-indiretos-v1.int-spec.ts)),
+  os 13 da matriz cruzada da V1-020
+  ([matriz-acesso-v1.int-spec.ts](apps/api/test/matriz-acesso-v1.int-spec.ts),
+  com dois ciclos e temática compartilhada — sem os dois ciclos o erro
+  cartesiano do alvo `PPG` não aparece) e os oito casos da escrita do catálogo
   ([catalogo.int-spec.ts](apps/api/test/catalogo.int-spec.ts)), incluindo a
   recusa de alterar item que já custeia linha de plano. As duas garantias de não duplicação da linha
   histórica do parceiro foram verificadas por mutação: trocar o `exists` +
@@ -1620,11 +1645,13 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
   (lista, busca, cadastro, edição, contatos e histórico); o que falta dela
   depende da CG-045, ainda bloqueada. A visibilidade por rede é a CG-028 —
   hoje parceiros e contatos são exclusivos do `admin`.
-- **Regressão da matriz inteira (V1-020).** O recorte por ação cobre PPGs,
-  plano, orçamento, painel, programas, ciclos, bolsas, produtos, panorama,
-  produção, exportação, histórico do parceiro, anexos e ficha PDF. O que falta
-  não é mais uma consulta por vez: é a **regressão cruzada** de duas contas com
-  recortes diferentes sobre a matriz toda, e o smoke nominal por perfil.
+- **A lista nominal de acessos.** O recorte por ação cobre PPGs, plano,
+  orçamento, painel, programas, ciclos, bolsas, produtos, panorama, produção,
+  exportação, histórico do parceiro, anexos e ficha PDF; a **V1-020** pôs a
+  matriz cruzada sob regressão; e a **V1-021e** entregou o runbook de ativação,
+  o comando de desativação de contas e o ensaio de rollback. **O que falta não é
+  implementação:** quem recebe cada acesso é decisão do responsável, e a
+  execução depende do ambiente institucional autorizado.
 - **Home por perfil.** A P01 é a mesma para todos os perfis, e **continua assim
   até existir o recorte de plano e orçamento** (decisão de 2026-09-10). Uma
   home do coordenador montada antes disso ou mostraria o programa inteiro sob

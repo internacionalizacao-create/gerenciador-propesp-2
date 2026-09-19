@@ -1,11 +1,13 @@
 # Fichas de autorização — V1-010 a V1-021
 
-Estado: **V1-010–019 concluídas** — a autorização em execução é a das
+Estado: **V1-010–020 concluídas** — a autorização em execução é a das
 concessões, com API, tela, recorte de leitura do planejamento, o recorte por
-ação das bolsas com projeção dos campos pessoais (V1-015) e os caminhos
-indiretos fechados (V1-016) —, e **V1-021 em andamento** (bootstrap e limpeza
-legada entregues; conversão cancelada porque a produção começa sem conta).
-Faltam a regressão V1-020 e o smoke nominal da V1-021. Prioridade: **P0**. Regras de execução,
+ação das bolsas com projeção dos campos pessoais (V1-015), os caminhos indiretos
+fechados (V1-016) e a matriz inteira sob regressão (V1-020) —, e **V1-021 em
+andamento** — bootstrap, limpeza legada, runbook de ativação, comando de
+desativação e ensaio de rollback entregues; conversão cancelada porque a
+produção começa sem conta. **O que falta na V1-021 não é técnico:** a lista
+nominal do responsável e a execução no ambiente autorizado. Prioridade: **P0**. Regras de execução,
 dependências e registro de conclusão no [índice](../backlog-v1.md).
 Contrato de produto: [proposta de autorização](../proposta-autorizacao-v1.md).
 
@@ -600,6 +602,62 @@ Contrato de produto: [proposta de autorização](../proposta-autorizacao-v1.md).
 
 ## V1-020 — Regressão integral da matriz de acesso
 
+- **Estado / data:** Concluída — 2026-09-18.
+- **Entregue:** `test/matriz-acesso-v1.int-spec.ts` (13 casos) e
+  `scripts/smoke-acesso.sh` (`pnpm smoke:acesso`). A suíte **não repete** as
+  anteriores: `recorte-bolsas-v1` prova o alcance das bolsas, `recorte-indiretos-v1`
+  os caminhos indiretos, `escopo-rede` as missões e `concessoes-admin` a política
+  administrativa. Esta cruza o que cada uma deixa de fora.
+- **Fixture próprio, e não `criarBase`:** dois ciclos, três redes, uma temática
+  compartilhada por dois PPGs, participações cruzadas, uma linha de plano por
+  combinação PPG × ciclo, bolsas e missão multirrede. `criarBase` tem um ciclo
+  só, e **um ciclo só não consegue exibir o erro cartesiano** — que é o caso
+  central desta tarefa.
+- **O caso que justifica a fixture:** conta com `plano:read` em (PPG X, ciclo 1)
+  e em (PPG Y, ciclo 2). Se o alcance guardasse duas listas soltas — PPGs {X,Y}
+  e ciclos {1,2} —, o produto delas liberaria X no ciclo 2 e Y no ciclo 1, que
+  ninguém concedeu. **Verificado por mutação:** trocar o par por só o PPG em
+  `condicaoDoAlcance` derruba o caso.
+- **Temática compartilhada versus participação:** as duas concessões parecem
+  equivalentes e não são — T1 pertence a X e a Y, e o alcance de temática traz
+  os dois PPGs enquanto o de participação traz um. Sem uma temática
+  compartilhada no fixture a diferença não aparece.
+- **Leitura ampla não vira escrita ampla**, provado em dois domínios: plano
+  (lê os dois ciclos, edita só o PPG concedido, e o alheio responde **404**) e
+  bolsa (lista as duas, `podeEditar` só numa). **Verificado por mutação:**
+  passar o alcance de leitura no lugar do de escrita derruba o caso.
+- **Cruzamento de capacidade com alvo:** `pessoa:read-cpf` em GLOBAL **não**
+  alcança bolsa fora de `bolsa:read`, e `bolsa:export` em GLOBAL não amplia o
+  relatório nem destrava o CPF. São os dois cruzamentos que a V1-015 fixou, aqui
+  conferidos junto do resto da matriz.
+- **Estado da conta, ponta a ponta:** conta inativa perde tudo **inclusive
+  `acesso:*`** (senão quem administra acesso se reativaria sozinho); `sub` sem
+  linha em `usuario_sistema` não autoriza nada; revogar vale na consulta
+  seguinte, sem cache. E **nem papel do token nem vínculo de equipe concedem** —
+  o caso monta a equipe e a rede e confirma que o acesso continua vazio.
+- **Modelos:** aplicar um grava **concessões explícitas**, uma linha por ação,
+  com o alcance escolhido na aplicação e nunca GLOBAL por padrão. É por isso que
+  editar `modelos.ts` depois não mexe em quem já foi configurado — não há
+  ponteiro para o modelo, há linhas.
+- **`pnpm smoke:acesso` é o smoke por perfil que faltava.** O `smoke:telas`
+  percorre as telas de **uma** conta que enxerga tudo; este prova que **duas
+  contas veem coisas diferentes**, pela sessão real. Ele afirma sobre o acesso e
+  não sobre o volume — quais ações `/me` devolve, se a tela fora do alcance
+  responde 200 com a explicação **certa** das três de `SemAcesso`, se a API
+  recusa com 403 o que a tela esconde, e se a revogação vale na requisição
+  seguinte. Por isso roda igual num banco com a planilha inteira e num que subiu
+  só a base estrutural.
+- **Verificações executadas:** **627 testes de integração em 37 suítes**, 89
+  unitários da API, 159 da web, build e ESLint limpos nos dois apps; e
+  `pnpm smoke:acesso` verde contra a instância local. Dois casos foram
+  verificados por mutação, com a fonte restaurada e a suíte reconfirmada depois.
+- **Limitações:** o `pnpm smoke:telas` **não foi executado** e hoje falharia por
+  construção — ele afirma números da planilha que a seed de base não carrega
+  (decisão de 2026-09-18). Não é regressão desta tarefa, mas é uma verificação
+  que deixou de servir como padrão até rodar com `--com-dados` ou trocar as
+  asserções por estrutura. A matriz cobre planejamento, bolsas, campos pessoais,
+  parceiros/missões e exportação; **prestação e anexos entram por
+  `recorte-indiretos-v1`**, não aqui. Nenhuma conta real foi alterada.
 - **Depende de:** V1-013 a V1-019.
 - **Objetivo:** provar isolamento de linhas, campos, arquivos e ações antes da
   ativação. A tarefa amplia a cobertura sem substituir os testes de cada entrega.
@@ -618,10 +676,60 @@ Contrato de produto: [proposta de autorização](../proposta-autorizacao-v1.md).
 
 ## V1-021 — Atribuir contas e ativar modo restritivo
 
-- **Estado / data:** Em andamento — 2026-09-17. Subtarefas **a e d entregues**;
-  **b e c canceladas** pela decisão de produção limpa; resta **e**, o smoke
-  nominal e o procedimento de rollback no ambiente autorizado. O modo
-  restritivo já está ativo no código desde V1-012.
+- **Estado / data:** Em andamento — 2026-09-18. Subtarefas **a, d e e
+  entregues**; **b e c canceladas** pela decisão de produção limpa. O modo
+  restritivo está ativo no código desde V1-012, o ensaio de ativação e rollback
+  foi executado, e o que resta **não é técnico**: a atribuição nominal exige a
+  lista de pessoas do responsável e o smoke nominal exige o ambiente
+  institucional autorizado. Nenhum dos dois pode ser inventado aqui.
+- **Entregue na subtarefa e (2026-09-18):**
+  - **Runbook de ativação e rollback** em
+    [ativacao-acesso-v1.md](../ativacao-acesso-v1.md), escrito para quem opera o
+    servidor. Cobre instalação nova, primeiro administrador pelos dois caminhos,
+    cadastro das demais contas, retirada das contas de demonstração e cinco
+    cenários de rollback.
+  - **Comando de desativação e reativação de contas**
+    (`pnpm --filter api acesso:contas`), que a ficha pedia sob "desativar contas
+    de demonstração por procedimento revisável" e não existia — `usuario_sistema.ativo`
+    só era lido, nunca escrito. Espelha o bootstrap: prévia por padrão,
+    `--aplicar` para gravar, `--reativar` como modo explícito, auditoria com o
+    operador do sistema operacional, e **sem rota HTTP equivalente**.
+  - **A regra que o comando impõe:** não se desativa o último administrador
+    recuperável. Desativar fecha tudo de uma vez, `acesso:*` incluído, e uma
+    instalação sem administrador ativo não consegue conceder nada a ninguém —
+    o bootstrap exige conta que já entrou, e a recuperação exige conta ativa.
+    A ordem correta é dar acesso ao definitivo **antes** de desligar o
+    provisório, e o comando recusa a ordem inversa.
+  - **As concessões não são revogadas junto da desativação**, de propósito:
+    desativar já fecha o acesso, e apagá-las tiraria o que uma reativação
+    precisa devolver intacto.
+  - **Um `--sub` errado recusa o lote inteiro**, em vez de seguir com o resto:
+    errar o identificador significa que o operador mirou noutra conta.
+- **Ensaio executado:** `test/ativacao-acesso-v1.int-spec.ts`, oito casos contra
+  Postgres real com contas fictícias, percorrendo o runbook inteiro — instalação
+  sem administrador, bootstrap criando exatamente um, recusa de desativar o
+  único, retirada na ordem certa, preservação e devolução das concessões, lote
+  com `sub` errado, administrador perdido recuperado, e a recusa da recuperação
+  em reativar conta inativa. O CLI também foi exercitado ponta a ponta contra o
+  banco de desenvolvimento (listagem, prévia, recusa do último administrador,
+  aplicação, auditoria conferida e reativação devolvendo o ambiente).
+- **O rollback preserva a restrição**, e é o critério de aceite da ficha: as
+  cinco saídas documentadas devolvem acesso a quem devia ter, e **nenhuma
+  reabre leitura global** — não existe chave para isso desde que o modo
+  permissivo saiu na V1-012. O ensaio confirma que a conta que nunca teve
+  concessão continua sem nada depois do rollback.
+- **Descoberta do ensaio:** reconceder **reativa a mesma linha**, não cria
+  outra. Os índices de unicidade cobrem a linha inativa de propósito, para a
+  consulta de acesso nunca precisar escolher entre versões da mesma concessão;
+  a história do vaivém fica em `registro_auditoria`. O primeiro ensaio tentou
+  inserir e bateu na constraint — está agora fixado como asserção.
+- **Verificações:** 635 testes de integração em 38 suítes, 89 unitários da API,
+  159 da web, build e ESLint limpos, e `pnpm smoke:acesso` verde.
+- **Ainda necessário, e não é implementação:** obter do responsável a lista
+  nominal de quem recebe cada acesso, executar a atribuição no ambiente
+  autorizado e rodar ali o smoke nominal. Enquanto a lista não existir, não há
+  o que atribuir — e inventá-la seria exatamente o que a regra de execução do
+  backlog proíbe.
 - **Subtarefas** (a ordem importa; ver a justificativa em cada uma):
   - **a — bootstrap e recuperação de administrador.** *Entregue em 2026-09-15:*
     `pnpm --filter api acesso:bootstrap --sub <sub> --motivo "..." [--aplicar]
@@ -640,10 +748,12 @@ Contrato de produto: [proposta de autorização](../proposta-autorizacao-v1.md).
     papel `admin`, as redes do vínculo de equipe em `identidade.service.ts`,
     `missao:all-redes` e a própria `escopo_acesso`.
   - **e — ativação** do "sem concessão, sem dado", com smoke nominal e rollback
-    documentado. Em 2026-09-17, o smoke OIDC local passou com conta sem
-    concessão de negócio; o smoke completo por perfil continua pendente porque
-    o realm local não contém uma segunda conta de teste válida para cumprir a
-    política de dupla administração.
+    documentado. *Entregue em 2026-09-18:* runbook, comando de desativação,
+    ensaio com contas fictícias e o smoke por perfil (`pnpm smoke:acesso`, da
+    V1-020) — o realm local voltou a ter as quatro contas de teste, o que
+    destravou a política de dupla administração. **Falta apenas o que depende
+    de fora:** a lista nominal do responsável e a execução no ambiente
+    autorizado.
   - **Por que d antes de e:** se o vínculo de equipe, o escopo legado e o papel
     continuarem valendo depois da virada, o modo restritivo não fecha nada — a
     conta entra pelo caminho antigo e ninguém percebe.

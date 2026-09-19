@@ -92,9 +92,13 @@ administração de acessos e a navegação por acesso efetivo —, **V1-015 conc
 em 2026-09-18, com o recorte por ação das bolsas e a projeção de CPF, e-mail e
 telefone por capacidade mais alcance, **V1-016 concluída** no mesmo dia, com o
 histórico do parceiro, os anexos e a ficha PDF recortados pela ação exercida, e
-V1-021, **Em andamento**, com bootstrap e limpeza legada entregues; a conversão
-foi cancelada porque a produção começa sem conta. Faltam a regressão V1-020 e o
-smoke nominal da V1-021. Evidências na ficha. Dependência
+**V1-020 concluída** no mesmo dia, com a matriz cruzada sob regressão e o smoke
+por perfil (`pnpm smoke:acesso`), e V1-021, **Em andamento**, com bootstrap e
+limpeza legada, runbook de ativação, comando de desativação de contas e ensaio
+de rollback entregues; a conversão foi cancelada porque a produção começa sem
+conta. **O que falta na V1-021 não é implementação:** a lista nominal de quem
+recebe cada acesso, que depende do responsável, e a execução no ambiente
+autorizado. Evidências na ficha. Dependência
 pendente significa ordem de execução; não é prova de impedimento externo.
 
 Prioridades: **P0** necessária para liberação ampla interna; **P1** entregar ou
@@ -147,8 +151,8 @@ dependências são obrigatórios, exceto quando a ficha indicar uma condição.
 | V1-017 | P0 | API administrativa das concessões — concluída | 012 |
 | V1-018 | P0 | Interface de atribuição e revisão de acesso — concluída | 017 |
 | V1-019 | P0 | Navegação e orientação por acesso efetivo — concluída | 013, 015, 017 (entregue antes de 013/015: não dependia delas) |
-| V1-020 | P0 | Regressão da matriz de autorização | 013–019 |
-| V1-021 | P0 | Atribuição nominal e ativação restritiva — em andamento (a/d entregues; b/c canceladas; e pendente) | 018–020 |
+| V1-020 | P0 | Regressão da matriz de autorização — concluída | 013–019 |
+| V1-021 | P0 | Atribuição nominal e ativação restritiva — em andamento (a/d/e entregues; b/c canceladas; falta a lista nominal do responsável) | 018–020 |
 | V1-030 | P0 | Ciclo de vida completo da missão na web | 001 |
 | V1-031 | P0 | Produtos de missão na web | 001 |
 | V1-032 | P1 | Gestão de convênios na web | 016 |
