@@ -82,7 +82,7 @@ describe('DecisaoService (CG-038)', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   beforeEach(async () => {

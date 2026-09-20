@@ -67,7 +67,7 @@ describe('Documentos do bolsista (BOL-021)', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   beforeEach(async () => {

@@ -81,7 +81,7 @@ describe('Recorte por rede das missoes (CG-028)', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   beforeEach(async () => {

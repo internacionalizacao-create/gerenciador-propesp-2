@@ -53,7 +53,7 @@ describe('PrestacaoService (CG-050)', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   beforeEach(async () => {

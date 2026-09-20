@@ -65,7 +65,7 @@ describe('Execucao orcamentaria do Comite Gestor (CG-055)', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   beforeEach(async () => {
@@ -305,7 +305,7 @@ describe('Prestacao na lista de missoes (CG-055)', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   beforeEach(async () => {

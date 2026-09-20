@@ -60,7 +60,7 @@ describe('Bootstrap de administrador', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   beforeEach(async () => {

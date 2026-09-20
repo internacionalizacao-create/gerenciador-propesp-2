@@ -22,6 +22,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
+    "test:infra": "node --experimental-strip-types --test test/ambiente-teste.test.mjs",
     "test:int": "NODE_OPTIONS=--experimental-vm-modules jest --config ./jest.integration.mjs",
     "test:all": "pnpm test && pnpm test:int",
     "db:seed": "nest build && node dist/database/seed/executar.js",

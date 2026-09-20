@@ -48,6 +48,57 @@ Todas as P1 deste grupo foram incluídas na V1 pelo responsável em 2026-09-18.
 
 ## V1-052 — Build reproduzível e fontes disponíveis
 
+- **Estado / data:** Concluída — 2026-09-19.
+- **O diagnóstico estava certo, e a distinção importa:** `next/font/google`
+  **serve** as fontes do próprio domínio — o runtime nunca falou com o Google —,
+  mas **baixa** os arquivos durante o build. Um build de intranet que depende de
+  saída para a internet é um build que quebra no dia em que a saída não existe.
+- **Entregue:** o pacote `geist@1.7.2` (Vercel, OFL) traz os `.woff2` em
+  `node_modules` e os carrega por `next/font/local`. A fonte passa a vir pelo
+  lockfile, como qualquer dependência — e instalar dependências é um passo que o
+  ambiente de build já precisa poder fazer, diferente de buscar um arquivo de
+  terceiros no meio da compilação. É exatamente a distinção que o aceite da
+  ficha pede.
+- **Zero impacto na tipografia:** o pacote declara as **mesmas** variáveis
+  (`--font-geist-sans`, `--font-geist-mono`) que `globals.css` já consumia, então
+  nenhum token mudou. A conferência visual se reduz a isso, e está fixada em
+  teste em vez de depender de olhar.
+- **Provado nos dois sentidos, com a rede desligada de verdade**
+  (`unshare -rn`, com loopback de pé — sem ele a falha é do Turbopack falando
+  com os próprios processos, não de rede externa):
+  - o código **antigo** falha com
+    `There was an issue establishing a connection while requesting
+    https://fonts.googleapis.com/css2?family=Geist...`;
+  - o código **novo** compila limpo, e a saída não tem uma referência a
+    `googleapis` ou `gstatic`. Os dois `.woff2` saem em `.next/static/media/`.
+- **Regressão:** [fontes.test.mjs](../../apps/web/test/fontes.test.mjs) barra o
+  import de volta — ele reaparece com uma linha e a falha só apareceria num
+  servidor sem rede. O caso casa o **import**, não a menção, senão o comentário
+  que explica a decisão seria marcado como o defeito. Um segundo caso barra
+  `@import` de fonte externa no CSS, que seria pior: faria o **navegador** de
+  cada pessoa buscar no Google. **Verificado por mutação.**
+- **Turbo em modo estrito conferido, não presumido:** as seis variáveis do BFF
+  estão declaradas em `apps/web/turbo.json`, e o build foi executado **com o
+  `.env.local` escondido**, passando só o que o CI passa. Sem a lista completa
+  ele falharia ali — que é justamente a falha que só reproduz no CI.
+- **`.nvmrc` passou de 24.13.0 para 24.20.0**, que é a versão em que tudo isto
+  foi verificado. O pin anterior não era executado por ninguém — nem pela
+  máquina de desenvolvimento, nem nos registros de V1-011 —, e pin que ninguém
+  usa é reprodutibilidade de fachada. O CI lê o arquivo e o pnpm sai de
+  `packageManager`, então os três concordam por construção.
+- **Arquivos:** `apps/web/package.json` (+`geist`), `pnpm-lock.yaml`,
+  `apps/web/src/app/layout.tsx`, `.nvmrc`, `apps/web/test/fontes.test.mjs`
+  (novo) e a seção "Build reproduzível" do AGENTS. **A stack não mudou**, como a
+  ficha exige.
+- **Verificações executadas:** `pnpm lint` limpo (uma sobra de fixture da V1-030
+  foi removida no caminho), build sem cache, build offline, build sem
+  `.env.local`, e 174 testes da web.
+- **Limitações:** a conferência visual da tipografia foi feita pela igualdade
+  das variáveis CSS e pelos arquivos emitidos, não por inspeção de tela — as
+  fontes são as mesmas famílias, do mesmo fornecedor, em arquivo variável. A
+  **inspeção de requisições de fonte no navegador** não foi executada; o que a
+  substitui é a ausência de referência a `googleapis`/`gstatic` na saída do
+  build, que é onde a requisição nasceria.
 - **Prioridade/dependência:** P0; independente.
 - **Objetivo:** resolver a dependência de download de Geist no build observada
   no diagnóstico e reproduzir o build com o runtime declarado.
@@ -155,6 +206,39 @@ Todas as P1 deste grupo foram incluídas na V1 pelo responsável em 2026-09-18.
   regressões da auditoria já existente de plano/orçamento.
 
 ## V1-058 — Integração no CI e ambiente de testes confiável
+
+- **Estado / data:** Em andamento — 2026-09-19. Implementação preparada;
+  falta registrar a primeira execução do workflow no GitHub Actions.
+- **Dependência conferida:** V1-052 entregue; Node 24.20.0 e pnpm 11.20.0
+  executados localmente e derivados de `.nvmrc`/`packageManager` nos dois jobs.
+- **Implementação:** job `integration` com Postgres 17 descartável, healthcheck,
+  execução serial sem cache do Jest e leitores `poppler-utils`, `unzip` e
+  `libreoffice-calc`. Migrations aplicadas pelo helper e seed operacional
+  conferida pela suíte `seed-aceite`; sem reaproveitar banco de desenvolvimento.
+- **Proteção:** URL aceita somente loopback e banco exato `gerenciador_test`,
+  sem query/fragmento; confirmação do banco conectado antes de migrar/limpar.
+  Verificação global de infraestrutura impede iniciar centenas de testes sem
+  banco/utilitários. Falha de conexão não imprime URL, senha ou causa do driver.
+  Falha de preparação fecha o pool; encerramentos toleram contexto ausente.
+- **Arquivos:** workflow, `apps/api/jest.integration.mjs`, `package.json` da API,
+  `.env.example`, helpers e hooks em `apps/api/test`, regressões
+  `ambiente-teste.test.mjs`, AGENTS e índice. Nenhuma migration de domínio.
+- **Verificações executadas:** `pnpm lint`, `pnpm test` e `pnpm build --force`
+  passaram. `pnpm --filter api test:infra`: 12 testes passaram. Integração
+  `--no-cache` em Postgres 17 novo, container `gerenciador-v1058-test`, porta
+  local 55458: **39 suítes / 648 testes passaram** (98,8 s). Container removido
+  após o ensaio. Simulações pelo comando real `test:int`, com URL recusada e
+  porta indisponível, retornaram não zero antes das suítes, sem senha nem erro
+  de teardown. Nenhum dado operacional foi apagado.
+- **Aceite atendido localmente:** migrations/seed em banco limpo, exportações
+  por leitores reais, runtime alinhado, proteção de destino e diagnóstico único
+  de indisponibilidade. **Ainda necessário:** evidência do job hospedado após
+  publicação das alterações; não há execução remota presumida nem homologação.
+- **Referência revisável:** diff local, sem commit criado nesta tarefa.
+- **Limitação operacional:** nome reservado exclusivamente a testes; loopback
+  não identifica o destino remoto de um túnel configurado pelo operador. Não
+  encaminhar essa porta a dados reais. Não rodar duas integrações simultâneas
+  no mesmo banco. A execução local não equivale a execução hospedada no GitHub.
 
 - **Prioridade/dependência:** P0; V1-052.
 - **Objetivo:** executar regras SQL/migrations no CI e distinguir erro de ambiente.

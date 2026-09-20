@@ -94,7 +94,7 @@ describe('Integracao financeira do Comite Gestor (CG-060)', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   beforeEach(async () => {

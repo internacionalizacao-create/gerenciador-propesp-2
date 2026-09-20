@@ -6,6 +6,8 @@ import {
   campoApiParaFormulario,
   formularioMissaoComiteSchema,
   payloadCriacaoMissao,
+  payloadEdicaoMissao,
+  valoresDaMissao,
 } from "../src/lib/formularios/missao-comite.ts";
 
 const pessoaId = "11111111-1111-4111-8111-111111111111";
@@ -23,6 +25,7 @@ function missaoValida() {
     redes: [redeId],
     atividades: [
       {
+        id: "",
         tipo: "VISITA_TECNICA",
         titulo: "Visita à universidade parceira",
         paisId,
@@ -39,6 +42,7 @@ function missaoValida() {
     ],
     participantes: [
       {
+        id: "",
         modoPessoa: "existente",
         pessoaId,
         nomePessoa: "",
@@ -173,4 +177,111 @@ test("usa React Hook Form, Zod e listas repetíveis", async () => {
   assert.match(fonte, /zodResolver\(formularioMissaoComiteSchema\)/);
   assert.match(fonte, /useFieldArray\(\{ control, name: "atividades" \}\)/);
   assert.match(fonte, /useFieldArray\(\{ control, name: "participantes" \}\)/);
+});
+
+// ------------------------------------------------ edição da missão (V1-030) --
+
+const atividadeId = "55555555-5555-4555-8555-555555555555";
+const participanteId = "66666666-6666-4666-8666-666666666666";
+
+/** O que `valoresDaMissao` lê, no formato que a API devolve. */
+function missaoGravada() {
+  return {
+    titulo: "Missão de articulação em Paris",
+    objetivo: "Consolidar uma parceria institucional com a universidade.",
+    dataInicio: "2027-03-01",
+    dataFim: "2027-03-10",
+    observacoes: null,
+    redes: [{ id: redeId }],
+    participantes: [
+      {
+        id: participanteId,
+        pessoaId,
+        nome: "Fulana de Tal",
+        email: null,
+        membroEquipeId: null,
+        papel: "RESPONSAVEL",
+        observacoes: null,
+      },
+    ],
+    atividades: [
+      {
+        id: atividadeId,
+        tipo: "VISITA_TECNICA",
+        titulo: "Visita à universidade parceira",
+        paisId,
+        cidade: "Paris",
+        instituicaoId: null,
+        instituicao: "Université de Paris",
+        instituicaoDoCatalogo: false,
+        eventoNome: null,
+        dataInicio: "2027-03-02",
+        dataFim: "2027-03-08",
+        planejamento: "Reuniões com a coordenação internacional.",
+        observacoes: null,
+      },
+    ],
+  };
+}
+
+test("a edição carrega a missão gravada e o schema aceita o resultado", () => {
+  const valores = valoresDaMissao(missaoGravada());
+
+  // Datas voltam no formato dos campos, não em ISO.
+  assert.equal(valores.dataInicio, "01/03/2027");
+  assert.equal(valores.atividades[0].dataFim, "08/03/2027");
+  // Instituição digitada à mão volta como "livre", e não como "nenhuma": a
+  // parada tem nome e não tem id, e tratá-la como sem instituição apagaria o
+  // nome no primeiro salvamento.
+  assert.equal(valores.atividades[0].modoInstituicao, "livre");
+  assert.equal(valores.atividades[0].instituicaoNome, "Université de Paris");
+  // Participante já gravado entra sempre como "existente" — reabrir em "nova"
+  // criaria uma segunda pessoa com o mesmo nome.
+  assert.equal(valores.participantes[0].modoPessoa, "existente");
+  assert.equal(valores.participantes[0].pessoaId, pessoaId);
+
+  assert.equal(formularioMissaoComiteSchema.safeParse(valores).success, true);
+});
+
+test("o payload da edição preserva os ids e não leva situação", () => {
+  const valores = formularioMissaoComiteSchema.parse(
+    valoresDaMissao(missaoGravada()),
+  );
+  const payload = payloadEdicaoMissao(valores);
+
+  // Sem o `id`, o endpoint trataria cada linha como nova e o roteiro dobraria
+  // a cada salvamento, deixando as originais órfãs.
+  assert.equal(payload.atividades[0].id, atividadeId);
+  assert.equal(payload.participantes[0].id, participanteId);
+  // Situação muda por `/situacao`, com regra de origem própria por ação.
+  assert.equal(Object.hasOwn(payload, "status"), false);
+  assert.equal(payload.dataInicio, "2027-03-01");
+});
+
+test("linha acrescentada na edição vai sem id, que é como a API lê 'nova'", () => {
+  const base = valoresDaMissao(missaoGravada());
+  const valores = formularioMissaoComiteSchema.parse({
+    ...base,
+    atividades: [
+      ...base.atividades,
+      { ...base.atividades[0], id: "", titulo: "Parada acrescentada" },
+    ],
+  });
+  const payload = payloadEdicaoMissao(valores);
+
+  assert.equal(payload.atividades[0].id, atividadeId);
+  assert.equal(payload.atividades[1].id, undefined);
+});
+
+test("a edição não oferece o campo de situação", async () => {
+  const fonte = await readFile(
+    new URL(
+      "../src/componentes/formularios/form-missao-comite.tsx",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  // O campo existe, mas fica atrás de `edicao ?`: oferecê-lo na edição daria
+  // dois caminhos para mudar situação, e um deles sem as regras de origem.
+  assert.match(fonte, /\{edicao \? null : \(\s*<Selecao/);
 });

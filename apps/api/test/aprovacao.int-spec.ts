@@ -28,7 +28,7 @@ describe('Schema de aprovacao da missao (CG-019)', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   beforeEach(async () => {

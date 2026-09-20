@@ -5,6 +5,8 @@ import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { sql } from 'drizzle-orm';
 import { Pool } from 'pg';
 
+import { conferirBancoTeste, validarUrlTeste } from './ambiente-teste';
+
 import * as schema from '../src/database/schema';
 
 /**
@@ -17,24 +19,6 @@ import * as schema from '../src/database/schema';
  */
 export type TestDatabase = NodePgDatabase<typeof schema>;
 
-const url = process.env.TEST_DATABASE_URL;
-
-if (!url) {
-  throw new Error(
-    'TEST_DATABASE_URL nao definida. Veja apps/api/.env.example.\n' +
-      'Crie o banco com: docker exec gerenciador-api-db psql -U gerenciador -d postgres -c "CREATE DATABASE gerenciador_test;"',
-  );
-}
-
-// Trava de segurança: os testes apagam tudo antes de cada arquivo. Se alguém
-// apontar TEST_DATABASE_URL para o banco de desenvolvimento, o dano seria
-// silencioso e total.
-if (!/\/[a-z0-9_]*test[a-z0-9_]*(\?|$)/i.test(url)) {
-  throw new Error(
-    `Recusando rodar testes contra "${url}": o nome do banco precisa conter "test".`,
-  );
-}
-
 export interface ContextoTeste {
   db: TestDatabase;
   pool: Pool;
@@ -42,23 +26,29 @@ export interface ContextoTeste {
   limpar: () => Promise<void>;
 }
 
-let migrado = false;
-
 export async function criarContextoTeste(): Promise<ContextoTeste> {
-  const pool = new Pool({ connectionString: url, max: 4 });
+  const pool = new Pool({
+    connectionString: validarUrlTeste(process.env.TEST_DATABASE_URL),
+    max: 4,
+    connectionTimeoutMillis: 5_000,
+  });
   const db = drizzle(pool, { schema });
-
-  // As migrations rodam uma vez por processo Jest, não uma vez por arquivo.
-  if (!migrado) {
+  try {
+    await conferirBancoTeste(pool);
+    // O migrator consulta seu journal; o Jest isola modulos entre suites.
     await migrate(db, { migrationsFolder: './src/database/migrations' });
-    migrado = true;
+  } catch (erro) {
+    await pool.end();
+    throw erro;
   }
-
   return {
     db,
     pool,
     encerrar: () => pool.end(),
-    limpar: () => limparTabelas(db),
+    limpar: async () => {
+      await conferirBancoTeste(pool);
+      await limparTabelas(db);
+    },
   };
 }
 
@@ -110,7 +100,7 @@ export async function esperarViolacao(
  * `TRUNCATE ... CASCADE` em vez de DELETE por tabela: não depende de acertar a
  * ordem topológica das FKs, que muda toda vez que o schema evolui.
  */
-export async function limparTabelas(db: TestDatabase): Promise<void> {
+async function limparTabelas(db: TestDatabase): Promise<void> {
   const { rows } = await db.execute<{ nome: string }>(sql`
     select tablename as nome
       from pg_tables

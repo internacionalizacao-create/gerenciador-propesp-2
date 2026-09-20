@@ -6,6 +6,66 @@ Todas as P1 deste grupo foram incluídas na V1 pelo responsável em 2026-09-18.
 
 ## V1-030 — Completar edição e ciclo de vida da missão
 
+- **Estado / data:** Concluída — 2026-09-19.
+- **Entregue:** a missão passou a percorrer o ciclo inteiro pela tela. Faltavam
+  **quatro** ações, e todas usam endpoint que já existia: **editar**
+  (`PATCH .../missoes/:id`), **confirmar** e **cancelar**
+  (`POST .../situacao`) e **reabrir a execução** (`POST .../reabertura`).
+  Encerrar já estava na aba de encerramento, com o checklist que o governa, e
+  continua lá — separá-lo é o que impede o botão de prometer o que o checklist
+  vai recusar.
+- **A edição reusa o formulário do cadastro**, e não é um segundo formulário:
+  as regras de período, responsável único e parada dentro da viagem são as
+  mesmas, e mantê-las em dois lugares é garantir que divirjam. O que muda é o
+  que entra (`valoresDaMissao`), para onde vai (`PATCH`) e o campo de situação,
+  que **some na edição** — mudar situação é `/situacao`, com regra de origem
+  própria por ação, e oferecê-lo no formulário daria dois caminhos para a mesma
+  mudança, um deles sem as regras.
+- **O `id` de cada participante e de cada parada viaja no payload.** O endpoint
+  **reconcilia as listas inteiras**: linha sem `id` é linha nova. Sem guardá-lo
+  no modelo do formulário, salvar uma edição duplicaria o roteiro e deixaria as
+  linhas originais órfãs. **Verificado por mutação:** remover os `id` do corpo
+  derruba o caso que prova a preservação.
+- **Duas conversões que a implementação ingênua erra**, e que `valoresDaMissao`
+  trata: `modoInstituicao` sai de `instituicaoDoCatalogo`, não da presença de
+  `instituicaoId` — a parada com instituição digitada à mão tem nome e não tem
+  id, e lê-la como "nenhuma" apagaria o nome ao salvar; e participante já
+  gravado entra sempre como "existente", porque o modo "nova" descreve o ato de
+  cadastrar alguém junto com a missão, e reabrir nele criaria uma segunda pessoa.
+- **O seletor de participante une a equipe do ciclo aos participantes da própria
+  missão.** `pessoasDoComiteGestor` descarta vínculo encerrado; sem a união, o
+  participante de uma missão antiga chegaria pré-selecionado com um id ausente
+  das opções — o campo renderizaria vazio e o salvamento o perderia em silêncio.
+- **Reabrir a execução não é reabrir a análise**, e os dois caminhos diferem por
+  uma palavra no meio da URL (CG-038). O rótulo diz "execução" por extenso, e o
+  caso de integração confirma que `statusAprovacao` não se move.
+- **Cancelar não apaga nada**, e a tela diz isso: documentos, despesas e relato
+  continuam registrados. Sem o aviso, "cancelar" lê como "excluir" e quem hesita
+  em perder o que anexou deixa a missão aberta para sempre.
+- **Nenhuma regra de estado foi reimplementada na tela.** A página esconde o
+  botão no estado errado — as mesmas origens que a API aceita — e quem chamar a
+  rota direto recebe 409. Duas cópias da mesma regra divergem na primeira
+  mudança.
+- **Arquivos:** `acoes/missao.ts` e `componentes/formularios/acoes-missao.tsx`
+  (novos), `componentes/formularios/form-missao-comite.tsx` (parametrizado para
+  edição), `lib/formularios/missao-comite.ts` (`id` no modelo,
+  `payloadEdicaoMissao`, `valoresDaMissao`) e a página de detalhe da missão.
+  **Nenhuma mudança na API** — os quatro endpoints já existiam.
+- **Verificações executadas:** build da API e da web, ESLint e TypeScript limpos
+  nos dois; 89 testes unitários da API e **163 da web** (quatro novos: carga da
+  missão gravada, preservação dos `id`, linha acrescentada sem `id` e a ausência
+  do campo de situação na edição); **642 de integração em 39 suítes**, com os
+  sete novos de `test/ciclo-vida-missao-v1.int-spec.ts`. Um caso verificado por
+  mutação, com a fonte restaurada e a suíte reconfirmada depois.
+- **Descoberto no caminho:** criar missão exige **também** `missao:read`, porque
+  `validarRedes` confere a rede contra o recorte de leitura. Quem não alcança a
+  rede não cria missão nela — e sem a concessão de leitura não se alcança
+  nenhuma. Está anotado na fixture do teste.
+- **Limitações:** `pnpm smoke:telas` não foi executado — ele pressupõe
+  `--com-dados`, e a base de desenvolvimento subiu só com a estrutura
+  (2026-09-18). A verificação visual da barra de ações depende de existir missão
+  cadastrada, o que a base atual não tem; o que foi provado está nos testes.
+  **O cadastro de produto de missão pela tela continua na V1-031.**
 - **Prioridade/dependência:** P0; V1-001.
 - **Objetivo:** percorrer o ciclo operacional sem chamar a API pelo terminal.
 - **Arquivos:** `dominio/programas.controller.ts`, `missoes-comite.service.ts`,
@@ -24,6 +84,65 @@ Todas as P1 deste grupo foram incluídas na V1 pelo responsável em 2026-09-18.
 
 ## V1-031 — Cadastrar produtos de missão na interface
 
+- **Estado / data:** Concluída — 2026-09-19.
+- **Entregue:** a seção *Resultados* da missão deixou de ser só leitura.
+  Cadastrar, editar e remover produto entraram na tela, cada verbo com a sua
+  permissão (`produto-missao:create`, `:edit`, `:delete`) — ler não cadastra, e
+  cadastrar não implica editar. **Nenhuma mudança na API:** os quatro endpoints
+  já existiam desde a CG-056.
+- **Não existe botão que responda “sim”**, e a ausência é a decisão da CG-056
+  levada à tela: o “sim” é a existência da linha em `produto_missao`, e um botão
+  gravaria afirmação sem nada que a sustente. **Cadastrar um produto já
+  responde** — a API retira a declaração negativa sozinha, com auditoria, e o
+  caso de integração confirma a transição de `NAO` para `SIM`.
+- **As duas ações convivem no estado declarado.** Numa missão declarada sem
+  produto, *Cadastrar produto* e *Reabrir resposta* aparecem lado a lado, porque
+  respondem a coisas diferentes: “errei a declaração” e “apareceu um resultado”.
+  Cadastrar não exige reabrir antes.
+- **Ausência não vira declaração automática**, e o caso cobra isso: missão nova
+  fica em `NAO_INFORMADO`, não em `NAO`. As duas dão zero produto cadastrado, e
+  o checklist de encerramento precisa distinguir — é a distinção que o modelo
+  criou.
+- **O checklist reflete o cadastro real sem passo extra**, porque nada dele é
+  gravado (CG-058): é recalculado a cada leitura. **Verificado por mutação** —
+  remover o cadastro do caso derruba a asserção.
+- **A regra do convênio é bicondicional nos dois lados.** O formulário só mostra
+  o campo de acordo no tipo `CONVENIO`, e o schema recusa as duas metades:
+  convênio sem acordo apontado, e acordo apontado em produto que não é convênio.
+  Sem `convenio:read` a lista não é buscada e o formulário **avisa** em vez de
+  oferecer um seletor vazio sem explicação.
+- **Responsáveis são os participantes da missão**, e não o cadastro inteiro de
+  pessoas: quem viajou é quem responde pelo produto da viagem, e oferecer todo
+  mundo convidaria a creditar quem não esteve lá. O `papel` dentro do produto vai
+  nulo — não é o papel na missão, e derivá-lo de lá afirmaria algo que ninguém
+  declarou.
+- **Remover não antecipa a recusa.** A API recusa em dois casos — produto com
+  documento anexado (CG-052) e último produto de missão encerrada sem declaração
+  (CG-059) —, e desabilitar o botão esconderia o motivo. A recusa vem com o
+  texto que diz o que fazer. O caso de integração confirma que o produto
+  documentado permanece.
+- **A revalidação inclui `/producao`.** O produto aparece em quatro lugares, e
+  deixar a produção consolidada de fora faria o recém-cadastrado só surgir lá na
+  próxima navegação completa.
+- **Ano é texto no formulário, convertido no payload.** Num input numérico o
+  campo vazio vira `NaN`, e `NaN` some do payload em vez de virar erro visível.
+- **Arquivos:** `lib/formularios/produto-missao.ts`, `acoes/produto-missao.ts` e
+  `componentes/formularios/form-produto-missao.tsx` (novos), mais a seção
+  *Resultados* da página de detalhe.
+- **Verificações executadas:** build da API e da web, ESLint e TypeScript limpos
+  nos dois; 89 testes unitários da API e **171 da web** (oito novos: payload com
+  nulos, ano vazio e fora da faixa, as duas metades da regra do convênio, carga
+  do produto gravado e a ausência do botão “sim”); **648 de integração em 39
+  suítes**, com seis novos em `test/ciclo-vida-missao-v1.int-spec.ts`. Um caso
+  verificado por mutação, com a fonte restaurada e a suíte reconfirmada.
+- **Limitações:** o cadastro de **convênio** pela tela continua fora — é a
+  V1-032, e aqui o acordo só é apontado, nunca criado. **Evidências do produto**
+  usam o `/anexos` que já existe (`PRODUTO_MISSAO`), e a galeria de upload
+  dentro da própria linha do produto não foi construída: a contagem de
+  documentos aparece na tabela, e o envio continua pela aba Documentos.
+  `pnpm smoke:telas` não foi executado — pressupõe `--com-dados`, e a base de
+  desenvolvimento subiu só com a estrutura. Sem missão cadastrada na base atual,
+  não houve verificação visual; o que está provado está nos testes.
 - **Prioridade/dependência:** P0; V1-001.
 - **Objetivo:** permitir encerrar missão que efetivamente produziu resultados.
 - **Arquivos:** `resultados.service.ts`, endpoints de produtos da missão,
@@ -92,6 +211,23 @@ Todas as P1 deste grupo foram incluídas na V1 pelo responsável em 2026-09-18.
 ## V1-035 — Especificar eventos externos da CAPES
 
 - **Prioridade/dependência:** P1; V1-001.
+- **Decisão do responsável em 2026-09-19:** o Gerenciador é **só um
+  gerenciador**. O que muda na plataforma da CAPES é mantido atualizado aqui
+  **por quem usa o sistema**, e o sistema não se encarrega disso. Isso fecha
+  parte do contrato desta ficha antes de ela começar:
+  - **sem integração, importação automática ou conferência** contra a CAPES —
+    o módulo é um livro-razão do que já aconteceu lá, não um espelho dela;
+  - **o status informado é o status**, sem validação contra fonte externa;
+  - **nada de alerta de "dado possivelmente desatualizado"**: o sistema não tem
+    como saber se está, e o aviso transferiria à tela uma dúvida insolúvel. A
+    resposta a uma divergência é registrá-la, e a tela existe para isso.
+  - O `status` `PROPOSTO` de `remanejamento` **não vale no CAPES Global**: aqui
+    não se propõe nada, só se registra o ato consumado. A coluna é genérica,
+    de outros programas; a camada de domínio precisa recusá-la.
+  Permanecem em aberto, e são o que a ficha ainda tem de decidir: a lista de
+  tipos de evento, se a data do ato e a do registro são duas colunas, se o
+  evento corrige o passado ou só acompanha o plano, e se o comprovante é
+  obrigatório.
 - **Objetivo:** fechar contrato antes de implementar movimentações e histórico.
 - **Referências:** `system-structl.md` (P12 e regras), `schema/execucao.ts`,
   `schema/planejamento.ts`, `bolsistas.service.ts`, homologação BOL.

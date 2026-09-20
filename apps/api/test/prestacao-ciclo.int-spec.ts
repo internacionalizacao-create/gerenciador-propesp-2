@@ -56,7 +56,7 @@ describe('Ciclo de vida da prestacao (CG-054)', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   beforeEach(async () => {

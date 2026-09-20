@@ -68,7 +68,7 @@ describe('Recorte por PPG das bolsas concedidas', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   beforeEach(async () => {

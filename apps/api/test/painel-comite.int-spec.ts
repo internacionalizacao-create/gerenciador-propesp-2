@@ -77,7 +77,7 @@ describe('Painel do Comite Gestor (CG-066)', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   beforeEach(async () => {

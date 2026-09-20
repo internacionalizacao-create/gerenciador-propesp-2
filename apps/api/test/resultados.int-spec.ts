@@ -70,7 +70,7 @@ describe('Produtos da missao e convenios (CG-056)', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   beforeEach(async () => {

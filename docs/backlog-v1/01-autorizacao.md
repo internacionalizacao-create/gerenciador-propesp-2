@@ -1,13 +1,12 @@
 # Fichas de autorização — V1-010 a V1-021
 
-Estado: **V1-010–020 concluídas** — a autorização em execução é a das
+Estado: **V1-010–021 concluídas.** A autorização em execução é a das
 concessões, com API, tela, recorte de leitura do planejamento, o recorte por
 ação das bolsas com projeção dos campos pessoais (V1-015), os caminhos indiretos
-fechados (V1-016) e a matriz inteira sob regressão (V1-020) —, e **V1-021 em
-andamento** — bootstrap, limpeza legada, runbook de ativação, comando de
-desativação e ensaio de rollback entregues; conversão cancelada porque a
-produção começa sem conta. **O que falta na V1-021 não é técnico:** a lista
-nominal do responsável e a execução no ambiente autorizado. Prioridade: **P0**. Regras de execução,
+fechados (V1-016), a matriz inteira sob regressão (V1-020) e o runbook de
+ativação com ensaio de rollback (V1-021). **Conceder acesso às pessoas reais é
+ato de operação pela tela de Acessos**, que é agnóstica e funciona sob demanda —
+não é entregável de nenhuma ficha. Prioridade: **P0**. Regras de execução,
 dependências e registro de conclusão no [índice](../backlog-v1.md).
 Contrato de produto: [proposta de autorização](../proposta-autorizacao-v1.md).
 
@@ -676,12 +675,21 @@ Contrato de produto: [proposta de autorização](../proposta-autorizacao-v1.md).
 
 ## V1-021 — Atribuir contas e ativar modo restritivo
 
-- **Estado / data:** Em andamento — 2026-09-18. Subtarefas **a, d e e
-  entregues**; **b e c canceladas** pela decisão de produção limpa. O modo
-  restritivo está ativo no código desde V1-012, o ensaio de ativação e rollback
-  foi executado, e o que resta **não é técnico**: a atribuição nominal exige a
-  lista de pessoas do responsável e o smoke nominal exige o ambiente
-  institucional autorizado. Nenhum dos dois pode ser inventado aqui.
+- **Estado / data:** Concluída — 2026-09-19. Subtarefas **a, d e e entregues**;
+  **b e c canceladas** pela decisão de produção limpa.
+- **A "lista nominal" não é entregável do sistema** (esclarecido pelo
+  responsável em 2026-09-19, e a ficha dizia o contrário). A tela de Acessos é
+  **agnóstica por construção**: ela lista quem já tem conta local e o admin
+  concede ação a ação, sob demanda. O fluxo completo é *pessoa entra pela
+  primeira vez → `/me` cria o vínculo → ela aparece em Acessos → o admin
+  concede o que ela precisa*. Não há lista a obter antes, nem cadastro em lote
+  a executar: a lista **se preenche sozinha** conforme as pessoas entram.
+  Registrar quem recebeu o quê continua útil como **evidência de homologação**
+  (V1-060), e é lá que isso pertence — não aqui, como pré-requisito.
+- **O smoke nominal também não trava nada.** O que ele acrescentaria sobre o
+  `pnpm smoke:acesso` (V1-020) é rodar com as pessoas reais, no ambiente real —
+  ato de implantação, não verificação de código. O comportamento que ele
+  provaria já está provado contra Postgres real e contra a sessão HTTP.
 - **Entregue na subtarefa e (2026-09-18):**
   - **Runbook de ativação e rollback** em
     [ativacao-acesso-v1.md](../ativacao-acesso-v1.md), escrito para quem opera o
@@ -725,11 +733,10 @@ Contrato de produto: [proposta de autorização](../proposta-autorizacao-v1.md).
   inserir e bateu na constraint — está agora fixado como asserção.
 - **Verificações:** 635 testes de integração em 38 suítes, 89 unitários da API,
   159 da web, build e ESLint limpos, e `pnpm smoke:acesso` verde.
-- **Ainda necessário, e não é implementação:** obter do responsável a lista
-  nominal de quem recebe cada acesso, executar a atribuição no ambiente
-  autorizado e rodar ali o smoke nominal. Enquanto a lista não existir, não há
-  o que atribuir — e inventá-la seria exatamente o que a regra de execução do
-  backlog proíbe.
+- **O que acontece na implantação, e não aqui:** conceder acesso às pessoas
+  reais pela tela de Acessos, conforme elas entram, e registrar em V1-060 quem
+  recebeu o quê. São atos de operação, cobertos pelo
+  [runbook](../ativacao-acesso-v1.md); nada no sistema fica esperando por eles.
 - **Subtarefas** (a ordem importa; ver a justificativa em cada uma):
   - **a — bootstrap e recuperação de administrador.** *Entregue em 2026-09-15:*
     `pnpm --filter api acesso:bootstrap --sub <sub> --motivo "..." [--aplicar]
@@ -751,9 +758,8 @@ Contrato de produto: [proposta de autorização](../proposta-autorizacao-v1.md).
     documentado. *Entregue em 2026-09-18:* runbook, comando de desativação,
     ensaio com contas fictícias e o smoke por perfil (`pnpm smoke:acesso`, da
     V1-020) — o realm local voltou a ter as quatro contas de teste, o que
-    destravou a política de dupla administração. **Falta apenas o que depende
-    de fora:** a lista nominal do responsável e a execução no ambiente
-    autorizado.
+    destravou a política de dupla administração. A atribuição às pessoas reais
+    é ato de implantação pela tela de Acessos, não entregável desta ficha.
   - **Por que d antes de e:** se o vínculo de equipe, o escopo legado e o papel
     continuarem valendo depois da virada, o modo restritivo não fecha nada — a
     conta entra pelo caminho antigo e ninguém percebe.

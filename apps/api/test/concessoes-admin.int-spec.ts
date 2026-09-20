@@ -65,7 +65,7 @@ describe('Concessoes — administracao pela API', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   beforeEach(async () => {

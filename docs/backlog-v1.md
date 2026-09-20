@@ -93,12 +93,12 @@ em 2026-09-18, com o recorte por ação das bolsas e a projeção de CPF, e-mail
 telefone por capacidade mais alcance, **V1-016 concluída** no mesmo dia, com o
 histórico do parceiro, os anexos e a ficha PDF recortados pela ação exercida, e
 **V1-020 concluída** no mesmo dia, com a matriz cruzada sob regressão e o smoke
-por perfil (`pnpm smoke:acesso`), e V1-021, **Em andamento**, com bootstrap e
-limpeza legada, runbook de ativação, comando de desativação de contas e ensaio
-de rollback entregues; a conversão foi cancelada porque a produção começa sem
-conta. **O que falta na V1-021 não é implementação:** a lista nominal de quem
-recebe cada acesso, que depende do responsável, e a execução no ambiente
-autorizado. Evidências na ficha. Dependência
+por perfil (`pnpm smoke:acesso`), e **V1-021 concluída** em 2026-09-19, com
+bootstrap, limpeza legada, runbook de ativação, comando de desativação de contas
+e ensaio de rollback; a conversão foi cancelada porque a produção começa sem
+conta. **Conceder acesso às pessoas reais não é entregável de ficha nenhuma:**
+a tela de Acessos é agnóstica e o admin concede sob demanda, conforme cada
+pessoa entra. Evidências na ficha. Dependência
 pendente significa ordem de execução; não é prova de impedimento externo.
 
 Prioridades: **P0** necessária para liberação ampla interna; **P1** entregar ou
@@ -152,9 +152,9 @@ dependências são obrigatórios, exceto quando a ficha indicar uma condição.
 | V1-018 | P0 | Interface de atribuição e revisão de acesso — concluída | 017 |
 | V1-019 | P0 | Navegação e orientação por acesso efetivo — concluída | 013, 015, 017 (entregue antes de 013/015: não dependia delas) |
 | V1-020 | P0 | Regressão da matriz de autorização — concluída | 013–019 |
-| V1-021 | P0 | Atribuição nominal e ativação restritiva — em andamento (a/d/e entregues; b/c canceladas; falta a lista nominal do responsável) | 018–020 |
-| V1-030 | P0 | Ciclo de vida completo da missão na web | 001 |
-| V1-031 | P0 | Produtos de missão na web | 001 |
+| V1-021 | P0 | Ativação restritiva e rollback — concluída (a/d/e entregues; b/c canceladas) | 018–020 |
+| V1-030 | P0 | Ciclo de vida completo da missão na web — concluída | 001 |
+| V1-031 | P0 | Produtos de missão na web — concluída | 001 |
 | V1-032 | P1 | Gestão de convênios na web | 016 |
 | V1-033 | P1 | Tratamento de pendências | 012 |
 | V1-034 | P1 | Gestão de participações PPG–temática | 011 |
@@ -168,13 +168,13 @@ dependências são obrigatórios, exceto quando a ficha indicar uma condição.
 | V1-042 | P1 | Paginação de parceiros | 016 |
 | V1-050 | P0 | Plano de implantação interna | 001 |
 | V1-051 | P0 | Ambiente de produção na intranet | 050, 052 |
-| V1-052 | P0 | Build reproduzível e fontes | — |
+| V1-052 | P0 | Build reproduzível e fontes — concluída | — |
 | V1-053 | P0 | Backup completo e agendado | 050 |
 | V1-054 | P0 | Ensaio de recuperação e atualização | 051, 053 |
 | V1-055 | P1 | Logs, prontidão e alertas operacionais | 051 |
 | V1-056 | P1 | Limites de requisições e operações caras | 050 |
 | V1-057 | P1 | Auditoria transversal | 012 |
-| V1-058 | P0 | Integração no CI e runtime alinhado | 052 |
+| V1-058 | P0 | Integração no CI e runtime alinhado — em andamento (implementada; execução no GitHub pendente) | 052 |
 | V1-059 | P0 | Jornadas automatizadas no navegador | 020, 030, 031, 058 |
 | V1-060 | P0 | Homologação e aceite da versão interna | Ver ficha |
 | V1-070 | P2 | E-mail institucional | 050 |

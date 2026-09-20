@@ -75,7 +75,7 @@ describe('SubmissaoService (CG-037)', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   beforeEach(async () => {

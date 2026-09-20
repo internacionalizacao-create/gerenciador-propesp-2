@@ -1,19 +1,30 @@
+import { GeistMono } from "geist/font/mono";
+import { GeistSans } from "geist/font/sans";
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 
 import { ThemeSynchronizer } from "@/componentes/layout/theme-toggle";
 
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+/**
+ * Fontes locais, e nao `next/font/google` (V1-052).
+ *
+ * O carregador do Google **baixa os arquivos durante o build**. Ele depois
+ * serve tudo do proprio dominio, entao o runtime nunca falava com o Google —
+ * mas o build sim, e um build de intranet que precisa de saida para a internet
+ * e um build que quebra no dia em que a saida nao existe.
+ *
+ * O pacote `geist` traz os `.woff2` dentro de `node_modules` e os carrega por
+ * `next/font/local`. A fonte passa a vir pelo lockfile, como qualquer outra
+ * dependencia, e instalar dependencias e um passo que o ambiente de build ja
+ * tem de poder fazer — diferente de baixar um arquivo de terceiros no meio da
+ * compilacao do codigo.
+ *
+ * **Os nomes das variaveis CSS sao os mesmos** (`--font-geist-sans` e
+ * `--font-geist-mono`), entao `globals.css` e os tokens nao mudaram uma linha.
+ */
+const geistSans = GeistSans;
+const geistMono = GeistMono;
 
 export const metadata: Metadata = {
   title: "Gerenciador PROPESP",

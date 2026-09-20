@@ -47,7 +47,7 @@ describe('Catalogo de bolsas — escrita', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   async function modalidadeId(nome: string): Promise<string> {

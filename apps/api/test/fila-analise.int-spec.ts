@@ -60,7 +60,7 @@ describe('Fila de analise do Comite (CG-047)', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   beforeEach(async () => {

@@ -14,6 +14,7 @@ import base from './jest.config.mjs';
 export default {
   ...base,
   rootDir: '.',
+  globalSetup: '<rootDir>/test/preparar-integracao.mjs',
   testRegex: '.*\\.int-spec\\.ts$',
   maxWorkers: 1,
   testTimeout: 30_000,

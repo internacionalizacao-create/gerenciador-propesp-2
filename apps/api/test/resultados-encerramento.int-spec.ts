@@ -91,7 +91,7 @@ describe('Resultados e encerramento (CG-059)', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   beforeEach(async () => {

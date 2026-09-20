@@ -120,7 +120,7 @@ describe('Servicos de dominio — CAPES Global 2027–2030', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   // ------------------------------------------------------------------ //

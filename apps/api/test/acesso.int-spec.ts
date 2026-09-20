@@ -50,7 +50,7 @@ describe('Identidade e escopo de acesso', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   beforeEach(async () => {

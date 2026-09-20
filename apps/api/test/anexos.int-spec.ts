@@ -103,7 +103,7 @@ describe('AnexosService (CG-051)', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   beforeEach(async () => {

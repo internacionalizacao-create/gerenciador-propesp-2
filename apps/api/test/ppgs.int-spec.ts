@@ -13,7 +13,7 @@ describe('Cadastro de PPGs', () => {
     ppgs = new PpgsService(ctx.db, new IdentidadeService(ctx.db));
   });
   beforeEach(async () => ctx.limpar());
-  afterAll(async () => ctx.encerrar());
+  afterAll(async () => ctx?.encerrar());
 
   it('grava o cadastro minimo com campos opcionais nulos', async () => {
     const criado = await ppgs.criar(

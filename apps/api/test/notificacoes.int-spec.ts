@@ -71,7 +71,7 @@ describe('Aprovacao, concorrencia e notificacoes (CG-039)', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   beforeEach(async () => {

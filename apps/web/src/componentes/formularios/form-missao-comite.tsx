@@ -20,6 +20,7 @@ import {
 } from "react-hook-form";
 
 import { criarMissaoComite } from "@/acoes/comite-gestor";
+import { atualizarMissaoComite } from "@/acoes/missao";
 import {
   AreaTexto,
   Data,
@@ -35,6 +36,7 @@ import { useToastDaAcao } from "@/componentes/ui/toast";
 import { ESTADO_INICIAL, type EstadoDaAcao } from "@/lib/acao-tipos";
 import type {
   MembroEquipeGestao,
+  MissaoDetalhe,
   PessoaDisponivel,
   ReferenciasMissao,
 } from "@/lib/dominio";
@@ -45,6 +47,7 @@ import {
   novaAtividade,
   novoParticipante,
   pessoasDoComiteGestor,
+  valoresDaMissao,
   type DadosFormularioMissaoComite,
 } from "@/lib/formularios/missao-comite";
 
@@ -76,15 +79,71 @@ export function NovaMissaoComite(props: ContextoMissao) {
   );
 }
 
+/**
+ * Edição da missão (V1-030), no mesmo formulário do cadastro.
+ *
+ * **Não é um segundo formulário**, e essa é a decisão: as regras de período,
+ * responsável único e parada dentro da viagem são as mesmas, e mantê-las em
+ * dois lugares é garantir que divirjam. O que muda é o que entra
+ * (`valoresDaMissao`), para onde vai (`PATCH`) e o campo de situação, que some
+ * — mudar situação é `/situacao`, com regra de origem própria por ação.
+ */
+export function EditarMissaoComite({
+  missao,
+  ...props
+}: ContextoMissao & { missao: MissaoDetalhe }) {
+  return (
+    <AbrirSidesheet
+      rotulo="Editar missão"
+      variante="secundaria"
+      titulo={`Editar ${missao.codigo}`}
+      descricao="Altera o planejamento: período, roteiro e participantes. A situação da missão muda pelas ações próprias, não por aqui."
+      largura="larga"
+    >
+      {(fechar) => (
+        <FormMissaoComite {...props} missao={missao} aoConcluir={fechar} />
+      )}
+    </AbrirSidesheet>
+  );
+}
+
 function FormMissaoComite({
   programa,
   ciclo,
   membros,
   referencias,
+  missao,
   aoConcluir,
-}: ContextoMissao & { aoConcluir: () => void }) {
-  const acao = criarMissaoComite.bind(null, { programa, ciclo });
-  const pessoasDoComite = useMemo(() => pessoasDoComiteGestor(membros), [membros]);
+}: ContextoMissao & { missao?: MissaoDetalhe; aoConcluir: () => void }) {
+  const edicao = missao !== undefined;
+  const acao = edicao
+    ? atualizarMissaoComite.bind(null, { programa, ciclo, id: missao.id })
+    : criarMissaoComite.bind(null, { programa, ciclo });
+  /**
+   * Quem o seletor de participante oferece.
+   *
+   * Na edição, os participantes **da própria missão entram na lista**, mesmo
+   * que tenham deixado o Comitê: `pessoasDoComiteGestor` descarta vínculo
+   * encerrado, e sem esta união o participante de uma missão antiga chegaria
+   * pré-selecionado com um id que não existe entre as opções — o campo
+   * renderizaria vazio e o salvamento o perderia em silêncio.
+   */
+  const pessoasDoComite = useMemo(() => {
+    const doComite = pessoasDoComiteGestor(membros);
+    if (!missao) return doComite;
+    const porId = new Map(doComite.map((pessoa) => [pessoa.id, pessoa]));
+    for (const participante of missao.participantes) {
+      if (porId.has(participante.pessoaId)) continue;
+      porId.set(participante.pessoaId, {
+        id: participante.pessoaId,
+        nome: participante.nome,
+        email: participante.email,
+      });
+    }
+    return [...porId.values()].sort((a, b) =>
+      a.nome.localeCompare(b.nome, "pt-BR"),
+    );
+  }, [membros, missao]);
   const [estado, executar, enviando] = useActionState(acao, ESTADO_INICIAL);
   const {
     register,
@@ -97,19 +156,21 @@ function FormMissaoComite({
     formState: { errors },
   } = useForm<DadosFormularioMissaoComite>({
     resolver: zodResolver(formularioMissaoComiteSchema),
-    defaultValues: {
-      titulo: "",
-      objetivo: "",
-      // Nada de data presumida: o primeiro dia do ciclo parecia informado e
-      // passava sem revisão para a missão gravada.
-      dataInicio: "",
-      dataFim: "",
-      status: "RASCUNHO",
-      observacoes: "",
-      redes: [],
-      atividades: [novaAtividade()],
-      participantes: [novoParticipante(true)],
-    },
+    defaultValues: missao
+      ? valoresDaMissao(missao)
+      : {
+          titulo: "",
+          objetivo: "",
+          // Nada de data presumida: o primeiro dia do ciclo parecia informado e
+          // passava sem revisão para a missão gravada.
+          dataInicio: "",
+          dataFim: "",
+          status: "RASCUNHO",
+          observacoes: "",
+          redes: [],
+          atividades: [novaAtividade()],
+          participantes: [novoParticipante(true)],
+        },
   });
   const roteiro = useFieldArray({ control, name: "atividades" });
   const equipe = useFieldArray({ control, name: "participantes" });
@@ -215,18 +276,26 @@ function FormMissaoComite({
               erro={mensagem(errors.dataFim)}
             />
           </Grade>
-          <Selecao
-            rotulo="Situação inicial"
-            nome="status"
-            padrao="RASCUNHO"
-            registro={register("status")}
-            opcoes={[
-              { valor: "RASCUNHO", texto: "Rascunho" },
-              { valor: "PLANEJADA", texto: "Planejada" },
-            ]}
-            dica="Use rascunho enquanto o roteiro ainda estiver em construção."
-            erro={mensagem(errors.status)}
-          />
+          {/*
+            A situação só aparece no cadastro. Na edição ela some porque mudar
+            situação é `/situacao`, com regra de origem e justificativa por
+            ação — oferecê-la aqui daria dois caminhos para a mesma mudança, e
+            um deles sem as regras.
+          */}
+          {edicao ? null : (
+            <Selecao
+              rotulo="Situação inicial"
+              nome="status"
+              padrao="RASCUNHO"
+              registro={register("status")}
+              opcoes={[
+                { valor: "RASCUNHO", texto: "Rascunho" },
+                { valor: "PLANEJADA", texto: "Planejada" },
+              ]}
+              dica="Use rascunho enquanto o roteiro ainda estiver em construção."
+              erro={mensagem(errors.status)}
+            />
+          )}
           {referencias.redes.length === 0 ? (
             <p role="alert" className="mb-4 rounded-xl bg-warning-soft p-3 text-sm text-on-warning-soft">
               Este ciclo não possui redes coordenadoras cadastradas. A missão precisa pertencer a pelo menos uma.

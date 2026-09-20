@@ -104,7 +104,7 @@ describe('Exportacao de relatorios e dossie (CG-069)', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   beforeEach(async () => {

@@ -6,6 +6,14 @@ const dataCompleta = z
 
 const participanteSchema = z
   .object({
+    /**
+     * Vazio na criacao, preenchido na edicao (V1-030).
+     *
+     * O endpoint de edicao **reconcilia a lista inteira**: linha sem `id` e
+     * linha nova. Sem guardar o identificador aqui, salvar uma edicao criaria
+     * participantes e paradas duplicados e deixaria os originais orfaos.
+     */
+    id: z.string(),
     modoPessoa: z.enum(["existente", "nova"]),
     pessoaId: z.string(),
     nomePessoa: z.string().trim().max(240),
@@ -88,6 +96,8 @@ const participanteSchema = z
 
 const atividadeSchema = z
   .object({
+    /** Mesmo papel do `id` do participante: preserva a linha na edicao. */
+    id: z.string(),
     tipo: z.enum(["VISITA_TECNICA", "EVENTO", "ARTICULACAO", "BANCA", "OUTRO"]),
     titulo: z.string().trim().min(3, "Informe o título da atividade.").max(300),
     paisId: z.uuid("Selecione o país."),
@@ -225,6 +235,7 @@ export function novaAtividade(
   dataFim = "",
 ): DadosFormularioMissaoComite["atividades"][number] {
   return {
+    id: "",
     tipo: "VISITA_TECNICA",
     titulo: "",
     paisId: "",
@@ -276,6 +287,7 @@ export function novoParticipante(
   responsavel = false,
 ): DadosFormularioMissaoComite["participantes"][number] {
   return {
+    id: "",
     modoPessoa: "existente",
     pessoaId: "",
     nomePessoa: "",
@@ -392,4 +404,136 @@ export function dataParaIso(valor: string): string | null {
     return null;
   }
   return `${ano}-${mes}-${dia}`;
+}
+
+/**
+ * Payload da edicao (V1-030).
+ *
+ * Difere da criacao em duas coisas, e as duas importam:
+ *
+ * - **`id` acompanha cada participante e cada parada.** O endpoint reconcilia
+ *   as listas inteiras; linha sem `id` e linha nova, entao omiti-lo duplicaria
+ *   o roteiro a cada salvamento. Vazio vira `undefined`, que e como a API le
+ *   "esta e nova".
+ * - **`status` nao vai.** Mudar situacao e `/situacao`, com regra de origem e
+ *   justificativa propria por acao — deixar o campo aqui daria dois caminhos
+ *   para a mesma mudanca, e um deles sem as regras.
+ */
+export function payloadEdicaoMissao(dados: DadosFormularioMissaoComite) {
+  const { status: _status, ...base } = payloadCriacaoMissao({
+    ...dados,
+    status: "RASCUNHO",
+  });
+  return {
+    ...base,
+    participantes: base.participantes.map((participante, indice) => ({
+      ...participante,
+      id: opcional(dados.participantes[indice].id),
+    })),
+    atividades: base.atividades.map((atividade, indice) => ({
+      ...atividade,
+      id: opcional(dados.atividades[indice].id),
+    })),
+  };
+}
+
+/**
+ * Preenche o formulario com a missao que ja existe.
+ *
+ * Duas conversoes que a implementacao ingenua erra:
+ *
+ * - **`modoInstituicao` sai de `instituicaoDoCatalogo`**, e nao da presenca de
+ *   `instituicaoId`: a parada com instituicao digitada a mao tem nome e nao
+ *   tem id, e tratar isso como "nenhuma" apagaria o nome ao salvar.
+ * - **participante existente entra como `existente`**, sempre. O modo "nova"
+ *   descreve o ato de cadastrar alguem junto com a missao; depois de gravado,
+ *   a pessoa existe — reabrir o formulario em "nova" criaria uma segunda.
+ */
+export function valoresDaMissao(
+  missao: MissaoParaEdicao,
+): DadosFormularioMissaoComite {
+  return {
+    titulo: missao.titulo,
+    objetivo: missao.objetivo,
+    dataInicio: isoParaData(missao.dataInicio),
+    dataFim: isoParaData(missao.dataFim),
+    // O formulario exige um dos dois, e a edicao nao muda situacao: o valor
+    // so existe aqui para o schema fechar, e `payloadEdicaoMissao` o descarta.
+    status: "RASCUNHO",
+    observacoes: missao.observacoes ?? "",
+    redes: missao.redes.map((rede) => rede.id),
+    participantes: missao.participantes.map((participante) => ({
+      id: participante.id,
+      modoPessoa: "existente" as const,
+      pessoaId: participante.pessoaId,
+      nomePessoa: "",
+      emailPessoa: "",
+      cpfPessoa: "",
+      tipoPessoa: "EXTERNO" as const,
+      membroEquipeId: participante.membroEquipeId ?? "",
+      papel: participante.papel,
+      observacoes: participante.observacoes ?? "",
+    })),
+    atividades: missao.atividades.map((atividade) => ({
+      id: atividade.id,
+      tipo: atividade.tipo as DadosFormularioMissaoComite["atividades"][number]["tipo"],
+      titulo: atividade.titulo,
+      paisId: atividade.paisId,
+      cidade: atividade.cidade ?? "",
+      modoInstituicao: atividade.instituicaoDoCatalogo
+        ? ("catalogo" as const)
+        : atividade.instituicao
+          ? ("livre" as const)
+          : ("nenhuma" as const),
+      instituicaoId: atividade.instituicaoDoCatalogo
+        ? (atividade.instituicaoId ?? "")
+        : "",
+      instituicaoNome: atividade.instituicaoDoCatalogo
+        ? ""
+        : (atividade.instituicao ?? ""),
+      eventoNome: atividade.eventoNome ?? "",
+      dataInicio: isoParaData(atividade.dataInicio),
+      dataFim: isoParaData(atividade.dataFim),
+      planejamento: atividade.planejamento ?? "",
+      observacoes: atividade.observacoes ?? "",
+    })),
+  };
+}
+
+/** O que `valoresDaMissao` precisa ler — um recorte de `MissaoDetalhe`. */
+export interface MissaoParaEdicao {
+  titulo: string;
+  objetivo: string;
+  dataInicio: string;
+  dataFim: string;
+  observacoes: string | null;
+  redes: { id: string }[];
+  participantes: {
+    id: string;
+    pessoaId: string;
+    membroEquipeId: string | null;
+    papel: "RESPONSAVEL" | "PARTICIPANTE" | "APOIO";
+    observacoes?: string | null;
+  }[];
+  atividades: {
+    id: string;
+    tipo: string;
+    titulo: string;
+    paisId: string;
+    cidade: string | null;
+    instituicaoId: string | null;
+    instituicao: string | null;
+    instituicaoDoCatalogo: boolean;
+    eventoNome: string | null;
+    dataInicio: string;
+    dataFim: string;
+    planejamento: string | null;
+    observacoes?: string | null;
+  }[];
+}
+
+/** `2027-05-01` -> `01/05/2027`, o formato que os campos de data usam. */
+function isoParaData(iso: string): string {
+  const [ano, mes, dia] = iso.slice(0, 10).split("-");
+  return ano && mes && dia ? `${dia}/${mes}/${ano}` : "";
 }

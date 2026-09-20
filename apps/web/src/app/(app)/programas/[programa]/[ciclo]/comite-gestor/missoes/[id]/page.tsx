@@ -42,11 +42,25 @@ import {
   Selo,
   Tabela,
 } from "@/componentes/ui/basicos";
+import {
+  CancelarMissao,
+  ConfirmarMissao,
+  ReabrirExecucao,
+} from "@/componentes/formularios/acoes-missao";
+import { EditarMissaoComite } from "@/componentes/formularios/form-missao-comite";
+import {
+  EditarProdutoMissao,
+  NovoProdutoMissao,
+  RemoverProdutoMissao,
+  type ReferenciasProduto,
+} from "@/componentes/formularios/form-produto-missao";
 import { SemAcesso } from "@/componentes/ui/sem-acesso";
 import { faltando } from "@/lib/acesso";
 import { ApiError, apiFetch, apiFetchOuNada } from "@/lib/api";
 import { carregarMe } from "@/lib/me";
 import type {
+  ConvenioResumo,
+  MembroEquipeGestao,
   AnexoResumo,
   AtividadeMissao,
   AvaliacaoSubmissao,
@@ -137,6 +151,8 @@ export default async function MissaoDetalhePagina({
     resultados,
     encerramento,
     referencias,
+    membros,
+    convenios,
   ] =
     // A missão que não existe **e a que existe em outra rede** respondem 404
     // (CG-028), e as duas precisam virar a página "não encontrada" em vez de
@@ -173,6 +189,23 @@ export default async function MissaoDetalhePagina({
             `/programas/${programa}/${ciclo}/comite-gestor/referencias-missao`,
           )
         : Promise.resolve({ paises: [], instituicoes: [], redes: [] }),
+      // Equipe do ciclo: só o formulário de edição a usa, e só no Resumo.
+      // `OuNada` porque `equipe-gestao:read` é outra permissão — quem edita
+      // missão não necessariamente administra equipe, e um 403 aqui não pode
+      // derrubar a página inteira. Sem a lista, o botão de editar não aparece:
+      // o seletor de participante ficaria sem opções.
+      aba === "resumo" && me.permissions.includes("equipe-gestao:read")
+        ? apiFetchOuNada<MembroEquipeGestao[]>(
+            `/programas/${programa}/${ciclo}/comite-gestor/equipes`,
+          )
+        : Promise.resolve(null),
+      // Acordos, para o produto do tipo convênio apontar um. `convenio:read` é
+      // permissão própria — quem registra resultado de viagem não
+      // necessariamente lê o cadastro de acordos —, e sem ela o formulário
+      // avisa em vez de oferecer uma lista vazia sem explicação.
+      aba === "resumo" && me.permissions.includes("convenio:read")
+        ? apiFetchOuNada<ConvenioResumo[]>("/convenios")
+        : Promise.resolve(null),
     ]));
 
   /**
@@ -210,7 +243,44 @@ export default async function MissaoDetalhePagina({
     me.permissions.includes("missao:relato") && missao.status !== "CANCELADA";
   const podeEncerrar =
     me.permissions.includes("missao:close") && missao.status === "CONFIRMADA";
+  /*
+    Ciclo de vida da execução (V1-030). As origens são as mesmas que a API
+    aceita — a tela esconde o botão no estado errado, e quem chamar a rota
+    direto recebe 409. Não é dupla checagem: é não oferecer o que seria negado.
+
+    Editar olha a **aprovação**, e não a execução: o planejamento congela em
+    `EM_ANALISE` para o Comitê não aprovar texto diferente do que leu (CG-037),
+    e uma missão já confirmada continua editável enquanto não estiver em
+    análise.
+  */
+  const podeConfirmar =
+    me.permissions.includes("missao:confirm") &&
+    (missao.status === "RASCUNHO" || missao.status === "PLANEJADA");
+  const podeCancelar =
+    me.permissions.includes("missao:cancel") &&
+    (missao.status === "RASCUNHO" ||
+      missao.status === "PLANEJADA" ||
+      missao.status === "CONFIRMADA");
+  const podeReabrirExecucao =
+    me.permissions.includes("missao:reopen-execucao") &&
+    (missao.status === "CONCLUIDA" || missao.status === "CANCELADA");
+  const podeEditar =
+    me.permissions.includes("missao:edit") &&
+    // Sem a equipe do ciclo o seletor de participante fica sem opções, e
+    // salvar perderia quem já estava na missão: melhor não oferecer.
+    membros !== null &&
+    missao.statusAprovacao !== "EM_ANALISE" &&
+    missao.status !== "CANCELADA" &&
+    missao.status !== "CONCLUIDA";
   const podeDispensar = me.permissions.includes("missao:decide");
+  /*
+    Produtos (V1-031). Cada verbo tem a sua permissão, e a tela oferece só o
+    que a conta tem: `produto-missao:create` não implica `:edit`, e nenhum dos
+    dois implica `:delete`.
+  */
+  const podeCriarProduto = me.permissions.includes("produto-missao:create");
+  const podeEditarProduto = me.permissions.includes("produto-missao:edit");
+  const podeRemoverProduto = me.permissions.includes("produto-missao:delete");
   /*
     A prestação congela quando sai de um estado editável (CG-054).
     `COM_PENDENCIA` volta a aceitar lançamento: sem isso a devolução não teria
@@ -262,6 +332,32 @@ export default async function MissaoDetalhePagina({
         <SeloExecucao status={missao.status} />
         <Selo tom="neutro">{rotulo(missao.situacaoTemporal)}</Selo>
       </div>
+
+      {/*
+        Ciclo de vida da execução (V1-030), junto dos selos que ele muda: é
+        aqui que se olha para saber "em que pé está e o que dá para fazer".
+        Encerrar fica na aba de encerramento, com o checklist que o governa —
+        separá-lo daqui é o que impede o botão de prometer o que o checklist
+        vai recusar.
+      */}
+      {podeEditar || podeConfirmar || podeCancelar || podeReabrirExecucao ? (
+        <div className="mb-7 flex flex-wrap items-center gap-2">
+          {podeEditar && membros ? (
+            <EditarMissaoComite
+              programa={programa}
+              ciclo={ciclo}
+              membros={membros}
+              referencias={referencias}
+              missao={missao}
+            />
+          ) : null}
+          {podeConfirmar ? <ConfirmarMissao contexto={contexto} /> : null}
+          {podeCancelar ? <CancelarMissao contexto={contexto} /> : null}
+          {podeReabrirExecucao ? (
+            <ReabrirExecucao contexto={contexto} />
+          ) : null}
+        </div>
+      ) : null}
 
       <Abas base={`${base}/missoes/${id}`} ativa={aba} />
 
@@ -453,6 +549,19 @@ export default async function MissaoDetalhePagina({
             resultados={resultados}
             contexto={contexto}
             podeResponder={podeRelatar}
+            podeCriar={podeCriarProduto}
+            podeEditar={podeEditarProduto}
+            podeRemover={podeRemoverProduto}
+            referenciasProduto={{
+              instituicoes: referencias.instituicoes,
+              redes: referencias.redes,
+              // Quem viajou é quem responde pelo produto da viagem.
+              pessoas: missao.participantes.map((pessoa) => ({
+                id: pessoa.pessoaId,
+                nome: pessoa.nome,
+              })),
+              convenios: convenios ?? [],
+            }}
           />
 
           <Encerramento
@@ -606,10 +715,18 @@ function Resultados({
   resultados,
   contexto,
   podeResponder,
+  podeCriar,
+  podeEditar,
+  podeRemover,
+  referenciasProduto,
 }: {
   resultados: ResultadosDaMissao | null;
   contexto: { programa: string; ciclo: string; id: string };
   podeResponder: boolean;
+  podeCriar: boolean;
+  podeEditar: boolean;
+  podeRemover: boolean;
+  referenciasProduto: ReferenciasProduto;
 }) {
   // Sem `produto-missao:read` a API recusa a consulta; a seção diz isso em vez
   // de sumir, senão a missão pareceria não ter resultado nenhum.
@@ -630,9 +747,23 @@ function Resultados({
         titulo="Resultados"
         descricao="Produtos gerados pela missão e acordos dela decorrentes."
         acoes={
-          podeResponder ? (
-            <ReabrirRespostaProdutos contexto={contexto} />
-          ) : undefined
+          <div className="flex flex-wrap gap-2">
+            {/*
+              Cadastrar produto aqui **retira a declaração negativa**, com
+              auditoria (CG-056): não é preciso reabrir a resposta antes. Os
+              dois caminhos ficam lado a lado porque respondem a coisas
+              diferentes — "errei a declaração" e "apareceu um resultado".
+            */}
+            {podeCriar ? (
+              <NovoProdutoMissao
+                contexto={contexto}
+                referencias={referenciasProduto}
+              />
+            ) : null}
+            {podeResponder ? (
+              <ReabrirRespostaProdutos contexto={contexto} />
+            ) : null}
+          </div>
         }
       >
         <Aviso tom="info" titulo="Missão declarada sem produto">
@@ -652,9 +783,17 @@ function Resultados({
         titulo="Resultados"
         descricao="Produtos gerados pela missão e acordos dela decorrentes."
         acoes={
-          podeResponder ? (
-            <DeclararSemProduto contexto={contexto} />
-          ) : undefined
+          <div className="flex flex-wrap gap-2">
+            {podeCriar ? (
+              <NovoProdutoMissao
+                contexto={contexto}
+                referencias={referenciasProduto}
+              />
+            ) : null}
+            {podeResponder ? (
+              <DeclararSemProduto contexto={contexto} />
+            ) : null}
+          </div>
         }
       >
         <EstadoVazio
@@ -669,6 +808,14 @@ function Resultados({
     <Secao
       titulo="Resultados"
       descricao="Produtos gerados pela missão e acordos dela decorrentes."
+      acoes={
+        podeCriar ? (
+          <NovoProdutoMissao
+            contexto={contexto}
+            referencias={referenciasProduto}
+          />
+        ) : undefined
+      }
     >
       <Tabela
         rotulo="Produtos da missão"
@@ -677,6 +824,8 @@ function Resultados({
           { chave: "situacao", texto: "Situação" },
           { chave: "envolvidos", texto: "Envolvidos" },
           { chave: "documentos", texto: "Docs.", alinhamento: "direita" },
+          // Rótulo acessível, nunca `<th>` vazio (CG-064).
+          { chave: "acoes", texto: <span className="sr-only">Ações</span> },
         ]}
       >
         {resultados.produtos.map((produto) => (
@@ -704,6 +853,23 @@ function Resultados({
             </Celula>
             <Celula direita className="text-muted">
               {inteiro(produto.quantidadeDocumentos)}
+            </Celula>
+            <Celula direita>
+              <div className="flex flex-wrap items-center justify-end gap-3">
+                {podeEditar ? (
+                  <EditarProdutoMissao
+                    contexto={contexto}
+                    produto={produto}
+                    referencias={referenciasProduto}
+                  />
+                ) : null}
+                {podeRemover ? (
+                  <RemoverProdutoMissao
+                    contexto={contexto}
+                    produto={produto}
+                  />
+                ) : null}
+              </div>
             </Celula>
           </tr>
         ))}

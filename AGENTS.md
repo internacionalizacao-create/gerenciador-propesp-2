@@ -45,6 +45,12 @@ panorama, exportação, histórico do parceiro, anexos e ficha PDF recortam pela
 ação exercida, e CPF, e-mail e telefone só saem no JSON para quem tem a
 capacidade específica **e** alcance sobre aquele alvo. `escopoDe` sobrou em
 `ppgs.service.ts` e no `/me`, onde ainda descreve o escopo agregado da conta.
+**V1-020 e V1-021 fecharam o bloco:** a matriz cruzada entrou em regressão — dois
+ciclos, temática compartilhada, conta inativa e revogação — e o runbook de
+ativação, o comando `acesso:contas` e o ensaio de rollback ficaram prontos.
+**Conceder acesso às pessoas reais é ato de operação, não tarefa pendente:** a
+tela de Acessos é agnóstica e o admin concede sob demanda, conforme cada pessoa
+faz o primeiro login.
 
 **Conta sem concessão não enxerga nada**, e isso é o comportamento certo. Em
 desenvolvimento, o caminho curto é semear o administrador junto com a base:
@@ -115,6 +121,29 @@ de internacionalização: bolsas, orçamento por rede e área temática, mobilid
 IN/OUT e resultados individuais. Uso institucional, dados pessoais de alunos e servidores — o
 que justifica o rigor na parte de autenticação/autorização.
 
+**É um gerenciador, e só** (decisão do responsável, 2026-09-19). A fonte do que
+acontece de fato é a plataforma da CAPES: é lá que a bolsa é implementada, o
+recurso é remanejado e o bolsista desiste. **Manter o Gerenciador atualizado é
+responsabilidade de quem o usa**, não obrigação do sistema.
+
+Três consequências de desenho, e elas valem para qualquer módulo novo:
+
+1. **Não existe sincronização com a CAPES** — nem integração, nem importação
+   automática, nem conferência contra a plataforma. Nada aqui tenta adivinhar o
+   que mudou lá. Carregar uma planilha que alguém entrega (V1-073) é outra
+   coisa: continua sendo alguém registrando, com prévia e conferência humana.
+2. **O sistema confia no que o usuário registra.** Status informado à mão é o
+   status; não há validação contra fonte externa porque não há fonte externa
+   acessível.
+3. **Divergir não é erro do sistema.** Se o plano aqui não reflete a CAPES, o
+   que falta é alguém registrar — e a saída é a tela que registra, nunca um
+   alerta de "dado possivelmente desatualizado", que só transferiria para a
+   interface uma dúvida que o sistema não tem como resolver.
+
+Isso não afrouxa o rigor no que é **próprio** do Gerenciador: cálculo, recorte
+de acesso e trilha de auditoria continuam exatos, porque deles o sistema é a
+fonte.
+
 **Estado atual: o núcleo de planejamento está de pé.** Autenticação, modelo de
 dados com a seed real, serviços de cálculo (RN-01 a RN-20), telas de planejamento
 anual e o cadastro individual de bolsas/produtos existem e são verificados. As planilhas
@@ -139,7 +168,7 @@ vinda do escopo ampliado do Comitê Gestor — está em
 
 | Peça | Versão | Observação |
 |---|---|---|
-| Node | 24.13.0 | fixado em [.nvmrc](.nvmrc) — rode `nvm use` |
+| Node | 24.20.0 | fixado em [.nvmrc](.nvmrc) — rode `nvm use`; o CI lê o mesmo arquivo |
 | pnpm | 11.x | workspaces; lockfile único na raiz |
 | Turborepo | 2.x | orquestra `dev`/`build`/`lint`/`test` |
 | Next.js | **16.2.12** | App Router, Turbopack, React 19.2.4 |
@@ -437,6 +466,40 @@ docker exec gerenciador-api-db psql -U gerenciador -d postgres \
   -c "CREATE DATABASE gerenciador_test;"
 ```
 
+### Build reproduzível
+
+**O build não precisa de internet** (V1-052, 2026-09-19). Ele precisa de
+`pnpm install`, como qualquer projeto; o que saiu foi a busca de um arquivo de
+terceiros **no meio da compilação do código**.
+
+A tipografia vinha de `next/font/google`, que baixa os `.woff2` durante o build
+e depois os serve do próprio domínio. O runtime nunca falou com o Google — o
+build sim, e um build de intranet que depende de saída para a internet é um
+build que quebra no dia em que a saída não existe. Hoje as fontes vêm do pacote
+`geist`, que as traz em `node_modules` e as carrega por `next/font/local`.
+
+**Os nomes das variáveis CSS não mudaram** (`--font-geist-sans`,
+`--font-geist-mono`), então `globals.css` e os tokens ficaram intactos. O import
+de volta é uma linha, e a falha só apareceria num servidor sem rede: por isso
+[test/fontes.test.mjs](apps/web/test/fontes.test.mjs) o barra, junto com
+`@import` de fonte externa no CSS — esse seria pior, porque faria o **navegador**
+de cada pessoa buscar no Google.
+
+Para conferir num ambiente isolado de verdade:
+
+```bash
+rm -rf apps/web/.next
+unshare -rn sh -c 'ip link set lo up; apps/web/node_modules/.bin/next build'
+```
+
+O `ip link set lo up` é necessário porque o Turbopack conversa com os próprios
+processos por loopback — sem ele a falha é de isolamento, não de rede externa.
+
+**`.nvmrc`, CI e operação usam o mesmo Node.** O CI lê o arquivo
+(`node-version-file: .nvmrc`) e o pnpm sai de `packageManager` no
+`package.json`. Ao mudar de versão, mude o `.nvmrc` — é dele que os outros dois
+derivam.
+
 ### Verificação
 
 ```bash
@@ -447,6 +510,23 @@ pnpm smoke:login docente.teste docente123   # confere o 403 do endpoint restrito
 pnpm smoke:telas                            # abre cada tela e confere os numeros
 pnpm smoke:acesso                           # a matriz de acesso, por perfil
 ```
+
+**Integração no CI (V1-058):** o job `integration` provisiona Postgres 17
+com healthcheck e executa `pnpm --filter api test:int --no-cache`. Node vem de
+`.nvmrc` e pnpm de `packageManager`, nos dois jobs. Instala `poppler-utils`,
+`unzip` e `libreoffice-calc` para ler os arquivos exportados de verdade.
+Cada suíte aplica migrations e prepara suas fixtures; `seed-aceite` carrega a
+seed operacional e confere seus indicadores. `maxWorkers: 1` mantém as suítes
+serializadas; não execute dois comandos de integração sobre o mesmo banco.
+
+**A trava de testes aceita somente `gerenciador_test` em loopback**, sem query
+ou fragmento na URL. O servidor precisa confirmar `current_database()` antes
+de migrations e de cada limpeza. Não use esse nome para dados reais nem
+encaminhe a porta local para um banco institucional. O `globalSetup` verifica
+conexão e utilitários antes das suítes; falha de conexão tem mensagem única,
+sem senha. Os pools são fechados se a preparação falhar, e teardown tolera
+contexto não criado. `pnpm --filter api test:infra` verifica essa proteção,
+incluindo conexão recusada, sem precisar de Postgres disponível.
 
 `test:int` inclui o **teste de aceite da migração**: com a seed carregada, o
 sistema tem que reproduzir os indicadores das planilhas
@@ -1117,8 +1197,15 @@ senão o link some do menu e a URL continua respondendo erro.
   `admin`. A P17 possui as abas Visão geral, Missões e Equipes; Missões lista,
   filtra e pagina, e o cadastro multietapas grava roteiro repetível e
   participantes sem valores financeiros. A API cobre criação, detalhe, edição,
-  ciclo de vida e relato; a página de detalhe ainda não existe e foi reordenada
-  para depois da homologação do escopo ampliado. O
+  ciclo de vida e relato. **Desde a V1-030 (2026-09-19) o ciclo inteiro é
+  percorrível pela tela:** editar, confirmar, cancelar e reabrir a execução
+  entraram na página de detalhe, e encerrar continua na aba própria, junto do
+  checklist que o governa. A edição **reusa o formulário do cadastro** — as
+  regras são as mesmas, e mantê-las em dois lugares é garantir que divirjam —,
+  com duas diferenças: o campo de situação some (mudar situação é `/situacao`,
+  com regra de origem por ação) e **o `id` de cada participante e parada viaja
+  no payload**, porque o endpoint reconcilia as listas inteiras e linha sem `id`
+  é linha nova. Sem ele, salvar uma edição duplicaria o roteiro. O
   catálogo ISO de países é carregado por migration e seed. A composição formal
   das redes UFMG, UNESP e UNICAMP também é carregada por migration e seed: 10
   pessoas, 10 vínculos consolidados e 19 associações em
@@ -1350,11 +1437,17 @@ senão o link some do menu e a URL continua respondendo erro.
   exclusão de convênio (só inativação, FK `restrict`) nem remoção de produto
   documentado (regra da CG-052). `entidade_anexo` ganhou `PRODUTO_MISSAO` e
   `CONVENIO`. O histórico do parceiro ganhou as seções `convenios` e `produtos`,
-  e `modulosPendentes` ficou vazia. **A interface é leitura**, com uma exceção: a
-  seção *Resultados* traz a resposta "gerou produto?" desde a CG-046 — só a
-  **negativa**, porque o "sim" se responde cadastrando o produto e um botão
-  "Sim" gravaria afirmação sem nada que a sustente. O cadastro de produto e o
-  de convênio pela tela ainda não existem.
+  e `modulosPendentes` ficou vazia. **O cadastro de produto entrou na tela com a V1-031**
+  (2026-09-19): criar, editar e remover na seção *Resultados*, cada verbo com a
+  sua permissão. **Continua sem botão que responda "sim"** — o "sim" é a
+  existência da linha, e cadastrar já retira a declaração negativa, com
+  auditoria. Na missão declarada sem produto, *Cadastrar* e *Reabrir resposta*
+  ficam lado a lado: respondem a "apareceu um resultado" e a "errei a
+  declaração", que são coisas diferentes. O campo de acordo só aparece no tipo
+  `CONVENIO`, nos dois sentidos da regra bicondicional, e os responsáveis
+  oferecidos são **os participantes da missão** — creditar quem não viajou seria
+  afirmar o que ninguém declarou. **O cadastro de convênio pela tela ainda não
+  existe** (V1-032): aqui o acordo é apontado, nunca criado.
 
   **Encerramento da missão (CG-058)** entrou em 2026-09-06, e mudou o
   significado de `CONCLUIR`: a transição passa pelo **checklist inteiro**, não
@@ -1580,12 +1673,12 @@ interface é **Coordenador de Temática**, não “membro do comitê”. Ediçã
 existente exige `plano:edit` (só `admin`), preserva código/rubrica e grava uma
 entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: somente
 2027 vem composto; 2028–2030 começam vazios e nunca copiam a quantidade automaticamente.
-- **Testes**: 248 unitários/regressões (89 API + 159 na web para toast, datas,
+- **Testes**: 263 unitários/regressões (89 API + 174 na web para toast, datas,
   React Hook Form/Zod, erros do multistep, formulários de parceiro,
   acessibilidade, contraste dos tokens, cálculos monetários, montagem de série
   do gráfico, links do painel, pontas da mobilidade, cor das redes, caminhos
   do BFF, concessão de acesso, menu por capacidade e preservação do CPF na
-  edição) mais 635 casos de integração em 38 suítes contra Postgres real —
+  edição) mais 648 casos de integração em 39 suítes contra Postgres real —
   entre eles os 14 do recorte por ação da V1-015
   ([recorte-bolsas-v1.int-spec.ts](apps/api/test/recorte-bolsas-v1.int-spec.ts),
   que confere CSV, XLSX e PDF reais para a exportação não reintroduzir o campo
@@ -1630,9 +1723,16 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
   argumento que a CG-056 registrou sobre `produto_bolsa`.
 - **Registro de movimentações externas (P12).** Deve aceitar apenas origem/destino
   da mesma temática e registrar o que já aconteceu na CAPES, com status manual e
-  auditoria. O Gerenciador não propõe, autoriza ou executa. A estrutura genérica de
-  execução financeira permanece no schema para outros programas, mas P11 é fora do
-  escopo do CAPES Global porque os pagamentos são feitos diretamente pela CAPES.
+  auditoria. O Gerenciador não propõe, autoriza ou executa — e, pela decisão de
+  2026-09-19 (§1), **também não persegue**: sem integração, sem importação e sem
+  conferência contra a plataforma. A tabela `remanejamento` já existe no schema e
+  nunca foi usada; ela nasceu genérica, e o `status` `PROPOSTO` dela **não vale
+  aqui**, porque no CAPES Global não se propõe, só se registra o consumado. A
+  estrutura genérica de execução financeira permanece no schema para outros
+  programas, mas P11 é fora do escopo do CAPES Global porque os pagamentos são
+  feitos diretamente pela CAPES. O mesmo vale para o histórico de cancelamento,
+  desistência, falecimento e substituição: são eventos externos, e entram por
+  registro.
 - Relatórios (P20), importação com adaptador por programa (P21) e produção
   consolidada (P18/P19). Documentos e evidências (P22) existem no escopo da
   missão desde a CG-051/CG-057; o que falta de P22 é fora do Comitê Gestor. O documento novo
@@ -1645,13 +1745,6 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
   (lista, busca, cadastro, edição, contatos e histórico); o que falta dela
   depende da CG-045, ainda bloqueada. A visibilidade por rede é a CG-028 —
   hoje parceiros e contatos são exclusivos do `admin`.
-- **A lista nominal de acessos.** O recorte por ação cobre PPGs, plano,
-  orçamento, painel, programas, ciclos, bolsas, produtos, panorama, produção,
-  exportação, histórico do parceiro, anexos e ficha PDF; a **V1-020** pôs a
-  matriz cruzada sob regressão; e a **V1-021e** entregou o runbook de ativação,
-  o comando de desativação de contas e o ensaio de rollback. **O que falta não é
-  implementação:** quem recebe cada acesso é decisão do responsável, e a
-  execução depende do ambiente institucional autorizado.
 - **Home por perfil.** A P01 é a mesma para todos os perfis, e **continua assim
   até existir o recorte de plano e orçamento** (decisão de 2026-09-10). Uma
   home do coordenador montada antes disso ou mostraria o programa inteiro sob

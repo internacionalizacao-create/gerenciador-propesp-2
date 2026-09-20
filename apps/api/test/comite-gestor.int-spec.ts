@@ -44,7 +44,7 @@ describe('ComiteGestorService — equipes', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   beforeEach(async () => {
@@ -392,7 +392,7 @@ describe('MissoesComiteService — criacao transacional', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   beforeEach(async () => {
@@ -799,7 +799,7 @@ describe('MissoesComiteService — lista e filtros', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   /** Tres missoes com periodos, paises e situacoes deliberadamente distintos. */
@@ -1190,7 +1190,7 @@ describe('MissoesComiteService — detalhe', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   beforeEach(async () => {
@@ -1450,7 +1450,7 @@ describe('MissoesComiteService — edicao com auditoria', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   beforeEach(async () => {
@@ -2070,7 +2070,7 @@ describe('MissoesComiteService — ciclo de vida', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   beforeEach(async () => {
@@ -2432,7 +2432,7 @@ describe('MissoesComiteService — relato e conclusao', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   beforeEach(async () => {
@@ -2926,7 +2926,7 @@ describe('MissoesComiteService — redes da missao', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   beforeEach(async () => {

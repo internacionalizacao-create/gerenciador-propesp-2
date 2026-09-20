@@ -42,7 +42,7 @@ describe('Resolver de acesso — concessoes por acao', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   beforeEach(async () => {

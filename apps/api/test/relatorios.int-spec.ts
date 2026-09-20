@@ -79,7 +79,7 @@ describe('Relatorios estrategicos (CG-068)', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   beforeEach(async () => {

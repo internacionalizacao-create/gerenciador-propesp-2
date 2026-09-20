@@ -47,7 +47,7 @@ describe('Concessoes de acesso — persistencia', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   beforeEach(async () => {

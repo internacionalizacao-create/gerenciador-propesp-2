@@ -81,7 +81,7 @@ describe('Encerramento da missao (CG-058)', () => {
   });
 
   afterAll(async () => {
-    await ctx.encerrar();
+    await ctx?.encerrar();
   });
 
   beforeEach(async () => {

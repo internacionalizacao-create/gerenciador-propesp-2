@@ -47,7 +47,7 @@ describe('Recorte por acao no planejamento', () => {
     contexto = new ContextoService(ctx.db);
   });
 
-  afterAll(async () => ctx.encerrar());
+  afterAll(async () => ctx?.encerrar());
 
   beforeEach(async () => {
     await ctx.limpar();
