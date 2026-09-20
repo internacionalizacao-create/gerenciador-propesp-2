@@ -320,6 +320,8 @@ scripts/
   api.sh                   chama a API autenticado, pelo BFF (atos ainda sem tela)
 docs/
   autenticacao.md          detalhamento da arquitetura de auth
+  eventos-externos-v1.md   contrato da P12 e dos eventos de bolsista (V1-035)
+  retencao-v1.md           o que se guarda, por quanto tempo, e o que falta decidir
   migracao-ui.md           inventário e padrões da migração da UI local
   guia-cadastro-do-zero.md roteiro do fluxo completo com o banco zerado
 ```
@@ -821,12 +823,15 @@ ficam como estão. O `<dialog>` nativo continua sendo a decisão — foco preso,
   [consultas/lista-parceiros.tsx](apps/web/src/componentes/consultas/lista-parceiros.tsx):
   `initialData` recebe o que o servidor já buscou, `keepPreviousData` evita a
   tabela piscar em branco a cada tecla, e a URL continua refletindo o filtro por
-  `window.history.replaceState` — sem isso, quem manda o link de uma busca
-  mandaria a lista inteira. Retry não insiste em 4xx: 401/403 não melhoram.
+  `window.history.pushState`, restaurada por `popstate` — sem isso, quem manda
+  o link de uma busca mandaria a lista inteira. Retry não insiste em 4xx: 401/403 não melhoram.
 - **`initialData` só vale na criação da consulta.** Depois de uma Server Action
   o servidor manda a lista nova e o cache continuaria mostrando a velha — o
   parceiro gravava e não aparecia. A lista de parceiros regrava o cache e
-  invalida `["parceiros"]` quando `dadosIniciais` muda.
+  invalida `["parceiros"]` quando `dadosIniciais` muda. Os formulários também
+  invalidam consultas inativas após salvar. A lista usa `refetchOnMount: "always"`
+  para conferir snapshots restaurados pelo histórico do Next: a primeira
+  pintura continua no servidor, com uma conferência pelo BFF após montar.
 - **Server Action revalida a rota real, não um apelido.** A tela de parceiros
   mora em `programas/[programa]/[ciclo]`; `revalidatePath("/parceiros")` não
   revalidava nada. Quando a ação não conhece os segmentos, use o padrão com
@@ -928,6 +933,10 @@ senão o link some do menu e a URL continua respondendo erro.
     calculada na leitura. `data_fim` é editável, e coluna gravada divergiria na
     primeira correção de período. **Não há expurgo automático** em lugar nenhum
     do sistema; o campo torna a política conferível, executá-la é ato humano.
+    O inventário completo — o que se guarda, por quanto tempo e o que ainda não
+    tem prazo — está em [docs/retencao-v1.md](docs/retencao-v1.md) (V1-039),
+    junto com o limite honesto: **descartar um documento não o remove dos
+    backups anteriores**, porque um dump é retrato do banco inteiro.
   - **A tela é a seção *Documentos do bolsista*** em
     `/mobilidade/bolsistas/[id]`, com envio em sidesheet (RHF + Zod) e download
     por `/anexos/:id/conteudo`. **Não há seletor de visibilidade** — quem decide
@@ -1248,9 +1257,13 @@ senão o link some do menu e a URL continua respondendo erro.
   oferece botão, porque a API recusa mesmo confirmada. Não há ação de excluir em
   lugar nenhum: a saída é inativar. A conciliação também tem interface — a
   origem vira o cadastro inativo e o escolhido permanece, com justificativa
-  obrigatória e aviso do que será transferido. A lista avisa quando bate no
-  limite de 200 do serviço, em vez de cortar em silêncio; paginação de verdade
-  exigiria mudar o contrato da API. A seleção de parceiro dentro da missão
+  obrigatória e aviso do que será transferido. **V1-042 (2026-09-20)** pagina
+  a lista em SQL: `GET /parceiros` retorna `itens`, `total`, `pagina`, `tamanho`,
+  `paginas` e `resumo`. Padrão 50, máximo 200; ordenação por nome e ID. Filtros
+  e página ficam na URL, e voltar/avançar restaura os controles. Resumo e total
+  usam o conjunto filtrado inteiro. Página que deixou de existir oferece
+  retorno à última disponível. `parceiro:read` continua GLOBAL (catálogo
+  compartilhado); rede é filtro, não concessão. A seleção de parceiro dentro da missão
   continua na CG-045. A CG-018 ampliou missão, atividade e participante:
   responsável único por papel, destino/evento completos, contato central,
   período individual e dias inclusivos derivados. A API cobre esses campos; a
@@ -1446,8 +1459,17 @@ senão o link some do menu e a URL continua respondendo erro.
   declaração", que são coisas diferentes. O campo de acordo só aparece no tipo
   `CONVENIO`, nos dois sentidos da regra bicondicional, e os responsáveis
   oferecidos são **os participantes da missão** — creditar quem não viajou seria
-  afirmar o que ninguém declarou. **O cadastro de convênio pela tela ainda não
-  existe** (V1-032): aqui o acordo é apontado, nunca criado.
+  afirmar o que ninguém declarou. **O convênio ganhou tela na V1-032**
+  (2026-09-20), mas **na página do parceiro, não aqui**: o acordo se ancora na
+  instituição e sobrevive à viagem — dentro da missão ele continua sendo
+  apontado, nunca criado. Lá estão cadastrar, editar, inativar e reativar, cada
+  um escondido pela sua própria permissão (`convenio:create`, `:edit`,
+  `:status`), sem exclusão e com justificativa obrigatória nos dois sentidos da
+  inativação. O histórico do parceiro passou a trazer também `numeroProcesso`,
+  `objetivo`, `observacoes` e as **redes** do acordo, porque é dele que o
+  formulário de edição se preenche e a API reconcilia a lista de redes inteira;
+  as redes vêm por consulta à parte, nunca por `join`, senão o acordo de duas
+  redes viraria duas linhas na ficha.
 
   **Encerramento da missão (CG-058)** entrou em 2026-09-06, e mudou o
   significado de `CONCLUIR`: a transição passa pelo **checklist inteiro**, não
@@ -1669,7 +1691,36 @@ tem a aba **Visão geral** e uma aba por rede, persistida em `?rede=`; não crie
 rotas ou serviços duplicados para cada rede. Cada participação PPG–temática
 aponta para um `coordenadorTematicaId`; uma pessoa pode coordenar vários PPGs e
 uma temática pode ter coordenadores diferentes conforme o PPG. O termo de
-interface é **Coordenador de Temática**, não “membro do comitê”. Edição de linha
+interface é **Coordenador de Temática**, não “membro do comitê”.
+
+**A participação PPG–temática passou a ser administrada pela tela (V1-034,
+2026-09-20)**, na página da temática: associar, editar e remover, com as
+permissões institucionais `participacao:create`, `:edit` e `:delete`. O escopo é
+`GLOBAL` pelo mesmo argumento que tirou `ppg:write` do coordenador — **a
+participação é ela própria alvo de concessão**, e quem a cria decide, de lado, o
+que outras contas passam a alcançar. Três regras que a implementação ingênua
+erra:
+
+1. **Remover é recusado quando há concessão apontando para o vínculo**, ativa ou
+   já revogada, porque `concessao_acesso.participacao_id` é **`on delete
+   cascade`**: o `delete` apagaria as concessões dentro do banco, sem trilha e
+   sem ninguém ter revogado nada — inclusive as revogadas, que são o único
+   registro de quem teve aquele acesso. A saída para o vínculo que já teve
+   concessão é marcá-lo *não contemplado* na edição.
+2. **Trocar o responsável não transfere acesso.** Quem sai continua com o que
+   lhe foi concedido, e quem entra continua sem nada — são duas perguntas
+   separadas desde a V1-012. A troca grava auditoria por campo.
+3. **A edição não troca o PPG**, pela mesma razão do item de catálogo em uso: a
+   linha de plano que aponta para o par antigo passaria a descrever um programa
+   que ninguém decidiu.
+
+**Armadilha de SQL que ficou documentada no código:** dentro de um `sql` cru, o
+Drizzle emite a coluna interpolada **sem o nome da tabela**. Numa subconsulta
+correlacionada, `pp.ppg_id = ${s.ppg.id}` vira `pp.ppg_id = "id"` e casa com o
+`id` da tabela interna — a condição responde sempre `false`, em silêncio, porque
+continua sendo SQL válido. Qualifique a coluna externa à mão.
+
+Edição de linha
 existente exige `plano:edit` (só `admin`), preserva código/rubrica e grava uma
 entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: somente
 2027 vem composto; 2028–2030 começam vazios e nunca copiam a quantidade automaticamente.
@@ -1732,7 +1783,15 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
   programas, mas P11 é fora do escopo do CAPES Global porque os pagamentos são
   feitos diretamente pela CAPES. O mesmo vale para o histórico de cancelamento,
   desistência, falecimento e substituição: são eventos externos, e entram por
-  registro.
+  registro. **O contrato está escrito** em
+  [docs/eventos-externos-v1.md](docs/eventos-externos-v1.md) (V1-035): o schema
+  foi mapeado antes de propor tabela nova — `remanejamento` serve ao grupo do
+  recurso com três ajustes, e o evento de bolsista ganha tabela própria. Três
+  achados do código entraram no contrato porque **já se comportam**:
+  `CANCELADA` libera a vaga e `INTERROMPIDA` não; o evento **não mexe no
+  orçamento**, porque o custo do plano sai de `planejamento_anual`; e o
+  **panorama conta bolsa cancelada**, o que viraria dupla contagem assim que
+  houvesse desistência registrada.
 - Relatórios (P20), importação com adaptador por programa (P21) e produção
   consolidada (P18/P19). Documentos e evidências (P22) existem no escopo da
   missão desde a CG-051/CG-057; o que falta de P22 é fora do Comitê Gestor. O documento novo
@@ -1740,11 +1799,11 @@ entrada de auditoria por campo alterado. O exercício também fica em `?ano=`: s
   e a prioridade ainda dependem da CG-005. Produtos individuais por bolsa
   continuam em P03 e **não** foram reutilizados como produto de missão: a
   CG-056 criou domínio próprio (`produto_missao`), separado de `produto_bolsa`.
-- Seleção de parceiro **dentro da missão**, conciliação pela interface e
-  paginação da lista de parceiros. A CG-049 entregou o lado do parceiro
-  (lista, busca, cadastro, edição, contatos e histórico); o que falta dela
-  depende da CG-045, ainda bloqueada. A visibilidade por rede é a CG-028 —
-  hoje parceiros e contatos são exclusivos do `admin`.
+- Revisão de volume dos seletores de parceiro: a conciliação ainda carrega
+  os primeiros 200, e a detecção de duplicidade examina até 1.000 instituições
+  antes de comparar. A lista principal já está paginada (V1-042). Parceiros
+  continuam sendo catálogo compartilhado, protegido por `parceiro:read` GLOBAL;
+  o histórico é recortado separadamente por ação.
 - **Home por perfil.** A P01 é a mesma para todos os perfis, e **continua assim
   até existir o recorte de plano e orçamento** (decisão de 2026-09-10). Uma
   home do coordenador montada antes disso ou mostraria o programa inteiro sob

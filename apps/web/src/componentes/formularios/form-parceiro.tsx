@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { startTransition, useActionState } from "react";
 import { useForm } from "react-hook-form";
@@ -96,7 +97,13 @@ function FormParceiro({
     ? atualizarParceiro.bind(null, parceiro.id)
     : criarParceiro;
   const [estado, executar, enviando] = useActionState(acao, ESTADO_INICIAL);
-  useToastDaAcao(estado, aoConcluir);
+  const consultas = useQueryClient();
+  useToastDaAcao(estado, () => {
+    // A lista pode estar desmontada durante a edicao no detalhe. Invalidar
+    // tambem as consultas inativas impede restaurar o nome antigo ao voltar.
+    void consultas.invalidateQueries({ queryKey: ["parceiros"] });
+    aoConcluir();
+  });
 
   const {
     register,

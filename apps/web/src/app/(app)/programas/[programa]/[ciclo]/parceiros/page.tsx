@@ -6,8 +6,9 @@ import { Pagina } from "@/componentes/ui/basicos";
 import { SemAcesso } from "@/componentes/ui/sem-acesso";
 import { faltando } from "@/lib/acesso";
 import { apiFetch, apiFetchOuNada } from "@/lib/api";
+import { normalizarPaginaParceiros } from "@/lib/paginacao-parceiros";
 import { carregarMe } from "@/lib/me";
-import type { Parceiro, ReferenciasMissao } from "@/lib/dominio";
+import type { PaginaParceiros, ReferenciasMissao } from "@/lib/dominio";
 
 export const metadata: Metadata = {
   title: "Parceiros — Gerenciador PROPESP",
@@ -58,22 +59,26 @@ export default async function ParceirosPagina({
     );
   }
 
+  // A página faz parte do filtro, e por isso vem da URL: quem manda o link de
+  // uma busca manda a página que estava vendo (V1-042).
   const filtrosIniciais = {
     busca: primeiro(consulta.busca) ?? "",
     redeId: primeiro(consulta.redeId) ?? "",
     incluirInativos: primeiro(consulta.inativos) === "true",
+    pagina: normalizarPaginaParceiros(primeiro(consulta.pagina)),
   };
 
   const parametros = new URLSearchParams();
   if (filtrosIniciais.busca) parametros.set("busca", filtrosIniciais.busca);
   if (filtrosIniciais.redeId) parametros.set("redeId", filtrosIniciais.redeId);
   if (filtrosIniciais.incluirInativos) parametros.set("incluirInativos", "true");
+  parametros.set("pagina", String(filtrosIniciais.pagina));
 
   // As referências vêm do módulo de missões e exigem `missao:read`: quem
   // administra parceiros sem acompanhar missões continua vendo a lista, só sem
   // o filtro por rede e sem o cadastro (que precisa de rede e país).
-  const [parceiros, referencias] = await Promise.all([
-    apiFetch<Parceiro[]>(`/parceiros?${parametros.toString()}`),
+  const [pagina, referencias] = await Promise.all([
+    apiFetch<PaginaParceiros>(`/parceiros?${parametros.toString()}`),
     apiFetchOuNada<ReferenciasMissao>(
       `/programas/${programa}/${ciclo}/comite-gestor/referencias-missao`,
     ),
@@ -98,7 +103,7 @@ export default async function ParceirosPagina({
       <ListaParceiros
         base={`/programas/${programa}/${ciclo}/parceiros`}
         filtrosIniciais={filtrosIniciais}
-        dadosIniciais={parceiros}
+        dadosIniciais={pagina}
         redes={referencias?.redes ?? []}
       />
     </Pagina>

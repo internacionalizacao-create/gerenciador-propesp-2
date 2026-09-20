@@ -101,6 +101,11 @@ a tela de Acessos é agnóstica e o admin concede sob demanda, conforme cada
 pessoa entra. Evidências na ficha. Dependência
 pendente significa ordem de execução; não é prova de impedimento externo.
 
+**V1-042 concluída em 2026-09-20:** paginação SQL de parceiros, filtros e página
+na URL, atualização de cache após alterações e medição com 10 mil registros.
+Integração e jornada no navegador verificadas; evidências e limites dos
+seletores registrados na ficha.
+
 Prioridades: **P0** necessária para liberação ampla interna; **P1** entregar ou
 excluir expressamente da V1 (todas incluídas em 2026-09-18); **P2** evolução opcional. Selecionar uma P2 não
 promove automaticamente todas as outras para o escopo da V1.
@@ -155,17 +160,17 @@ dependências são obrigatórios, exceto quando a ficha indicar uma condição.
 | V1-021 | P0 | Ativação restritiva e rollback — concluída (a/d/e entregues; b/c canceladas) | 018–020 |
 | V1-030 | P0 | Ciclo de vida completo da missão na web — concluída | 001 |
 | V1-031 | P0 | Produtos de missão na web — concluída | 001 |
-| V1-032 | P1 | Gestão de convênios na web | 016 |
-| V1-033 | P1 | Tratamento de pendências | 012 |
-| V1-034 | P1 | Gestão de participações PPG–temática | 011 |
-| V1-035 | P1 | Contrato dos eventos externos CAPES | 001 |
+| V1-032 | P1 | Gestão de convênios na web — concluída | 016 |
+| V1-033 | P1 | Tratamento de pendências — encerrada sem tela (decisão de 2026-09-20) | 012 |
+| V1-034 | P1 | Gestão de participações PPG–temática — concluída | 011 |
+| V1-035 | P1 | Contrato dos eventos externos CAPES — concluída | 001 |
 | V1-036 | P1 | API e histórico de eventos externos | 014, 035 |
 | V1-037 | P1 | Interface dos eventos externos | 036 |
 | V1-038 | P1 | Completar e conferir dados institucionais | 034 |
-| V1-039 | P1 | Política e procedimentos de retenção | 001 |
+| V1-039 | P1 | Política e procedimentos de retenção — concluída | 001 |
 | V1-040 | P1 | Homologar relatórios prioritários | 016 |
 | V1-041 | P1 | Qualidade e reconciliação de destinos | 015 |
-| V1-042 | P1 | Paginação de parceiros | 016 |
+| V1-042 | P1 | Paginação de parceiros — concluída | 016 |
 | V1-050 | P0 | Plano de implantação interna | 001 |
 | V1-051 | P0 | Ambiente de produção na intranet | 050, 052 |
 | V1-052 | P0 | Build reproduzível e fontes — concluída | — |
@@ -174,7 +179,7 @@ dependências são obrigatórios, exceto quando a ficha indicar uma condição.
 | V1-055 | P1 | Logs, prontidão e alertas operacionais | 051 |
 | V1-056 | P1 | Limites de requisições e operações caras | 050 |
 | V1-057 | P1 | Auditoria transversal | 012 |
-| V1-058 | P0 | Integração no CI e runtime alinhado — em andamento (implementada; execução no GitHub pendente) | 052 |
+| V1-058 | P0 | Integração no CI e runtime alinhado — concluída | 052 |
 | V1-059 | P0 | Jornadas automatizadas no navegador | 020, 030, 031, 058 |
 | V1-060 | P0 | Homologação e aceite da versão interna | Ver ficha |
 | V1-070 | P2 | E-mail institucional | 050 |

@@ -252,6 +252,10 @@ herdam o catálogo e precisam de entrada explícita neste inventário.
 | `GET /programas/:programa/:ciclo/painel` | painel:read | painel:read |
 | `GET /programas/:programa/:ciclo/redes` | orcamento:read | orcamento:read |
 | `GET /programas/:programa/:ciclo/tematicas/:codigo` | orcamento:read | orcamento:read |
+| `GET /programas/:programa/:ciclo/tematicas/:codigo/participacoes/referencias` | participacao:create **ou** participacao:edit (resolvida no handler) | — |
+| `POST /programas/:programa/:ciclo/tematicas/:codigo/participacoes` | participacao:create | participacao:create |
+| `PATCH /programas/:programa/:ciclo/tematicas/:codigo/participacoes/:id` | participacao:edit | participacao:edit |
+| `DELETE /programas/:programa/:ciclo/tematicas/:codigo/participacoes/:id` | participacao:delete | participacao:delete |
 | `GET /programas/:programa/:ciclo/orcamento` | orcamento:read | orcamento:read |
 | `PATCH /programas/:programa/:ciclo/orcamento/:id` | orcamento:edit + alcance da ação | orcamento:edit |
 | `GET /programas/:programa/:ciclo/plano` | plano:read; referências separadas por plano:create/edit/cancel | plano:read |

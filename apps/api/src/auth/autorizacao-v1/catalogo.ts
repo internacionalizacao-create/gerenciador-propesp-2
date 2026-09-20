@@ -23,6 +23,22 @@ export const CATALOGO_PERMISSOES_V1 = {
   },
   'ppg:create': { rotulo: 'Cadastrar PPG', escopos: INSTITUCIONAL },
   'ppg:edit': { rotulo: 'Editar PPG', escopos: INSTITUCIONAL },
+  // Participacao PPG-tematica (V1-034). Escopo **institucional**, e nao por
+  // ciclo ou tematica, pelo mesmo argumento que tirou `ppg:write` do
+  // coordenador: a participacao e ela propria alvo de concessao, e quem a cria
+  // decide, de lado, o que outras contas passam a alcancar.
+  'participacao:create': {
+    rotulo: 'Associar PPG a área temática',
+    escopos: INSTITUCIONAL,
+  },
+  'participacao:edit': {
+    rotulo: 'Editar participação e responsável',
+    escopos: INSTITUCIONAL,
+  },
+  'participacao:delete': {
+    rotulo: 'Remover participação de PPG',
+    escopos: INSTITUCIONAL,
+  },
   'catalogo:read': {
     rotulo: 'Consultar catálogo e modalidades',
     escopos: INSTITUCIONAL,

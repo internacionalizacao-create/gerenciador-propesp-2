@@ -10,6 +10,11 @@ import {
   EditarContato,
   NovoContato,
 } from "@/componentes/formularios/form-contato-parceiro";
+import {
+  AlternarConvenio,
+  EditarConvenio,
+  NovoConvenio,
+} from "@/componentes/formularios/form-convenio";
 import { EditarParceiro } from "@/componentes/formularios/form-parceiro";
 import {
   Aviso,
@@ -28,7 +33,7 @@ import { ApiError, apiFetch, apiFetchOuNada } from "@/lib/api";
 import { carregarMe } from "@/lib/me";
 import type {
   HistoricoParceiro,
-  Parceiro,
+  PaginaParceiros,
   ReferenciasMissao,
 } from "@/lib/dominio";
 import { data, inteiro, rotulo } from "@/lib/formato";
@@ -66,9 +71,12 @@ export default async function ParceiroDetalhe({
     apiFetchOuNada<ReferenciasMissao>(
       `/programas/${programa}/${ciclo}/comite-gestor/referencias-missao`,
     ),
-    // Destinos possiveis da conciliacao. A API exige destino ativo, entao a
-    // lista padrao (so ativos) ja e o conjunto certo.
-    apiFetch<Parceiro[]>("/parceiros"),
+    // Destinos possíveis da conciliação. A API exige destino ativo, então a
+    // lista padrão (só ativos) já é o conjunto certo.
+    //
+    // Mantem o limite anterior do seletor. A lista principal agora pagina;
+    // este seletor ainda oferece os primeiros 200 (revisao de volume V1-042).
+    apiFetch<PaginaParceiros>("/parceiros?tamanho=200"),
   ]);
 
   const {
@@ -87,6 +95,23 @@ export default async function ParceiroDetalhe({
   // O texto de cada estado vazio afirma uma das duas, e afirmar a errada
   // publicaria "não houve mobilidade" para quem apenas não pode consultá-la.
   const podeEscrever = me.permissions.includes("parceiro:edit");
+  // Os três verbos do convênio são permissões distintas (V1-032), e a tela
+  // esconde cada botão pela sua: agrupá-los numa só ofereceria a quem só pode
+  // cadastrar uma edição que a API recusaria.
+  const podeCriarConvenio = me.permissions.includes("convenio:create");
+  const podeEditarConvenio = me.permissions.includes("convenio:edit");
+  const podeAlternarConvenio = me.permissions.includes("convenio:status");
+  // As missões oferecidas como origem são as que já tocam este parceiro — as
+  // mesmas da seção acima, e dentro do alcance de quem lê. Oferecer o ciclo
+  // inteiro convidaria a atribuir o acordo a uma viagem que nunca passou aqui.
+  const referenciasConvenio = {
+    redes: referencias?.redes ?? [],
+    missoes: missoes.map((missao) => ({
+      id: missao.id,
+      codigo: missao.codigo,
+      titulo: missao.titulo,
+    })),
+  };
   const base = `/programas/${programa}/${ciclo}/parceiros`;
 
   return (
@@ -107,7 +132,9 @@ export default async function ParceiroDetalhe({
             />
             <ConciliarParceiroBotao
               parceiro={parceiro}
-              candidatos={ativos.filter((item) => item.id !== parceiro.id)}
+              candidatos={ativos.itens.filter(
+                (item) => item.id !== parceiro.id,
+              )}
             />
             <InativarParceiroBotao parceiro={parceiro} />
           </div>
@@ -572,11 +599,37 @@ export default async function ParceiroDetalhe({
         </Secao>
       ) : null}
 
-      {convenios.length > 0 ? (
-        <Secao
-          titulo="Convênios"
-          descricao="Acordos firmados com esta instituição. O convênio continua valendo depois da missão que o originou."
-        >
+      {/*
+        Convênios (V1-032).
+        A seção existe mesmo vazia, e o texto do vazio distingue as duas
+        ausências — não há acordo, ou a conta não alcança a consulta. Os verbos
+        são três permissões distintas, e não uma só de escrita: cadastrar um
+        acordo, corrigir o que está escrito nele e tirá-lo de circulação são
+        atos diferentes.
+      */}
+      <Secao
+        titulo="Convênios"
+        descricao="Acordos firmados com esta instituição. O convênio continua valendo depois da missão que o originou — por isso ele mora aqui, e não dentro dela."
+        acoes={
+          acesso.convenios && podeCriarConvenio && parceiro.ativo ? (
+            <NovoConvenio
+              instituicaoId={parceiro.id}
+              referencias={referenciasConvenio}
+            />
+          ) : undefined
+        }
+      >
+        {!acesso.convenios ? (
+          <EstadoVazio
+            titulo="Sem acesso aos convênios"
+            descricao="A consulta de convênios não foi concedida a esta conta. O cadastro do parceiro continua disponível."
+          />
+        ) : convenios.length === 0 ? (
+          <EstadoVazio
+            titulo="Nenhum acordo cadastrado"
+            descricao="Registre aqui o acordo formal com a instituição. Enquanto não houver nenhum vigente, o relacionamento aparece como “sem parceria formalizada”, que é leitura derivada e não se edita à mão."
+          />
+        ) : (
           <Tabela
             rotulo="Convênios do parceiro"
             colunas={[
@@ -584,6 +637,11 @@ export default async function ParceiroDetalhe({
               { chave: "situacao", texto: "Situação" },
               { chave: "vigencia", texto: "Vigência" },
               { chave: "origem", texto: "Origem" },
+              {
+                chave: "acoes",
+                texto: <span className="sr-only">Ações</span>,
+                alinhamento: "direita",
+              },
             ]}
           >
             {convenios.map((convenio) => (
@@ -595,13 +653,19 @@ export default async function ParceiroDetalhe({
                   <span className="block text-xs text-subtle">
                     {rotulo(convenio.tipoAcordo)}
                     {convenio.area ? ` · ${convenio.area}` : ""}
+                    {convenio.numeroProcesso
+                      ? ` · processo ${convenio.numeroProcesso}`
+                      : ""}
                   </span>
+                  {convenio.redes.length > 0 ? (
+                    <span className="mt-1 block text-xs text-muted">
+                      {convenio.redes.map((rede) => rede.nome).join(", ")}
+                    </span>
+                  ) : null}
                 </Celula>
                 <Celula>
                   <Selo tom={convenio.ativo ? "neutro" : "aviso"}>
-                    {convenio.ativo
-                      ? rotulo(convenio.situacao)
-                      : "Inativado"}
+                    {convenio.ativo ? rotulo(convenio.situacao) : "Inativado"}
                   </Selo>
                 </Celula>
                 <Celula className="text-muted">
@@ -614,11 +678,24 @@ export default async function ParceiroDetalhe({
                 <Celula className="text-muted">
                   {convenio.missaoOrigemCodigo ?? "fora de missão"}
                 </Celula>
+                <Celula direita>
+                  <span className="flex justify-end gap-2">
+                    {podeEditarConvenio && convenio.ativo ? (
+                      <EditarConvenio
+                        convenio={convenio}
+                        referencias={referenciasConvenio}
+                      />
+                    ) : null}
+                    {podeAlternarConvenio ? (
+                      <AlternarConvenio convenio={convenio} />
+                    ) : null}
+                  </span>
+                </Celula>
               </tr>
             ))}
           </Tabela>
-        </Secao>
-      ) : null}
+        )}
+      </Secao>
 
       {produtos.length > 0 ? (
         <Secao

@@ -1,5 +1,6 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { useActionState } from "react";
 
 import {
@@ -93,7 +94,11 @@ function FormConciliacao({
     conciliarParceiro.bind(null, parceiro.id),
     ESTADO_INICIAL,
   );
-  useToastDaAcao(estado, aoConcluir);
+  const consultas = useQueryClient();
+  useToastDaAcao(estado, () => {
+    void consultas.invalidateQueries({ queryKey: ["parceiros"] });
+    aoConcluir();
+  });
 
   return (
     <form
@@ -262,7 +267,11 @@ function FormJustificativa({
   dica: string;
 }) {
   const [estado, executar, enviando] = useActionState(acao, ESTADO_INICIAL);
-  useToastDaAcao(estado, aoConcluir);
+  const consultas = useQueryClient();
+  useToastDaAcao(estado, () => {
+    void consultas.invalidateQueries({ queryKey: ["parceiros"] });
+    aoConcluir();
+  });
 
   return (
     <form

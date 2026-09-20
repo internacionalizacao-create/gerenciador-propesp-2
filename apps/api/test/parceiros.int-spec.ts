@@ -85,17 +85,25 @@ describe('ParceirosService', () => {
       quantidadeMissoes: 0,
     });
     expect(
-      await service.listar({
-        busca: 'montreal',
-        redeId: base.redeId,
-        incluirInativos: false,
-      }),
+      (
+        await service.listar({
+          busca: 'montreal',
+          redeId: base.redeId,
+          incluirInativos: false,
+          pagina: 1,
+          tamanho: 50,
+        })
+      ).itens,
     ).toHaveLength(1);
     expect(
-      await service.listar({
-        busca: 'inexistente',
-        incluirInativos: false,
-      }),
+      (
+        await service.listar({
+          busca: 'inexistente',
+          incluirInativos: false,
+          pagina: 1,
+          tamanho: 50,
+        })
+      ).itens,
     ).toHaveLength(0);
 
     const [auditoria] = await ctx.db
@@ -184,8 +192,14 @@ describe('ParceirosService', () => {
       admin,
     );
     expect(inativo.ativo).toBe(false);
-    expect(await service.listar({ incluirInativos: false })).toHaveLength(0);
-    expect(await service.listar({ incluirInativos: true })).toHaveLength(1);
+    expect(
+      (await service.listar({ incluirInativos: false, pagina: 1, tamanho: 50 }))
+        .itens,
+    ).toHaveLength(0);
+    expect(
+      (await service.listar({ incluirInativos: true, pagina: 1, tamanho: 50 }))
+        .itens,
+    ).toHaveLength(1);
     await expect(
       service.atualizar(criado.id, { cidade: 'Ottawa' }, admin),
     ).rejects.toMatchObject({ status: 400 });

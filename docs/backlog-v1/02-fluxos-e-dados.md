@@ -159,57 +159,208 @@ Todas as P1 deste grupo foram incluídas na V1 pelo responsável em 2026-09-18.
 
 ## V1-032 — Gerir convênios pela interface
 
+- **Estado / data:** **Concluída em 2026-09-20.**
 - **Prioridade/dependência:** P1; V1-016.
 - **Objetivo:** operar acordos já suportados pela API sem scripts.
-- **Arquivos:** `convenios.controller.ts`, `resultados.service.ts`,
-  `database/schema/resultados.ts`, página do parceiro, navegação, novas ações.
-- **Implementação:** escolher navegação simples entre lista e detalhe do parceiro;
-  criar/editar/inativar/reativar pelos endpoints existentes; exibir instituição,
-  vigência, situação e vínculos. Não tratar convênio como propriedade exclusiva
-  de uma missão. Atualizar leitura derivada de parceria formalizada.
-- **Aceite:** concessão de escrita permite operar; consulta isolada só permite ler; associação de produto é
-  preservada; inativação exige justificativa e não exclui; histórico respeita
-  recorte das missões/bolsas mesmo com catálogo institucional compartilhado.
-- **Testes:** jornada de criação→produto associado→inativação→reativação,
-  validação de datas e recusas por permissão.
+- **O que entrou:** a seção *Convênios* da página do parceiro deixou de ser
+  leitura. Cadastrar, editar, inativar e reativar acontecem ali, em sidesheet,
+  com React Hook Form e Zod
+  ([form-convenio.tsx](../../apps/web/src/componentes/formularios/form-convenio.tsx),
+  [convenio.ts](../../apps/web/src/lib/formularios/convenio.ts),
+  [acoes/convenios.ts](../../apps/web/src/acoes/convenios.ts)). Nenhuma
+  permissão nova: `convenio:create`, `:edit` e `:status` já existiam desde a
+  CG-056.
+- **Cada verbo esconde-se pela sua permissão**, e não por uma só de escrita.
+  Quem pode cadastrar e não pode editar vê *Cadastrar acordo* e não vê *Editar*
+  — agrupar os três ofereceria um botão que a API recusaria.
+- **Não há excluir, e a ausência é a decisão da CG-056:** o produto do tipo
+  `CONVENIO` aponta para o acordo e a FK é `restrict`. A saída é inativar, com
+  justificativa obrigatória — **nos dois sentidos**, porque reativar também é
+  ato que alguém precisa explicar depois. O acordo inativado **sai da lista
+  padrão e permanece na ficha do parceiro**, marcado; sumir das duas faria
+  inativar ser indistinguível de apagar, e a tela não teria de onde oferecer a
+  reativação.
+- **O histórico passou a trazer os campos que a edição preenche.** `numero do
+  processo`, `objetivo`, `observações` e as **redes** não vinham em
+  `ConvenioHistorico`, e a edição os sobrescreveria com vazio: o formulário
+  manda o acordo inteiro, e `atualizarConvenio` reconcilia a lista de redes.
+  Buscar o detalhe de cada linha era a alternativa, e custaria uma requisição
+  por acordo só para abrir um painel.
+  - **As redes vêm por consulta à parte, nunca por `join`** — a armadilha da
+    CG-027 na missão multirrede. Com `join`, o acordo de duas redes viraria
+    duas linhas e a ficha contaria dois acordos onde há um. **Verificado por
+    mutação:** trocar por `leftJoin` faz o caso falhar.
+- **A missão de origem é campo, não dono.** São oferecidas as missões que já
+  tocam aquele parceiro, dentro do alcance de quem lê; o ciclo inteiro
+  convidaria a atribuir o acordo a uma viagem que nunca passou ali. Deixar em
+  branco é *acordo firmado fora de missão*, e vai como `null` — não como id
+  vazio.
+- **Vigência indeterminada continua nula**, com a dica escrita no campo: uma
+  data inventada seria pior. O formulário acrescenta uma recusa que a API não
+  faz — fim anterior ao início —, porque lá a comparação não existe e o período
+  impossível só apareceria na leitura, meses depois.
+- **A leitura derivada acompanha:** `parceriaFormalizada` sai de convênio
+  vigente (BOL-030), então a ação revalida também a lista de parceiros e a
+  página da missão, onde o acordo é opção do produto do tipo convênio.
+- **Aceite:** concessão de escrita permite operar; consulta isolada só permite
+  ler; associação de produto é preservada; inativação exige justificativa e não
+  exclui; histórico respeita recorte das missões/bolsas mesmo com catálogo
+  institucional compartilhado — **todos verificados**.
+- **Testes:** seis casos de integração em
+  [convenios-v1.int-spec.ts](../../apps/api/test/convenios-v1.int-spec.ts) — os
+  campos que a edição lê, a não duplicação do acordo multirrede (por mutação), a
+  jornada criar → produto associado → inativar → reativar com o produto intacto,
+  o acordo inativado que permanece na ficha, a troca de redes que não toca no
+  resto, e o recorte sem `convenio:read` (lista vazia **e** acesso negado, para
+  o estado vazio não afirmar "não há acordo"). Mais cinco de unidade em
+  [convenio.test.mjs](../../apps/web/test/convenio.test.mjs), incluindo a ida e
+  volta do acordo lido do histórico.
+- **Limitação declarada:** `pnpm smoke:telas` não foi executado. Ele pressupõe
+  `--com-dados` desde 2026-09-18, e a base atual sobe só a estrutura.
 
 ## V1-033 — Tratar pendências pela interface
 
+- **Estado / data:** **Encerrada sem tela — decisão do responsável em 2026-09-20.**
 - **Prioridade/dependência:** P1; V1-012.
-- **Objetivo:** equipe registra e resolve pendências sem terminal, com alcance
-  compatível com seu objeto.
-- **Arquivos:** `pendencias.service.ts`, `programas.controller.ts`,
-  `database/schema/governanca.ts`, painel, novas páginas/ações/formulários.
-- **Implementação:** inventariar tipos/alvos existentes; resolver alcance no SQL
-  pelo alvo. Pendência sem alvo suficiente fica administrativa até classificação;
-  não conceder acesso global por ausência de PPG. Expor lista/filtros, criação,
-  resolução e histórico/motivo. Rever exclusão física existente para não apagar
-  evidência; documentar a decisão em vez de trocar comportamento silenciosamente.
-- **Aceite:** responsável opera apenas pendências elegíveis; URL de painel leva
-  ao registro correto; resolução atualiza indicadores; não duplica pendência
-  histórica da seed nem dá resposta institucional em nome da equipe.
-- **Testes:** integração por PPG/participação, registro sem alvo, transições e
-  contadores; jornada de abertura/resolução com validação de justificativa.
+- **Decisão:** a equipe não precisa de tela de pendências no Gerenciador. As
+  pendências continuam sendo **documentação de trabalho** — o que elas já eram
+  na planilha de origem —, e o registro segue na seed, no banco e na API. Isso
+  **confirma** a decisão de 2026-09-08, que retirou a página, o item de menu e o
+  cartão do painel; a ficha original a contrariava, e o responsável a manteve.
+- **Por que isso não deixa lacuna:** pendência não governa nada. Nenhum cálculo,
+  recorte ou transição de estado a consulta — ela descreve um assunto em aberto
+  para quem trabalha no plano. Um item de trabalho sem efeito sobre o sistema é
+  exatamente o que cabe em documento, e a tela só acrescentaria uma superfície
+  a manter e a recortar por acesso.
+- **O que permanece, e é suficiente:** `GET/POST /:programa/:ciclo/pendencias` e
+  `PATCH /pendencias/:id`, com as regras que já valiam — resolver exige o texto
+  da resolução (mínimo 10 caracteres), e o código `PEND-00n` é sequencial por
+  ciclo.
+- **A exclusão física fica como está, e a ficha pedia para decidir isso
+  explicitamente.** `remover` apaga a linha, mas **só quando a origem é
+  `MANUAL`**: pendência `AUTOMATICA` — divergência de saldo, PPG duplicado,
+  catálogo sem correspondência — responde 403 e só pode ser resolvida
+  ([pendencias.service.ts:145](../../apps/api/src/dominio/pendencias.service.ts#L145)).
+  A evidência que a ficha queria proteger é justamente a automática, e ela já
+  está protegida; o que se apaga é o item que alguém acabou de digitar errado,
+  o mesmo critério do catálogo. Trocar por inativação só faria sentido junto de
+  uma tela que a mostrasse, e não haverá tela.
+- **O que não foi feito, e por quê:** nenhuma página, ação, formulário ou
+  recorte por alvo. O recorte de acesso das pendências só passaria a importar
+  com leitura pela interface; enquanto o consumo é por API administrativa, o
+  `JwtAuthGuard` mais a permissão do endpoint bastam.
+- **Se um dia voltar:** o que a ficha original pedia continua valendo como
+  desenho — alcance resolvido no SQL pelo alvo, pendência sem alvo suficiente
+  tratada como administrativa, e nada de conceder acesso global por ausência de
+  PPG. Reabrir esta ficha é decisão do responsável, não consequência de outra
+  tarefa.
 
 ## V1-034 — Administrar participação PPG–temática
 
+- **Estado / data:** **Concluída em 2026-09-20.**
 - **Prioridade/dependência:** P1; V1-011.
 - **Objetivo:** tornar utilizável um PPG novo no planejamento do ciclo atual.
-- **Arquivos:** `database/schema/programa.ts`, `ppgs.service.ts`,
-  `ciclo.service.ts`, `programas.controller.ts`, páginas PPG/temática e formulários.
-- **Implementação:** API e UI administrativas para associar PPG à temática e
-  definir responsável; validar ciclo, unicidade e referências. Definir mudança
-  de responsável com histórico; impedir remoção que deixe plano/bolsa órfãos.
-  Mostrar impacto nas concessões de acesso e sugerir revisão, sem conceder/revogar
-  silenciosamente por editar cadastro de domínio.
+- **O que entrou:** API e tela para associar PPG a área temática, definir o
+  responsável, editar e remover o vínculo —
+  [participacoes.service.ts](../../apps/api/src/dominio/participacoes.service.ts),
+  quatro rotas sob `.../tematicas/:codigo/participacoes`, e a seção *PPGs
+  participantes* da página da temática. Antes da V1-034 o vínculo só nascia
+  pela seed, e um PPG cadastrado depois ficava inutilizável: **sem participação
+  não há par válido para a linha de plano, e sem linha de plano não há bolsa.**
+- **Três permissões novas, institucionais:** `participacao:create`, `:edit` e
+  `:delete`. O escopo é `GLOBAL` pelo mesmo argumento que tirou `ppg:write` do
+  coordenador — **a participação é ela própria alvo de concessão**, e quem a
+  cria decide, de lado, o que outras contas passam a alcançar. Entram
+  automaticamente no modelo `administrador` e em nenhum outro.
+- **O achado que mudou o desenho:** `concessao_acesso.participacao_id` é
+  **`on delete cascade`**. Apagar a participação apagaria, dentro do banco e sem
+  trilha nenhuma, cada concessão que a tinha como alvo — inclusive as **já
+  revogadas**, que são o único registro de que alguém teve aquele acesso e de
+  quem o retirou. Seria a revogação silenciosa que a V1-012 existe para
+  impedir, agravada por destruir a própria prova.
+  - Por isso a remoção é **recusada** enquanto houver concessão apontando para
+    o vínculo, com dois textos diferentes: concessão ativa manda revogá-la em
+    **Acessos**; concessão já revogada não tem saída por remoção, e a
+    orientação é marcar a participação como *não contemplado* na edição, que
+    deixa o vínculo sem efeito e preserva os dois históricos.
+  - **Verificado por mutação:** desligar as duas guardas faz os dois casos
+    passarem — e o `delete` leva a concessão junto.
+- **Trocar o responsável não transfere acesso.** O coordenador anterior
+  continua com o que lhe foi concedido, e o novo continua sem nada: são duas
+  perguntas separadas desde a V1-012, e a tela diz isso no próprio painel. A
+  troca grava **uma linha de auditoria por campo**, com quem saiu e quem entrou.
+- **A edição não troca o PPG.** Trocar o PPG de uma participação existente não é
+  editar — é desfazer um vínculo e criar outro, e a linha de plano que aponta
+  para o par antigo passaria a descrever um programa que ninguém decidiu. O
+  campo vira texto, como no item de catálogo em uso, e a saída é remover e
+  associar de novo.
+- **Plano e bolsa também impedem a remoção**, com a contagem na recusa. O botão
+  **não** é desabilitado: desabilitar esconderia o motivo, e é o motivo que diz
+  o que fazer — a mesma escolha da remoção de produto (V1-031).
+- **Uma armadilha de SQL ficou documentada no código:** dentro de um `sql` cru,
+  o Drizzle emite a coluna interpolada **sem o nome da tabela**, então
+  `pp.ppg_id = ${s.ppg.id}` virava `pp.ppg_id = "id"` e casava com o `id` de
+  `participacao_ppg` — a subconsulta respondia sempre `false`, em silêncio,
+  porque continuava sendo SQL válido. A coluna externa passou a ser escrita
+  qualificada à mão.
 - **Aceite:** PPG novo ganha participação e fica disponível para linha válida;
-  PPG pode participar de mais de uma temática; troca de responsável não transfere
-  automaticamente acessos; registros usados não são apagados em cascata.
-- **Testes:** integração de criação/duplicidade/alteração com plano existente e
-  regressão de isolamento; formulário administrativo completo.
+  PPG pode participar de mais de uma temática (o caso do PROFSAÚDE); troca de
+  responsável não transfere acessos; registros usados não são apagados em
+  cascata — **todos verificados**.
+- **Testes:** nove casos de integração em
+  [participacoes-v1.int-spec.ts](../../apps/api/test/participacoes-v1.int-spec.ts)
+  e quatro de unidade em
+  [participacao.test.mjs](../../apps/web/test/participacao.test.mjs).
+- **Limitação declarada:** `pnpm smoke:telas` não foi executado, pelo mesmo
+  motivo das fichas anteriores.
 
 ## V1-035 — Especificar eventos externos da CAPES
 
+- **Estado / data:** Concluída — 2026-09-20. **Nenhuma mutation**, como a ficha
+  exige: o contrato está em
+  [eventos-externos-v1.md](../eventos-externos-v1.md).
+- **O schema foi mapeado antes de propor tabela nova**, e o resultado mudou a
+  proposta: `remanejamento` **serve** ao grupo A com três ajustes (recusar
+  `PROPOSTO`/`REJEITADO`, ignorar `ano_origem`/`ano_destino`, anexo em vez de
+  `documento_autorizacao`), e `lancamento_execucao` **não serve** — é execução
+  financeira, fora do escopo do CAPES Global. O grupo B ganha tabela própria
+  pelo mesmo argumento que a CG-056 usou sobre `produto_bolsa`: forçar os dois
+  fatos na mesma tabela deixaria metade das colunas nula em cada linha.
+- **Três achados do código que exigiam decisão porque já se comportam:**
+  - **`CANCELADA` libera a vaga; `INTERROMPIDA` não.** `exigirVaga` conta com
+    `ne(status, 'CANCELADA')`. É o que faz a substituição funcionar — sem
+    liberar, o substituto não entra —, mas nunca foi decidido: é efeito
+    colateral de uma escolha de contagem, e a V1-036 precisa fixá-lo como regra
+    consciente.
+  - **O evento não mexe no orçamento.** O custo do plano sai de
+    `planejamento_anual`, não de `bolsa_concedida`; cancelar muda o *Custo das
+    bolsas concedidas* (D-B07), que é outro indicador desde a BOL-041.
+  - **O panorama conta bolsa cancelada.** `FiltroMobilidade.status` é opcional e
+    sem padrão, então com desistências registradas "35 mobilidades" passaria a
+    incluir quem nunca viajou — é a dupla contagem que o aceite nomeia. A
+    recomendação é excluir `CANCELADA` por padrão e manter `INTERROMPIDA`, o que
+    **muda o comportamento da P02** e pede regressão própria na V1-036.
+- **Matriz entregue:** cinco tipos do grupo B com estado anterior/posterior,
+  campos comuns e permissão. Duas decisões de modelagem ficam registradas:
+  `FALECIMENTO` vai a `INTERROMPIDA` e **não ganha estado próprio** — um
+  `FALECIDA` no enum publicaria a causa em toda listagem de situação —, e
+  `SUBSTITUICAO` é **um** evento apontando as duas bolsas, porque duas linhas
+  independentes perderiam o vínculo que a ficha pede para fixar.
+- **Permissão nova proposta** (`evento:create`/`evento:read`), e não reuso de
+  `bolsa:edit`: corrigir período é rotina, registrar que alguém faleceu não é.
+- **Três exemplos concretos** — cancelamento, correção e substituição —
+  percorridos com o efeito em vaga, custo, panorama, produtos e histórico.
+  Correção **não apaga**: registra-se sobre o evento, com auditoria por campo.
+- **As quatro perguntas continuam abertas, com recomendação cada uma**, e o
+  documento diz **o que cada uma bloqueia**: a lista de tipos não bloqueia nada
+  (tipo como dado, à moda da CG-019); as duas datas bloqueiam o schema; "corrige
+  o passado?" bloqueia o tratamento de vagas e indicadores; o comprovante
+  obrigatório bloqueia só a validação do formulário na V1-037. Nenhuma delas
+  trava a V1-036 inteira, que era o que o aceite pedia.
+- **Verificação:** leitura de `schema/execucao.ts`, `schema/comum.ts`,
+  `bolsistas.service.ts` (`exigirVaga`), `orcamento.service.ts` e
+  `mobilidade.service.ts`; links do documento conferidos. Nenhum fato
+  institucional foi inventado — o que falta está no §7, nomeado.
 - **Prioridade/dependência:** P1; V1-001.
 - **Decisão do responsável em 2026-09-19:** o Gerenciador é **só um
   gerenciador**. O que muda na plataforma da CAPES é mantido atualizado aqui
@@ -300,6 +451,58 @@ Todas as P1 deste grupo foram incluídas na V1 pelo responsável em 2026-09-18.
 
 ## V1-039 — Retenção de documentos e dados pessoais
 
+- **Estado / data:** Concluída — 2026-09-20. O inventário e o procedimento estão
+  em [retencao-v1.md](../retencao-v1.md). **Nenhum dado foi descartado, nenhum
+  prazo foi gravado e nenhum arquivo saiu do disco.**
+- **O ponto de partida, conferido no código:** hoje **nada é apagado** — não há
+  `unlink` em `armazenamento.service.ts`, anexo se inativa (CG-014), contato se
+  inativa (CG-026) e `db-backup.sh` não expurga snapshot. Isso não é lacuna a
+  corrigir às pressas: preservar é o comportamento seguro, e apagar é que exige
+  autorização. O que faltava era tornar a política **conferível**.
+- **Tabela entregue** no formato que o aceite pede — categoria → prazo **ou
+  decisão pendente** → marco → responsável → ação —, separando documento,
+  dado pessoal fora de documento e trilha. A única regra decidida é a dos
+  documentos pessoais do bolsista (fim da concessão + 5 anos, BOL-021), e o
+  documento registra as duas propriedades que ela exige: **prazo derivado,
+  nunca gravado**, e relógio a partir do fim da concessão, não do upload.
+- **CPF e contatos não são tratados como documento**, e a distinção é o achado
+  da tarefa: documento se apaga sem quebrar nada, mas o CPF é a chave da regra
+  de uma modalidade por CPF/ciclo, e o e-mail é o que liga a conta do Keycloak
+  à pessoa. Apagá-los quebraria regra retroativamente — a saída provável é
+  **anonimizar**, e isso é decisão, não implementação.
+- **A trilha não é o dado.** `registro_auditoria` já grava **quais campos**
+  mudaram, nunca os valores pessoais, então retê-la indefinidamente não retém
+  dado pessoal — o que permite a regra "auditoria não se apaga" conviver com
+  qualquer prazo escolhido.
+- **O limite dos backups está escrito, e não prometido:** um dump é retrato do
+  banco inteiro, e descarte seletivo não o alcança. Descartar um documento **não
+  o remove dos backups anteriores**; por isso a retenção dos backups é parte da
+  política, e não só operação — cruza com a V1-053. O aceite pedia exatamente
+  não prometer remoção de backup imutável.
+- **Procedimento em três passos**, com a parte destrutiva sendo a menor:
+  inventário (leitura pura) → prévia → descarte autorizado por flag explícita,
+  com auditoria por item. Espelha `acesso:bootstrap` e `acesso:contas`. **Guarda
+  excepcional** suspende o descarte de um item nomeado, porque processo,
+  auditoria e litígio interrompem prazo de guarda — sem ela o descarte regular
+  apagaria prova em curso. Repetir o passo 3 é seguro: o descartado não volta ao
+  inventário.
+- **V1-071 registrada, como a ficha manda:** não há antivírus, o ponto de
+  inserção é `validarArquivo`, e a **prioridade continua P2** porque o vetor
+  principal já saiu — DOC/XLS foram removidos dos formatos aceitos em
+  2026-09-07 e o tipo é validado pelo conteúdo. Ela volta a ser prioritária se
+  os formatos do Office voltarem ou se o acesso deixar de ser interno.
+- **Cinco decisões nomeadas, cada uma com quem decide e o que bloqueia.** A mais
+  estrutural e mais barata é a **5**: sem um responsável pelos dados pessoais, o
+  procedimento não tem quem o execute e toda linha fica com dono vago — é a
+  mesma pendência que a V1-001 já registra.
+- **Verificação:** leitura de `anexos.service.ts` (derivação dos 5 anos e
+  `CATEGORIAS_PESSOAIS`), `categoriaAnexoEnum`, `armazenamento.service.ts`,
+  `contatos-parceiros.service.ts` (formato da auditoria) e `db-backup.sh`;
+  links conferidos.
+- **Limitação declarada:** **não houve simulação com dados fictícios.** A
+  verificação da ficha a prevê *"se implementar rotina"*, e nenhuma foi
+  implementada — implementá-la antes das decisões do §6 obrigaria a escolher
+  prazos no lugar da instituição. O que foi verificado é o inventário.
 - **Prioridade/dependência:** P1; V1-001.
 - **Objetivo:** transformar a retenção em procedimento executável sem presumir
   um prazo institucional para dados que ainda não têm decisão.
@@ -350,6 +553,54 @@ Todas as P1 deste grupo foram incluídas na V1 pelo responsável em 2026-09-18.
   igualdade dos totais antes/depois de classificação.
 
 ## V1-042 — Paginar parceiros e revisar volume das listas
+
+- **Estado / data:** Concluída — 2026-09-20.
+- **Entrega:** `GET /parceiros` retorna `{ itens, total, pagina, tamanho, paginas,
+  resumo }`, com filtros antes de `LIMIT/OFFSET`, ordem por nome/ID, padrão 50
+  e limite 200. Página é inteiro positivo até 2.147.483.647; entradas inválidas
+  na API retornam 400 e página inválida na URL da tela volta a 1.
+- **Visibilidade:** `parceiro:read` aceita somente GLOBAL, conforme V1-016:
+  cadastro compartilhado não herda alcance de bolsa/missão. Rede é filtro da
+  consulta, aplicado também ao total e resumo. Sem a capacidade, a API recusa
+  inclusive a contagem; o histórico continua recortado por ação.
+- **Interface:** URL guarda busca, rede, inativos e página; `pushState`/`popstate`
+  preservam voltar/avançar e recarregar. Filtro novo volta à página 1;
+  `keepPreviousData` mantém a tabela durante a busca. Cadastro, edição,
+  inativação e conciliação invalidam também consultas fora da tela; ao remontar,
+  a lista confere o snapshot restaurado pelo Next via BFF. Página que
+  perdeu o último registro oferece retorno à última disponível.
+- **Correções encontradas pelos testes:** a agregação sem JOIN removia a
+  qualificação de `instituicao.id` no Drizzle, fazendo a subconsulta resolver
+  o ID na tabela interna. A qualificação explícita corrige `semRede` e
+  `comMissao`. A jornada também detectou cache antigo ao voltar do detalhe.
+  Testes de ordem usam nomes distintos: o schema atual proíbe homônimos.
+- **Medição reproduzível:** 10.000 parceiros sintéticos no banco dedicado,
+  `test/paginacao-parceiros-v1.int-spec.ts`, consulta e composição do serviço
+  com serialização do retorno. Em uma execução local: primeira página 20,91 ms /
+  32.034 bytes; página 200: 33,84 ms / 32.036 bytes; busca `099`: 20,50 ms /
+  32.026 bytes, 120 resultados, 50 enviados. São observações locais, sem SLA
+  nem alegação de desempenho com histórico denso de missões/contatos.
+- **Revisão de outras listas:** a consulta de candidatos levou 6,65 ms e
+  retornou zero para `Sintetica 099` no mesmo volume. A inspeção confirmou
+  `LIMIT 1000` **antes** da comparação em memória: rapidez não prova
+  completude. O seletor de conciliação ainda recebe os primeiros 200 parceiros;
+  a mudança de contrato preserva seu limite anterior. Esses dois limites
+  preexistentes ficam registrados para seleção/busca no servidor em trabalho
+  específico; não houve reescrita geral de listas nesta tarefa.
+- **Evidências:** 42 testes de integração nas suítes de paginação, parceiros
+  e recorte indireto; 89 unitários da API; suíte web incluindo normalização de
+  página; builds da API/web e lint dos arquivos alterados. Jornada em
+  `apps/web/e2e/parceiros.spec.ts` passou em Chromium com login real e banco
+  descartável: 51 cadastros, voltar/avançar/recarregar, inativação da última
+  linha da página 2, recuperação, busca vazia, criação, edição sem duplicação,
+  retorno à busca anterior, parâmetros inválidos (400) e sem concessão (403).
+- **Comandos de verificação:**
+  `pnpm --filter api test:int --runTestsByPath test/paginacao-parceiros-v1.int-spec.ts test/parceiros.int-spec.ts test/recorte-indiretos-v1.int-spec.ts`;
+  `pnpm --filter api test`; `pnpm --filter web test`;
+  `node scripts/e2e.mjs parceiros.spec.ts` (inclui build dos dois apps).
+  Para exibir a medição, executar a suíte de paginação isoladamente com
+  `--silent=false`. Os containers E2E são removidos ao terminar; nenhuma base
+  operacional foi alterada.
 
 - **Prioridade/dependência:** P1; V1-016.
 - **Objetivo:** evitar carregar o cadastro inteiro mantendo busca e filtros.

@@ -297,8 +297,13 @@ describe('V1-016: caminhos indiretos, historico e documentos', () => {
   it('parceiro continua pesquisavel e detalhavel sem alcance de bolsa ou missao', async () => {
     await conceder('parceiro:read');
 
-    const lista = await parceiros.listar({ busca: 'Parceira' } as never);
-    expect(lista.map((p) => p.id)).toContain(parceiroId);
+    const lista = await parceiros.listar({
+      busca: 'Parceira',
+      incluirInativos: false,
+      pagina: 1,
+      tamanho: 50,
+    });
+    expect(lista.itens.map((p) => p.id)).toContain(parceiroId);
     expect((await parceiros.detalhar(parceiroId)).nome).toBe(
       'Universidade Parceira',
     );

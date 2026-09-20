@@ -1308,21 +1308,57 @@ export interface ReferenciasMissao {
   redes: { id: string; nome: string }[];
 }
 
+/**
+ * Participação de um PPG na temática (V1-034).
+ *
+ * O `id` é o da participação, não o do PPG: o mesmo programa participa de mais
+ * de uma temática, e é a participação que se edita e se remove.
+ */
+export interface ParticipacaoDaTematica {
+  id: string;
+  ppgId: string;
+  ppg: string;
+  sigla: string;
+  notaCapes: number | null;
+  emRede: boolean;
+  situacao: string;
+  modalidadesPrevistas: string | null;
+  observacoes: string | null;
+  coordenadorTematicaId: string;
+  coordenadorTematica: string | null;
+  coordenadorTematicaEmail: string | null;
+  custoAnual: string;
+}
+
 export interface DetalheTematica extends LinhaTematica {
   coordenadores: CoordenadorTematica[];
   porAno: LinhaTematica[];
-  participacoes: {
-    ppgId: string;
-    ppg: string;
-    sigla: string;
-    notaCapes: number | null;
-    emRede: boolean;
-    situacao: string;
-    modalidadesPrevistas: string | null;
-    custoAnual: string;
-  }[];
+  participacoes: ParticipacaoDaTematica[];
   custoTotal: string;
   plano: LinhaPlano[];
+}
+
+/**
+ * Uma página da lista de parceiros (V1-042).
+ *
+ * O `resumo` vem junto de propósito: os cartões da tela respondem sobre o
+ * **conjunto filtrado**, e contá-los sobre as linhas carregadas daria um
+ * número que muda ao virar de página.
+ */
+export interface PaginaParceiros {
+  itens: Parceiro[];
+  total: number;
+  pagina: number;
+  tamanho: number;
+  paginas: number;
+  resumo: ResumoParceiros;
+}
+
+export interface ResumoParceiros {
+  total: number;
+  comMissao: number;
+  provisorios: number;
+  semRede: number;
 }
 
 /* Parceiros institucionais e contatos (CG-025 a CG-027). */
@@ -1462,19 +1498,30 @@ export interface ModuloPendente {
   task: string;
 }
 
-/** Acordo formal do parceiro (CG-056). */
+/**
+ * Acordo formal do parceiro (CG-056).
+ *
+ * Desde a V1-032 a linha traz todos os campos editáveis, e não só os que a
+ * tabela mostra: a edição acontece na própria página, e a API reconcilia a
+ * lista de redes inteira — um formulário preenchido pela metade apagaria a
+ * outra metade ao salvar.
+ */
 export interface ConvenioDoHistorico {
   id: string;
   titulo: string;
   tipoAcordo: string;
   situacao: string;
   area: string | null;
+  numeroProcesso: string | null;
+  objetivo: string | null;
+  observacoes: string | null;
   dataAssinatura: string | null;
   dataInicio: string | null;
   dataFim: string | null;
   ativo: boolean;
   missaoOrigemId: string | null;
   missaoOrigemCodigo: string | null;
+  redes: ReferenciaNomeada[];
 }
 
 /** Produto de missão que envolve o parceiro (CG-056). */

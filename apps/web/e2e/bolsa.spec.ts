@@ -1,0 +1,52 @@
+import { readFile } from 'node:fs/promises';
+import { test, expect, entrar, abrir, salvar, proximo, arquivoPdf } from './fixtures';
+
+test('concessão de bolsa, produto, documento e download autenticado', async ({ page, dados }) => {
+  await entrar(page, 'admin', '/mobilidade/bolsistas');
+  let painel = await abrir(page, /Conceder bolsa|Nova concessão/);
+  await painel.getByLabel('Bolsa planejada', { exact: false }).selectOption(dados.linhaId);
+  await proximo(painel);
+  await painel.getByLabel('Nome completo', { exact: false }).fill('Bolsista Sintética E2E');
+  await painel.getByLabel('CPF', { exact: false }).fill('52998224725');
+  await painel.getByLabel('Nível do beneficiário', { exact: false }).selectOption('DOUTORADO');
+  await proximo(painel); await proximo(painel);
+  await painel.getByRole('combobox', { name: /País de origem/ }).click();
+  await page.getByRole('option', { name: 'Brasil', exact: true }).click();
+  await painel.getByLabel('Como informar a instituição de origem').selectOption('livre');
+  await painel.getByLabel('Universidade ou instituição de origem', { exact: false }).fill('Instituição Sintética Origem');
+  await painel.getByLabel('País de destino', { exact: false }).fill('Brasil');
+  await painel.getByLabel('Universidade ou instituição de destino', { exact: false }).fill('Instituição Sintética Destino');
+  await proximo(painel);
+  await painel.getByLabel('Data inicial', { exact: false }).fill('01/03/2027');
+  await painel.getByLabel('Data final', { exact: false }).fill('31/08/2027');
+  await salvar(painel, 'Cadastrar concessão');
+  await page.getByRole('link', { name: 'Bolsista Sintética E2E', exact: true }).click();
+  painel = await abrir(page, 'Cadastrar produto');
+  await painel.getByLabel('Título', { exact: false }).fill('Artigo sintético da bolsa');
+  await salvar(painel, 'Cadastrar produto');
+  await expect(page.getByText('Artigo sintético da bolsa', { exact: true })).toBeVisible();
+  painel = await abrir(page, 'Anexar documento');
+  const arquivo = await arquivoPdf();
+  await painel.locator('input[type=file]').setInputFiles(arquivo);
+  await painel.getByLabel('Categoria', { exact: false }).selectOption({ index: 1 });
+  await salvar(painel, 'Anexar');
+  const linha = page.getByRole('row').filter({ hasText: arquivo.name });
+  const downloadPromise = page.waitForEvent('download');
+  await linha.getByRole('link', { name: /Baixar/ }).click();
+  const download = await downloadPromise;
+  expect(await readFile((await download.path())!)).toEqual(arquivo.buffer);
+  await page.goto('/mobilidade');
+  for (const formato of ['CSV', 'XLSX', 'PDF']) {
+    const baixando = page.waitForEvent('download');
+    await page.getByRole('link', { name: formato, exact: true }).click();
+    const exportacao = await baixando;
+    const bytes = await readFile((await exportacao.path())!);
+    expect(bytes.length).toBeGreaterThan(50);
+    if (formato === 'CSV') expect(bytes.toString('utf8')).toContain('Bolsista Sintética E2E');
+    if (formato === 'XLSX') expect(bytes.subarray(0, 2).toString()).toBe('PK');
+    if (formato === 'PDF') expect(bytes.subarray(0, 5).toString()).toBe('%PDF-');
+  }
+  await page.goto('/mobilidade/bolsistas');
+  await page.getByRole('link', { name: 'Bolsista Sintética E2E', exact: true }).click();
+  await expect(page.getByText('Artigo sintético da bolsa', { exact: true })).toBeVisible();
+});

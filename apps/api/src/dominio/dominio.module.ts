@@ -31,6 +31,7 @@ import { ArmazenamentoService } from '../arquivos/armazenamento.service';
 import { ParceirosController } from './parceiros.controller';
 import { PrestacaoService } from './prestacao.service';
 import { ParceirosService } from './parceiros.service';
+import { ParticipacoesService } from './participacoes.service';
 import { PendenciasService } from './pendencias.service';
 import { PlanoService } from './plano.service';
 import { PpgsService } from './ppgs.service';
@@ -71,6 +72,7 @@ import { CatalogoController, PpgsController } from './ppgs.controller';
     PlanoService,
     CicloService,
     PpgsService,
+    ParticipacoesService,
     PendenciasService,
     BolsistasService,
     MobilidadeService,

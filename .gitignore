@@ -40,3 +40,6 @@ arquivos/
 # por isso nao entram no repositorio — nem o baseline. Apagar esta pasta perde o
 # ponto de restauracao; congele de novo com `pnpm db:congelar`.
 backups/
+
+# Ambiente e artefatos E2E descartaveis (somente fixtures sinteticas).
+.e2e/

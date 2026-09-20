@@ -125,6 +125,11 @@ export class CicloService {
     const [participacoes, plano] = await Promise.all([
       this.db
         .select({
+          // O `id` da participacao entrou com a V1-034: e por ele que a tela
+          // edita e remove o vinculo. Antes a linha so tinha o `ppgId`, que
+          // identifica o PPG e nao a participacao dele nesta tematica — o
+          // mesmo PPG participa de mais de uma.
+          id: s.participacaoPpg.id,
           ppgId: s.ppg.id,
           ppg: s.ppg.nome,
           sigla: s.ppg.sigla,
@@ -132,6 +137,8 @@ export class CicloService {
           emRede: s.ppg.emRede,
           situacao: s.participacaoPpg.situacao,
           modalidadesPrevistas: s.participacaoPpg.modalidadesPrevistas,
+          observacoes: s.participacaoPpg.observacoes,
+          coordenadorTematicaId: s.participacaoPpg.coordenadorTematicaId,
           coordenadorTematica: s.pessoa.nome,
           coordenadorTematicaEmail: s.pessoa.email,
         })

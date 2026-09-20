@@ -74,3 +74,27 @@ jobs:
       # Jest serializa as suites e o helper aplica migrations antes da limpeza.
       - name: Integrações SQL, migrations e aceite da seed
         run: pnpm --filter api test:int --no-cache
+
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter web exec playwright install --with-deps chromium
+      # O runner cria e remove seu proprio Postgres/realm/anexos, com fixtures.
+      - run: pnpm test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: jornadas-browser
+          path: |
+            .e2e/relatorio/
+            .e2e/resultados/
+          include-hidden-files: true
+          retention-days: 7

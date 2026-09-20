@@ -105,6 +105,16 @@ export const listarParceirosSchema = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform((valor) => valor === 'true'),
+  /**
+   * Paginacao (V1-042).
+   *
+   * O teto de 200 e o mesmo limite que a consulta ja tinha desde a CG-049 —
+   * aqui ele deixou de cortar em silencio e virou uma pagina declarada. O
+   * padrao de 50 e o que cabe numa tela sem rolagem infinita; quem precisa da
+   * selecao de conciliacao ainda pede apenas a primeira pagina de 200.
+   */
+  pagina: z.coerce.number().int().min(1).max(2147483647).default(1),
+  tamanho: z.coerce.number().int().min(1).max(200).default(50),
 });
 export type ListarParceiros = z.infer<typeof listarParceirosSchema>;
 
@@ -280,24 +290,62 @@ export interface AcessoDoHistorico {
   convenios: boolean;
 }
 
+/**
+ * Uma pagina da lista de parceiros (V1-042).
+ *
+ * O `resumo` acompanha a pagina de proposito: os cartoes da tela respondem
+ * sobre o **conjunto filtrado**, e apura-los sobre as linhas carregadas daria
+ * um numero que muda ao virar de pagina.
+ */
+export interface PaginaParceiros {
+  itens: Parceiro[];
+  total: number;
+  pagina: number;
+  tamanho: number;
+  paginas: number;
+  resumo: ResumoParceiros;
+}
+
+export interface ResumoParceiros {
+  total: number;
+  comMissao: number;
+  /** Abertos durante uma missao e ainda sem conferencia institucional. */
+  provisorios: number;
+  /** Ativos sem nenhuma rede: nao aparecem quando se filtra por rede. */
+  semRede: number;
+}
+
 export interface ModuloPendente {
   modulo: 'PRODUTOS' | 'CONVENIOS';
   task: string;
 }
 
-/** Acordo formal com este parceiro (CG-056). */
+/**
+ * Acordo formal com este parceiro (CG-056).
+ *
+ * Desde a V1-032 a linha traz **todos os campos editaveis**, e nao so os que a
+ * tabela mostra. A edicao acontece nesta mesma pagina, e `atualizarConvenio`
+ * reconcilia a lista de redes inteira: um formulario preenchido com metade do
+ * acordo apagaria a outra metade ao salvar. Buscar o detalhe de cada linha
+ * seria a alternativa, e custaria uma requisicao por acordo para abrir um
+ * painel.
+ */
 export interface ConvenioHistorico {
   id: string;
   titulo: string;
   tipoAcordo: string;
   situacao: string;
   area: string | null;
+  numeroProcesso: string | null;
+  objetivo: string | null;
+  observacoes: string | null;
   dataAssinatura: string | null;
   dataInicio: string | null;
   dataFim: string | null;
   ativo: boolean;
   missaoOrigemId: string | null;
   missaoOrigemCodigo: string | null;
+  redes: RedeParceiro[];
 }
 
 /** Produto de missao que envolve este parceiro (CG-056). */
@@ -431,12 +479,106 @@ const camposPersistidos = [
 export class ParceirosService {
   constructor(@Inject(DRIZZLE) private readonly db: Database) {}
 
-  async listar(filtros: ListarParceiros): Promise<Parceiro[]> {
+  /**
+   * Lista paginada de parceiros (CG-049, paginada na V1-042).
+   *
+   * Antes a consulta devolvia ate 200 linhas e a tela avisava quando batia no
+   * teto. Isso funcionava porque o cadastro e pequeno hoje — e deixaria de
+   * funcionar em silencio no dia em que nao fosse, com a lista mostrando uma
+   * fatia arbitraria do alfabeto.
+   *
+   * O id desempata a ordenacao explicitamente, inclusive se a restricao de
+   * nomes unicos mudar no futuro.
+   *
+   * **O resumo e apurado sobre o filtro inteiro, nunca sobre a pagina.**
+   * Contar a pagina e rotular "cadastro provisorio" publicaria um numero que
+   * muda ao virar de pagina, e a pergunta que o cartao responde e sobre o
+   * conjunto.
+   */
+  async listar(filtros: ListarParceiros): Promise<PaginaParceiros> {
+    const condicao = this.condicaoDaLista(filtros);
+    const deslocamento = (filtros.pagina - 1) * filtros.tamanho;
+
+    const [linhas, [resumo]] = await Promise.all([
+      this.consultaDaLista(condicao)
+        .orderBy(asc(s.instituicao.nome), asc(s.instituicao.id))
+        .limit(filtros.tamanho)
+        .offset(deslocamento),
+      this.db
+        .select({
+          total: sql<number>`count(*)::int`,
+          // Qualificar id explicitamente: sem join o Drizzle remove o nome
+          // da tabela das colunas no SELECT, e id resolveria na subconsulta.
+          comMissao: sql<number>`count(*) filter (where exists (
+            select 1 from atividade_missao am
+             where am.instituicao_id = ${s.instituicao}.${sql.identifier('id')}
+          ))::int`,
+          provisorios: sql<number>`count(*) filter (
+            where ${s.instituicao.cadastroProvisorio} and ${s.instituicao.ativo}
+          )::int`,
+          semRede: sql<number>`count(*) filter (
+            where ${s.instituicao.ativo} and not exists (
+              select 1 from instituicao_rede ir
+               where ir.instituicao_id = ${s.instituicao}.${sql.identifier('id')}
+            )
+          )::int`,
+        })
+        .from(s.instituicao)
+        .where(condicao),
+    ]);
+
+    return {
+      itens: await this.comporParceiros(linhas),
+      total: resumo.total,
+      pagina: filtros.pagina,
+      tamanho: filtros.tamanho,
+      paginas: Math.max(1, Math.ceil(resumo.total / filtros.tamanho)),
+      resumo: {
+        total: resumo.total,
+        comMissao: resumo.comMissao,
+        provisorios: resumo.provisorios,
+        semRede: resumo.semRede,
+      },
+    };
+  }
+
+  /**
+   * O `where` da lista, montado **uma vez** e usado pela pagina e pelo resumo.
+   *
+   * Duas copias divergiriam na primeira mudanca de filtro, e o sintoma seria o
+   * pior possivel: um total que nao corresponde as linhas mostradas.
+   */
+  private condicaoDaLista(filtros: ListarParceiros) {
     const termo = filtros.busca?.trim();
     const termoNormalizado = termo
       ? normalizarNomeInstituicao(termo)
       : undefined;
-    const linhas = await this.db
+    return and(
+      eq(s.instituicao.tipo, 'PARCEIRA_INTERNACIONAL'),
+      filtros.incluirInativos ? undefined : eq(s.instituicao.ativo, true),
+      termo
+        ? or(
+            ilike(s.instituicao.nome, `%${termo}%`),
+            ilike(s.instituicao.sigla, `%${termo}%`),
+            ilike(s.instituicao.cidade, `%${termo}%`),
+            termoNormalizado
+              ? ilike(s.instituicao.nomeNormalizado, `%${termoNormalizado}%`)
+              : undefined,
+          )
+        : undefined,
+      filtros.redeId
+        ? sql`exists (
+            select 1
+              from instituicao_rede ir
+             where ir.instituicao_id = ${s.instituicao.id}
+               and ir.rede_id = ${filtros.redeId}
+          )`
+        : undefined,
+    );
+  }
+
+  private consultaDaLista(condicao: ReturnType<typeof and>) {
+    return this.db
       .select({
         id: s.instituicao.id,
         nome: s.instituicao.nome,
@@ -484,37 +626,8 @@ export class ParceirosService {
       })
       .from(s.instituicao)
       .leftJoin(s.pais, eq(s.pais.id, s.instituicao.paisId))
-      .where(
-        and(
-          eq(s.instituicao.tipo, 'PARCEIRA_INTERNACIONAL'),
-          filtros.incluirInativos ? undefined : eq(s.instituicao.ativo, true),
-          termo
-            ? or(
-                ilike(s.instituicao.nome, `%${termo}%`),
-                ilike(s.instituicao.sigla, `%${termo}%`),
-                ilike(s.instituicao.cidade, `%${termo}%`),
-                termoNormalizado
-                  ? ilike(
-                      s.instituicao.nomeNormalizado,
-                      `%${termoNormalizado}%`,
-                    )
-                  : undefined,
-              )
-            : undefined,
-          filtros.redeId
-            ? sql`exists (
-                select 1
-                  from instituicao_rede ir
-                 where ir.instituicao_id = ${s.instituicao.id}
-                   and ir.rede_id = ${filtros.redeId}
-              )`
-            : undefined,
-        ),
-      )
-      .orderBy(asc(s.instituicao.nome))
-      .limit(200);
-
-    return this.comporParceiros(linhas);
+      .where(condicao)
+      .$dynamic();
   }
 
   async detalhar(id: string): Promise<Parceiro> {
@@ -632,6 +745,9 @@ export class ParceirosService {
             tipoAcordo: s.convenio.tipoAcordo,
             situacao: s.convenio.situacao,
             area: s.convenio.area,
+            numeroProcesso: s.convenio.numeroProcesso,
+            objetivo: s.convenio.objetivo,
+            observacoes: s.convenio.observacoes,
             dataAssinatura: s.convenio.dataAssinatura,
             dataInicio: s.convenio.dataInicio,
             dataFim: s.convenio.dataFim,
@@ -705,10 +821,18 @@ export class ParceirosService {
       ]);
 
     const missaoIds = missoes.map((missao) => missao.id);
-    const [redes, atividades] = await Promise.all([
+    const [redes, atividades, redesDeConvenio] = await Promise.all([
       this.carregarRedesDasMissoes(missaoIds),
       this.carregarAtividadesDoParceiro(missaoIds, id),
+      this.carregarRedesDosConvenios(convenios.map((convenio) => convenio.id)),
     ]);
+
+    const redesPorConvenio = new Map<string, RedeParceiro[]>();
+    for (const rede of redesDeConvenio) {
+      const lista = redesPorConvenio.get(rede.convenioId) ?? [];
+      lista.push({ id: rede.id, nome: rede.nome });
+      redesPorConvenio.set(rede.convenioId, lista);
+    }
 
     const redesPorMissao = new Map<string, RedeParceiro[]>();
     for (const rede of redes) {
@@ -771,7 +895,10 @@ export class ParceirosService {
       })),
       eventos,
       documentos,
-      convenios,
+      convenios: convenios.map((convenio) => ({
+        ...convenio,
+        redes: redesPorConvenio.get(convenio.id) ?? [],
+      })),
       produtos,
       modulosPendentes: [],
       acesso: {
@@ -1249,6 +1376,32 @@ export class ParceirosService {
         eq(s.redeCoordenadora.id, s.missaoRede.redeId),
       )
       .where(inArray(s.missaoRede.missaoId, missaoIds))
+      .orderBy(asc(s.redeCoordenadora.nome));
+  }
+
+  /**
+   * Redes de cada acordo (V1-032).
+   *
+   * Consulta a parte, e nao `join` na listagem: o acordo de duas redes viraria
+   * duas linhas de convenio na tela — o mesmo erro que a CG-027 evitou na
+   * missao multirrede.
+   */
+  private async carregarRedesDosConvenios(
+    convenioIds: string[],
+  ): Promise<(RedeParceiro & { convenioId: string })[]> {
+    if (!convenioIds.length) return [];
+    return this.db
+      .select({
+        convenioId: s.convenioRede.convenioId,
+        id: s.redeCoordenadora.id,
+        nome: s.redeCoordenadora.nome,
+      })
+      .from(s.convenioRede)
+      .innerJoin(
+        s.redeCoordenadora,
+        eq(s.redeCoordenadora.id, s.convenioRede.redeId),
+      )
+      .where(inArray(s.convenioRede.convenioId, convenioIds))
       .orderBy(asc(s.redeCoordenadora.nome));
   }
 

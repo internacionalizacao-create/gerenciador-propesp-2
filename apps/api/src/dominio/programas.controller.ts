@@ -118,6 +118,13 @@ import {
 } from './orcamento.service';
 import { PainelService } from './painel.service';
 import {
+  atualizarParticipacaoSchema,
+  criarParticipacaoSchema,
+  ParticipacoesService,
+  type AtualizarParticipacao,
+  type CriarParticipacao,
+} from './participacoes.service';
+import {
   atualizarPendenciaSchema,
   criarPendenciaSchema,
   PendenciasService,
@@ -167,6 +174,7 @@ export class ProgramasController {
     private readonly identidade: IdentidadeService,
     private readonly encerramento: EncerramentoService,
     private readonly resultados: ResultadosService,
+    private readonly participacoes: ParticipacoesService,
   ) {}
 
   /** P05 · lista somente os programas ativos para operacao. */
@@ -429,6 +437,119 @@ export class ProgramasController {
       codigo,
       acesso.alcance('orcamento:read'),
     );
+  }
+
+  // ------------------------------------------------------------------------
+  // Participacao PPG-tematica (V1-034)
+  //
+  // Vive sob a tematica porque e dela que a participacao fala. As tres acoes
+  // exigem permissao **institucional**: quem associa um PPG a uma tematica
+  // cria, de lado, um alvo de concessao — e o alcance de quem ja foi
+  // configurado muda com isso.
+  // ------------------------------------------------------------------------
+
+  /**
+   * PPGs e pessoas que o formulario de participacao oferece.
+   *
+   * **Sem `@RequirePermission` fixo**, porque duas acoes diferentes consomem a
+   * mesma lista: associar precisa dos PPGs, editar precisa das pessoas. Um
+   * decorador teria de escolher uma, e a outra receberia 403 com o formulario
+   * ja aberto — a mesma razao pela qual o controlador de anexos resolve a
+   * permissao dentro do handler.
+   */
+  @Get(':programa/:ciclo/tematicas/:codigo/participacoes/referencias')
+  async referenciasDeParticipacao(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('codigo') codigo: string,
+    @CurrentUser() usuario: AuthUser,
+    @AcessoAtual() acesso: AcessoResolvido,
+  ) {
+    const permissao = (
+      ['participacao:create', 'participacao:edit'] as const
+    ).find((candidata) => usuario.permissions.includes(candidata));
+    if (!permissao) {
+      throw new ForbiddenException(
+        'Permissão necessária: participacao:create ou participacao:edit',
+      );
+    }
+    const ciclo = await this.contexto.resolver(
+      slug,
+      nome,
+      acesso.alcance(permissao),
+    );
+    return this.participacoes.referencias(ciclo.cicloId, codigo);
+  }
+
+  @Post(':programa/:ciclo/tematicas/:codigo/participacoes')
+  @RequirePermission('participacao:create')
+  async criarParticipacao(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('codigo') codigo: string,
+    @CurrentUser() usuario: AuthUser,
+    @AcessoAtual() acesso: AcessoResolvido,
+    @Body(new ZodValidationPipe(criarParticipacaoSchema))
+    dto: CriarParticipacao,
+  ) {
+    const ciclo = await this.contexto.resolver(
+      slug,
+      nome,
+      acesso.alcance('participacao:create'),
+    );
+    return this.participacoes.criar(ciclo.cicloId, codigo, dto, usuario);
+  }
+
+  @Patch(':programa/:ciclo/tematicas/:codigo/participacoes/:id')
+  @RequirePermission('participacao:edit')
+  async atualizarParticipacao(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('codigo') codigo: string,
+    @Param('id') id: string,
+    @CurrentUser() usuario: AuthUser,
+    @AcessoAtual() acesso: AcessoResolvido,
+    @Body(new ZodValidationPipe(atualizarParticipacaoSchema))
+    dto: AtualizarParticipacao,
+  ) {
+    const ciclo = await this.contexto.resolver(
+      slug,
+      nome,
+      acesso.alcance('participacao:edit'),
+    );
+    return this.participacoes.atualizar(
+      ciclo.cicloId,
+      codigo,
+      id,
+      dto,
+      usuario,
+    );
+  }
+
+  /**
+   * Remove o vinculo — e recusa quando ele sustenta plano ou bolsa.
+   *
+   * A resposta carrega `concessoesAfetadas` para a tela sugerir revisao. As
+   * concessoes **nao sao revogadas aqui**: editar cadastro de dominio nao mexe
+   * no acesso de ninguem, e fazer isso de lado seria revogar sem registro de
+   * quem revogou.
+   */
+  @Delete(':programa/:ciclo/tematicas/:codigo/participacoes/:id')
+  @RequirePermission('participacao:delete')
+  async removerParticipacao(
+    @Param('programa') slug: string,
+    @Param('ciclo') nome: string,
+    @Param('codigo') codigo: string,
+    @Param('id') id: string,
+    @CurrentUser() usuario: AuthUser,
+    @AcessoAtual() acesso: AcessoResolvido,
+  ) {
+    const ciclo = await this.contexto.resolver(
+      slug,
+      nome,
+      acesso.alcance('participacao:delete'),
+    );
+    return this.participacoes.remover(ciclo.cicloId, codigo, id, usuario);
   }
 
   /** P09 · matriz de orcamento ano x tematica. */

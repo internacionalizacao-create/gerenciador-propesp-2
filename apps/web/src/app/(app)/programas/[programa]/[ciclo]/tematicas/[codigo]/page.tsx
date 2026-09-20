@@ -1,6 +1,12 @@
 import Link from "next/link";
 
 import {
+  EditarParticipacao,
+  NovaParticipacao,
+  RemoverParticipacao,
+  type ReferenciasParticipacao,
+} from "@/componentes/formularios/form-participacao";
+import {
   Aviso,
   Cartao,
   Cartoes,
@@ -15,7 +21,7 @@ import {
 } from "@/componentes/ui/basicos";
 import { SemAcesso } from "@/componentes/ui/sem-acesso";
 import { faltando } from "@/lib/acesso";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, apiFetchOuNada } from "@/lib/api";
 import { carregarMe } from "@/lib/me";
 import { Ajuda } from "@/componentes/ui/ajuda";
 import { AJUDA_ORCAMENTO } from "@/lib/ajuda-orcamento";
@@ -51,8 +57,26 @@ export default async function DetalheDaTematica({
   }
 
   const area = await apiFetch<DetalheTematica>(
-    `${`/programas/${programa}/${ciclo}`}/tematicas/${encodeURIComponent(codigo)}`,
+    `${base}/tematicas/${encodeURIComponent(codigo)}`,
   );
+
+  // V1-034 · administrar a participação PPG–temática.
+  //
+  // Os três verbos são permissões distintas e institucionais: associar um PPG
+  // cria, de lado, um alvo de concessão. As referências só são buscadas por
+  // quem pode associar — o endpoint exige `participacao:create`, e pedi-las
+  // sempre gastaria um 403 por render.
+  const podeAssociar = me.permissions.includes("participacao:create");
+  const podeEditarParticipacao = me.permissions.includes("participacao:edit");
+  const podeRemoverParticipacao =
+    me.permissions.includes("participacao:delete");
+  const contexto = { programa, ciclo, codigo };
+  const referencias =
+    podeAssociar || podeEditarParticipacao
+      ? await apiFetchOuNada<ReferenciasParticipacao>(
+          `${base}/tematicas/${encodeURIComponent(codigo)}/participacoes/referencias`,
+        )
+      : null;
 
   const divergente =
     area.divergencia !== null && Number(area.divergencia) !== 0;
@@ -133,55 +157,102 @@ export default async function DetalheDaTematica({
 
       <Secao
         titulo="PPGs participantes"
+        descricao="O vínculo é o que torna o PPG utilizável no plano deste ciclo. Ele não concede acesso a ninguém: quem enxerga o quê continua sendo decidido em Acessos."
+        acoes={
+          podeAssociar && referencias ? (
+            <NovaParticipacao contexto={contexto} referencias={referencias} />
+          ) : undefined
+        }
       >
-        <Tabela
-          colunas={[
-            { chave: "ppg", texto: "PPG" },
-            { chave: "nota", texto: "Nota CAPES", alinhamento: "direita" },
-            { chave: "situacao", texto: "Situação" },
-            { chave: "modalidades", texto: "Modalidades previstas" },
-            { chave: "custo", texto: "Custo anual", alinhamento: "direita" },
-          ]}
-          rodape={
-            <tr>
-              <Celula>Total</Celula>
-              <Celula direita>—</Celula>
-              <Celula>—</Celula>
-              <Celula>—</Celula>
-              <Celula direita>
-                <Moeda valor={area.custoTotal} forte />
-              </Celula>
-            </tr>
-          }
-        >
-          {area.participacoes.map((p) => (
-            <tr key={p.ppgId}>
-              <Celula>
-                <Link
-                  href={`/ppgs/${p.ppgId}`}
-                  className="font-medium text-primary hover:underline"
-                >
-                  {p.sigla}
-                </Link>
-                <span className="block text-xs text-subtle">{p.ppg}</span>
-              </Celula>
-              <Celula direita>{p.notaCapes ?? "—"}</Celula>
-              <Celula>
-                <Selo
-                  tom={p.situacao === "CONTEMPLADO" ? "sucesso" : "neutro"}
-                >
-                  {rotulo(p.situacao)}
-                </Selo>
-              </Celula>
-              <Celula className="max-w-sm text-muted">
-                {p.modalidadesPrevistas ?? "—"}
-              </Celula>
-              <Celula direita>
-                <Moeda valor={p.custoAnual} />
-              </Celula>
-            </tr>
-          ))}
-        </Tabela>
+        {area.participacoes.length === 0 ? (
+          <EstadoVazio
+            titulo="Nenhum PPG participa desta temática"
+            descricao="Associe ao menos um programa antes de cadastrar linhas de plano: sem participação não há par válido para a linha apontar."
+          />
+        ) : (
+          <Tabela
+            colunas={[
+              { chave: "ppg", texto: "PPG" },
+              { chave: "responsavel", texto: "Coordenador de Temática" },
+              { chave: "nota", texto: "Nota CAPES", alinhamento: "direita" },
+              { chave: "situacao", texto: "Situação" },
+              { chave: "modalidades", texto: "Modalidades previstas" },
+              { chave: "custo", texto: "Custo anual", alinhamento: "direita" },
+              {
+                chave: "acoes",
+                texto: <span className="sr-only">Ações</span>,
+                alinhamento: "direita",
+              },
+            ]}
+            rodape={
+              <tr>
+                <Celula>Total</Celula>
+                <Celula>—</Celula>
+                <Celula direita>—</Celula>
+                <Celula>—</Celula>
+                <Celula>—</Celula>
+                <Celula direita>
+                  <Moeda valor={area.custoTotal} forte />
+                </Celula>
+                <Celula direita>—</Celula>
+              </tr>
+            }
+          >
+            {area.participacoes.map((p) => (
+              <tr key={p.id}>
+                <Celula>
+                  <Link
+                    href={`/ppgs/${p.ppgId}`}
+                    className="font-medium text-primary hover:underline"
+                  >
+                    {p.sigla}
+                  </Link>
+                  <span className="block text-xs text-subtle">{p.ppg}</span>
+                </Celula>
+                <Celula className="text-muted">
+                  {p.coordenadorTematica ?? (
+                    <span className="italic text-subtle">
+                      Responsável não encontrado
+                    </span>
+                  )}
+                  {p.coordenadorTematicaEmail ? (
+                    <span className="block text-xs text-subtle">
+                      {p.coordenadorTematicaEmail}
+                    </span>
+                  ) : null}
+                </Celula>
+                <Celula direita>{p.notaCapes ?? "—"}</Celula>
+                <Celula>
+                  <Selo
+                    tom={p.situacao === "CONTEMPLADO" ? "sucesso" : "neutro"}
+                  >
+                    {rotulo(p.situacao)}
+                  </Selo>
+                </Celula>
+                <Celula className="max-w-sm text-muted">
+                  {p.modalidadesPrevistas ?? "—"}
+                </Celula>
+                <Celula direita>
+                  <Moeda valor={p.custoAnual} />
+                </Celula>
+                <Celula direita>
+                  <span className="flex justify-end gap-3">
+                    {podeEditarParticipacao && referencias ? (
+                      <EditarParticipacao
+                        contexto={contexto}
+                        participacao={p}
+                        referencias={referencias}
+                      />
+                    ) : null}
+                    {podeRemoverParticipacao ? (
+                      <RemoverParticipacao contexto={contexto} participacao={p} />
+                    ) : null}
+                  </span>
+                </Celula>
+              </tr>
+            ))}
+          </Tabela>
+        )}
       </Secao>
 
       <Secao

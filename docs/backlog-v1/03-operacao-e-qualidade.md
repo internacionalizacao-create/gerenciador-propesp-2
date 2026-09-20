@@ -207,8 +207,8 @@ Todas as P1 deste grupo foram incluídas na V1 pelo responsável em 2026-09-18.
 
 ## V1-058 — Integração no CI e ambiente de testes confiável
 
-- **Estado / data:** Em andamento — 2026-09-19. Implementação preparada;
-  falta registrar a primeira execução do workflow no GitHub Actions.
+- **Estado / data:** Concluída — 2026-09-19. Execução no GitHub Actions
+  confirmada pelo responsável, com captura de tela do CI #51.
 - **Dependência conferida:** V1-052 entregue; Node 24.20.0 e pnpm 11.20.0
   executados localmente e derivados de `.nvmrc`/`packageManager` nos dois jobs.
 - **Implementação:** job `integration` com Postgres 17 descartável, healthcheck,
@@ -230,15 +230,19 @@ Todas as P1 deste grupo foram incluídas na V1 pelo responsável em 2026-09-18.
   após o ensaio. Simulações pelo comando real `test:int`, com URL recusada e
   porta indisponível, retornaram não zero antes das suítes, sem senha nem erro
   de teardown. Nenhum dado operacional foi apagado.
-- **Aceite atendido localmente:** migrations/seed em banco limpo, exportações
-  por leitores reais, runtime alinhado, proteção de destino e diagnóstico único
-  de indisponibilidade. **Ainda necessário:** evidência do job hospedado após
-  publicação das alterações; não há execução remota presumida nem homologação.
-- **Referência revisável:** diff local, sem commit criado nesta tarefa.
+- **Evidência de CI:** workflow CI #51, branch `main`, commit `bd17d1a`,
+  concluído com sucesso em 3 min 4 s, conforme captura fornecida pelo
+  responsável. O workflow desse commit foi conferido localmente e inclui os
+  jobs `build` e `integration`; os logs remotos não foram consultados.
+- **Aceite atendido:** migrations/seed em banco limpo, exportações por leitores
+  reais, runtime alinhado, proteção de destino, diagnóstico único de
+  indisponibilidade e execução bem-sucedida do CI hospedado. Não constitui
+  homologação institucional.
+- **Referência revisável:** commit `bd17d1a` e execução CI #51.
 - **Limitação operacional:** nome reservado exclusivamente a testes; loopback
   não identifica o destino remoto de um túnel configurado pelo operador. Não
   encaminhar essa porta a dados reais. Não rodar duas integrações simultâneas
-  no mesmo banco. A execução local não equivale a execução hospedada no GitHub.
+  no mesmo banco.
 
 - **Prioridade/dependência:** P0; V1-052.
 - **Objetivo:** executar regras SQL/migrations no CI e distinguir erro de ambiente.
