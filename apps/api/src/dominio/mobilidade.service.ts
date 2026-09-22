@@ -448,7 +448,16 @@ export class MobilidadeService {
     if (filtro.cicloId) {
       partes.push(sql`bc.ciclo_id = ${filtro.cicloId}::uuid`);
     }
-    if (filtro.status) partes.push(sql`bc.status = ${filtro.status}`);
+    // Sem filtro explicito, a bolsa cancelada fica de fora (V1-036, contrato
+    // §5.3): com desistencias registradas, "35 mobilidades" passaria a contar
+    // quem nunca viajou, e a substituicao contaria a mesma vaga duas vezes.
+    // `INTERROMPIDA` continua dentro — a viagem aconteceu, so terminou antes.
+    // Quem quer ver as canceladas pede `status=CANCELADA`.
+    partes.push(
+      filtro.status
+        ? sql`bc.status = ${filtro.status}`
+        : sql`bc.status <> 'CANCELADA'`,
+    );
     if (filtro.redeId) {
       // `exists` e nao `join`: rede vem por temática, e um join duplicaria a
       // concessão se a temática pertencesse a mais de uma rede algum dia.

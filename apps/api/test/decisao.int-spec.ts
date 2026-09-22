@@ -14,7 +14,7 @@ import {
   type ContextoTeste,
   type TestDatabase,
 } from './db-teste';
-import { criarBase, type BaseFixture } from './fixtures';
+import { criarAcesso, criarBase, type BaseFixture } from './fixtures';
 
 /**
  * Servico de notificacao sem canal externo — o mesmo estado da aplicacao hoje.
@@ -88,6 +88,9 @@ describe('DecisaoService (CG-038)', () => {
   beforeEach(async () => {
     await ctx.limpar();
     base = await criarBase(ctx.db);
+    // A excecao ao "somente o responsavel" e concessao global, nao papel
+    // do token (V1-059).
+    await criarAcesso(ctx.db, { sub: admin.id, permissoes: admin.permissions });
 
     const [missao] = await ctx.db
       .insert(s.missaoComite)

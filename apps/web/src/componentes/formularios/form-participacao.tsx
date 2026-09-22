@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { startTransition, useActionState } from "react";
+import { startTransition, useActionState, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import {
@@ -65,25 +65,56 @@ export function NovaParticipacao({
       titulo="Associar PPG a esta temática"
       descricao="O vínculo é o que torna o PPG utilizável no plano deste ciclo."
     >
-      {(fechar) =>
-        disponiveis.length === 0 ? (
-          <div className={CLASSE_CORPO_PAINEL}>
-            <p className="rounded-xl bg-surface-muted px-4 py-3 text-sm text-muted">
-              Todos os PPGs cadastrados já participam desta temática. Cadastre o
-              programa em <strong>PPGs</strong> antes de associá-lo aqui.
-            </p>
-          </div>
-        ) : (
-          <FormParticipacao
-            acao={criarParticipacao.bind(null, contexto)}
-            ppgs={disponiveis}
-            pessoas={referencias.pessoas}
-            aoConcluir={fechar}
-            rotulo="Associar"
-          />
-        )
-      }
+      {(fechar) => (
+        <ConteudoNovaParticipacao
+          contexto={contexto}
+          disponiveis={disponiveis}
+          pessoas={referencias.pessoas}
+          aoConcluir={fechar}
+        />
+      )}
     </AbrirSidesheet>
+  );
+}
+
+/**
+ * A lista é congelada quando o painel abre.
+ *
+ * Associar o último PPG disponível revalida a página, e a lista nova chega
+ * vazia **antes** de o painel fechar: sem o congelamento, o formulário era
+ * trocado pela mensagem "todos já participam" e o painel ficava aberto sobre
+ * um cadastro que já tinha dado certo (achado da V1-059).
+ */
+function ConteudoNovaParticipacao({
+  contexto,
+  disponiveis,
+  pessoas,
+  aoConcluir,
+}: {
+  contexto: Contexto;
+  disponiveis: ReferenciasParticipacao["ppgs"];
+  pessoas: ReferenciasParticipacao["pessoas"];
+  aoConcluir: () => void;
+}) {
+  const [ppgs] = useState(disponiveis);
+  if (ppgs.length === 0) {
+    return (
+      <div className={CLASSE_CORPO_PAINEL}>
+        <p className="rounded-xl bg-surface-muted px-4 py-3 text-sm text-muted">
+          Todos os PPGs cadastrados já participam desta temática. Cadastre o
+          programa em <strong>PPGs</strong> antes de associá-lo aqui.
+        </p>
+      </div>
+    );
+  }
+  return (
+    <FormParticipacao
+      acao={criarParticipacao.bind(null, contexto)}
+      ppgs={ppgs}
+      pessoas={pessoas}
+      aoConcluir={aoConcluir}
+      rotulo="Associar"
+    />
   );
 }
 

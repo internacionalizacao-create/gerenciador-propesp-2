@@ -1747,3 +1747,91 @@ export interface PreviaDeConcessao {
     efeito: "CRIAR" | "REATIVAR" | "JA_ATIVA";
   }[];
 }
+
+// ---------------------------------------------------------------------------
+// Eventos externos da CAPES (V1-036/V1-037). Espelho de
+// `apps/api/src/dominio/eventos-externos.service.ts`.
+// ---------------------------------------------------------------------------
+
+export interface TipoEventoBolsista {
+  codigo: string;
+  rotulo: string;
+  descricao: string | null;
+  estadosOrigem: StatusBolsaConcedida[];
+  estadoDestino: StatusBolsaConcedida | null;
+  aceitaSubstituta: boolean;
+  aceitaPrevisaoRetorno: boolean;
+}
+
+export interface EventoBolsista {
+  id: string;
+  bolsaConcedidaId: string;
+  bolsista: string;
+  ppgSigla: string;
+  tipo: string;
+  tipoRotulo: string;
+  dataAto: string;
+  registradoEm: string;
+  registradoPorNome: string | null;
+  justificativa: string;
+  referenciaExterna: string | null;
+  previsaoRetorno: string | null;
+  bolsaSubstitutaId: string | null;
+  substituto: string | null;
+  statusAnterior: StatusBolsaConcedida;
+  statusPosterior: StatusBolsaConcedida;
+  comprovantes: number;
+  corrigido: boolean;
+}
+
+export interface EventosDaBolsa {
+  eventos: EventoBolsista[];
+  /** Eventos em que esta bolsa entrou como substituta. */
+  substituiu: EventoBolsista[];
+  /** Bolsas da mesma vaga que podem entrar no lugar desta. */
+  substitutas: {
+    id: string;
+    bolsista: string;
+    status: StatusBolsaConcedida;
+  }[];
+}
+
+export interface Movimentacao {
+  id: string;
+  codigo: string;
+  dataAto: string;
+  registradoEm: string;
+  registradoPorNome: string | null;
+  ano: number;
+  rubrica: Rubrica;
+  areaTematicaId: string;
+  areaTematicaCodigo: string;
+  areaTematica: string;
+  rede: string;
+  ppgOrigemId: string;
+  ppgOrigemSigla: string;
+  ppgDestinoId: string;
+  ppgDestinoSigla: string;
+  modalidadeId: string | null;
+  modalidade: string | null;
+  quantidade: number | null;
+  valor: string;
+  status: "EXECUTADO";
+  justificativa: string;
+  referenciaExterna: string | null;
+  observacoes: string | null;
+  comprovantes: number;
+  corrigido: boolean;
+}
+
+export interface ReferenciasMovimentacao {
+  anos: number[];
+  tematicas: {
+    id: string;
+    codigo: string;
+    nome: string;
+    rede: string;
+    ppgs: { id: string; sigla: string; nome: string }[];
+  }[];
+  modalidades: { id: string; nome: string }[];
+}

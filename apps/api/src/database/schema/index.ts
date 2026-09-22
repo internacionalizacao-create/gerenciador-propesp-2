@@ -9,6 +9,7 @@ export * from './catalogo';
 export * from './orcamento';
 export * from './planejamento';
 export * from './execucao';
+export * from './eventos-externos';
 export * from './governanca';
 export * from './comite-gestor';
 export * from './parceiros';

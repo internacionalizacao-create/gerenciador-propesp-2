@@ -34,6 +34,7 @@ import {
   NIVEIS_BENEFICIARIO,
   type DadosFormularioBolsaConcedida,
 } from "@/lib/formularios/bolsa-concedida";
+import { situacoesEditaveis } from "@/lib/formularios/eventos-externos";
 import { data, meses, moeda, rotulo } from "@/lib/formato";
 
 export function NovaBolsaConcedida({
@@ -529,7 +530,7 @@ export function EditarBolsaConcedida({
       rotulo="Atualizar bolsa"
       variante="secundaria"
       titulo={`${bolsa.bolsista} · ${bolsa.modalidade}`}
-      descricao="Corrija o período ou registre conclusão, cancelamento e interrupção."
+      descricao="Corrija o período ou registre a conclusão. Cancelamento e interrupção entram como evento informado pela CAPES."
     >
       {(fechar) => <FormEditarBolsa bolsa={bolsa} aoConcluir={fechar} />}
     </AbrirSidesheet>
@@ -599,13 +600,11 @@ function FormEditarBolsa({
           nome="status"
           registro={register("status")}
           erro={errors.status?.message}
-          opcoes={[
-            { valor: "SELECIONADO", texto: "Selecionado" },
-            { valor: "EM_ANDAMENTO", texto: "Em andamento" },
-            { valor: "CONCLUIDA", texto: "Concluída" },
-            { valor: "CANCELADA", texto: "Cancelada" },
-            { valor: "INTERROMPIDA", texto: "Interrompida" },
-          ]}
+          opcoes={situacoesEditaveis(bolsa.status).map((situacao) => ({
+            valor: situacao,
+            texto: rotulo(situacao),
+          }))}
+          dica="Cancelamento e interrupção são registrados como evento informado pela CAPES, na seção de eventos da bolsa."
         />
         {bolsa.podeAlterarCpf ? (
           <Texto

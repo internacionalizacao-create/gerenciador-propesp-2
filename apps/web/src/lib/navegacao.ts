@@ -142,12 +142,13 @@ export function menu(
           motivo:
             "Fora do escopo do CAPES Global: os recursos são pagos diretamente pela CAPES e não entram no caixa da UEA.",
         },
+        // Registro do que ja aconteceu na CAPES (V1-037): movimentacoes de
+        // recurso na mesma tematica e os eventos dos bolsistas do ciclo.
         {
-          rotulo: "Remanejamentos",
+          rotulo: "Eventos da CAPES",
           href: `${ciclo}/remanejamentos`,
-          disponivel: false,
-          motivo:
-            "O Gerenciador apenas registrará movimentações já realizadas na CAPES, sempre dentro da mesma temática.",
+          disponivel: true,
+          exige: ["evento:read"],
         },
       ],
     },

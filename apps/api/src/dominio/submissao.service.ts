@@ -204,8 +204,11 @@ export class SubmissaoService {
   /**
    * "Somente o responsavel pela missao envia" (decisao de 2026-09-05).
    *
-   * `admin` passa sempre — sem isso, a PROPESP nao conseguiria destravar uma
-   * missao cujo responsavel saiu da instituicao.
+   * Quem tem `missao:submit` em **alcance global** passa sempre — sem isso, a
+   * PROPESP nao conseguiria destravar uma missao cujo responsavel saiu da
+   * instituicao. Ate 2026-09-21 a excecao era `roles.includes('admin')`, papel
+   * do Keycloak, que desde a V1-012 nao concede nada e em producao nem existe:
+   * o administrador real ficava preso a mesma regra do responsavel.
    *
    * A regra so e verificavel porque existe o vinculo `sub` -> `pessoa`. Conta
    * sem vinculo possivel recebe 403 com instrucao — nao da para afirmar que
@@ -215,7 +218,8 @@ export class SubmissaoService {
     missaoId: string,
     usuario: AuthUser,
   ): Promise<void> {
-    if (usuario.roles.includes('admin')) return;
+    const acesso = await this.identidade.acessoDe(usuario);
+    if (acesso.alcance('missao:submit').global) return;
 
     const identidade = await this.identidade.resolver(usuario);
     if (!identidade) {

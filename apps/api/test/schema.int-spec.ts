@@ -320,17 +320,37 @@ describe('Schema — integridade', () => {
 
   // -------------------------------------------------------------------------
   describe('remanejamento', () => {
-    it('recusa AUTORIZADO sem documento de autorização', async () => {
-      await esperarViolacao(
-        ctx.db.insert(s.remanejamento).values({
+    // `remanejamento_autorizacao_ck` saiu na V1-036: no CAPES Global a
+    // referencia externa e opcional, e exigi-la travaria o registro enquanto o
+    // oficio nao chega (contrato de eventos externos, §7.4).
+    it('aceita EXECUTADO sem número de ofício', async () => {
+      const [rem] = await ctx.db
+        .insert(s.remanejamento)
+        .values({
           codigo: 'REM-001',
           cicloId: base.cicloId,
           ano: 2027,
           rubrica: 'BOLSAS',
           valor: '10000.00',
-          status: 'AUTORIZADO',
+          status: 'EXECUTADO',
+        })
+        .returning();
+
+      expect(rem.documentoAutorizacao).toBeNull();
+    });
+
+    it('recusa quantidade zerada', async () => {
+      await esperarViolacao(
+        ctx.db.insert(s.remanejamento).values({
+          codigo: 'REM-009',
+          cicloId: base.cicloId,
+          ano: 2027,
+          rubrica: 'BOLSAS',
+          valor: '10000.00',
+          quantidade: 0,
+          status: 'EXECUTADO',
         }),
-        'remanejamento_autorizacao_ck',
+        'remanejamento_quantidade_ck',
       );
     });
 

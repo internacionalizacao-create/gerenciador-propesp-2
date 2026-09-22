@@ -10,7 +10,7 @@ test('concessão de bolsa, produto, documento e download autenticado', async ({ 
   await painel.getByLabel('CPF', { exact: false }).fill('52998224725');
   await painel.getByLabel('Nível do beneficiário', { exact: false }).selectOption('DOUTORADO');
   await proximo(painel); await proximo(painel);
-  await painel.getByRole('combobox', { name: /País de origem/ }).click();
+  await painel.getByRole('button', { name: 'País de origem', exact: true }).click();
   await page.getByRole('option', { name: 'Brasil', exact: true }).click();
   await painel.getByLabel('Como informar a instituição de origem').selectOption('livre');
   await painel.getByLabel('Universidade ou instituição de origem', { exact: false }).fill('Instituição Sintética Origem');
@@ -22,9 +22,13 @@ test('concessão de bolsa, produto, documento e download autenticado', async ({ 
   await salvar(painel, 'Cadastrar concessão');
   await page.getByRole('link', { name: 'Bolsista Sintética E2E', exact: true }).click();
   painel = await abrir(page, 'Cadastrar produto');
+  await painel.getByRole('combobox', { name: 'Tipo de produto' }).selectOption('ARTIGO');
   await painel.getByLabel('Título', { exact: false }).fill('Artigo sintético da bolsa');
+  await painel.getByLabel('Instituição de colaboração', { exact: false }).fill('Instituição Sintética Destino');
+  await painel.getByRole('textbox', { name: 'País', exact: true }).fill('Brasil');
+  await painel.getByLabel('Prazo de entrega', { exact: false }).fill('01/12/2027');
   await salvar(painel, 'Cadastrar produto');
-  await expect(page.getByText('Artigo sintético da bolsa', { exact: true })).toBeVisible();
+  await expect(page.getByRole('cell').getByText('Artigo sintético da bolsa', { exact: true }).first()).toBeVisible();
   painel = await abrir(page, 'Anexar documento');
   const arquivo = await arquivoPdf();
   await painel.locator('input[type=file]').setInputFiles(arquivo);
@@ -48,5 +52,5 @@ test('concessão de bolsa, produto, documento e download autenticado', async ({ 
   }
   await page.goto('/mobilidade/bolsistas');
   await page.getByRole('link', { name: 'Bolsista Sintética E2E', exact: true }).click();
-  await expect(page.getByText('Artigo sintético da bolsa', { exact: true })).toBeVisible();
+  await expect(page.getByRole('cell').getByText('Artigo sintético da bolsa', { exact: true }).first()).toBeVisible();
 });

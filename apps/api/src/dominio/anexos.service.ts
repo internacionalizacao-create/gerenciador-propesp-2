@@ -13,6 +13,7 @@ import type { AuthUser } from '../auth/auth-user';
 import {
   condicaoDaBolsa,
   condicaoDaMissao,
+  condicaoDoLado,
 } from '../auth/autorizacao-v1/recorte-bolsa';
 import { IdentidadeService } from '../auth/identidade.service';
 import type { Permission } from '../auth/permissions';
@@ -68,7 +69,9 @@ const POLITICA: Record<
       | 'produto'
       | 'convenio'
       | 'bolsa'
-      | 'decisao';
+      | 'decisao'
+      | 'eventoBolsista'
+      | 'remanejamento';
   }
 > = {
   MISSAO_COMITE: {
@@ -147,7 +150,35 @@ const POLITICA: Record<
     escrever: 'missao:decide',
     tabela: 'decisao',
   },
+  /**
+   * Comprovante de evento externo (V1-036): o oficio da desistencia, o
+   * registro da movimentacao na CAPES. Quem registra o evento anexa a prova
+   * dele — e a mesma pessoa, no mesmo ato —, e quem consulta o historico
+   * consulta o comprovante.
+   */
+  EVENTO_BOLSISTA: {
+    ler: 'evento:read',
+    escrever: 'evento:create',
+    tabela: 'eventoBolsista',
+  },
+  REMANEJAMENTO: {
+    ler: 'evento:read',
+    escrever: 'evento:create',
+    tabela: 'remanejamento',
+  },
 };
+
+/**
+ * Categorias aceitas no comprovante de evento externo. Lista fechada pelo
+ * mesmo motivo da de bolsa: sem ela, uma foto de evento ou um passaporte
+ * pendurados num registro de desistencia sujariam o historico.
+ */
+const CATEGORIAS_DE_EVENTO = [
+  'COMPROVANTE',
+  'DECLARACAO',
+  'ATA',
+  'OUTRO',
+] as const satisfies readonly (typeof s.categoriaAnexoEnum.enumValues)[number][];
 
 /**
  * Categorias aceitas num documento de bolsista.
@@ -570,6 +601,16 @@ export class AnexosService {
       );
     }
 
+    if (
+      (dto.entidadeTipo === 'EVENTO_BOLSISTA' ||
+        dto.entidadeTipo === 'REMANEJAMENTO') &&
+      !(CATEGORIAS_DE_EVENTO as readonly string[]).includes(dto.categoria)
+    ) {
+      throw new BadRequestException(
+        `A categoria ${dto.categoria} não é aceita em comprovante de evento externo.`,
+      );
+    }
+
     if (dto.entidadeTipo !== 'BOLSA_CONCEDIDA') {
       // `PESSOAL` so existe para bolsista: marcar assim um comprovante de
       // missao o esconderia de quem precisa conferir a prestacao.
@@ -626,6 +667,8 @@ export class AnexosService {
       convenio: s.convenio,
       bolsa: s.bolsaConcedida,
       decisao: s.decisaoComite,
+      eventoBolsista: s.eventoBolsista,
+      remanejamento: s.remanejamento,
     } as const;
     const tabela = tabelas[POLITICA[tipo].tabela];
     const [existe] = await this.db
@@ -709,6 +752,26 @@ export class AnexosService {
       await this.exigirAlvo(
         sql`select 1 as existe from bolsa_concedida bc where bc.id = ${entidadeId}::uuid
               and ${condicaoDaBolsa(alcance)}`,
+      );
+      return;
+    }
+
+    // Evento externo herda o recorte da bolsa a que pertence; a movimentacao,
+    // o de qualquer um dos dois PPGs — a mesma regra da listagem dela.
+    if (tipo === 'EVENTO_BOLSISTA') {
+      await this.exigirAlvo(
+        sql`select 1 as existe from evento_bolsista eb
+              join bolsa_concedida bc on bc.id = eb.bolsa_concedida_id
+             where eb.id = ${entidadeId}::uuid and ${condicaoDaBolsa(alcance)}`,
+      );
+      return;
+    }
+    if (tipo === 'REMANEJAMENTO') {
+      await this.exigirAlvo(
+        sql`select 1 as existe from remanejamento r
+             where r.id = ${entidadeId}::uuid
+               and (${condicaoDoLado(alcance, sql`r.ppg_origem_id`)}
+                    or ${condicaoDoLado(alcance, sql`r.ppg_destino_id`)})`,
       );
       return;
     }

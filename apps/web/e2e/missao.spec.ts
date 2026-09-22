@@ -16,11 +16,12 @@ test('missão: cadastro, ajuste, aprovação, confirmação, produto, prestaçã
   await painel.getByLabel('Início da atividade', { exact: false }).fill('02/03/2027');
   await painel.getByLabel('Fim da atividade', { exact: false }).fill('04/03/2027');
   await proximo(painel);
-  await painel.getByLabel('Pessoa', { exact: true }).selectOption(dados.coordenadorTematicaId);
+  await painel.getByRole('combobox', { name: 'Pessoa', exact: true }).selectOption(dados.coordenadorTematicaId);
   await painel.getByLabel('Papel na missão').selectOption('RESPONSAVEL');
   await proximo(painel);
   await salvar(painel, 'Cadastrar missão');
   await page.getByRole('link', { name: /Missão Sintética E2E/ }).click();
+  await expect(page).toHaveURL(/comite-gestor\/missoes\/[0-9a-f-]{36}/);
   const detalhe = page.url().split('?')[0];
 
   await page.getByRole('link', { name: 'Documentos', exact: true }).click();
@@ -39,6 +40,9 @@ test('missão: cadastro, ajuste, aprovação, confirmação, produto, prestaçã
   await expect(page.getByText('Detalhar os objetivos antes da aprovação.', { exact: true })).toBeVisible();
   await page.goto(detalhe);
   painel = await abrir(page, /Editar missão/);
+  // A edição abre com as datas gravadas (defeito do campo de data, V1-059).
+  await expect(painel.getByLabel('Início da viagem', { exact: false })).toHaveValue('01/03/2027');
+  await expect(painel.getByLabel('Fim da viagem', { exact: false })).toHaveValue('05/03/2027');
   await painel.getByLabel('Objetivo', { exact: false }).fill('Objetivo revisado após a solicitação do Comitê.');
   await proximo(painel); await proximo(painel); await proximo(painel);
   await salvar(painel, 'Cadastrar missão');
@@ -64,8 +68,12 @@ test('missão: cadastro, ajuste, aprovação, confirmação, produto, prestaçã
   await salvar(painel, 'Salvar relato');
 
   await page.getByRole('link', { name: 'Prestação', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Prestação de contas' })).toBeVisible();
   const iniciar = page.getByRole('button', { name: 'Iniciar prestação', exact: true });
-  if (await iniciar.count()) await iniciar.click();
+  if (await iniciar.count()) {
+    await iniciar.click();
+    await expect(iniciar).toHaveCount(0);
+  }
   painel = await abrir(page, 'Nova despesa');
   await painel.getByLabel('Tipo de despesa', { exact: false }).selectOption('OUTRA');
   await painel.getByLabel('Descrição', { exact: false }).fill('Despesa sintética da visita');
@@ -89,5 +97,8 @@ test('missão: cadastro, ajuste, aprovação, confirmação, produto, prestaçã
   painel = await abrir(page, 'Reabrir execução');
   await painel.getByLabel(/Justificativa|Motivo/).fill('Complementação sintética do relato após encerramento.');
   await salvar(painel, 'Reabrir execução');
-  await expect(page.getByRole('button', { name: 'Encerrar missão', exact: true })).toBeVisible();
+  // Reabrir devolve a execução a "planejada": confirmar volta a ser o próximo
+  // passo, e a aprovação não se move (V1-030).
+  await expect(page.getByRole('button', { name: 'Confirmar missão', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Reabrir execução', exact: true })).toHaveCount(0);
 });

@@ -60,7 +60,7 @@ test('conta sem concessão recebe orientação e sessão inválida volta ao logi
   expect(dados.semAcesso.usuarioId).toBeTruthy();
   await entrar(page, 'sem-acesso');
   await expect(page.getByText('PPG de Teste', { exact: true })).toHaveCount(0);
-  await expect(page.getByText('Sua conta ainda não recebeu acesso', { exact: true })).toBeVisible();
+  await expect(page.getByRole('main').getByText('Sua conta ainda não recebeu acesso', { exact: true })).toBeVisible();
   expect((await page.request.get('/api/bff/ppgs')).status()).toBe(403);
   const cookies = await page.context().cookies();
   const sessao = cookies.filter(c => c.name.startsWith('gr_session.'));

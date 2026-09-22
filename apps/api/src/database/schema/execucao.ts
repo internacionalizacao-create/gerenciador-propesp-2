@@ -19,6 +19,7 @@ import {
   statusRemanejamentoEnum,
   timestamps,
 } from './comum';
+import { modalidade } from './catalogo';
 import { ppg } from './institucional';
 import { bolsaConcedida } from './planejamento';
 import { areaTematica, ciclo, redeCoordenadora } from './programa';
@@ -93,11 +94,25 @@ export const remanejamento = pgTable(
     anoOrigem: integer('ano_origem'),
     anoDestino: integer('ano_destino'),
     rubrica: rubricaEnum('rubrica').notNull(),
+    /** Quando a movimentacao e de bolsa: qual modalidade e quantas vagas. */
+    modalidadeId: uuid('modalidade_id').references(() => modalidade.id),
+    quantidade: integer('quantidade'),
     valor: dinheiro('valor').notNull(),
     justificativa: text('justificativa'),
+    /**
+     * Numero do oficio ou processo — a referencia externa do contrato V1-036.
+     * O arquivo, quando houver, entra por `anexo` (`REMANEJAMENTO`).
+     */
     documentoAutorizacao: varchar('documento_autorizacao', { length: 200 }),
     status: statusRemanejamentoEnum('status').notNull().default('PROPOSTO'),
     observacoes: text('observacoes'),
+    /**
+     * Registro do ato externo (V1-036). Nulos so nas linhas de outros
+     * programas; no CAPES Global o servico sempre os preenche.
+     */
+    chaveIdempotencia: uuid('chave_idempotencia'),
+    registradoPorId: varchar('registrado_por_id', { length: 120 }),
+    registradoPorNome: varchar('registrado_por_nome', { length: 200 }),
     ...timestamps,
   },
   (t) => [
@@ -105,15 +120,17 @@ export const remanejamento = pgTable(
     index('remanejamento_ano_idx').on(t.ano),
     index('remanejamento_status_idx').on(t.status),
     check('remanejamento_valor_ck', sql`${t.valor} > 0`),
-    /**
-     * Sair de PROPOSTO exige evidência. No CAPES Global o Gerenciador não
-     * propõe nem autoriza: registra a movimentação e o documento, quando houver.
-     */
     check(
-      'remanejamento_autorizacao_ck',
-      sql`${t.status} in ('PROPOSTO', 'REJEITADO')
-           or ${t.documentoAutorizacao} is not null`,
+      'remanejamento_quantidade_ck',
+      sql`${t.quantidade} is null or ${t.quantidade} > 0`,
     ),
+    uniqueIndex('remanejamento_chave_uk').on(t.chaveIdempotencia),
+    /**
+     * `remanejamento_autorizacao_ck` saiu na V1-036. Exigia numero de oficio
+     * para todo registro fora de PROPOSTO, e no CAPES Global a referencia e
+     * opcional (contrato §7.4): travar o registro enquanto o oficio nao chega
+     * faria o fato nunca ser registrado.
+     */
   ],
 );
 

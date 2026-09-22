@@ -63,6 +63,7 @@ PRESERVAR=(
   tabela_valores
   modalidade item_catalogo_bolsa      # --com-catalogo move estas duas para ZERAR
   requisito_submissao       # politica documental: dado, nao codigo (CG-019/CG-058)
+  tipo_evento_bolsista      # tipos de evento externo: dado, nao enum (V1-036)
   premissa fonte_documental linha_pesquisa
   usuario_sistema                                 # vinculo das contas
   # Concessoes individuais (V1-011): zera-las
@@ -89,6 +90,7 @@ ZERAR=(
   anexo notificacao registro_auditoria
   pendencia
   lancamento_execucao remanejamento
+  evento_bolsista           # eventos externos do beneficiario (V1-036)
 )
 
 if [[ "$COM_CATALOGO" == sim ]]; then

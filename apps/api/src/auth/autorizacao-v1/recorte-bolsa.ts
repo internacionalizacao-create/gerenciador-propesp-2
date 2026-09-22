@@ -23,6 +23,23 @@ export function condicaoDaBolsa(alcance: Alcance) {
 }
 
 /**
+ * Condicao de alcance sobre um dos lados da movimentacao (alias `r`).
+ *
+ * Os dois lados sao da mesma tematica por construcao, entao a tematica e a
+ * rede servem aos dois; o que muda e o PPG e, com ele, a participacao.
+ */
+export function condicaoDoLado(alcance: Alcance, ppg: SQL): SQL {
+  return sql`coalesce(${condicaoDoAlcance(alcance, {
+    ciclo: sql`r.ciclo_id`,
+    ppg,
+    tematica: sql`r.tema_origem_id`,
+    rede: sql`r.rede_id`,
+    participacao: sql`(select pr.id from participacao_ppg pr
+      where pr.ppg_id = ${ppg} and pr.area_tematica_id = r.tema_origem_id)`,
+  })}, false)`;
+}
+
+/**
  * Colunas da missao que a consulta expoe, para o recorte se correlacionar.
  *
  * O padrao serve as consultas cruas, que junta-se `missao_comite mc`. As

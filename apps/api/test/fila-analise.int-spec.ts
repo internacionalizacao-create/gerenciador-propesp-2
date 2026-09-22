@@ -15,7 +15,7 @@ import {
   type ContextoTeste,
   type TestDatabase,
 } from './db-teste';
-import { criarBase, type BaseFixture } from './fixtures';
+import { criarAcesso, criarBase, type BaseFixture } from './fixtures';
 
 const admin: AuthUser = {
   id: 'admin-fila',
@@ -66,6 +66,9 @@ describe('Fila de analise do Comite (CG-047)', () => {
   beforeEach(async () => {
     await ctx.limpar();
     base = await criarBase(ctx.db);
+    // A excecao ao "somente o responsavel" e concessao global, nao papel
+    // do token (V1-059).
+    await criarAcesso(ctx.db, { sub: admin.id, permissoes: admin.permissions });
     const [pais] = await ctx.db
       .insert(s.pais)
       .values({ codigoIso2: 'PT', codigoIso3: 'PRT', nome: 'Portugal' })

@@ -101,6 +101,11 @@ a tela de Acessos é agnóstica e o admin concede sob demanda, conforme cada
 pessoa entra. Evidências na ficha. Dependência
 pendente significa ordem de execução; não é prova de impedimento externo.
 
+**V1-036 concluída em 2026-09-21:** eventos externos da CAPES com API de
+registro, consulta e correção — movimentação de recurso na mesma temática e
+evento do beneficiário com o tipo como dado, idempotência por chave, recorte
+por ação e a cancelada fora do panorama. A interface (V1-037) foi concluída no mesmo dia: detalhe da bolsa e P12.
+
 **V1-042 concluída em 2026-09-20:** paginação SQL de parceiros, filtros e página
 na URL, atualização de cache após alterações e medição com 10 mil registros.
 Integração e jornada no navegador verificadas; evidências e limites dos
@@ -164,8 +169,8 @@ dependências são obrigatórios, exceto quando a ficha indicar uma condição.
 | V1-033 | P1 | Tratamento de pendências — encerrada sem tela (decisão de 2026-09-20) | 012 |
 | V1-034 | P1 | Gestão de participações PPG–temática — concluída | 011 |
 | V1-035 | P1 | Contrato dos eventos externos CAPES — concluída | 001 |
-| V1-036 | P1 | API e histórico de eventos externos | 014, 035 |
-| V1-037 | P1 | Interface dos eventos externos | 036 |
+| V1-036 | P1 | API e histórico de eventos externos — concluída | 014, 035 |
+| V1-037 | P1 | Interface dos eventos externos — concluída | 036 |
 | V1-038 | P1 | Completar e conferir dados institucionais | 034 |
 | V1-039 | P1 | Política e procedimentos de retenção — concluída | 001 |
 | V1-040 | P1 | Homologar relatórios prioritários | 016 |
@@ -180,7 +185,7 @@ dependências são obrigatórios, exceto quando a ficha indicar uma condição.
 | V1-056 | P1 | Limites de requisições e operações caras | 050 |
 | V1-057 | P1 | Auditoria transversal | 012 |
 | V1-058 | P0 | Integração no CI e runtime alinhado — concluída | 052 |
-| V1-059 | P0 | Jornadas automatizadas no navegador | 020, 030, 031, 058 |
+| V1-059 | P0 | Jornadas automatizadas no navegador — concluída | 020, 030, 031, 058 |
 | V1-060 | P0 | Homologação e aceite da versão interna | Ver ficha |
 | V1-070 | P2 | E-mail institucional | 050 |
 | V1-071 | P2 | Inspeção antimalware de anexos | 039, 050 |

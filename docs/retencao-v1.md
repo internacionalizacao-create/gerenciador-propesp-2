@@ -75,6 +75,7 @@ propor um número aqui seria inventar obrigação legal.
 | E-mail, telefone | `pessoa` | A definir | É o que liga a conta do Keycloak à pessoa em `/me` |
 | Nome, ORCID, Lattes | `pessoa` | **Não se apaga** | Dado acadêmico público; sustenta produto e histórico |
 | Contato de parceiro | `contato_instituicao` | A definir | Inativação já existe; o dado permanece |
+| Evento externo do beneficiário (desistência, interrupção, **falecimento**, substituição) | `evento_bolsista` | A definir | V1-036. O tipo e a justificativa podem revelar saúde e morte; por isso `FALECIMENTO` leva a bolsa a *Interrompida*, sem estado próprio, e o evento só se lê com `evento:read`. A trilha de correção guarda que a justificativa mudou, não o texto. Não se apaga: é o que explica o buraco no histórico da bolsa |
 
 **CPF e contato não podem ser tratados como documento.** O documento se apaga
 sem quebrar nada; estes dois são referenciados por linhas que precisam

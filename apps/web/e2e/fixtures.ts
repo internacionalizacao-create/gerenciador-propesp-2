@@ -5,7 +5,9 @@ import { ambiente, raiz } from '../../../scripts/e2e-ambiente.mjs';
 
 interface Dados {
   paisId: string; linhaId: string; redeId: string; cicloId: string;
-  ppgId: string; coordenadorTematicaId: string;
+  ppgId: string; coordenadorTematicaId: string; areaTematicaId: string;
+  modalidadeId: string; instituicaoId: string;
+  ppgVizinhoId: string; ppgAvulsoId: string;
   leitor: { usuarioId: string }; semAcesso: { usuarioId: string };
 }
 export const test = base.extend<{ dados: Dados }>({
@@ -30,7 +32,8 @@ export async function entrar(page: Page, perfil = 'admin', destino = '/ppgs') {
   expect(me.status()).toBe(200);
 }
 export async function abrir(page: Page, botao: string | RegExp) {
-  await page.getByRole('button', { name: botao, exact: typeof botao === 'string' }).click();
+  // Cabecalho e estado vazio oferecem o mesmo painel; qualquer um dos dois serve.
+  await page.getByRole('button', { name: botao, exact: typeof botao === 'string' }).first().click();
   const painel = page.getByRole('dialog');
   await expect(painel).toBeVisible();
   return painel;

@@ -16,6 +16,12 @@ import { ResultadosService } from './resultados.service';
 import { MissoesComiteService } from './missoes-comite.service';
 import { DecisaoService } from './decisao.service';
 import { EncerramentoService } from './encerramento.service';
+import {
+  EventosDaBolsaController,
+  EventosDoCicloController,
+  EventosExternosController,
+} from './eventos-externos.controller';
+import { EventosExternosService } from './eventos-externos.service';
 import { ExecucaoComiteService } from './execucao-comite.service';
 import { PainelComiteService } from './painel-comite.service';
 import { RelatoriosService } from './relatorios.service';
@@ -57,6 +63,9 @@ import { CatalogoController, PpgsController } from './ppgs.controller';
     PpgsController,
     CatalogoController,
     BolsistasController,
+    EventosDaBolsaController,
+    EventosDoCicloController,
+    EventosExternosController,
     MobilidadeController,
     PessoasController,
     ParceirosController,
@@ -75,6 +84,7 @@ import { CatalogoController, PpgsController } from './ppgs.controller';
     ParticipacoesService,
     PendenciasService,
     BolsistasService,
+    EventosExternosService,
     MobilidadeService,
     ComiteGestorService,
     MissoesComiteService,

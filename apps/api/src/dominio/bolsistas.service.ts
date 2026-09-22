@@ -4,6 +4,7 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { and, asc, eq, ilike, ne, or, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
@@ -930,6 +931,29 @@ export class BolsistasService {
             justificativa: 'Correção de CPF pela edição de bolsa autorizada.',
           });
         }
+        if (dto.status !== atual.status) {
+          // Desde a V1-037 cancelamento e interrupcao so entram por evento:
+          // a edicao perdia a data do ato, o motivo e o comprovante.
+          if (dto.status === 'CANCELADA' || dto.status === 'INTERROMPIDA') {
+            throw new UnprocessableEntityException(
+              'Cancelamento e interrupção acontecem na CAPES: registre-os como evento externo da bolsa, com a data do ato e a justificativa.',
+            );
+          }
+          await exigirSituacaoLivreDeEvento(tx, id, atual.status);
+          // A troca de situacao pela edicao tambem deixa rastro (RN-20): sem
+          // isto so o evento externo contaria de onde a bolsa veio.
+          await tx.insert(s.registroAuditoria).values({
+            entidadeTipo: 'BOLSA_CONCEDIDA',
+            entidadeId: id,
+            acao: 'EDICAO',
+            campo: 'status',
+            valorAnterior: atual.status,
+            valorNovo: dto.status,
+            usuarioId: usuario.id,
+            usuarioNome: usuario.name,
+            justificativa: 'Alteração de situação pela edição da bolsa.',
+          });
+        }
         if (atual.itemPlanejadoId && dto.status !== 'CANCELADA') {
           await exigirVaga(
             tx,
@@ -1005,10 +1029,12 @@ export class BolsistasService {
     const [bolsa] = await consultar<{
       itemPlanejadoId: string | null;
       pessoaId: string;
+      status: StatusBolsa;
     }>(
       db,
       sql`
-      select bc.item_planejado_id as "itemPlanejadoId", bc.pessoa_id as "pessoaId"
+      select bc.item_planejado_id as "itemPlanejadoId", bc.pessoa_id as "pessoaId",
+             bc.status
       from bolsa_concedida bc where bc.id = ${id}::uuid
         and ${condicaoDaBolsa(acesso.alcance(acao))} for update
     `,
@@ -1016,6 +1042,46 @@ export class BolsistasService {
     if (!bolsa) throw new NotFoundException('Bolsa concedida não encontrada.');
     return bolsa;
   }
+}
+
+/**
+ * A situacao que um evento externo produziu nao se desfaz pela edicao
+ * (V1-036, RN-20).
+ *
+ * Se o ultimo evento da bolsa a deixou `CANCELADA`, voltar para
+ * `EM_ANDAMENTO` pela edicao contradiria o livro-razao sem deixar motivo — e
+ * a correcao existe para isso, no proprio evento. Situacao que nao veio de
+ * evento continua editavel como sempre foi.
+ */
+async function exigirSituacaoLivreDeEvento(
+  db: Database,
+  bolsaId: string,
+  status: StatusBolsa,
+) {
+  const [ultimo] = await consultar<{ tipoRotulo: string; dataAto: string }>(
+    db,
+    sql`
+    select te.rotulo as "tipoRotulo", eb.data_ato as "dataAto",
+           eb.status_posterior as "statusPosterior"
+      from evento_bolsista eb
+      join tipo_evento_bolsista te on te.codigo = eb.tipo
+     where eb.bolsa_concedida_id = ${bolsaId}::uuid
+       and eb.status_posterior = ${status}
+       and not exists (select 1 from evento_bolsista posterior
+                        where posterior.bolsa_concedida_id = eb.bolsa_concedida_id
+                          and posterior.criado_em > eb.criado_em)
+  `,
+  );
+  if (ultimo) {
+    throw new UnprocessableEntityException(
+      `A situação desta bolsa foi definida pelo evento externo ${ultimo.tipoRotulo}, de ${formatarData(ultimo.dataAto)}. Para alterá-la, corrija o evento.`,
+    );
+  }
+}
+
+function formatarData(iso: string): string {
+  const [ano, mes, dia] = iso.split('-');
+  return `${dia}/${mes}/${ano}`;
 }
 
 /** Todas as bolsas da pessoa precisam aceitar a correcao compartilhada. */
@@ -1257,7 +1323,7 @@ async function reconhecerInstituicao(db: Database, digitado: string) {
   return achada?.id ?? null;
 }
 
-async function exigirVaga(
+export async function exigirVaga(
   db: Database,
   itemPlanejadoId: string,
   ano: number,

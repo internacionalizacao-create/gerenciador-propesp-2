@@ -104,6 +104,22 @@ export const CATALOGO_PERMISSOES_V1 = {
     rotulo: 'Consultar contatos pessoais',
     escopos: PLANEJAMENTO,
   },
+  // Eventos externos da CAPES (V1-036): o registro do que ja aconteceu la —
+  // desistencia, substituicao, movimentacao de recurso. Permissao propria, e
+  // nao `bolsa:edit`: corrigir periodo e rotina, registrar que alguem faleceu
+  // nao e. A leitura separada permite dar o historico a quem nao registra.
+  'evento:read': {
+    rotulo: 'Consultar eventos externos e movimentações',
+    escopos: PLANEJAMENTO,
+  },
+  'evento:create': {
+    rotulo: 'Registrar evento externo ou movimentação',
+    escopos: PLANEJAMENTO,
+  },
+  'evento:edit': {
+    rotulo: 'Corrigir registro de evento externo',
+    escopos: PLANEJAMENTO,
+  },
   'pendencia:read': { rotulo: 'Consultar pendências', escopos: PLANEJAMENTO },
   'pendencia:create': { rotulo: 'Registrar pendência', escopos: PLANEJAMENTO },
   'pendencia:resolve': { rotulo: 'Resolver pendência', escopos: PLANEJAMENTO },

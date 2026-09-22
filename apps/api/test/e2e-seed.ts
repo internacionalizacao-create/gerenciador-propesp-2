@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { criarContextoTeste } from './db-teste';
 import { criarBase, bolsaValida, criarAcesso } from './fixtures';
 import { semearAdministrador } from '../src/database/seed/admin';
+import { carregarTiposEventoBolsista } from '../src/database/seed/tipos-evento-bolsista';
 import * as s from '../src/database/schema';
 
 async function main() {
@@ -18,6 +19,8 @@ async function main() {
   const ctx = await criarContextoTeste();
   try {
     await ctx.limpar();
+    // O truncate leva os tipos de evento externo junto (V1-036).
+    await carregarTiposEventoBolsista(ctx.db);
     const base = await criarBase(ctx.db);
     const admin = await semearAdministrador(
       ctx.db,
@@ -44,6 +47,32 @@ async function main() {
       ppgId: base.ppgId,
       coordenadorTematicaId: base.coordenadorTematicaId,
     });
+    // A pagina da tematica so existe com orcamento cadastrado, como na base real.
+    await ctx.db.insert(s.orcamentoTematica).values(
+      [2027, 2028, 2029, 2030].map((ano) => ({
+        areaTematicaId: base.areaTematicaId,
+        ano,
+        valorBolsas: '500000.00',
+        valorManutencao: '0',
+        valorMissoes: '0',
+        status: 'DEFINIDO' as const,
+      })),
+    );
+    // Segundo PPG da mesma tematica: a movimentacao precisa de dois lados.
+    const [ppgVizinho] = await ctx.db
+      .insert(s.ppg)
+      .values({ nome: 'PPG Vizinho de Teste', sigla: 'PPGVIZ' })
+      .returning();
+    await ctx.db.insert(s.participacaoPpg).values({
+      areaTematicaId: base.areaTematicaId,
+      ppgId: ppgVizinho.id,
+      coordenadorTematicaId: base.coordenadorTematicaId,
+    });
+    // PPG sem participacao, para a jornada de associar pela tela (V1-034).
+    const [ppgAvulso] = await ctx.db
+      .insert(s.ppg)
+      .values({ nome: 'PPG Avulso de Teste', sigla: 'PPGAVU' })
+      .returning();
     await ctx.db.insert(s.membroEquipeGestao).values({
       cicloId: base.cicloId,
       pessoaId: base.coordenadorTematicaId,
@@ -73,6 +102,8 @@ async function main() {
         ...base,
         paisId: pais.id,
         linhaId: linha.id,
+        ppgVizinhoId: ppgVizinho.id,
+        ppgAvulsoId: ppgAvulso.id,
         admin,
         leitor,
         semAcesso,

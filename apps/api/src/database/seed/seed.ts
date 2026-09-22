@@ -10,6 +10,7 @@ import {
 } from './dados-capes-global';
 import { composicoesComiteGestor } from './membros-comite-gestor';
 import { paisesIso } from './paises';
+import { carregarTiposEventoBolsista } from './tipos-evento-bolsista';
 
 /**
  * Carga inicial: reproduz no banco o estado atual das planilhas.
@@ -59,6 +60,7 @@ export interface ResultadoSeed {
   fontes: number;
   orcamentoComiteGestor: number;
   requisitosSubmissao: number;
+  tiposEventoBolsista: number;
 }
 
 export interface OpcoesSeed {
@@ -604,7 +606,12 @@ export async function executarSeed(
     )
     .returning();
 
+  // Tipos de evento do beneficiario (V1-036): base estrutural, como os
+  // requisitos — sao dado de politica, e a interface nao os cadastra.
+  const tiposEventoBolsista = await carregarTiposEventoBolsista(db);
+
   return {
+    tiposEventoBolsista,
     requisitosSubmissao: requisitosSubmissao.length,
     paises: paises.length,
     instituicoes: 1 + instituicoesRede.length,

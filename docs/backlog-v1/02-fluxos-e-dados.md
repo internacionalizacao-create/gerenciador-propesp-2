@@ -397,6 +397,65 @@ Todas as P1 deste grupo foram incluídas na V1 pelo responsável em 2026-09-18.
 
 ## V1-036 — Persistir e consultar eventos externos
 
+- **Estado / data:** Concluída — 2026-09-21. Resumo técnico no §9 de
+  [eventos-externos-v1.md](../eventos-externos-v1.md).
+- **Decisão de produto aplicada:** as recomendações das quatro perguntas do
+  contrato (§7), como o backlog autoriza para pedido explícito de implementar a
+  tarefa: **tipo como dado**, **duas datas** (ato informado, registro
+  automático), **o evento não corrige o passado** (nada toca plano, teto ou
+  custo) e **comprovante opcional**, com a contagem de anexos em cada linha.
+  Três pontos foram além do texto do contrato e estão justificados no §9:
+  movimentação aceita só `EXECUTADO` (a RN-13 exclui também `AUTORIZADO`);
+  `evento:edit` separado de `evento:create`; e a edição da bolsa não desfaz a
+  situação produzida por evento. **Nenhuma resposta institucional foi
+  presumida**: o que a PROPESP ainda pode mudar (lista de tipos, prazo de guarda
+  do evento de falecimento) ficou como dado ou como "A definir".
+- **Arquivos e migrations:** migration `0042_eventos_externos_v1036`
+  (`tipo_evento_bolsista` com os cinco tipos, `evento_bolsista`, colunas de
+  registro em `remanejamento`, saída de `remanejamento_autorizacao_ck`, alvos
+  `EVENTO_BOLSISTA`/`REMANEJAMENTO` em `entidade_anexo`);
+  `schema/eventos-externos.ts`, `schema/execucao.ts`, `schema/comum.ts`;
+  `seed/tipos-evento-bolsista.ts` e `seed.ts`;
+  `dominio/eventos-externos.service.ts` e `.controller.ts`; `recorte-bolsa.ts`
+  (`condicaoDoLado`); `catalogo.ts` e `modelos.ts` (`evento:*`);
+  `bolsistas.service.ts` (`exigirVaga` exportada, trava da situação produzida
+  por evento, auditoria da troca de situação); `mobilidade.service.ts`
+  (cancelada fora do panorama por padrão); `anexos.service.ts` (política,
+  categorias e recorte dos comprovantes); `scripts/db-zerar.sh` (as duas
+  tabelas classificadas: tipos preservados, eventos zerados).
+- **Verificações:** `pnpm lint`, `pnpm build` e `pnpm test` (89 unitários da API,
+  184 da web) passando. `pnpm --filter api test:int`: 43 suítes; a nova
+  [eventos-externos-v1.int-spec.ts](../../apps/api/test/eventos-externos-v1.int-spec.ts)
+  tem 26 casos — cada tipo de evento, repetição sequencial e simultânea (mesma
+  chave e eventos concorrentes na mesma bolsa), rollback de correção que
+  esbarra na vaga, recorte por PPG, exigência de `bolsa:edit`, substituição em
+  dois tempos, panorama e relatório, comprovante, garantias do banco e uma
+  rodada pela camada HTTP com guard e Zod reais. **Duas mutações conferidas:**
+  devolver as canceladas ao panorama e tirar a exigência de `bolsa:edit` fazem,
+  cada uma, um caso falhar. `schema.int-spec.ts` trocou o caso da constraint
+  removida pelo novo `remanejamento_quantidade_ck`.
+- **Critérios de aceite:**
+  - evento fora da temática ou do alcance recusado — movimentação entre
+    temáticas é 422, PPG fora do alcance é 403, bolsa fora do alcance é 404;
+  - reenvio não duplica efeito — a mesma chave devolve o mesmo registro, também
+    em paralelo;
+  - substituição preserva o beneficiário anterior — a bolsa que sai continua
+    com a pessoa dela, cancelada, e o evento aponta a que entra;
+  - nenhum pagamento fictício — nada é gravado em `lancamento_execucao`, e o
+    custo por temática e `planejamento_anual` são comparados antes e depois;
+  - falha de gravação não deixa estado parcial — a correção recusada pela vaga
+    não muda nem o evento nem a bolsa nem a trilha.
+- **Limitações e tarefas seguintes:**
+  - **V1-037** faz a tela. Até lá o formulário da bolsa ainda leva a *Cancelada*
+    ou *Interrompida* sem evento; bloquear isso agora deixaria a equipe sem
+    caminho pela interface.
+  - Substituição não troca de tipo por correção.
+  - A movimentação não ajusta o plano; se a CAPES realocou uma vaga, a linha da
+    P10 continua sendo editada à parte.
+  - `pnpm smoke:telas` e `smoke:acesso` não foram executados: não há tela nova.
+  - A migration não foi aplicada ao banco de desenvolvimento, só ao de testes.
+- **Commit:** não criado nesta execução.
+
 - **Prioridade/dependência:** P1; V1-014 e contrato pertinente de V1-035 escolhido.
 - **Objetivo:** implementar atos externos com rastreabilidade e consistência.
 - **Arquivos:** schema/execução/planejamento, migrations/seed, novos serviços e
@@ -412,6 +471,34 @@ Todas as P1 deste grupo foram incluídas na V1 pelo responsável em 2026-09-18.
   houver consumo de vaga/saldo, rollback, recorte e regressão dos indicadores.
 
 ## V1-037 — Registrar eventos externos pela interface
+
+- **Estado / data:** Concluída — 2026-09-21.
+- **Decisão aplicada:** comprovante opcional e destacado quando ausente (§7.4
+  do contrato); o evento do bolsista se registra na página da bolsa, e a P12
+  consulta os do ciclo e registra as movimentações.
+- **Entregue:**
+  - seção *Eventos informados pela CAPES* no detalhe da bolsa: registrar,
+    corrigir (com motivo) e anexar comprovante; histórico com data do ato,
+    data do registro, autor, efeito na situação, selo *Corrigido* e *Sem
+    comprovante*; aviso na bolsa que entrou por substituição;
+  - tela P12 em `/programas/[programa]/[ciclo]/remanejamentos` ("Eventos da
+    CAPES", no menu com `exige: ["evento:read"]`): movimentações com registro e
+    correção, e os eventos de bolsistas do ciclo;
+  - formulários RHF + Zod em `lib/formularios/eventos-externos.ts`: só
+    oferecem tipos que partem da situação atual, temáticas com dois PPGs no
+    alcance e substitutas da mesma vaga; mostram o efeito antes de salvar;
+    chave de envio por formulário aberto;
+  - API: `GET .../movimentacoes/referencias` e `substitutas` em
+    `GET /bolsistas/:id/eventos`; **a edição da bolsa passou a recusar
+    Cancelada/Interrompida** (e o formulário não as oferece).
+- **Verificações:** lint, build, 191 testes da web (7 novos em
+  `eventos-externos.test.mjs`), integração da API completa, 3 casos novos em
+  `eventos-externos-v1.int-spec.ts`. No dev: migration `0042` aplicada; a P12
+  responde 200 com a explicação de acesso e a API 403 para conta sem
+  `evento:read`.
+- **Limitações:** a jornada completa no navegador fica com a V1-059; o banco de
+  dev não tem bolsas, e o administrador semeado antes de 2026-09-21 **não tem
+  `evento:*`** — conceder pela tela de Acessos (ato de operação).
 
 - **Prioridade/dependência:** P1; V1-036.
 - **Objetivo:** operação institucional com prévia de efeitos e histórico legível.

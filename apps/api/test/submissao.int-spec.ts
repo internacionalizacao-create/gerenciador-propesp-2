@@ -13,7 +13,7 @@ import {
   type ContextoTeste,
   type TestDatabase,
 } from './db-teste';
-import { criarBase, type BaseFixture } from './fixtures';
+import { criarAcesso, criarBase, type BaseFixture } from './fixtures';
 
 const admin: AuthUser = {
   id: 'sub-admin',
@@ -81,6 +81,12 @@ describe('SubmissaoService (CG-037)', () => {
   beforeEach(async () => {
     await ctx.limpar();
     base = await criarBase(ctx.db);
+    // A excecao ao "somente o responsavel" e o alcance global da acao, nao
+    // o papel do token (V1-059).
+    await criarAcesso(ctx.db, {
+      sub: admin.id,
+      permissoes: admin.permissions,
+    });
 
     const [missao] = await ctx.db
       .insert(s.missaoComite)
@@ -224,6 +230,17 @@ describe('SubmissaoService (CG-037)', () => {
     await expect(
       submissao.submeter(base.cicloId, missaoId, responsavel),
     ).resolves.toMatchObject({ numero: 1 });
+  });
+
+  it('papel admin no token sem concessao global nao abre a excecao', async () => {
+    await completarDocumentos();
+    await expect(
+      submissao.submeter(base.cicloId, missaoId, {
+        ...outro,
+        id: 'sub-papel-admin',
+        roles: ['admin'],
+      }),
+    ).rejects.toThrow('Somente o responsável');
   });
 
   it('admin envia mesmo sem ser responsavel', async () => {

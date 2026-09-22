@@ -139,8 +139,14 @@ export function Data({
   padrao?: string;
   registro?: UseFormRegisterReturn;
 }) {
-  const [valor, setValor] = useState(() => dataIsoParaBr(resto.padrao));
-
+  /*
+    Nao controlado, de proposito. Era `value={estado}` iniciado so por
+    `padrao`, e o formulario que passava a data pelo React Hook Form
+    (`defaultValues`) mostrava o campo vazio: o RHF escreve o valor inicial no
+    DOM pela `ref`, e o React o apagava no render seguinte. A edicao de missao
+    e a de bolsa abriam sem as datas gravadas (achado da V1-059). A mascara
+    continua: ela reescreve o proprio `input` a cada tecla.
+  */
   return (
     <Campo
       rotulo={rotulo}
@@ -160,12 +166,13 @@ export function Data({
           maxLength={10}
           pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}"
           required={resto.obrigatorio}
-          value={valor}
+          defaultValue={
+            resto.padrao !== undefined ? dataIsoParaBr(resto.padrao) : undefined
+          }
           placeholder="DD/MM/AAAA"
           aria-invalid={resto.erro ? true : undefined}
           onChange={(evento) => {
             const novaData = mascararDataBr(evento.currentTarget.value);
-            setValor(novaData);
             // O RHF precisa receber o mesmo texto mascarado que ficou visivel.
             evento.currentTarget.value = novaData;
             void resto.registro?.onChange(evento);
@@ -177,8 +184,9 @@ export function Data({
           }}
           onBlur={(evento) => {
             void resto.registro?.onBlur(evento);
+            const atual = evento.currentTarget.value;
             evento.currentTarget.setCustomValidity(
-              valor && !dataBrParaIso(valor)
+              atual && !dataBrParaIso(atual)
                 ? "Informe uma data válida no formato DD/MM/AAAA."
                 : "",
             );

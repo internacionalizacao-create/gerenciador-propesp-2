@@ -23,7 +23,8 @@ V1-014 integrou escrita e referências do planejamento; V1-015 integrou bolsas,
 produção, exportação de mobilidade e a projeção dos campos pessoais; V1-016
 integrou os caminhos indiretos — histórico do parceiro, anexos e ficha PDF, cada
 um pelo alcance da ação que ele mesmo exige; V1-017 integrou a política
-administrativa; V1-019 integrou a navegação.
+administrativa; V1-019 integrou a navegação; V1-036 acrescentou `evento:read`,
+`evento:create` e `evento:edit`, com os escopos de planejamento.
 Após a transição, retirar o mapa legado como fonte de acesso. Não manter dois
 mecanismos permissivos concorrentes.
 
@@ -145,7 +146,7 @@ herdam o catálogo e precisam de entrada explícita neste inventário.
 
 | Método e rota | Permissão atual / fronteira | Contrato V1 |
 |---|---|---|
-| `GET /anexos` | Serviço/identidade | documento:read + leitura/alcance do alvo + capacidade de visibilidade |
+| `GET /anexos` | Serviço/identidade | documento:read + leitura/alcance do alvo + capacidade de visibilidade. `EVENTO_BOLSISTA` e `REMANEJAMENTO` (V1-036) leem com evento:read e escrevem com evento:create, no alcance do evento |
 | `POST /anexos` | Serviço/identidade | documento:create + leitura/alcance do alvo + capacidade de visibilidade |
 | `GET /anexos/:id/historico` | Serviço/identidade | documento:read + leitura/alcance do alvo + capacidade de visibilidade |
 | `GET /anexos/:id/conteudo` | Serviço/identidade | documento:download + leitura/alcance do alvo + capacidade de visibilidade |
@@ -162,9 +163,31 @@ herdam o catálogo e precisam de entrada explícita neste inventário.
 | `GET /bolsistas/instituicoes` | bolsa:read, create ou edit (V1-015) | bolsa:read; somente identificação institucional |
 | `GET /bolsistas/:id` | bolsa:read (V1-015) | bolsa:read; produtos somente com produto:read |
 | `POST /bolsistas` | bolsa:create + alcance (V1-015) | bolsa:create |
-| `PATCH /bolsistas/:id` | bolsa:edit + alcance; CPF exige pessoa:edit-cpf (V1-015) | bolsa:edit |
+| `PATCH /bolsistas/:id` | bolsa:edit + alcance; CPF exige pessoa:edit-cpf (V1-015); não leva a Cancelada/Interrompida nem desfaz situação de evento (V1-036/037) | bolsa:edit |
 | `POST /bolsistas/:id/produtos` | produto:create + alcance (V1-015) | produto:create |
 | `PATCH /bolsistas/:id/produtos/:produtoId` | produto:edit + alcance (V1-015) | produto:edit |
+
+### eventos-externos.controller.ts
+
+V1-036 (2026-09-21). Três controllers no mesmo arquivo: o evento nasce da bolsa
+ou do ciclo e depois o `id` basta. O alcance vem de `condicaoDaBolsa` para o
+evento do beneficiário e de `condicaoDoLado` para a movimentação.
+
+| Método e rota | Permissão atual / fronteira | Contrato V1 |
+|---|---|---|
+| `GET /eventos-externos/tipos` | evento:read | evento:read; só tipos ativos |
+| `GET /bolsistas/:id/eventos` | evento:read + alcance da bolsa (V1-036) | evento:read; fora do alcance responde 404 |
+| `POST /bolsistas/:id/eventos` | evento:create **e** bolsa:edit, ambos no alcance da bolsa (V1-036) | evento:create + bolsa:edit; substituta exige evento:create sobre ela |
+| `PATCH /eventos-externos/bolsistas/:id` | evento:edit + alcance da bolsa; trocar o tipo exige também bolsa:edit (V1-036) | evento:edit |
+| `GET /programas/:programa/:ciclo/eventos-bolsista` | evento:read + alcance por bolsa (V1-036) | evento:read |
+| `GET /programas/:programa/:ciclo/movimentacoes` | evento:read sobre **qualquer um** dos dois PPGs (V1-036) | evento:read |
+| `GET /programas/:programa/:ciclo/movimentacoes/referencias` | evento:create; só temáticas com dois PPGs no alcance (V1-037) | evento:create |
+| `POST /programas/:programa/:ciclo/movimentacoes` | evento:create sobre **os dois** PPGs; fora do alcance responde 403 com a sigla (V1-036) | evento:create |
+| `PATCH /eventos-externos/movimentacoes/:id` | evento:edit sobre os dois PPGs atuais e os novos (V1-036) | evento:edit |
+
+A movimentação responde **403, e não 404**, ao PPG fora do alcance: PPG e
+participação são cadastro institucional, e a existência deles não é o dado
+protegido. A concessão de bolsa, sim — e por isso o evento da bolsa responde 404.
 
 ### comite-gestor.controller.ts
 

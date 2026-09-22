@@ -7,6 +7,11 @@ import {
 import { EditarBolsaConcedida } from "@/componentes/formularios/form-bolsa-concedida";
 import { AnexarDocumentoDoBolsista } from "@/componentes/formularios/form-documento-bolsista";
 import {
+  AnexarComprovante,
+  CorrigirEventoBolsa,
+  RegistrarEventoBolsa,
+} from "@/componentes/formularios/form-evento-externo";
+import {
   EditarProdutoBolsa,
   NovoProdutoBolsa,
 } from "@/componentes/formularios/form-produto-bolsa";
@@ -25,7 +30,13 @@ import {
 import { SemAcesso } from "@/componentes/ui/sem-acesso";
 import { faltando } from "@/lib/acesso";
 import { apiFetch, apiFetchOuNada } from "@/lib/api";
-import type { AnexoResumo, BolsaConcedidaDetalhe } from "@/lib/dominio";
+import type {
+  AnexoResumo,
+  BolsaConcedidaDetalhe,
+  EventoBolsista,
+  EventosDaBolsa,
+  TipoEventoBolsista,
+} from "@/lib/dominio";
 import { carregarMe } from "@/lib/me";
 import {
   categoriasDisponiveis,
@@ -52,7 +63,10 @@ export default async function DetalheDoBolsista({
     );
   }
 
-  const [bolsa, documentosPermitidos] = await Promise.all([
+  const podeLerEventos = me.permissions.includes("evento:read");
+  const podeRegistrarEventos = me.permissions.includes("evento:create");
+  const podeCorrigirEventos = me.permissions.includes("evento:edit");
+  const [bolsa, documentosPermitidos, eventos, tipos] = await Promise.all([
     apiFetch<BolsaConcedidaDetalhe>(`/bolsistas/${id}`),
     // A API ja filtra o que este usuario pode ver: documento pessoal nao chega
     // para quem nao tem `documento:read-pessoal`. A tela nao refiltra — dois
@@ -60,6 +74,12 @@ export default async function DetalheDoBolsista({
     apiFetchOuNada<AnexoResumo[]>(
       `/anexos?entidadeTipo=BOLSA_CONCEDIDA&entidadeId=${id}`,
     ),
+    podeLerEventos
+      ? apiFetchOuNada<EventosDaBolsa>(`/bolsistas/${id}/eventos`)
+      : null,
+    podeLerEventos && (podeRegistrarEventos || podeCorrigirEventos)
+      ? apiFetchOuNada<TipoEventoBolsista[]>("/eventos-externos/tipos")
+      : null,
   ]);
   const documentos = documentosPermitidos ?? [];
   const podeEditarBolsa = bolsa.podeEditar;
@@ -361,6 +381,17 @@ export default async function DetalheDoBolsista({
         )}
       </Secao>
 
+      {eventos ? (
+        <EventosDaCapes
+          bolsa={bolsa}
+          eventos={eventos}
+          tipos={tipos ?? []}
+          podeRegistrar={podeRegistrarEventos && bolsa.podeEditar}
+          podeCorrigir={podeCorrigirEventos}
+          podeAnexar={podeRegistrarEventos}
+        />
+      ) : null}
+
       <Documentos
         bolsaId={bolsa.id}
         documentos={documentos}
@@ -368,6 +399,184 @@ export default async function DetalheDoBolsista({
         categorias={categoriasDeDocumento}
       />
     </Pagina>
+  );
+}
+
+/**
+ * Eventos externos da CAPES (V1-037).
+ *
+ * O histórico separa o **ato** (o que a CAPES fez, e quando) do **registro**
+ * (quem anotou aqui, e quando) e marca a **correção** — as três coisas que a
+ * trilha precisa distinguir anos depois. Comprovante ausente é destacado, mas
+ * não impede nada: exigi-lo faria o evento nunca ser registrado.
+ */
+function EventosDaCapes({
+  bolsa,
+  eventos,
+  tipos,
+  podeRegistrar,
+  podeCorrigir,
+  podeAnexar,
+}: {
+  bolsa: BolsaConcedidaDetalhe;
+  eventos: EventosDaBolsa;
+  tipos: TipoEventoBolsista[];
+  podeRegistrar: boolean;
+  podeCorrigir: boolean;
+  podeAnexar: boolean;
+}) {
+  const registrar = podeRegistrar ? (
+    <RegistrarEventoBolsa
+      bolsaId={bolsa.id}
+      situacao={bolsa.status}
+      tipos={tipos}
+      substitutas={eventos.substitutas}
+    />
+  ) : undefined;
+
+  return (
+    <Secao
+      titulo="Eventos informados pela CAPES"
+      descricao="Desistência, interrupção, substituição e outros atos que aconteceram na plataforma da CAPES. O Gerenciador registra o fato; não o autoriza."
+      acoes={registrar}
+    >
+      {eventos.substituiu.map((evento) => (
+        <Aviso key={evento.id} tom="info" titulo="Bolsa substituta">
+          Esta concessão entrou na vaga de{" "}
+          <Link
+            href={`/mobilidade/bolsistas/${evento.bolsaConcedidaId}`}
+            className="font-medium underline"
+          >
+            {evento.bolsista}
+          </Link>
+          , por substituição registrada com data do ato em{" "}
+          {data(evento.dataAto)}.
+        </Aviso>
+      ))}
+
+      {eventos.eventos.length === 0 ? (
+        <EstadoVazio
+          titulo="Nenhum evento registrado"
+          descricao="Quando a CAPES informar desistência, interrupção ou substituição, registre aqui com a data do ato e a justificativa."
+          acao={registrar}
+        />
+      ) : (
+        <Tabela
+          rotulo="Eventos informados pela CAPES"
+          colunas={[
+            { chave: "evento", texto: "Evento" },
+            { chave: "ato", texto: "Data do ato" },
+            { chave: "efeito", texto: "Efeito na situação" },
+            { chave: "referencia", texto: "Referência e comprovante" },
+            { chave: "registro", texto: "Registrado" },
+            { chave: "acoes", texto: <span className="sr-only">Ações</span> },
+          ]}
+        >
+          {eventos.eventos.map((evento) => (
+            <LinhaDeEvento
+              key={evento.id}
+              evento={evento}
+              tipos={tipos}
+              substitutas={eventos.substitutas}
+              podeCorrigir={podeCorrigir}
+              podeAnexar={podeAnexar}
+            />
+          ))}
+        </Tabela>
+      )}
+    </Secao>
+  );
+}
+
+function LinhaDeEvento({
+  evento,
+  tipos,
+  substitutas,
+  podeCorrigir,
+  podeAnexar,
+}: {
+  evento: EventoBolsista;
+  tipos: TipoEventoBolsista[];
+  substitutas: EventosDaBolsa["substitutas"];
+  podeCorrigir: boolean;
+  podeAnexar: boolean;
+}) {
+  return (
+    <tr>
+      <Celula className="max-w-sm">
+        <span className="font-medium text-foreground">{evento.tipoRotulo}</span>
+        {evento.corrigido ? (
+          <span className="ml-2">
+            <Selo tom="info">Corrigido</Selo>
+          </span>
+        ) : null}
+        <span className="mt-1 block text-xs text-muted">
+          {evento.justificativa}
+        </span>
+        {evento.bolsaSubstitutaId ? (
+          <span className="mt-1 block text-xs">
+            Entrou na vaga:{" "}
+            {evento.substituto ? (
+              <Link
+                href={`/mobilidade/bolsistas/${evento.bolsaSubstitutaId}`}
+                className="text-primary hover:underline"
+              >
+                {evento.substituto}
+              </Link>
+            ) : (
+              "bolsa fora do seu acesso"
+            )}
+          </span>
+        ) : null}
+        {evento.previsaoRetorno ? (
+          <span className="mt-1 block text-xs text-muted">
+            Previsão de retorno: {data(evento.previsaoRetorno)}
+          </span>
+        ) : null}
+      </Celula>
+      <Celula>{data(evento.dataAto)}</Celula>
+      <Celula>
+        {rotulo(evento.statusAnterior)} → {rotulo(evento.statusPosterior)}
+      </Celula>
+      <Celula>
+        {evento.referenciaExterna ?? "Sem referência"}
+        <span className="mt-1 block">
+          {evento.comprovantes > 0 ? (
+            <Selo tom="sucesso">
+              {inteiro(evento.comprovantes)} comprovante(s)
+            </Selo>
+          ) : (
+            <Selo tom="aviso">Sem comprovante</Selo>
+          )}
+        </span>
+      </Celula>
+      <Celula>
+        {dataHora(evento.registradoEm)}
+        {evento.registradoPorNome ? (
+          <span className="mt-0.5 block text-xs text-muted">
+            {evento.registradoPorNome}
+          </span>
+        ) : null}
+      </Celula>
+      <Celula>
+        <div className="flex flex-col items-start gap-2">
+          {podeCorrigir ? (
+            <CorrigirEventoBolsa
+              evento={evento}
+              tipos={tipos}
+              substitutas={substitutas}
+            />
+          ) : null}
+          {podeAnexar ? (
+            <AnexarComprovante
+              entidadeTipo="EVENTO_BOLSISTA"
+              entidadeId={evento.id}
+              bolsaId={evento.bolsaConcedidaId}
+            />
+          ) : null}
+        </div>
+      </Celula>
+    </tr>
   );
 }
 

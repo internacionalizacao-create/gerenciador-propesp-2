@@ -4,10 +4,11 @@ Proposta de contrato para o registro histórico do que acontece na plataforma da
 CAPES (P12 e o histórico de cancelamento, desistência, falecimento e
 substituição). Tarefa de origem: **V1-035**.
 
-> **Nenhuma linha de código muda com este documento.** Ele fecha o contrato para
-> que a **V1-036** (persistência e consulta) e a **V1-037** (interface) possam
-> ser executadas. As quatro perguntas do §7 continuam abertas e **bloqueiam
-> apenas a parcela da V1-036 que depende de cada uma** — o resto pode andar.
+> **A V1-036 implementou a persistência e a consulta em 2026-09-21** com as
+> recomendações das quatro perguntas do §7, conforme o backlog autoriza: pedido
+> explícito de implementar a tarefa adota a recomendação documentada. O que foi
+> feito, e onde a implementação precisou ir além do texto, está no §9. A
+> **V1-037** (interface) foi concluída no mesmo dia.
 >
 > Este documento não constitui homologação institucional.
 
@@ -268,3 +269,74 @@ formulário na V1-037.
 - **Catálogo de permissões:** `evento:create` e `evento:read`, com os escopos de
   planejamento, mais a rota no inventário
   ([contrato-autorizacao-v1.md](contrato-autorizacao-v1.md)).
+
+---
+
+## 9. O que a V1-036 implementou (2026-09-21)
+
+Migration `0042_eventos_externos_v1036`; serviço em
+[eventos-externos.service.ts](../apps/api/src/dominio/eventos-externos.service.ts);
+rotas no inventário de [contrato-autorizacao-v1.md](contrato-autorizacao-v1.md).
+
+**As quatro perguntas, com a recomendação aplicada:**
+
+| § | Recomendação adotada | Como ficou |
+|---|---|---|
+| 7.1 | Tipo como dado | `tipo_evento_bolsista`, com `estados_origem`, `estado_destino`, `aceita_substituta` e `aceita_previsao_retorno`. Os cinco tipos do §4 entram pela migration e pela seed (`seed/tipos-evento-bolsista.ts`). Um tipo novo é um `insert`; `ativo = false` o retira sem apagar o histórico. |
+| 7.2 | Duas datas | `data_ato` é informada e não aceita data futura; a do registro é `criado_em`. |
+| 7.3 | O evento não corrige o passado | Nenhum evento toca `planejamento_anual`, teto ou custo do plano. Muda a situação da bolsa e, com ela, a vaga e o panorama. |
+| 7.4 | Comprovante opcional | Anexo em `EVENTO_BOLSISTA`/`REMANEJAMENTO`; `comprovantes` volta em cada linha para a V1-037 destacar o zero. `remanejamento_autorizacao_ck`, que exigia o número do ofício, saiu. |
+
+**Regras fixadas como decisão, e não mais como efeito colateral:**
+
+- **Cancelada libera a vaga; interrompida não** (§5.1). Voltar de `CANCELADA`
+  por correção passa por `exigirVaga`, e é recusado se alguém já ocupou a vaga.
+- **O panorama exclui `CANCELADA` por padrão** (§5.3); `?status=CANCELADA` as
+  mostra. O relatório exportável e o bloco da P01 herdam a mudança pela mesma
+  função `condicao`.
+- **Reenvio não duplica.** Todo registro carrega `chave` (UUID gerado por quem
+  envia): a mesma chave devolve o registro existente, e a chave reaproveitada em
+  outro alvo responde 409. O lock da bolsa (evento) e o lock consultivo do ciclo
+  (movimentação) serializam os reenvios simultâneos; o índice único é o último
+  anteparo.
+
+**Onde a implementação foi além do texto do contrato:**
+
+1. **Movimentação só aceita `EXECUTADO`.** O §2.1 mandava recusar `PROPOSTO` e
+   `REJEITADO`; a RN-13 da especificação também exclui `AUTORIZADO` ("a tela não
+   oferece `PROPOSTO`/`AUTORIZADO`"). Prevaleceu a regra mais estrita. Se a
+   PROPESP quiser registrar "autorizado na CAPES, ainda não executado", é uma
+   linha a mais no schema Zod.
+2. **Permissão `evento:edit`, além de `evento:create`/`evento:read`.** Corrigir é
+   verbo diferente de registrar, como em todo o catálogo. Os modelos ficaram
+   assim: `evento:read` em todos (entra em "consulta"), `evento:create` e
+   `evento:edit` na secretaria; o administrador recebe o catálogo inteiro.
+3. **A edição da bolsa não desfaz a situação que um evento produziu.** Se o
+   último evento deixou a bolsa `CANCELADA`, `PATCH /bolsistas/:id` recusa voltar
+   para outra situação e diz qual evento corrigir. Situação que não veio de
+   evento continua editável, e toda troca de situação pela edição passou a ser
+   auditada (RN-20). Desde a **V1-037** a edição também não leva a bolsa a
+   `CANCELADA` ou `INTERROMPIDA`: com a tela de registro no ar, esses estados
+   só entram por evento.
+
+**Correção** (`PATCH`, com `motivo` obrigatório): o valor corrigido fica na
+linha e a trilha guarda cada campo trocado. Trocar o **tipo** reaplica o efeito
+a partir do `status_anterior` fotografado, e só vale no último evento da bolsa e
+enquanto a situação ainda é a que ele produziu. **Substituição não troca de
+tipo**: ela liga duas bolsas, e desfazê-la por correção deixaria a substituta
+sem explicação.
+
+**Substituição em dois tempos.** A bolsa que entra só pode ser cadastrada depois
+que a que sai libera a vaga, então `bolsaSubstitutaId` pode ser informado no
+registro, se já existir, ou depois, pela correção. Ela precisa ocupar a mesma
+vaga (mesma linha planejada e exercício) e substitui uma vez só
+(`evento_bolsista_substituta_uk`).
+
+**A movimentação é visível a quem alcança qualquer um dos lados** — quem cedeu e
+quem recebeu são, os dois, parte do fato —, mas registrar e corrigir exigem
+alcance sobre os dois.
+
+**Não feito aqui:** a política de retenção do evento de
+falecimento, que é dado sensível sem prazo decidido em
+[retencao-v1.md](retencao-v1.md).
+

@@ -477,6 +477,13 @@ export const entidadeAnexoEnum = pgEnum('entidade_anexo', [
    * sistema, e a ata e o comprovante daquela deliberacao.
    */
   'DECISAO_COMITE',
+  /**
+   * Comprovante dos eventos externos da CAPES (V1-036): o oficio da
+   * desistencia, o registro da movimentacao. Opcional nos dois (contrato
+   * §7.4) — o evento se registra sem ele e a tela destaca a ausencia.
+   */
+  'EVENTO_BOLSISTA',
+  'REMANEJAMENTO',
 ]);
 
 /**

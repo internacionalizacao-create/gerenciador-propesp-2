@@ -261,6 +261,41 @@ Todas as P1 deste grupo foram incluídas na V1 pelo responsável em 2026-09-18.
 
 ## V1-059 — Jornadas no navegador por perfil
 
+- **Estado / data:** Concluída — 2026-09-21.
+- **Runner:** Playwright (Chromium), já no repositório. `pnpm test:e2e`
+  ([scripts/e2e.mjs](../../scripts/e2e.mjs)) sobe Postgres e Keycloak
+  descartáveis em portas próprias, faz build de produção, semeia por jornada
+  ([e2e-seed.ts](../../apps/api/test/e2e-seed.ts)) e derruba tudo ao fim. O
+  seed recusa rodar fora desse banco. Job `browser` no CI, com relatório e
+  trace só em falha — dados sempre sintéticos.
+- **Jornadas (8, todas passando):** concessão e revogação de acesso pela tela,
+  com escrita adulterada recusada; foco preso e devolvido no sidesheet e erro
+  sem perda; conta sem concessão e sessão expirada; bolsa com produto,
+  documento, download e exportação CSV/XLSX/PDF; missão do cadastro ao
+  encerramento e reabertura, com ajuste, aprovação e prestação devolvida e
+  validada; paginação de parceiros; **novas:** eventos da CAPES (registro, erro
+  que preserva o formulário, comprovante, correção, movimentação, pedido
+  adulterado 422/400 e perfil sem acesso 403) e participação + convênio.
+- **Defeitos reais encontrados e corrigidos:**
+  - campo de data **controlado** apagava o valor que o React Hook Form punha
+    pela `ref`: as edições de missão e de bolsa abriam sem as datas e não
+    salvavam (`ui/campos.tsx`, agora não controlado);
+  - submissão da missão liberava administrador por **papel do token**
+    (`roles.includes('admin')`), que desde a V1-012 não concede nada: o admin
+    real não destravava missão alheia. Agora é `missao:submit` em alcance
+    global (`submissao.service.ts`, com regressão);
+  - ao associar o último PPG disponível, o painel ficava aberto mostrando
+    "todos já participam" (`form-participacao.tsx`, lista congelada ao abrir);
+  - texto do painel de edição da bolsa ainda falava em registrar cancelamento.
+- **Testes desatualizados ajustados:** botão duplicado (cabeçalho e estado
+  vazio), rótulo com asterisco, campos obrigatórios novos do produto, espera
+  de navegação e o efeito real de reabrir a execução (volta a *Planejada*).
+- **Verificações:** `pnpm test:e2e` 8/8; lint; 191 testes da web, 89
+  unitários e 717 de integração da API.
+- **Limitações:** cobre o perfil administrador, o leitor e a conta sem
+  concessão; recortes parciais por PPG seguem cobertos pela integração e pelo
+  `smoke:acesso`. Não houve execução no CI nesta sessão.
+
 - **Prioridade/dependência:** P0; V1-020, V1-030, V1-031 e V1-058.
 - **Objetivo:** verificar interações reais além de HTML e inspeção estática.
 - **Arquivos:** suites web, scripts smoke, configuração de runner de navegador,

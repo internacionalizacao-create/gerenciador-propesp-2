@@ -295,6 +295,13 @@
       "when": 1789700936746,
       "tag": "0041_remove_escopo_acesso_legado",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1790042043914,
+      "tag": "0042_eventos_externos_v1036",
+      "breakpoints": true
     }
   ]
 }
