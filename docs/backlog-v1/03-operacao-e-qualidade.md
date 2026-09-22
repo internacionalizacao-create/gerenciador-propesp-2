@@ -7,11 +7,21 @@ Todas as P1 deste grupo foram incluídas na V1 pelo responsável em 2026-09-18.
 
 ## V1-050 — Definir implantação interna e responsabilidades
 
+- **Estado / data:** **Adiada por decisão do responsável — 2026-09-22.** A V1 se
+  concentra em validar e consolidar o fluxo de autorização agnóstica (V1-022);
+  DNS, implantação e operação voltam depois disso. Adiar não é dispensar: nada
+  aqui foi considerado desnecessário, e esta ficha permanece exigível antes de
+  qualquer publicação na intranet.
 - **Prioridade/dependência:** P0; V1-001.
 - **Decisão em 2026-09-18:** preparar execução do sistema em Docker. A escolha
-  cobre o empacotamento de web/API/SSO/bancos; host, DNS, certificado e responsável
-  de infraestrutura permanecem pendentes para implantação. Documentar as lacunas
-  sem impedir a preparação local dos artefatos.
+  cobre o empacotamento de web/API/SSO/bancos; host, DNS e certificado permanecem
+  pendentes para implantação. Documentar as lacunas sem impedir a preparação
+  local dos artefatos.
+- **Responsável registrado em 2026-09-22 (V1-001):** infraestrutura — servidor,
+  DNS interno e certificado — é da **equipe de T.I. da PROPESP**. A atribuição
+  de equipe é a forma final do registro, decidida na mesma data: **não há
+  interlocutor nominal a levantar nesta ficha.** O que continua pendente aqui é
+  host, DNS e certificado, não o nome de quem os fornece.
 - **Objetivo:** ter um desenho operacional concreto para a intranet.
 - **Referências:** `infra/docker-compose.yml`, `spec.server.md`, env examples,
   arquitetura BFF, scripts de banco e compartilhamento ngrok.
@@ -28,6 +38,11 @@ Todas as P1 deste grupo foram incluídas na V1 pelo responsável em 2026-09-18.
 
 ## V1-051 — Implantação de produção na intranet
 
+- **Estado / data:** **Adiada por decisão do responsável — 2026-09-22.** A V1 se
+  concentra em validar e consolidar o fluxo de autorização agnóstica (V1-022);
+  DNS, implantação e operação voltam depois disso. Adiar não é dispensar: nada
+  aqui foi considerado desnecessário, e esta ficha permanece exigível antes de
+  qualquer publicação na intranet.
 - **Prioridade/dependência:** P0; V1-050 e V1-052.
 - **Decisão em 2026-09-18:** usar Docker para preparar a execução do sistema.
   Preparação e ensaio local não equivalem a publicação ou aceite na intranet.
@@ -115,10 +130,21 @@ Todas as P1 deste grupo foram incluídas na V1 pelo responsável em 2026-09-18.
 
 ## V1-053 — Backup completo e agendado
 
+- **Estado / data:** **Adiada por decisão do responsável — 2026-09-22.** A V1 se
+  concentra em validar e consolidar o fluxo de autorização agnóstica (V1-022);
+  DNS, implantação e operação voltam depois disso. Adiar não é dispensar: nada
+  aqui foi considerado desnecessário, e esta ficha permanece exigível antes de
+  qualquer publicação na intranet.
 - **Prioridade/dependência:** P0; V1-050.
 - **Decisão em 2026-09-18:** executar backup diário durante a madrugada.
-  Documentar horário exato e fuso na implementação, além de destino, retenção e
-  responsável pelo acompanhamento. O agendamento ainda não foi implementado.
+  Documentar horário exato e fuso na implementação, além de destino e retenção.
+  O agendamento ainda não foi implementado.
+- **Responsável registrado em 2026-09-22 (V1-001):** acompanhar o backup e
+  responder à falha é da **equipe de T.I. da PROPESP**.
+- **Atenção ao encerrar esta ficha:** V1-054 foi adiada em 2026-09-22, então o
+  backup entregue aqui **não terá restauração ensaiada**. Registrar isso na
+  ficha e nas limitações da V1-060; não descrever o pacote como recuperável
+  antes que alguém o tenha restaurado.
 - **Objetivo:** proteger domínio, anexos, identidades e configuração necessária
   para recuperação, evoluindo os scripts existentes.
 - **Arquivos:** `scripts/db-backup.sh`, `db-comum.sh`, inventário/restauração,
@@ -137,10 +163,18 @@ Todas as P1 deste grupo foram incluídas na V1 pelo responsável em 2026-09-18.
 
 ## V1-054 — Ensaio de recuperação, atualização e rollback
 
+- **Estado / data:** **Adiada por decisão do responsável — 2026-09-22.** A V1
+  passará por uma segunda rodada de consolidação do banco antes de entrar em
+  produção; ensaiar recuperação sobre dados que serão refeitos não prova o que
+  o ensaio existe para provar. **As metas de perda máxima e de tempo de
+  restauração ficam adiadas junto**, porque são o critério do ensaio e fixá-las
+  sem ele seria número sem verificação.
+- **Retomar antes da publicação na intranet.** Backup sem restauração ensaiada
+  é backup não verificado, e até lá a V1-060 aceita a versão com essa limitação
+  escrita. Adiar não é dispensar.
 - **Prioridade/dependência:** P0; V1-051 e V1-053.
 - **Pendente após a decisão de 2026-09-18:** frequência diária de madrugada
-  aprovada para backup; perda máxima aceitável e prazo máximo de restauração
-  ainda não definidos. Não apresentar o intervalo entre backups como garantia
+  aprovada para backup. Não apresentar o intervalo entre backups como garantia
   de recuperação, pois ela depende de sucesso, consistência e restauração testada.
 - **Objetivo:** demonstrar recuperação real, não apenas existência de dumps.
 - **Arquivos:** scripts de restauração, configuração de produção e runbook;
@@ -157,13 +191,22 @@ Todas as P1 deste grupo foram incluídas na V1 pelo responsável em 2026-09-18.
 
 ## V1-055 — Observabilidade, prontidão e suporte
 
+- **Estado / data:** **Adiada por decisão do responsável — 2026-09-22.** A V1 se
+  concentra em validar e consolidar o fluxo de autorização agnóstica (V1-022);
+  DNS, implantação e operação voltam depois disso. Adiar não é dispensar: nada
+  aqui foi considerado desnecessário, e esta ficha permanece exigível antes de
+  qualquer publicação na intranet.
 - **Prioridade/dependência:** P1; V1-051.
 - **Objetivo:** detectar indisponibilidade e diagnosticar erros sem expor dados.
 - **Arquivos:** `main.ts`, health controller, filtros/logs da API, BFF, deploy.
 - **Implementação:** separar liveness de prontidão das dependências indispensáveis;
   correlação de requisições, logs estruturados com política de mascaramento,
   retenção/rotação e alertas de erro/espaço/backup. Prontidão não expõe URL de
-  banco, tokens ou detalhes internos ao usuário. Definir quem recebe e atende.
+  banco, tokens ou detalhes internos ao usuário.
+- **Responsável registrado em 2026-09-22 (V1-001):** os alertas operacionais vão
+  para a **equipe de T.I. da PROPESP**, e a atribuição de equipe basta — não
+  levantar contato individual de plantão. Falta definir o **canal** pelo qual o
+  alerta chega até ela, que é implementação desta ficha.
 - **Aceite:** banco/anexos indisponíveis produzem diagnóstico útil; login/token/CPF
   e conteúdo de documentos não aparecem em log; alertas são verificáveis e
   desligamento/reinício não apagam evidência operacional essencial.
@@ -173,6 +216,11 @@ Todas as P1 deste grupo foram incluídas na V1 pelo responsável em 2026-09-18.
 
 ## V1-056 — Limitar requisições e operações caras
 
+- **Estado / data:** **Adiada por decisão do responsável — 2026-09-22.** A V1 se
+  concentra em validar e consolidar o fluxo de autorização agnóstica (V1-022);
+  DNS, implantação e operação voltam depois disso. Adiar não é dispensar: nada
+  aqui foi considerado desnecessário, e esta ficha permanece exigível antes de
+  qualquer publicação na intranet.
 - **Prioridade/dependência:** P1; V1-050.
 - **Objetivo:** conter abuso/erros de clientes sem bloquear toda a instituição
   porque o BFF ou um NAT concentra o endereço de origem.
@@ -312,15 +360,27 @@ Todas as P1 deste grupo foram incluídas na V1 pelo responsável em 2026-09-18.
 
 ## V1-060 — Homologação e aceite da V1 interna
 
+- **Estado / data:** **Adiada por decisão do responsável — 2026-09-22.** O aceite
+  da versão pressupõe ambiente publicado, e a implantação foi adiada. A
+  validação do fluxo de autorização passou para a **V1-022**, que é aceite
+  técnico do fluxo e **não** homologação da versão — esta ficha continua sendo
+  o único lugar onde a V1 é aceita.
 - **Decisões em 2026-09-18:** todas as P1 estão incluídas e devem ser entregues,
   salvo posterior adiamento explícito. O responsável sugeriu validação/aceite
   por permissão: operações no sistema usam concessões e alcance, sem cargo
-  fixo. Registrar participantes nominais e evidências do aceite da versão;
-  possuir uma permissão não constitui homologação. Nenhuma nova interface de
-  homologação foi definida por esta decisão.
+  fixo. Registrar evidências do aceite da versão; possuir uma permissão não
+  constitui homologação. Nenhuma nova interface de homologação foi definida por
+  esta decisão.
+- **Participantes registrados em 2026-09-22 (V1-001):** o aceite técnico da V1
+  interna é da **equipe da PROPESP**, hoje apenas Elisa. Quem percorrer os
+  fluxos na homologação é nomeado na ata, no momento da execução.
+- **Limitação já conhecida:** V1-054 foi adiada em 2026-09-22, logo a V1 será
+  aceita **sem ensaio de recuperação e rollback**. Isso entra nas limitações
+  aceitas, nominalmente e com a razão — a segunda rodada de consolidação do
+  banco —, nunca como critério marcado.
 - **Prioridade/dependência:** P0; todas as P0 anteriores concluídas e todas as P1
-  explicitamente entregues ou adiadas no contrato V1-001. Em especial V1-021,
-  V1-054 e V1-059. Atribuição nominal/ativação exige ambiente e autorização aplicáveis.
+  explicitamente entregues ou adiadas no contrato V1-001. Em especial V1-021 e
+  V1-059; V1-054 saiu por adiamento registrado, não por conclusão. Atribuição nominal/ativação exige ambiente e autorização aplicáveis.
 - **Objetivo:** vincular uma versão concreta a resultados e aceite revisáveis.
 - **Referências:** backlog, `validacao-telas.md`, guia de cadastro, CI, runbooks,
   diagnóstico e homologações anteriores.

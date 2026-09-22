@@ -516,12 +516,18 @@ Todas as P1 deste grupo foram incluídas na V1 pelo responsável em 2026-09-18.
 
 ## V1-038 — Completar dados institucionais e composições
 
+- **Estado / data:** **Adiada por decisão do responsável — 2026-09-22.** Fica
+  fora do foco atual, que é o fluxo de autorização (V1-022). O conteúdo desta
+  ficha segue válido e exigível; só não é o trabalho desta rodada.
 - **Prioridade/dependência:** P1; V1-034; dados formais da equipe/responsável.
 - **Direção registrada em 2026-09-18:** validação atribuída por permissão e
   alcance, conforme sugestão do responsável. Mapear as capacidades necessárias
-  aos atos existentes durante a tarefa; a identidade de quem fornece e confere
-  cada dado ainda deve ser registrada. Permissão não comprova o dado nem
+  aos atos existentes durante a tarefa. Permissão não comprova o dado nem
   substitui sua origem institucional.
+- **Responsável registrado em 2026-09-22 (V1-001):** fornecer e conferir os
+  dados institucionais é da **equipe da PROPESP**, hoje apenas Elisa. Cada
+  lacuna preenchida registra origem e data; o que ela não puder confirmar
+  permanece nulo, e não é preenchido por inferência.
 - **Objetivo:** separar dado ainda não informado de funcionalidade faltante.
 - **Referências:** `system-structl.md` §11, seed/dados-capes-global, P09/P10/P03,
   guia de cadastro, fontes institucionais entregues durante a tarefa.
@@ -608,6 +614,9 @@ Todas as P1 deste grupo foram incluídas na V1 pelo responsável em 2026-09-18.
 
 ## V1-040 — Homologar relatórios institucionais prioritários
 
+- **Estado / data:** **Adiada por decisão do responsável — 2026-09-22.** Fica
+  fora do foco atual, que é o fluxo de autorização (V1-022). O conteúdo desta
+  ficha segue válido e exigível; só não é o trabalho desta rodada.
 - **Prioridade/dependência:** P1; V1-016.
 - **Objetivo:** aproveitar relatórios existentes e identificar lacunas reais.
 - **Arquivos:** `relatorios.service.ts`, `mobilidade.service.ts`, exportadores,
@@ -624,6 +633,9 @@ Todas as P1 deste grupo foram incluídas na V1 pelo responsável em 2026-09-18.
 
 ## V1-041 — Conferir e reconciliar destinos digitados
 
+- **Estado / data:** **Adiada por decisão do responsável — 2026-09-22.** Fica
+  fora do foco atual, que é o fluxo de autorização (V1-022). O conteúdo desta
+  ficha segue válido e exigível; só não é o trabalho desta rodada.
 - **Prioridade/dependência:** P1; V1-015.
 - **Objetivo:** reduzir destinos sem país ISO/parceiro reconhecido sem perder
   liberdade de cadastro nem unir instituições por semelhança incerta.

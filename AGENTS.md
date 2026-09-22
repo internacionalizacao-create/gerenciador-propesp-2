@@ -7,8 +7,22 @@ existe. **Mantenha-o atualizado quando mudar arquitetura ou convenção.**
 Última revisão: 2026-09-21.
 
 **Decisões da V1 em 2026-09-18:** todas as P1 incluídas; preparação para Docker;
-backup diário de madrugada; validação atribuída por permissão, com responsáveis
-nominais ainda a registrar. Na V1-015, CPF, e-mail pessoal e telefone não serão
+backup diário de madrugada; validação atribuída por permissão. **Os responsáveis
+foram registrados em 2026-09-22 e a V1-001 foi concluída:** dados institucionais
+e aceite da versão com a equipe da PROPESP; infraestrutura, backup e alertas com
+a equipe de T.I. da PROPESP. **Atribuição de equipe é a forma final do
+registro**, decidida na mesma data: não há interlocutor nominal a levantar, e
+as fichas de infraestrutura não devem voltar a cobrá-lo. **V1-054 foi adiada na mesma data**, para depois da
+segunda rodada de consolidação do banco.
+
+**Recorte de 2026-09-22: a V1 se concentra no fluxo de autorização.** DNS,
+implantação, backup, observabilidade, limites, dados institucionais, relatórios
+e reconciliação de documentação estão **adiados por decisão do responsável**. O
+trabalho ativo é a **V1-022** — validar e consolidar ponta a ponta a autorização
+agnóstica, e fechar o que sobrou do modelo anterior, a começar pelo `escopoDe`
+agregado em `ppgs.service.ts` e no `/me` — mais a **V1-057**, auditoria dos atos
+de acesso. Adiar não é dispensar: as fichas continuam exigíveis antes de
+qualquer publicação na intranet, e a homologação da versão segue sendo a V1-060. Na V1-015, CPF, e-mail pessoal e telefone não serão
 enviados sem capacidade específica e alcance. Cadastro pode informar CPF sem
 capacidade de leitura; edição preserva CPF ausente do payload e sua alteração
 exige capacidade específica mais edição. Política aprovada **e implementada na

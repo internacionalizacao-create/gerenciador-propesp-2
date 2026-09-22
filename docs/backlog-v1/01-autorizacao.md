@@ -791,3 +791,44 @@ Contrato de produto: [proposta de autorização](../proposta-autorizacao-v1.md).
   documentado preserva restrição em vez de reabrir leitura global.
 - **Testes:** ensaio com contas fictícias e smoke nominal autorizado após ativação;
   não declarar tarefa concluída só porque mudou a constante no código.
+
+## V1-022 — Validar e consolidar o fluxo de autorização
+
+- **Estado / data:** Pendente — aberta em 2026-09-22 por decisão do responsável,
+  que adiou implantação, dados institucionais e relatórios para concentrar a V1
+  neste fluxo.
+- **Prioridade/dependência:** P0; V1-010 a V1-021, todas concluídas.
+- **Objetivo:** provar ponta a ponta, com sessão real, que o ciclo funciona —
+  conta nasce sem acesso, recebe concessão, exerce só o concedido e perde na
+  revogação — e fechar o que sobrou da autorização anterior. **Não é reescrita:**
+  o modelo está entregue; falta percorrê-lo por fora e resolver as pontas soltas.
+- **Arquivos:** `auth/autorizacao-v1/`, `identidade.service.ts`,
+  `me.controller.ts`, `dominio/ppgs.service.ts`, `auth/permissions.ts`,
+  `docs/contrato-autorizacao-v1.md`, `docs/ativacao-acesso-v1.md`,
+  `scripts/smoke-acesso.sh` e as suítes de integração da matriz.
+- **Pontas soltas conhecidas:**
+  - **`escopoDe` sobrevive** em `ppgs.service.ts` (duas chamadas) e no `/me`,
+    descrevendo o escopo **agregado** da conta. Agregado é justamente a pergunta
+    que a V1-012 aposentou: duas ações da mesma conta podem alcançar alvos
+    diferentes, e uma resposta única não representa nenhuma das duas. Decidir
+    entre recortar por ação, como o resto do sistema, ou declarar a ponte no
+    contrato com o motivo.
+  - `auth/permissions.ts` sobrou como reexportação de tipo; confirmar se ainda
+    paga o próprio arquivo.
+  - `docs/contrato-autorizacao-v1.md` precisa bater rota a rota com os guards em
+    execução — inventário que diverge do código engana quem o lê para decidir.
+- **Passos:** percorrer o runbook de ativação numa base limpa, do bootstrap à
+  primeira concessão; conferir a tela de Acessos contra o catálogo; aplicar,
+  exercer e revogar cada modelo; cruzar o que `/me` devolve com o que a API
+  aceita e com o que o menu mostra. Registrar cada divergência antes de corrigir,
+  para o relato distinguir defeito encontrado de ajuste de conveniência.
+- **Aceite:** conta sem concessão não enxerga nada e recebe explicação, nunca
+  erro genérico; concessão e revogação valem na requisição seguinte; alcance
+  parcial não vaza agregado; nenhum caminho concede por papel do Keycloak; o
+  inventário de rotas confere com os guards; cada ponta acima resolvida ou
+  registrada com a razão. **Validação não é homologação institucional**, que
+  continua sendo a V1-060.
+- **Testes:** `pnpm --filter api test:int` (matriz cruzada, recortes de bolsa e
+  caminhos indiretos), `pnpm smoke:acesso`, `pnpm test:e2e` e percurso manual com
+  duas contas de recortes distintos. Divergência encontrada vira correção com
+  regressão própria, nunca ajuste só do teste.

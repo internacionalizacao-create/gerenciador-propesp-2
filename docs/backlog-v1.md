@@ -1,8 +1,8 @@
 # Backlog executável da V1 interna
 
 Criado em 2026-09-15 a partir do [diagnóstico](diagnostico-v1-2026-09-15.md) e da
-[proposta de autorização](proposta-autorizacao-v1.md). São **47 tarefas** para
-execução sob demanda. Nenhuma tarefa de implementação está concluída por efeito
+[proposta de autorização](proposta-autorizacao-v1.md). São **48 tarefas** para
+execução sob demanda — 47 na criação, mais a V1-022, aberta em 2026-09-22. Nenhuma tarefa de implementação está concluída por efeito
 da criação deste documento. Não substituir os históricos CG/BOL nem reabrir suas
 decisões silenciosamente.
 
@@ -49,8 +49,8 @@ para prosseguir com o desenvolvimento:
   da implantação; a escolha não autoriza publicação em ambiente institucional.
 - **Validação e aceite:** o responsável sugeriu atribuição por permissão.
   Aplicar concessões explícitas e alcance às operações de validação do sistema
-  (V1-038/060); a designação nominal dos participantes e responsáveis permanece
-  necessária. Isso não constitui aceite institucional nem define uma nova tela
+  (V1-038/060). **Os responsáveis foram registrados em 2026-09-22**, por equipe:
+  a designação individual deixou de ser exigida. Isso não constitui aceite institucional nem define uma nova tela
   de homologação da versão.
 - **Backup:** diário durante a madrugada (V1-053). Horário exato, fuso,
   retenção e destino serão documentados na tarefa. A frequência não define por
@@ -60,6 +60,17 @@ para prosseguir com o desenvolvimento:
 A política de campos foi aplicada na V1-015 sem nova aprovação, como estas
 decisões previam.
 Não encerram V1-001 nem executam automaticamente as tarefas seguintes.
+
+**Recorte do responsável em 2026-09-22 — a V1 se concentra na autorização.**
+DNS, implantação, backup, observabilidade, limites, dados institucionais,
+relatórios e reconciliação de documentação foram **adiados por decisão**
+(V1-002, 038, 040, 041, 050, 051, 053, 054, 055, 056 e 060). O trabalho ativo é
+**V1-022** — validar e consolidar o fluxo de autorização agnóstica ponta a
+ponta — e **V1-057**, a auditoria dos atos de acesso, que é parte do mesmo
+fluxo. **Adiar não é dispensar:** nenhuma ficha adiada foi julgada
+desnecessária, e a V1-060 continua sendo o único lugar onde a versão é aceita —
+a V1-022 é aceite técnico do fluxo, não homologação. As nove P2 seguem
+opcionais, como já eram.
 
 **Fora da V1 interna:** autosserviço de bolsista/participante, acesso externo e
 execução financeira da UEA para pagamentos diretos da CAPES. O último é exclusão
@@ -82,8 +93,8 @@ de domínio; não deve virar tarefa de implementação CAPES Global.
    Só concluir quando todos os critérios de aceite forem satisfeitos.
 
 Estados: `Pendente`, `Em andamento`, `Bloqueada (motivo explícito)`, `Concluída`,
-`Adiada por decisão`. Estado dos IDs: **Pendente**, exceto V1-001, **Em andamento** pelo
-registro da decisão de autorização, V1-010, **Concluída como contrato
+`Adiada por decisão`. Estado dos IDs: **Pendente**, exceto V1-001, **Concluída em
+2026-09-22** com os responsáveis nominais registrados, V1-010, **Concluída como contrato
 preparatório** (2026-09-15), e V1-011, **Concluída** (2026-09-15) com a tabela
 `concessao_acesso` criada, **V1-012–014 e V1-017 concluídas** — a
 autorização em execução passou a ser a das concessões, e o papel do Keycloak não
@@ -105,6 +116,14 @@ pendente significa ordem de execução; não é prova de impedimento externo.
 registro, consulta e correção — movimentação de recurso na mesma temática e
 evento do beneficiário com o tipo como dado, idempotência por chave, recorte
 por ação e a cancelada fora do panorama. A interface (V1-037) foi concluída no mesmo dia: detalhe da bolsa e P12.
+
+**V1-054 adiada por decisão do responsável em 2026-09-22:** a V1 passará por uma
+segunda rodada de consolidação do banco antes de entrar em produção, e ensaiar
+recuperação sobre dados que serão refeitos não prova o que o ensaio existe para
+provar. As metas de perda máxima e de tempo de restauração ficam adiadas junto,
+porque são o critério do ensaio. **Retomar antes da publicação na intranet:**
+backup sem restauração ensaiada é backup não verificado, e a ausência do ensaio
+entra nas limitações aceitas da V1-060.
 
 **V1-042 concluída em 2026-09-20:** paginação SQL de parceiros, filtros e página
 na URL, atualização de cache após alterações e medição com 10 mil registros.
@@ -149,8 +168,8 @@ dependências são obrigatórios, exceto quando a ficha indicar uma condição.
 
 | ID | Prioridade | Entrega | Depende de |
 |---|---|---|---|
-| V1-001 | P0 | Contrato da V1 e decisões iniciais | — |
-| V1-002 | P1 | Reconciliação da documentação e vocabulário | 001 |
+| V1-001 | P0 | Contrato da V1 e decisões iniciais — concluída | — |
+| V1-002 | P1 | Reconciliação da documentação e vocabulário — adiada (2026-09-22) | 001 |
 | V1-010 | P0 | Catálogo de permissões e modelos opcionais — concluído (preparatório) | 001 (autorização decidida) |
 | V1-011 | P0 | Schema de concessões por permissão/escopo/ciclo — concluído (tabela inerte) | 010 |
 | V1-012 | P0 | Resolução central de acesso por ação — concluída | 011 |
@@ -163,6 +182,7 @@ dependências são obrigatórios, exceto quando a ficha indicar uma condição.
 | V1-019 | P0 | Navegação e orientação por acesso efetivo — concluída | 013, 015, 017 (entregue antes de 013/015: não dependia delas) |
 | V1-020 | P0 | Regressão da matriz de autorização — concluída | 013–019 |
 | V1-021 | P0 | Ativação restritiva e rollback — concluída (a/d/e entregues; b/c canceladas) | 018–020 |
+| V1-022 | P0 | **Validar e consolidar o fluxo de autorização — foco atual** | 010–021 |
 | V1-030 | P0 | Ciclo de vida completo da missão na web — concluída | 001 |
 | V1-031 | P0 | Produtos de missão na web — concluída | 001 |
 | V1-032 | P1 | Gestão de convênios na web — concluída | 016 |
@@ -171,22 +191,22 @@ dependências são obrigatórios, exceto quando a ficha indicar uma condição.
 | V1-035 | P1 | Contrato dos eventos externos CAPES — concluída | 001 |
 | V1-036 | P1 | API e histórico de eventos externos — concluída | 014, 035 |
 | V1-037 | P1 | Interface dos eventos externos — concluída | 036 |
-| V1-038 | P1 | Completar e conferir dados institucionais | 034 |
+| V1-038 | P1 | Completar e conferir dados institucionais — adiada (2026-09-22) | 034 |
 | V1-039 | P1 | Política e procedimentos de retenção — concluída | 001 |
-| V1-040 | P1 | Homologar relatórios prioritários | 016 |
-| V1-041 | P1 | Qualidade e reconciliação de destinos | 015 |
+| V1-040 | P1 | Homologar relatórios prioritários — adiada (2026-09-22) | 016 |
+| V1-041 | P1 | Qualidade e reconciliação de destinos — adiada (2026-09-22) | 015 |
 | V1-042 | P1 | Paginação de parceiros — concluída | 016 |
-| V1-050 | P0 | Plano de implantação interna | 001 |
-| V1-051 | P0 | Ambiente de produção na intranet | 050, 052 |
+| V1-050 | P0 | Plano de implantação interna — adiada (2026-09-22) | 001 |
+| V1-051 | P0 | Ambiente de produção na intranet — adiada (2026-09-22) | 050, 052 |
 | V1-052 | P0 | Build reproduzível e fontes — concluída | — |
-| V1-053 | P0 | Backup completo e agendado | 050 |
-| V1-054 | P0 | Ensaio de recuperação e atualização | 051, 053 |
-| V1-055 | P1 | Logs, prontidão e alertas operacionais | 051 |
-| V1-056 | P1 | Limites de requisições e operações caras | 050 |
+| V1-053 | P0 | Backup completo e agendado — adiada (2026-09-22) | 050 |
+| V1-054 | P0 | Ensaio de recuperação e atualização — adiada por decisão (2026-09-22) | 051, 053 |
+| V1-055 | P1 | Logs, prontidão e alertas operacionais — adiada (2026-09-22) | 051 |
+| V1-056 | P1 | Limites de requisições e operações caras — adiada (2026-09-22) | 050 |
 | V1-057 | P1 | Auditoria transversal | 012 |
 | V1-058 | P0 | Integração no CI e runtime alinhado — concluída | 052 |
 | V1-059 | P0 | Jornadas automatizadas no navegador — concluída | 020, 030, 031, 058 |
-| V1-060 | P0 | Homologação e aceite da versão interna | Ver ficha |
+| V1-060 | P0 | Homologação e aceite da versão interna — adiada (2026-09-22) | Ver ficha |
 | V1-070 | P2 | E-mail institucional | 050 |
 | V1-071 | P2 | Inspeção antimalware de anexos | 039, 050 |
 | V1-072 | P2 | Home por responsabilidade | 019, 020 |
@@ -204,7 +224,9 @@ Fichas: [autorização](backlog-v1/01-autorizacao.md),
 
 ## V1-001 — Registrar contrato e escolhas iniciais
 
-- **Estado / data:** Em andamento — atualizado em 2026-09-18.
+- **Estado / data:** **Concluída — 2026-09-22**, com o registro dos responsáveis
+  nominais abaixo. A01–A07 estão resolvidas e o escopo da V1 é rastreável por
+  ID. Concluir esta ficha **não** é homologação institucional, que é a V1-060.
 - **Decisão registrada:** responsável aprovou nesta conversa o modelo individual
   permissão + escopo, com modelos opcionais, configuração revisável pelo admin,
   negação por ausência de concessão, auditoria e revogação na requisição seguinte.
@@ -214,11 +236,24 @@ Fichas: [autorização](backlog-v1/01-autorizacao.md),
   todas as P1 incluídas, política de campos/cadastro/edição aprovada, preparação
   para Docker, validação por permissão e backup diário de madrugada. A projeção
   de orçamento já está implementada na V1-013.
-- **Ainda necessário:** registrar responsáveis nominais por dados/infraestrutura
-  e aceite (V1-038/050/060); detalhar ambiente Docker (V1-050/051) e metas de
-  perda/restauração (V1-053/054). Permissão define capacidade, mas não substitui
-  a indicação de quem assume a responsabilidade. Não concluir a tarefa só pela
-  aprovação das decisões técnicas.
+- **Responsáveis registrados — decisão do responsável em 2026-09-22:**
+  - Fornecer e conferir os dados institucionais: **equipe da PROPESP**, hoje
+    apenas Elisa (V1-038).
+  - Infraestrutura — servidor, DNS interno, certificado: **equipe de T.I. da
+    PROPESP** (V1-050/051).
+  - Acompanhar o backup diário e responder à falha: **equipe de T.I. da
+    PROPESP** (V1-053).
+  - Receber e atender os alertas operacionais: **equipe de T.I. da PROPESP**
+    (V1-055).
+  - Aceite técnico da versão interna: **equipe da PROPESP**, hoje apenas Elisa
+    (V1-060).
+
+  **Atribuição de equipe é a forma final do registro**, por decisão do
+  responsável em 2026-09-22: não há interlocutor nominal a indicar, e as fichas
+  de infraestrutura não devem voltar a cobrá-lo. Quem responde é a equipe.
+- **Ainda necessário, fora desta ficha:** detalhar o ambiente Docker, com host,
+  DNS e certificado (V1-050/051). As metas de perda máxima e de tempo de
+  restauração **saíram do escopo** junto com a V1-054, adiada em 2026-09-22.
 - **Registro desta atualização:** contrato e fichas ajustados documentalmente;
   revisão de diff e links locais, sem mudança de código, migration, conta ou
   infraestrutura. As decisões não representam homologação institucional.
@@ -240,6 +275,9 @@ Fichas: [autorização](backlog-v1/01-autorizacao.md),
 
 ## V1-002 — Reconciliar documentação e vocabulário
 
+- **Estado / data:** **Adiada por decisão do responsável — 2026-09-22.** Fica
+  fora do foco atual, que é o fluxo de autorização (V1-022). O conteúdo desta
+  ficha segue válido e exigível; só não é o trabalho desta rodada.
 - **Objetivo:** eliminar pendências fictícias e descrições contraditórias sem
   apagar o histórico de CG/BOL.
 - **Referências:** `AGENTS.md` §1/§6/§9, `docs/arquitetura-sistema.md`,
