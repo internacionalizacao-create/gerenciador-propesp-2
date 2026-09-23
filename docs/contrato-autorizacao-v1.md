@@ -1,11 +1,18 @@
 # Contrato executável de autorização — V1-010
 
 Data: 2026-09-15. Implementa a definição do modelo aprovado em
-[proposta-autorizacao-v1.md](proposta-autorizacao-v1.md). **Contrato preparado e
-unitariamente testado; ainda não aplicado aos endpoints.** Os papéis legados,
-guards, realm e navegação continuam em execução até a migração coordenada.
-Não carregar este catálogo em `permissionsForRoles`: isso concederia ações novas
-a contas antigas sem revisão nominal.
+[proposta-autorizacao-v1.md](proposta-autorizacao-v1.md). **Este contrato está
+em execução desde a V1-012 (2026-09-16):** é ele que os guards cobram, rota a
+rota, e o inventário abaixo é a referência para conferir um endpoint.
+
+> **Corrigido em 2026-09-22.** Até aqui o cabeçalho ainda dizia "contrato
+> preparado e unitariamente testado; ainda não aplicado aos endpoints", e
+> advertia contra carregar o catálogo em `permissionsForRoles`. As duas frases
+> descreviam a janela entre a V1-010 e a V1-012. `permissionsForRoles` e
+> `ROLE_PERMISSIONS` **não existem mais** — papel do Keycloak não concede nada
+> —, e o receio que a advertência registrava continua válido em outra forma:
+> aplicar um modelo (`modelos.ts`) concede ações explícitas a uma conta, e isso
+> é ato do administrador, nunca efeito colateral de mudar o catálogo.
 
 ## Entrega e limites
 
@@ -14,7 +21,8 @@ concessão/alvo, modelos copiados sem herança e política pura de administraç�
 A separação temporária do catálogo legado evita alterar autorizações reais
 antes de persistir concessões. **V1-011 persistiu as concessões** em
 `concessao_acesso` (migration `0040`), com o mapeamento alvo↔colunas em
-`autorizacao-v1/persistencia.ts`; a tabela nasce vazia e ainda não tem leitor.
+`autorizacao-v1/persistencia.ts`; a tabela nasce vazia, e quem a lê a cada
+requisição é `autorizacao-v1/acesso-v1.service.ts` (desde a V1-012).
 **Não há conversão de acesso legado** (decisão de 2026-09-16): em produção o
 Keycloak só autentica, a base sobe sem conta alguma e as contas nascem do
 bootstrap mais a tela de administração.
@@ -25,8 +33,8 @@ integrou os caminhos indiretos — histórico do parceiro, anexos e ficha PDF, c
 um pelo alcance da ação que ele mesmo exige; V1-017 integrou a política
 administrativa; V1-019 integrou a navegação; V1-036 acrescentou `evento:read`,
 `evento:create` e `evento:edit`, com os escopos de planejamento.
-Após a transição, retirar o mapa legado como fonte de acesso. Não manter dois
-mecanismos permissivos concorrentes.
+O mapa legado **já foi retirado** como fonte de acesso (V1-012): não há dois
+mecanismos concorrentes, e não deve voltar a haver.
 
 A dependência V1-001 está satisfeita **para a definição de autorização** pela
 aprovação do responsável e seu pedido de iniciar as tarefas. Contrato funcional

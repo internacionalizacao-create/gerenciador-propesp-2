@@ -186,7 +186,7 @@ A mais complexa. É a "tela mais importante do sistema" segundo a própria spec.
 - **Base:** substitui `Comitê Gestor 2026-2029`.
 - **Resolve:** RN-14 — esse orçamento **nunca** pode se somar ao de bolsas em
   nenhum indicador. A decisão atual remove o aviso visual fixo, sem alterar a
-  regra de cálculo; ver [backlog-comite-gestor.md](backlog-comite-gestor.md).
+  regra de cálculo; ver [backlog-comite-gestor.md](historico/backlog-comite-gestor.md).
 - **Pontos finos:** validar que ele realmente não vaza pro Painel Executivo nem
   pro Orçamento do CAPES Global.
 - **Implementado em 2026-08-31:** três abas, origem do orçamento, equipes

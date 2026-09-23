@@ -80,6 +80,15 @@ export default async function AcessoDaConta({
   const ativas = dados.concessoes.filter((c) => c.ativo);
   const revogadas = dados.concessoes.filter((c) => !c.ativo);
 
+  // O que ja vale, por acao, para o painel de concessao marcar ao lado da
+  // caixa. Uma acao pode valer em mais de um alcance, entao e uma lista.
+  const emVigor: Record<string, string[]> = {};
+  for (const concessao of ativas) {
+    (emVigor[concessao.permissao] ??= []).push(
+      descreverAlcance(concessao.escopo, nomes),
+    );
+  }
+
   return (
     <Pagina
       voltar={{ href: "/configuracoes/acessos", rotulo: "Acessos" }}
@@ -94,6 +103,7 @@ export default async function AcessoDaConta({
             pessoaNome={dados.conta.pessoaNome}
             catalogo={catalogo}
             alvos={alvos}
+            emVigor={emVigor}
           />
         ) : undefined
       }

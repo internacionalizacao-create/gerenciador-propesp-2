@@ -13,10 +13,10 @@ A equipe entregou o documento:
 
 As 28 páginas e 40 seções foram confrontadas com este backlog e com o código.
 A matriz integral, divergências, decisões bloqueantes e ordem de retomada estão
-em [revisao-escopo-comite-gestor-2026-09-01.md](revisao-escopo-comite-gestor-2026-09-01.md).
+em [revisao-escopo-comite-gestor-2026-09-01.md](../revisao-escopo-comite-gestor-2026-09-01.md).
 
 O material que torna CG-005 a CG-009 decidíveis está em
-[homologacao-comite-gestor.md](homologacao-comite-gestor.md): classificação das
+[homologacao-comite-gestor.md](../homologacao-comite-gestor.md): classificação das
 40 seções, modelo de estados com migração, matrizes de rede e escopo, governança
 da aprovação, tabela requisito–momento–obrigatoriedade–efeito financeiro e a
 folha de aprovação. **São propostas, não decisões.** Por orientação explícita do
@@ -158,7 +158,7 @@ Pessoa/equipe
   — todos entregues entre 2026-09-05 e 2026-09-07.
 - [x] **A folha de aprovação está inteiramente marcada.** CG-005 a CG-009 foram
   aceitas entre 2026-09-05 e 2026-09-07, junto do D-11. O registro completo está
-  em [homologacao-comite-gestor.md](homologacao-comite-gestor.md).
+  em [homologacao-comite-gestor.md](../homologacao-comite-gestor.md).
 - [x] CG-022 e CG-040 foram concluídas em 2026-09-01: contagem de missões por
   membro e filtro de exercício da tabela de aportes.
 - [x] CG-016 foi concluída em 2026-09-01: a missão pertence a uma ou mais redes
@@ -216,7 +216,7 @@ Pessoa/equipe
   verificação completa (lint, build, 58+64 unitários, 246 integrações e os dois
   smokes) foi executada no fechamento.
 - [x] CG-014 foi concluída em 2026-09-02: modelo documental decidido e
-  registrado em [modelo-documental.md](modelo-documental.md), com três pontos
+  registrado em [modelo-documental.md](../modelo-documental.md), com três pontos
   institucionais propostos e ainda por confirmar.
 - [x] CG-009 foi concluída em 2026-09-02: o documento da equipe respondeu tipos
   de despesa, formatos, abertura da prestação e a natureza da estimativa; o
@@ -228,7 +228,7 @@ Pessoa/equipe
 
 Próxima ação obrigatória para retomar o fluxo funcional: **obter o aceite da
 folha de aprovação** de
-[homologacao-comite-gestor.md](homologacao-comite-gestor.md), que fecha CG-005 a
+[homologacao-comite-gestor.md](../homologacao-comite-gestor.md), que fecha CG-005 a
 CG-008 e os blocos institucionais ainda abertos. A CG-009 já foi concluída. A
 CG-045 continua não sendo a próxima: aprovação e escopo de acesso ainda alteram
 o contrato da página de detalhe.
@@ -346,7 +346,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   permissões da API.
 
   **Aprovada em 2026-09-07.** O responsável aceitou a matriz perfil–escopo de
-  [homologacao-comite-gestor.md](homologacao-comite-gestor.md) §CG-007 como
+  [homologacao-comite-gestor.md](../homologacao-comite-gestor.md) §CG-007 como
   está: Administrador global; Gestor da Rede limitado às redes do seu vínculo
   ativo; Comitê Gestor com leitura ampla e decisão; Participante restrito às
   missões de que participa. **A prestação continua validada pelo
@@ -402,7 +402,7 @@ Essa situação é calculada a partir das datas e não é persistida.
 
   Progresso em 2026-09-01: a proposta de classificação das 40 seções em
   MVP/F2/VF/FE está pronta em
-  [homologacao-comite-gestor.md](homologacao-comite-gestor.md), com a
+  [homologacao-comite-gestor.md](../homologacao-comite-gestor.md), com a
   justificativa de cada linha e uma proposta de arquitetura da informação que
   recusa o menu de 12 grupos da §39 enquanto não houver dado.
 
@@ -434,7 +434,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   (aprovação, execução, prestação, encerramento), com o diagrama de transições,
   a tabela origem–destino–permissão–justificativa–efeito e o mapeamento dos
   cinco status atuais, em
-  [homologacao-comite-gestor.md](homologacao-comite-gestor.md). Duas escolhas da
+  [homologacao-comite-gestor.md](../homologacao-comite-gestor.md). Duas escolhas da
   migração afirmam coisas sobre dados existentes (`CONFIRMADA` → `APROVADA` e
   `CONCLUIDA` → realização `REALIZADA`) e por isso precisavam de aceite
   explícito.
@@ -461,7 +461,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   Critério de aceite: matriz entidade–rede e matriz perfil–escopo aprovadas.
 
   Progresso em 2026-09-01: as duas matrizes estão propostas em
-  [homologacao-comite-gestor.md](homologacao-comite-gestor.md), com `missao_rede`
+  [homologacao-comite-gestor.md](../homologacao-comite-gestor.md), com `missao_rede`
   N:N de no mínimo uma rede, “Minha rede” definida a partir de
   `membro_equipe_gestao_rede` (que já tem a carga formal) e as permissões novas
   `missao:submit`, `missao:decide`, `missao:reopen` e `parceiro:read|write`.
@@ -488,7 +488,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   sem reduzir o processo a uma troca de status por `admin`.
 
   Progresso em 2026-09-01: três modelos comparados em
-  [homologacao-comite-gestor.md](homologacao-comite-gestor.md) — decisão
+  [homologacao-comite-gestor.md](../homologacao-comite-gestor.md) — decisão
   individual, relator com registro colegiado e quórum no sistema — com
   recomendação pelo segundo e respostas propostas para envio, documentos
   prévios, rodadas, reabertura e conteúdo do parecer. Falta o aceite e a
@@ -514,7 +514,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   aprovada e refletida nas tasks CG-013, CG-014 e CG-050 a CG-059.
 
   Progresso em 2026-09-01: a tabela está proposta em
-  [homologacao-comite-gestor.md](homologacao-comite-gestor.md), junto do modelo
+  [homologacao-comite-gestor.md](../homologacao-comite-gestor.md), junto do modelo
   de `despesa_missao` tipada com `cotacao_passagem` à parte, do checklist
   calculado e condicional, e das propostas para exercício, moeda estrangeira e
   formatos de arquivo. A regra de que só prestação validada reduz o saldo foi
@@ -731,7 +731,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   derivados sem `number`.
 
   Concluída em 2026-09-02 em
-  [database/schema/prestacao.ts](../apps/api/src/database/schema/prestacao.ts),
+  [database/schema/prestacao.ts](../../apps/api/src/database/schema/prestacao.ts),
   migration `0024_prestacao_contas_missao.sql`. Cinco tabelas: prestação,
   despesa e as especializações de passagem, cotação e diária.
 
@@ -811,7 +811,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   Critério de aceite: decisão documentada antes de implementar upload.
 
   Concluída em 2026-09-02: a decisão está em
-  [modelo-documental.md](modelo-documental.md), escrita **antes** de qualquer
+  [modelo-documental.md](../modelo-documental.md), escrita **antes** de qualquer
   linha de upload, como o critério exige.
 
   As escolhas que valem registro aqui:
@@ -1107,7 +1107,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   nenhuma decisão anterior é sobrescrita ou apagada.
 
   **Concluída em 2026-09-05**, logo após o aceite do modelo B. Entrou
-  [aprovacao.ts](../apps/api/src/database/schema/aprovacao.ts) com quatro
+  [aprovacao.ts](../../apps/api/src/database/schema/aprovacao.ts) com quatro
   tabelas, mais a coluna `status_aprovacao` em `missao_comite` e a migration
   `0028_submissao_decisoes_comite`.
 
@@ -1152,7 +1152,7 @@ Essa situação é calculada a partir das datas e não é persistida.
     testes passaram a informar o par de datas.
 
   Cobertura: 15 regressões em
-  [aprovacao.int-spec.ts](../apps/api/test/aprovacao.int-spec.ts), incluindo o
+  [aprovacao.int-spec.ts](../../apps/api/test/aprovacao.int-spec.ts), incluindo o
   vaivém completo (enviar → ajustes → reenviar → aprovar → reabrir → reprovar),
   que confirma que a aprovação do meio permanece no histórico. As asserções usam
   `esperarViolacao`, que confere o **nome da constraint** — casar a mensagem do
@@ -1753,7 +1753,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   reenvio após ajustes cria nova rodada sem apagar a anterior.
 
   **Concluída em 2026-09-05.** Entrou
-  [submissao.service.ts](../apps/api/src/dominio/submissao.service.ts), com
+  [submissao.service.ts](../../apps/api/src/dominio/submissao.service.ts), com
   `GET .../missoes/:id/requisitos` (checklist) e
   `POST .../missoes/:id/submissao` (envio, permissão `missao:submit`).
 
@@ -1778,7 +1778,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   agora seria implementar decisão institucional que ninguém tomou.
 
   Cobertura: 14 regressões em
-  [submissao.int-spec.ts](../apps/api/test/submissao.int-spec.ts) — documento
+  [submissao.int-spec.ts](../../apps/api/test/submissao.int-spec.ts) — documento
   faltando com a mensagem certa, documento inativo não satisfaz requisito,
   requisito de outro tipo de missão não bloqueia, participante comum recebe
   403, envio duplicado, edição congelada, reenvio criando rodada 2 sem apagar a
@@ -1812,7 +1812,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   | Relator | **Sem designação prévia**: quem tem `missao:decide` decide, e o parecer registra quem foi. |
   | Escopo por rede | **Só `admin` por enquanto**; a barreira por rede é a CG-028. |
 
-  Entrou [decisao.service.ts](../apps/api/src/dominio/decisao.service.ts), com
+  Entrou [decisao.service.ts](../../apps/api/src/dominio/decisao.service.ts), com
   `POST .../missoes/:id/decisao`, `POST .../missoes/:id/analise/reabertura` e
   `GET .../missoes/:id/analise`.
 
@@ -1829,7 +1829,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   inativo não entra; decisão sem nenhum documento não quebra.
 
   Cobertura: 13 regressões em
-  [decisao.int-spec.ts](../apps/api/test/decisao.int-spec.ts).
+  [decisao.int-spec.ts](../../apps/api/test/decisao.int-spec.ts).
 
   **Um erro dos próprios testes vale registro:** as primeiras versões fixavam a
   reunião em `2027-06-25` porque a missão é de 2027. Está errado — o Comitê
@@ -2088,7 +2088,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   dependência. Entregue em fatias.
 
   **Fatia 1 (2026-09-05): resumo, roteiro e participantes.**
-  [missoes/[id]/page.tsx](../apps/web/src/app/(app)/programas/[programa]/[ciclo]/comite-gestor/missoes/[id]/page.tsx).
+  [missoes/[id]/page.tsx](../../apps/web/src/app/(app)/programas/[programa]/[ciclo]/comite-gestor/missoes/[id]/page.tsx).
   A lista já apontava para esta rota desde a CG-041 — era link morto até agora.
 
   **As duas dimensões da CG-006 aparecem juntas**, com selos separados e
@@ -2102,8 +2102,8 @@ Essa situação é calculada a partir das datas e não é persistida.
 
   **Fatia 2 (2026-09-05): análise.** Aba `?aba=analise` com situação, checklist
   de documentos, histórico de rodadas e as três ações —
-  [acoes/analise.ts](../apps/web/src/acoes/analise.ts) e
-  [acoes-analise.tsx](../apps/web/src/componentes/formularios/acoes-analise.tsx).
+  [acoes/analise.ts](../../apps/web/src/acoes/analise.ts) e
+  [acoes-analise.tsx](../../apps/web/src/componentes/formularios/acoes-analise.tsx).
   A navegação por abas nasceu aqui, com a segunda: uma aba sozinha é decoração.
 
   O 422 da CG-037 precisou de um canal próprio até a tela. `EstadoDaAcao` ganhou
@@ -2210,7 +2210,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   dois lados. Era `string` que impedia o formulário de tipar as opções.
 
   Cobertura: 8 regressões em
-  [relato-payload.test.mjs](../apps/web/test/relato-payload.test.mjs) — o que se
+  [relato-payload.test.mjs](../../apps/web/test/relato-payload.test.mjs) — o que se
   fixa ali é o que a API aceitaria sem reclamar gravando a coisa errada:
   avaliação vazia virando `""` em vez de ausência, justificativa sobrevivendo ao
   `SIM`, e a extra apagando o relato. Web passou de 71 para 79 regressões.
@@ -2284,13 +2284,13 @@ Essa situação é calculada a partir das datas e não é persistida.
   24 horas: envio de ontem às 23h espera "1 dia", não "0" — quem olha a fila
   pensa em dias do calendário, e arredondar por hora faria o número mudar
   sozinho ao longo do dia. `diasDesde` entrou em
-  [comum/datas.ts](../apps/api/src/comum/datas.ts).
+  [comum/datas.ts](../../apps/api/src/comum/datas.ts).
 
   A fila carrega no máximo 100 e **avisa quando há mais**, em vez de mentir no
   indicador — mesma decisão da lista de parceiros (CG-049).
 
   Cobertura: 7 regressões em
-  [fila-analise.int-spec.ts](../apps/api/test/fila-analise.int-spec.ts),
+  [fila-analise.int-spec.ts](../../apps/api/test/fila-analise.int-spec.ts),
   incluindo a não duplicação de linha pelo `left join` numa missão com três
   rodadas. Verificado na aplicação com dado real: MCG-001 na fila, 3ª rodada,
   aguardando há 1 dia.
@@ -2354,7 +2354,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   novo aparecesse — e é justamente o silêncio que a torna perigosa.
 
   A lógica vive em
-  [alteracoes-analise.ts](../apps/web/src/lib/formularios/alteracoes-analise.ts),
+  [alteracoes-analise.ts](../../apps/web/src/lib/formularios/alteracoes-analise.ts),
   fora do componente, porque `node --test` não carrega `.tsx` e são duas bordas
   fáceis de errar. Cobertura: 7 regressões, incluindo a borda **inclusiva** no
   instante do envio — a última edição antes do clique pode cair no mesmo
@@ -2462,7 +2462,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   persistido.
 
   Concluída em 2026-09-02 em
-  [dominio/prestacao.service.ts](../apps/api/src/dominio/prestacao.service.ts),
+  [dominio/prestacao.service.ts](../../apps/api/src/dominio/prestacao.service.ts),
   sob `.../comite-gestor/missoes/:id/prestacao`. Inicia a prestação, edita
   observações e faz o CRUD de despesas com passagem, cotações e diária.
 
@@ -2635,7 +2635,7 @@ Essa situação é calculada a partir das datas e não é persistida.
 
   - **`categoriasDoTipo` exportada de um módulo `"use client"`** não pode ser
     chamada pelo Server Component: o build passa e a página responde **500**.
-    Foi para [documentos-despesa.ts](../apps/web/src/lib/formularios/documentos-despesa.ts),
+    Foi para [documentos-despesa.ts](../../apps/web/src/lib/formularios/documentos-despesa.ts),
     módulo neutro que os dois lados importam. Só o smoke pegou.
   - **`allowImportingTsExtensions` precisou entrar no tsconfig da web.** O
     `node --test` roda TypeScript em modo strip-only e exige a extensão no
@@ -2645,7 +2645,7 @@ Essa situação é calculada a partir das datas e não é persistida.
     `noEmit` está ligado.
 
   Cobertura: 3 regressões de integração para os documentos por despesa e 7 em
-  [despesa-payload.test.mjs](../apps/web/test/despesa-payload.test.mjs) para a
+  [despesa-payload.test.mjs](../../apps/web/test/despesa-payload.test.mjs) para a
   montagem do formulário — **o pareamento das cotações por índice é o caso que
   quebraria em silêncio**: filtrar as listas antes de parear casaria a empresa
   de uma linha com o valor de outra, e a API aceitaria.
@@ -2702,12 +2702,12 @@ Essa situação é calculada a partir das datas e não é persistida.
   pendência já corrigida ao lado do envio novo.
 
   `dataHojeEmManaus` saiu de `bolsistas.service.ts` para
-  [comum/datas.ts](../apps/api/src/comum/datas.ts) — a terceira repetição do
+  [comum/datas.ts](../../apps/api/src/comum/datas.ts) — a terceira repetição do
   fuso viraria divergência. Um envio às 22h de Manaus cairia no dia seguinte se
   a data viesse em UTC.
 
   Cobertura: 12 regressões em
-  [prestacao-ciclo.int-spec.ts](../apps/api/test/prestacao-ciclo.int-spec.ts).
+  [prestacao-ciclo.int-spec.ts](../../apps/api/test/prestacao-ciclo.int-spec.ts).
   Verificado na aplicação: o vaivém completo pelo BFF e os quatro estados na
   tela, conferindo que cada ação aparece só onde deve — validada não oferece
   lançar, enviar, validar, devolver nem remover.
@@ -2761,7 +2761,7 @@ Essa situação é calculada a partir das datas e não é persistida.
 
   Nulo continua diferente de zero: exercício sem lançamento mostra *A definir*,
   não R$ 0,00. Daí `somarOuNulo` ao lado de `somarMoeda` em
-  [orcamento.service.ts](../apps/api/src/dominio/orcamento.service.ts) — o zero
+  [orcamento.service.ts](../../apps/api/src/dominio/orcamento.service.ts) — o zero
   de `somarMoeda` é o certo para uma temática sem linha e o errado para uma
   prestação nunca iniciada.
 
@@ -2775,7 +2775,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   duplicar a resposta abriria espaço para divergirem.
 
   Cobertura: 16 regressões em
-  [execucao-comite.int-spec.ts](../apps/api/test/execucao-comite.int-spec.ts),
+  [execucao-comite.int-spec.ts](../../apps/api/test/execucao-comite.int-spec.ts),
   incluindo a que fixa a não duplicação de linha pelo `left join`. Verificado
   na aplicação com a base de desenvolvimento: R$ 8.150,00 validados e
   R$ 2.400,00 devolvidos com pendência em 2027, saldo oficial de
@@ -2800,8 +2800,8 @@ Essa situação é calculada a partir das datas e não é persistida.
   com convênio alimenta o histórico dos parceiros sem duplicar instituição.
 
   **Concluída em 2026-09-06.** Domínio próprio em
-  [resultados.ts](../apps/api/src/database/schema/resultados.ts) e
-  [resultados.service.ts](../apps/api/src/dominio/resultados.service.ts): seis
+  [resultados.ts](../../apps/api/src/database/schema/resultados.ts) e
+  [resultados.service.ts](../../apps/api/src/dominio/resultados.service.ts): seis
   tabelas novas (`convenio`, `convenio_rede`, `produto_missao` e as três
   ligações de instituição, rede e responsável), migration
   `0030_produtos_convenios_cg056.sql`.
@@ -2820,7 +2820,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   missão apenas como origem (opcional — convênio anterior ao sistema é caso
   legítimo) e a FK é `set null`: apagar a missão não pode apagar o acordo, que é
   o registro mais duradouro dos dois. Por isso o controlador é
-  [convenios.controller.ts](../apps/api/src/dominio/convenios.controller.ts), sem
+  [convenios.controller.ts](../../apps/api/src/dominio/convenios.controller.ts), sem
   `:programa/:ciclo` no caminho.
 
   **Permissões, sem string nova:** produto usa `missao:read`/`missao:write`
@@ -2864,7 +2864,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   chamam o serviço direto, sem passar por HTTP.
 
   Cobertura: 22 regressões em
-  [resultados.int-spec.ts](../apps/api/test/resultados.int-spec.ts) — resposta
+  [resultados.int-spec.ts](../../apps/api/test/resultados.int-spec.ts) — resposta
   ausente, negativa, negativa recusada com produto, retirada da declaração,
   bicondicional do convênio no serviço e no banco, rede de outro ciclo,
   auditoria por campo, remoção com e sem documento, convênio vigente sem
@@ -2922,7 +2922,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   é aqui quando incomodar.
 
   Cobertura: 4 regressões novas em
-  [anexos.int-spec.ts](../apps/api/test/anexos.int-spec.ts). **As três garantias
+  [anexos.int-spec.ts](../../apps/api/test/anexos.int-spec.ts). **As três garantias
   foram verificadas por mutação:** não propagar `autoria` na substituição derruba
   1 caso, não propagar `visibilidade` derruba outro (substituir uma foto privada
   por outra a tornaria pública em silêncio — a saída mais discreta possível para
@@ -3015,7 +3015,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   quem pode abrir exceção nela.
 
   Cobertura: 13 regressões em
-  [encerramento.int-spec.ts](../apps/api/test/encerramento.int-spec.ts). **As
+  [encerramento.int-spec.ts](../../apps/api/test/encerramento.int-spec.ts). **As
   três garantias foram verificadas por mutação:** ignorar a dispensa no cálculo
   derruba 2 casos, tratar dispensa revogada como vigente derruba 1, e ler
   `momento = 'SUBMISSAO'` no lugar de `'ENCERRAMENTO'` derruba 3.
@@ -3050,7 +3050,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   sem produto, avaliação parcial, checklist condicional, dispensa e tentativa de
   encerramento incompleto já tinham regressão na CG-056 e na CG-058. Sobraram
   quatro buracos, e são eles que
-  [resultados-encerramento.int-spec.ts](../apps/api/test/resultados-encerramento.int-spec.ts)
+  [resultados-encerramento.int-spec.ts](../../apps/api/test/resultados-encerramento.int-spec.ts)
   fecha, em 10 regressões: vários produtos na mesma missão, missão não
   realizada, convênio multilateral chegando ao histórico do parceiro, e o que
   acontece com o checklist **depois** que a missão fecha.
@@ -3108,7 +3108,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   lista já estavam em `execucao-comite.int-spec.ts`, e passagem/diária em
   `prestacao.int-spec.ts` — mas só do lado do lançamento, nunca atravessando o
   cálculo do painel. Sobraram quatro buracos, e são eles que
-  [integracao-financeira.int-spec.ts](../apps/api/test/integracao-financeira.int-spec.ts)
+  [integracao-financeira.int-spec.ts](../../apps/api/test/integracao-financeira.int-spec.ts)
   fecha, em 9 regressões.
 
   **Duas regras que os testes fixaram e que valem sua revisão** — nenhuma estava
@@ -3168,7 +3168,7 @@ Essa situação é calculada a partir das datas e não é persistida.
   função `temControle`, que percorre os pontos de código. **Não foi silenciada a
   regra:** um `eslint-disable` aqui esconderia o próximo literal de controle
   escrito sem intenção. Cinco casos novos em
-  [anexos.service.spec.ts](../apps/api/src/dominio/anexos.service.spec.ts)
+  [anexos.service.spec.ts](../../apps/api/src/dominio/anexos.service.spec.ts)
   cobrem nome limpo, nome acentuado, CR/LF, `NUL` e `DEL`.
 
   Verificado de ponta a ponta em 2026-09-05: **58 unitários da API, 64
@@ -3209,7 +3209,7 @@ Essa situação é calculada a partir das datas e não é persistida.
 
   **Concluída em 2026-09-07**, com 93 regressões na web. As últimas cobrem os
   links do painel e dos relatórios
-  ([links-painel.ts](../apps/web/src/lib/formularios/links-painel.ts)), extraídos
+  ([links-painel.ts](../../apps/web/src/lib/formularios/links-painel.ts)), extraídos
   do componente pela regra de sempre: `node --test` não carrega `.tsx`, e essa
   lógica é justamente onde o critério de aceite da CG-066/CG-068 se decide —
   **o recorte precisa viajar no link**. Perdê-lo faz o clique abrir uma contagem
@@ -3308,7 +3308,7 @@ Essa situação é calculada a partir das datas e não é persistida.
     têm `min-w-[48rem]` dentro de `overflow-x-auto`: no celular elas rolam, e
     quem usa só teclado não chegava nas colunas escondidas, porque não há
     elemento focável ali dentro. Entrou
-    [ui/rolagem.tsx](../apps/web/src/componentes/ui/rolagem.tsx), que dá
+    [ui/rolagem.tsx](../../apps/web/src/componentes/ui/rolagem.tsx), que dá
     `tabIndex` ao contêiner **apenas quando ele de fato transborda** — medido no
     cliente e reavaliado no redimensionamento. Fixo, criaria uma parada de
     tabulação morta em cada tabela numa tela larga; ausente, deixa conteúdo
@@ -3362,7 +3362,7 @@ Essa situação é calculada a partir das datas e não é persistida.
 
   Passagem em 2026-09-02. `AGENTS.md`, a arquitetura e a revisão de escopo vinham
   sendo atualizados a cada entrega; o que estava para trás era a
-  [especificação funcional](../system-structl.md).
+  [especificação funcional](../../system-structl.md).
 
   **A correção mais importante foi uma afirmação que virou falsa.** A P17 ainda
   dizia: *"Ainda não há API de contatos nem interface, portanto nenhum contato
@@ -3692,7 +3692,7 @@ abertas porque dependem de telas que ainda não existem.
 ## Pendências para decisão futura
 
 Todas as pendências abaixo já possuem **proposta técnica com valor recomendado**
-em [homologacao-comite-gestor.md](homologacao-comite-gestor.md). Continuam
+em [homologacao-comite-gestor.md](../homologacao-comite-gestor.md). Continuam
 marcadas como pendentes porque proposta não é decisão: elas só fecham com o
 aceite da equipe.
 
@@ -3772,7 +3772,7 @@ esperava decisões que já tinham sido tomadas — o tipo de desatualização qu
 custa uma reunião para descobrir.
 
 Respondidas (o registro completo está em
-[homologacao-comite-gestor.md](homologacao-comite-gestor.md)):
+[homologacao-comite-gestor.md](../homologacao-comite-gestor.md)):
 
 - [x] Matriz definitiva de acesso — **CG-003 aprovada em 2026-09-07**, e
   implementada pela CG-028.

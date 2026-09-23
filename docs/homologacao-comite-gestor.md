@@ -3,7 +3,7 @@
 Data: 2026-09-01.
 
 Este documento existe para tornar **decidíveis** as tasks CG-005 a CG-009 do
-[backlog-comite-gestor.md](backlog-comite-gestor.md). Ele não implementa nada e
+[backlog-comite-gestor.md](historico/backlog-comite-gestor.md). Ele não implementa nada e
 não altera regra de negócio: cada item abaixo é uma **proposta com valor
 recomendado**, para a equipe aprovar, ajustar ou rejeitar.
 

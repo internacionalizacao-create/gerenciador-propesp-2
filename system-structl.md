@@ -1264,7 +1264,7 @@ ainda será ampliada junto do formulário/detalhe.
 
 **Ainda pendente** — página de detalhe, edição do relato realizado, prestação,
 passagens, diárias e PDFs, conforme
-[docs/backlog-comite-gestor.md](docs/backlog-comite-gestor.md).
+[docs/backlog-comite-gestor.md](docs/historico/backlog-comite-gestor.md).
 
 **Revisão de escopo em 2026-09-01** — a equipe forneceu o documento “Módulo de
 Gestão de Missões, Comitê Gestor, Parceiros e Resultados”, ampliando a visão para

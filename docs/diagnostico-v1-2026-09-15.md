@@ -98,7 +98,7 @@ Evidências principais:
 Fontes: [checklist funcional](../system-structl.md#112-confirmações-ainda-pendentes),
 [decisões do Comitê](homologacao-comite-gestor.md),
 [decisões de bolsistas](homologacao-bolsistas.md) e
-[pendências futuras do Comitê](backlog-comite-gestor.md#pendências-para-decisão-futura).
+[pendências futuras do Comitê](historico/backlog-comite-gestor.md#pendências-para-decisão-futura).
 
 ## Acabamento e escopo que pode ser posterior
 

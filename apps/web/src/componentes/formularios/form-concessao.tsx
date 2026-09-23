@@ -49,28 +49,37 @@ const ROTULO_DO_ALCANCE: Record<TipoAlvoAcesso, string> = {
   PARTICIPACAO: "Uma participação PPG–temática",
 };
 
+/**
+ * O que a conta ja tem, por acao: uma entrada por alcance, porque a mesma acao
+ * pode valer em dois PPGs.
+ */
+export type AcessoEmVigor = Record<string, string[]>;
+
 export function ConcederAcesso({
   usuarioId,
   pessoaNome,
   catalogo,
   alvos,
+  emVigor,
 }: {
   usuarioId: string;
   pessoaNome: string;
   catalogo: CatalogoDeAcesso;
   alvos: AlvosDeAcesso;
+  emVigor: AcessoEmVigor;
 }) {
   return (
     <AbrirSidesheet
       rotulo="Conceder acesso"
       titulo={`Conceder acesso a ${pessoaNome}`}
-      descricao="Escolha as ações e o alcance em que elas valem. Cada ação vira uma linha própria, e o alcance escolhido aqui vale para todas as marcadas — para alcances diferentes, repita a concessão."
+      descricao="Este painel só acrescenta: o que já está em vigor aparece marcado ao lado da ação, e sai da lista pelo botão Revogar. Cada ação vira uma linha própria, e o alcance escolhido aqui vale para todas as marcadas — para alcances diferentes, repita a concessão."
     >
       {(fechar) => (
         <Formulario
           usuarioId={usuarioId}
           catalogo={catalogo}
           alvos={alvos}
+          emVigor={emVigor}
           aoConcluir={fechar}
         />
       )}
@@ -82,11 +91,13 @@ function Formulario({
   usuarioId,
   catalogo,
   alvos,
+  emVigor,
   aoConcluir,
 }: {
   usuarioId: string;
   catalogo: CatalogoDeAcesso;
   alvos: AlvosDeAcesso;
+  emVigor: AcessoEmVigor;
   aoConcluir: () => void;
 }) {
   const [estado, executar, enviando] = useActionState(
@@ -215,6 +226,7 @@ function Formulario({
                 titulo={NOME_DO_MODULO[grupo.modulo] ?? grupo.modulo}
                 acoes={grupo.acoes}
                 marcadas={permissoes}
+                emVigor={emVigor}
                 aoAlternar={alternar}
                 aoAlternarGrupo={(marcar) => {
                   const doGrupo = grupo.acoes.map((a) => a.permissao);
@@ -325,12 +337,14 @@ function GrupoDeAcoes({
   titulo,
   acoes,
   marcadas,
+  emVigor,
   aoAlternar,
   aoAlternarGrupo,
 }: {
   titulo: string;
   acoes: { permissao: string; rotulo: string }[];
   marcadas: readonly string[];
+  emVigor: AcessoEmVigor;
   aoAlternar: (permissao: string) => void;
   aoAlternarGrupo: (marcar: boolean) => void;
 }) {
@@ -353,25 +367,33 @@ function GrupoDeAcoes({
       </button>
 
       <div className="grid gap-x-5 gap-y-2 sm:grid-cols-2">
-        {acoes.map((acao) => (
-          <label
-            key={acao.permissao}
-            className="flex items-start gap-2 text-sm text-foreground"
-          >
-            <input
-              type="checkbox"
-              checked={marcadas.includes(acao.permissao)}
-              onChange={() => aoAlternar(acao.permissao)}
-              className="mt-0.5 size-4 rounded border-border-strong accent-[var(--primary)]"
-            />
-            <span>
-              {acao.rotulo}
-              <span className="ml-1 font-mono text-xs text-subtle">
-                {acao.permissao}
+        {acoes.map((acao) => {
+          const alcances = emVigor[acao.permissao] ?? [];
+          return (
+            <label
+              key={acao.permissao}
+              className="flex items-start gap-2 text-sm text-foreground"
+            >
+              <input
+                type="checkbox"
+                checked={marcadas.includes(acao.permissao)}
+                onChange={() => aoAlternar(acao.permissao)}
+                className="mt-0.5 size-4 rounded border-border-strong accent-[var(--primary)]"
+              />
+              <span>
+                {acao.rotulo}
+                <span className="ml-1 font-mono text-xs text-subtle">
+                  {acao.permissao}
+                </span>
+                {alcances.length > 0 ? (
+                  <span className="mt-0.5 block text-xs text-success">
+                    Já em vigor: {alcances.join("; ")}
+                  </span>
+                ) : null}
               </span>
-            </span>
-          </label>
-        ))}
+            </label>
+          );
+        })}
       </div>
     </fieldset>
   );
