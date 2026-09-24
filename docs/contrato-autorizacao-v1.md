@@ -160,10 +160,10 @@ o inventário que divergia do código enganava quem o lia para decidir.
 | `GET /acesso/alvos` | `acesso:read` | — |
 | `GET /acesso/usuarios/:id/concessoes` | `acesso:read` | — |
 | `POST /acesso/usuarios/:id/concessoes/previa` | `acesso:read` + `acesso:write` | Mesma política do salvar, sem gravar |
-| `POST /acesso/usuarios/:id/concessoes` | `acesso:write` | Ações `acesso:*` exigem também `acesso:delegate`; sem autoalteração; lote atômico; motivo obrigatório |
+| `POST /acesso/usuarios/:id/concessoes` | `acesso:write` | Ações `acesso:*` exigem também `acesso:delegate`; sem autoalteração; lote atômico; motivo obrigatório; conta pendente (sem pessoa) é recusada |
 | `POST /acesso/concessoes/:id/revogacao` | `acesso:write` | Idem; recusa revogar o último administrador recuperável |
 | `GET /acesso/usuarios` | `acesso:read` | — |
-| `POST /acesso/usuarios/:id/pessoa` | `acesso:manage-identidade` | Sem autoalteração; conta com `acesso:*` exige também `acesso:delegate`; motivo obrigatório e auditado |
+| `POST /acesso/usuarios/:id/pessoa` | `acesso:manage-identidade` | Vale também para a conta pendente. Pessoa de outra conta exige `transferir: true`, e aquela conta perde a pessoa e é desativada no mesmo ato. Sem autoalteração de nenhuma das duas; `acesso:delegate` se qualquer uma administra acesso; recusa se zerar os administradores; motivo auditado nas duas |
 
 ### me.controller.ts
 

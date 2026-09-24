@@ -1717,8 +1717,9 @@ export interface ContaDeAcesso {
   vinculadoEm: string;
   ultimoAcessoEm: string | null;
   ativo: boolean;
-  pessoaId: string;
-  pessoaNome: string;
+  /** Nulos na conta pendente: o e-mail dela é de pessoa ligada a outra conta. */
+  pessoaId: string | null;
+  pessoaNome: string | null;
 }
 
 export interface ConcessaoListada {
@@ -1740,9 +1741,25 @@ export interface ConcessoesDaConta {
     email: string | null;
     username: string | null;
     ativo: boolean;
+    pessoaId: string | null;
+    pessoaNome: string | null;
+  };
+  /**
+   * Só na conta pendente: a pessoa que o e-mail dela reivindica e a conta que
+   * a tem hoje, que perderia a pessoa e seria desativada numa transferência.
+   */
+  candidata: {
     pessoaId: string;
     pessoaNome: string;
-  };
+    contaAtual: {
+      id: string;
+      username: string | null;
+      email: string | null;
+      ativa: boolean;
+      ultimoAcessoEm: string | null;
+      administraAcesso: boolean;
+    } | null;
+  } | null;
   concessoes: ConcessaoListada[];
 }
 

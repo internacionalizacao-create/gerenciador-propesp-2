@@ -15,8 +15,8 @@ com a seed real; os cálculos RN-01 a RN-20, todos em SQL; as telas de planejame
 P05–P10, P14, P15, P17); o cadastro individual de bolsas e produtos (P03); panorama, mapa
 e produção de mobilidade (P02, P04, P18/P19); parceiros e seu histórico (P24); os eventos
 externos da CAPES (P12); e o **módulo do Comitê Gestor inteiro**, das 69 tasks fechadas à
-folha de homologação marcada. Cobertura: 280 testes unitários/regressão e 733 casos de
-integração em 43 suítes contra Postgres real, mais os três smokes disponíveis e 17 jornadas Playwright.
+folha de homologação marcada. Cobertura: 282 testes unitários/regressão e 740 casos de
+integração em 43 suítes contra Postgres real, mais os três smokes disponíveis e 18 jornadas Playwright.
 
 **V1-022 concluída em 2026-09-23:** o cadastro de PPG permanece institucional;
 planejamento e agregados seguem `plano:read`, inclusive na resposta de edição.
@@ -25,6 +25,12 @@ Não há escopo agregado no `/me` nem reexportação `auth/permissions.ts`.
 O inventário de rotas é conferido por teste, e o navegador cobre os sete modelos,
 bootstrap com dois logins, recortes distintos e revogação imediata. Detalhes em
 [histórico da autorização](historico/autorizacao.md#v1-022--consolidação-do-fluxo-2026-09-23).
+
+**V1-023 concluída em 2026-09-23:** a conta que entra com o e-mail de uma pessoa já ligada
+a outra conta é gravada **pendente**, sem pessoa, e aparece primeiro na tela de Acessos. Não
+recebe nem exerce concessão. O administrador a vincula pela tela, transferindo a pessoa
+quando preciso — a conta antiga perde a pessoa e é desativada, com trilha nas duas.
+Revogação, desativação, bootstrap e transferência passaram a disputar as mesmas travas.
 
 **Não existe ainda:**
 

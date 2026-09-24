@@ -8,6 +8,7 @@ import {
   alcancesCompativeis,
   descreverAlcance,
   formularioConcessaoSchema,
+  formularioVinculoSchema,
   payloadConcessao,
 } from "../src/lib/formularios/acessos.ts";
 
@@ -202,4 +203,50 @@ test("a própria conta não se administra pela tela", async () => {
   // pessoa descobrir no erro.
   assert.match(pagina, /ehAPropriaConta/);
   assert.match(pagina, /podeAdministrar && !ehAPropriaConta/);
+});
+
+test("vincular exige confirmação só quando a pessoa está com outra conta", () => {
+  const motivo = "Conta nova após recriação do realm.";
+
+  // Sem outra conta, não há o que confirmar.
+  assert.equal(
+    formularioVinculoSchema(false).safeParse({ motivo, transferir: false })
+      .success,
+    true,
+  );
+
+  // Com outra conta, a caixa desmarcada recusa, apontando o campo.
+  const recusa = formularioVinculoSchema(true).safeParse({
+    motivo,
+    transferir: false,
+  });
+  assert.equal(recusa.success, false);
+  assert.deepEqual(recusa.error.issues[0].path, ["transferir"]);
+
+  assert.equal(
+    formularioVinculoSchema(true).safeParse({ motivo, transferir: true })
+      .success,
+    true,
+  );
+
+  // Motivo continua obrigatório nos dois casos: vai para a trilha.
+  assert.equal(
+    formularioVinculoSchema(false).safeParse({ motivo: "", transferir: false })
+      .success,
+    false,
+  );
+});
+
+test("conta pendente não recebe o painel de concessão", async () => {
+  const pagina = await readFile(
+    new URL(
+      "../src/app/(app)/configuracoes/acessos/[id]/page.tsx",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  // A API recusa conceder a conta sem pessoa; a tela oferece vincular.
+  assert.match(pagina, /pendente && dados\.conta\.ativo/);
+  assert.match(pagina, /<VincularPessoa/);
 });

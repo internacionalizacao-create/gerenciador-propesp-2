@@ -57,9 +57,15 @@ export const usuarioSistema = pgTable(
     id: id(),
     /** `sub` do Keycloak: estavel, ao contrario de username e e-mail. */
     sub: varchar('sub', { length: 200 }).notNull(),
-    pessoaId: uuid('pessoa_id')
-      .notNull()
-      .references(() => pessoa.id, { onDelete: 'restrict' }),
+    /**
+     * Nulo na conta **pendente** — a que entrou com o e-mail de uma pessoa ja
+     * ligada a outra conta — e na conta antiga que cedeu a pessoa numa
+     * transferencia. Gravar a pendente, em vez de nao gravar nada, e o que a
+     * faz aparecer na tela de Acessos para alguem resolver.
+     */
+    pessoaId: uuid('pessoa_id').references(() => pessoa.id, {
+      onDelete: 'restrict',
+    }),
     /** Copias do token no momento do vinculo, so para leitura da auditoria. */
     username: varchar('username', { length: 200 }),
     email: varchar('email', { length: 240 }),

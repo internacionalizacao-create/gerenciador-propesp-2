@@ -1,4 +1,4 @@
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 
 import { AcessoV1Service } from '../src/auth/autorizacao-v1/acesso-v1.service';
 import {
@@ -473,7 +473,7 @@ describe('Concessoes — administracao pela API', () => {
         pessoaId: await pessoaLivre('Outra pessoa'),
         motivo: 'Correção de vínculo de conta comum.',
       }),
-    ).resolves.toEqual({ vinculado: true });
+    ).resolves.toEqual({ vinculado: true, contaDesativada: null });
   });
 
   it('pessoa de outra conta recusa a reassociacao e nada muda', async () => {
@@ -484,7 +484,7 @@ describe('Concessoes — administracao pela API', () => {
 
     await expect(
       servico.reassociarPessoa(admin, alvoId, {
-        pessoaId: daAdmin.pessoaId,
+        pessoaId: daAdmin.pessoaId!,
         motivo: 'Tentativa de herdar pessoa alheia.',
       }),
     ).rejects.toMatchObject({ status: 400 });
@@ -494,5 +494,208 @@ describe('Concessoes — administracao pela API', () => {
       .from(s.registroAuditoria)
       .where(eq(s.registroAuditoria.entidadeTipo, 'usuario_sistema'));
     expect(trilha).toHaveLength(0);
+  });
+
+  // --- conta pendente e transferencia (V1-023) --------------------------------
+
+  /**
+   * O caso de 2026-09-05: a conta antiga tem a pessoa; a nova entrou com o
+   * mesmo e-mail e ficou pendente. Monta as duas como o `/me` as deixaria.
+   */
+  async function contaAntigaENova(permissoesDaAntiga: string[] = []) {
+    const antiga = await criarAcesso(ctx.db, {
+      sub: 'sub-realm-antigo',
+      nome: 'Pessoa Recriada',
+      permissoes: permissoesDaAntiga,
+    });
+    const email = 'recriada@propesp.local';
+    await ctx.db
+      .update(s.pessoa)
+      .set({ email })
+      .where(eq(s.pessoa.id, antiga.pessoaId));
+    const [nova] = await ctx.db
+      .insert(s.usuarioSistema)
+      .values({
+        sub: 'sub-realm-novo',
+        pessoaId: null,
+        origem: 'PENDENTE',
+        email,
+      })
+      .returning({ id: s.usuarioSistema.id });
+    return { antiga, novaId: nova.id };
+  }
+
+  it('o detalhe da conta pendente aponta a pessoa do e-mail e quem a tem', async () => {
+    const { antiga, novaId } = await contaAntigaENova(['acesso:read']);
+
+    const { conta, candidata } = await servico.listar(novaId);
+    expect(conta.pessoaId).toBeNull();
+    expect(candidata).toMatchObject({
+      pessoaId: antiga.pessoaId,
+      pessoaNome: 'Pessoa Recriada',
+      contaAtual: {
+        id: antiga.usuarioId,
+        ativa: true,
+        administraAcesso: true,
+      },
+    });
+
+    // Conta vinculada nao tem candidata: nao ha o que decidir.
+    expect((await servico.listar(antiga.usuarioId)).candidata).toBeNull();
+  });
+
+  it('conta pendente nao recebe concessao antes de ter pessoa', async () => {
+    const { novaId } = await contaAntigaENova();
+
+    await expect(servico.conceder(admin, novaId, lote())).rejects.toMatchObject(
+      {
+        status: 400,
+      },
+    );
+    expect(await ativas(novaId)).toEqual([]);
+  });
+
+  it('sem confirmar a transferencia, a pessoa da outra conta e recusada', async () => {
+    const { antiga, novaId } = await contaAntigaENova();
+
+    await expect(
+      servico.reassociarPessoa(admin, novaId, {
+        pessoaId: antiga.pessoaId,
+        motivo: 'Conta nova após recriação do realm.',
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('transfere a pessoa, desativa a conta antiga e audita as duas', async () => {
+    const { antiga, novaId } = await contaAntigaENova(['plano:read']);
+
+    const resultado = await servico.reassociarPessoa(admin, novaId, {
+      pessoaId: antiga.pessoaId,
+      motivo: 'Conta nova após recriação do realm.',
+      transferir: true,
+    });
+    expect(resultado).toEqual({
+      vinculado: true,
+      contaDesativada: antiga.usuarioId,
+    });
+
+    const contas = await ctx.db
+      .select({
+        id: s.usuarioSistema.id,
+        pessoaId: s.usuarioSistema.pessoaId,
+        ativo: s.usuarioSistema.ativo,
+        origem: s.usuarioSistema.origem,
+      })
+      .from(s.usuarioSistema)
+      .where(inArray(s.usuarioSistema.id, [antiga.usuarioId, novaId]));
+    expect(contas.find((c) => c.id === novaId)).toMatchObject({
+      pessoaId: antiga.pessoaId,
+      ativo: true,
+      origem: 'MANUAL',
+    });
+    expect(contas.find((c) => c.id === antiga.usuarioId)).toMatchObject({
+      pessoaId: null,
+      ativo: false,
+    });
+
+    // As concessoes nao migram: a conta nova recebe acesso por ato proprio.
+    expect(await ativas(novaId)).toEqual([]);
+
+    const trilha = await ctx.db
+      .select({
+        entidadeId: s.registroAuditoria.entidadeId,
+        campo: s.registroAuditoria.campo,
+        valorNovo: s.registroAuditoria.valorNovo,
+      })
+      .from(s.registroAuditoria)
+      .where(eq(s.registroAuditoria.entidadeTipo, 'usuario_sistema'));
+    expect(trilha).toEqual(
+      expect.arrayContaining([
+        { entidadeId: antiga.usuarioId, campo: 'pessoa_id', valorNovo: null },
+        { entidadeId: antiga.usuarioId, campo: 'ativo', valorNovo: 'false' },
+        { entidadeId: novaId, campo: 'pessoa_id', valorNovo: antiga.pessoaId },
+      ]),
+    );
+    expect(trilha).toHaveLength(3);
+  });
+
+  it('transferir de conta que administra acesso exige delegacao', async () => {
+    await criarAcesso(ctx.db, {
+      sub: 'sub-so-identidade-2',
+      nome: 'Suporte de identidade',
+      permissoes: ['acesso:manage-identidade'],
+    });
+    const suporte: AuthUser = {
+      id: 'sub-so-identidade-2',
+      name: 'Suporte de identidade',
+      roles: [],
+      permissions: ['acesso:manage-identidade'],
+    };
+    const { antiga, novaId } = await contaAntigaENova(['acesso:read']);
+
+    await expect(
+      servico.reassociarPessoa(suporte, novaId, {
+        pessoaId: antiga.pessoaId,
+        motivo: 'Tentativa sem delegação.',
+        transferir: true,
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('recusa a transferencia que tiraria o ultimo administrador', async () => {
+    // A administradora da fixture e a unica recuperavel; a conta nova dela e
+    // pendente. Transferir desativaria a unica — o ato e recusado inteiro.
+    const [nova] = await ctx.db
+      .insert(s.usuarioSistema)
+      .values({ sub: 'sub-admin-novo', pessoaId: null, origem: 'PENDENTE' })
+      .returning({ id: s.usuarioSistema.id });
+    const [daAdmin] = await ctx.db
+      .select({ pessoaId: s.usuarioSistema.pessoaId })
+      .from(s.usuarioSistema)
+      .where(eq(s.usuarioSistema.id, adminId));
+    await criarAcesso(ctx.db, {
+      sub: 'sub-segundo-admin-parcial',
+      nome: 'Delegadora sem leitura',
+      permissoes: ['acesso:manage-identidade', 'acesso:delegate'],
+    });
+    const operador: AuthUser = {
+      id: 'sub-segundo-admin-parcial',
+      name: 'Delegadora sem leitura',
+      roles: [],
+      permissions: ['acesso:manage-identidade', 'acesso:delegate'],
+    };
+
+    await expect(
+      servico.reassociarPessoa(operador, nova.id, {
+        pessoaId: daAdmin.pessoaId!,
+        motivo: 'Tentativa que zeraria os administradores.',
+        transferir: true,
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+
+    const [admin] = await ctx.db
+      .select({ ativo: s.usuarioSistema.ativo })
+      .from(s.usuarioSistema)
+      .where(eq(s.usuarioSistema.id, adminId));
+    expect(admin.ativo).toBe(true);
+  });
+
+  it('ninguem transfere a propria pessoa para outra conta', async () => {
+    const [nova] = await ctx.db
+      .insert(s.usuarioSistema)
+      .values({ sub: 'sub-outra-admin', pessoaId: null, origem: 'PENDENTE' })
+      .returning({ id: s.usuarioSistema.id });
+    const [daAdmin] = await ctx.db
+      .select({ pessoaId: s.usuarioSistema.pessoaId })
+      .from(s.usuarioSistema)
+      .where(eq(s.usuarioSistema.id, adminId));
+
+    await expect(
+      servico.reassociarPessoa(admin, nova.id, {
+        pessoaId: daAdmin.pessoaId!,
+        motivo: 'Passar a própria pessoa adiante.',
+        transferir: true,
+      }),
+    ).rejects.toMatchObject({ status: 403 });
   });
 });

@@ -485,15 +485,32 @@ describe('Identidade e escopo de acesso', () => {
     expect(pessoas).toHaveLength(1);
   });
 
-  it('o administrador reassocia a conta em conflito', async () => {
+  it('a conta em conflito fica gravada como pendente, sem pessoa e sem acesso', async () => {
     await identidade.resolver(usuario({ id: 'sub-antigo' }));
     await identidade.resolver(usuario({ id: 'sub-novo' }));
 
     // Repontar sozinho seria sequestro de identidade: bastaria criar conta com
-    // o e-mail certo para herdar a pessoa e os escopos dela. Quem desempata e
-    // um administrador.
-    const contas = await ctx.db.select().from(s.usuarioSistema);
-    expect(contas).toHaveLength(1);
-    expect(contas[0].sub).toBe('sub-antigo');
+    // o e-mail certo para herdar a pessoa e os escopos dela. A conta nova
+    // existe — e e isso que a faz aparecer para o administrador —, mas sem
+    // pessoa.
+    const contas = await ctx.db
+      .select()
+      .from(s.usuarioSistema)
+      .orderBy(s.usuarioSistema.sub);
+    expect(contas.map((c) => [c.sub, c.origem, c.pessoaId === null])).toEqual([
+      ['sub-antigo', 'EMAIL', false],
+      ['sub-novo', 'PENDENTE', true],
+    ]);
+
+    // Pendente nao resolve acesso, mesmo com concessao gravada por fora.
+    await concederGlobal(usuario({ id: 'sub-novo' }), 'ppg:read');
+    expect((await acessos.resolver('sub-novo')).permissoes).toEqual([]);
+
+    // E o login seguinte nao a religa sozinho, mesmo com a pessoa livre.
+    await ctx.db
+      .update(s.usuarioSistema)
+      .set({ pessoaId: null, ativo: false })
+      .where(eq(s.usuarioSistema.sub, 'sub-antigo'));
+    expect(await identidade.resolver(usuario({ id: 'sub-novo' }))).toBeNull();
   });
 });

@@ -7,7 +7,7 @@ import {
   Param,
   Post,
 } from '@nestjs/common';
-import { asc, eq } from 'drizzle-orm';
+import { asc, desc, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { DRIZZLE, type Database } from '../database/database.module';
@@ -107,7 +107,12 @@ export class AcessoController {
     return this.concessoes.revogar(usuario, concessaoId, dto);
   }
 
-  /** Contas ligadas ao cadastro local. O alcance vive nas concessoes. */
+  /**
+   * Contas locais, vinculadas ou pendentes. O alcance vive nas concessoes.
+   *
+   * As pendentes vem primeiro: sao as que esperam alguem agir, e no fim de uma
+   * lista alfabetica ninguem as veria.
+   */
   @Get('usuarios')
   @RequirePermission('acesso:read')
   async listar() {
@@ -125,8 +130,14 @@ export class AcessoController {
         pessoaNome: s.pessoa.nome,
       })
       .from(s.usuarioSistema)
-      .innerJoin(s.pessoa, eq(s.pessoa.id, s.usuarioSistema.pessoaId))
-      .orderBy(asc(s.pessoa.nome));
+      .leftJoin(s.pessoa, eq(s.pessoa.id, s.usuarioSistema.pessoaId))
+      .orderBy(
+        desc(
+          sql`${s.usuarioSistema.pessoaId} is null and ${s.usuarioSistema.ativo}`,
+        ),
+        asc(s.pessoa.nome),
+        asc(s.usuarioSistema.email),
+      );
 
     return contas;
   }

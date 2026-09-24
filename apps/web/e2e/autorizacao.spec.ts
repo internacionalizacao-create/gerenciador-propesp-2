@@ -148,3 +148,50 @@ test.describe('ativação numa base sem contas locais', () => {
     } finally { await contexto.close(); }
   });
 });
+
+test.describe('conta nova de quem já tinha conta', () => {
+  test.use({ contaAntiga: true });
+  test('fica pendente, aparece para o administrador e é vinculada por transferência', async ({ page, browser, dados }) => {
+    const contexto = await browser.newContext({ baseURL: ambiente.APP_BASE_URL });
+    try {
+      // O login real cai no conflito: a pessoa do e-mail é da conta antiga.
+      const nova = await contexto.newPage();
+      await entrar(nova, 'sem-acesso');
+      const me = await (await nova.request.get('/api/bff/me')).json();
+      expect(me).toMatchObject({ pessoaId: null, vinculoPendente: true, permissions: [] });
+
+      await entrar(page, 'admin', '/configuracoes/acessos');
+      const linha = page.getByRole('row').filter({ hasText: 'sem-acesso@example.invalid' });
+      await expect(linha.getByText('Vínculo pendente', { exact: true })).toBeVisible();
+      await linha.getByRole('link').click();
+      await expect(page.getByRole('button', { name: 'Conceder acesso' })).toHaveCount(0);
+
+      // Conceder direto pela API também é recusado enquanto não houver pessoa.
+      const contas = await (await page.request.get('/api/bff/acesso/usuarios')).json();
+      const pendente = contas.find((c: { sub: string }) => c.sub === me.id);
+      const concessao = await page.request.post(`/api/bff/acesso/usuarios/${pendente.id}/concessoes`, { data: {
+        motivo: 'Tentativa antes do vínculo.', concessoes: [{ permissao: 'ppg:read', escopo: { tipo: 'GLOBAL' } }],
+      } });
+      expect(concessao.status()).toBe(400);
+
+      const painel = await abrir(page, 'Vincular à pessoa');
+      await expect(painel.getByText('Esta pessoa está com outra conta')).toBeVisible();
+      await painel.getByLabel('Motivo', { exact: false }).fill('Conta nova após recriação do realm.');
+      // Sem confirmar, o formulário não envia.
+      await painel.getByRole('button', { name: 'Transferir e vincular' }).click();
+      await expect(painel.getByText('Confirme a transferência para continuar.')).toBeVisible();
+      await painel.getByLabel(/Confirmo a transferência/).check();
+      await salvar(painel, 'Transferir e vincular');
+
+      const depois = await (await page.request.get('/api/bff/acesso/usuarios')).json();
+      expect(depois.find((c: { sub: string }) => c.sub === me.id)).toMatchObject({ pessoaId: dados.contaAntiga!.pessoaId, ativo: true });
+      expect(depois.find((c: { sub: string }) => c.sub === 'sub-realm-antigo')).toMatchObject({ pessoaId: null, ativo: false });
+
+      // Vinculada, a conta sai do pendente para "sem acesso", e a concessão passa.
+      expect(await (await nova.request.get('/api/bff/me')).json()).toMatchObject({ vinculoPendente: false });
+      await page.reload();
+      await concederPelaTela(page, pendente.id, ['ppg:read']);
+      expect((await nova.request.get('/api/bff/ppgs')).status()).toBe(200);
+    } finally { await contexto.close(); }
+  });
+});

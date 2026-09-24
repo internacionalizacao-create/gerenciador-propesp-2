@@ -8,6 +8,13 @@
       "when": 1790126526077,
       "tag": "0000_base_consolidada_v1",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790216272695,
+      "tag": "0001_conta_pendente",
+      "breakpoints": true
     }
   ]
 }

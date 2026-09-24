@@ -65,8 +65,15 @@ export type Revogacao = z.infer<typeof revogacaoSchema>;
 export const reassociacaoSchema = z.strictObject({
   pessoaId: z.uuid('Pessoa inválida.'),
   motivo: z.string().trim().min(5).max(2000),
+  /**
+   * Confirma tirar a pessoa da conta que a tem hoje. Explicito porque o ato
+   * desativa aquela conta: nao pode acontecer por um pedido que so queria
+   * vincular.
+   */
+  transferir: z.boolean().default(false),
 });
-export type Reassociacao = z.infer<typeof reassociacaoSchema>;
+/** Entrada, e nao saida: `transferir` e opcional para quem chama o servico. */
+export type Reassociacao = z.input<typeof reassociacaoSchema>;
 
 /** Capacidades que, juntas, permitem retomar a administracao. */
 const DE_RECUPERACAO = [
@@ -252,10 +259,52 @@ export class ConcessoesService {
 
     return {
       conta,
+      candidata: conta.pessoaId ? null : await this.candidata(conta.email),
       concessoes: linhas.map((linha) => ({
         ...linha,
         escopo: alvoDaLinha(linha),
       })),
+    };
+  }
+
+  /**
+   * A pessoa que a conta pendente reivindica pelo e-mail, e a conta que a tem.
+   *
+   * E o que o administrador precisa ver para decidir a transferencia: de quem
+   * a pessoa sairia, se aquela conta ainda entra e se administra acesso. So o
+   * e-mail casa — sugerir por nome seria adivinhar identidade.
+   */
+  private async candidata(email: string | null) {
+    if (!email) return null;
+
+    const [linha] = await this.db
+      .select({
+        pessoaId: s.pessoa.id,
+        pessoaNome: s.pessoa.nome,
+        contaId: s.usuarioSistema.id,
+        contaUsername: s.usuarioSistema.username,
+        contaEmail: s.usuarioSistema.email,
+        contaAtiva: s.usuarioSistema.ativo,
+        contaUltimoAcessoEm: s.usuarioSistema.ultimoAcessoEm,
+      })
+      .from(s.pessoa)
+      .leftJoin(s.usuarioSistema, eq(s.usuarioSistema.pessoaId, s.pessoa.id))
+      .where(eq(s.pessoa.email, email));
+    if (!linha) return null;
+
+    return {
+      pessoaId: linha.pessoaId,
+      pessoaNome: linha.pessoaNome,
+      contaAtual: linha.contaId
+        ? {
+            id: linha.contaId,
+            username: linha.contaUsername,
+            email: linha.contaEmail,
+            ativa: linha.contaAtiva,
+            ultimoAcessoEm: linha.contaUltimoAcessoEm,
+            administraAcesso: await this.administraAcesso([linha.contaId]),
+          }
+        : null,
     };
   }
 
@@ -269,6 +318,7 @@ export class ConcessoesService {
    */
   async previa(ator: AuthUser, usuarioId: string, lote: LoteDeConcessoes) {
     await this.exigirPodeAdministrar(ator, usuarioId, lote.concessoes);
+    await this.exigirVinculada(usuarioId);
     const existentes = await this.existentes(usuarioId, lote.concessoes);
 
     return {
@@ -291,6 +341,7 @@ export class ConcessoesService {
    */
   async conceder(ator: AuthUser, usuarioId: string, lote: LoteDeConcessoes) {
     await this.exigirPodeAdministrar(ator, usuarioId, lote.concessoes);
+    await this.exigirVinculada(usuarioId);
 
     return this.db.transaction(async (tx) => {
       const existentes = await this.existentes(usuarioId, lote.concessoes, tx);
@@ -378,9 +429,7 @@ export class ConcessoesService {
     return this.db.transaction(async (tx) => {
       // O lock serializa as revogacoes: duas simultaneas poderiam, cada uma,
       // ver o outro administrador ainda ativo e deixar o sistema sem nenhum.
-      await tx.execute(
-        sql`select pg_advisory_xact_lock(hashtextextended('autorizacao:administradores', 0))`,
-      );
+      await travarAdministradores(tx);
 
       await tx
         .update(s.concessaoAcesso)
@@ -415,49 +464,42 @@ export class ConcessoesService {
   }
 
   /**
-   * Liga a conta a outra pessoa do cadastro local.
+   * Liga a conta a uma pessoa do cadastro local — inclusive a conta pendente.
    *
    * Trocar a pessoa e trocar **quem a conta e** — as concessoes ficam na conta,
    * mas tudo que se registra em nome da pessoa passa a sair dali. Por isso a
-   * mesma politica das concessoes (V1-022; ate aqui a rota so conferia a
-   * permissao do decorador):
+   * mesma politica das concessoes:
    *
-   * - **sem autoalteracao** — senao quem reassocia se torna a pessoa que
-   *   quiser, inclusive a que responde por uma missao;
-   * - **conta que administra acesso exige `acesso:delegate`** — senao
-   *   `acesso:manage-identidade` contornaria a delegacao, trocando a identidade
-   *   por tras de um administrador;
-   * - **motivo obrigatorio e auditado** na mesma transacao.
+   * - **sem autoalteracao** — nem da conta alvo, nem da conta que cede a
+   *   pessoa: senao quem reassocia se torna a pessoa que quiser;
+   * - **conta que administra acesso exige `acesso:delegate`**, de um lado ou
+   *   do outro — senao `acesso:manage-identidade` contornaria a delegacao;
+   * - **motivo obrigatorio e auditado** na mesma transacao, nas duas contas.
+   *
+   * ## Transferencia
+   *
+   * O caso real e a conta nova de quem ja tinha conta (realm recriado, `sub`
+   * trocado): a pessoa esta presa a conta antiga, e uma pessoa tem uma conta
+   * so. Com `transferir`, a conta antiga **perde a pessoa e e desativada** no
+   * mesmo ato — desativada, e nao so desvinculada, porque conta sem pessoa nao
+   * responde por nada e nao deve voltar a entrar sem alguem decidir. As
+   * concessoes dela ficam como estao, inertes: nao migram para a conta nova,
+   * que recebe acesso por concessao propria. Recusa-se o ato que deixaria a
+   * instalacao sem administrador recuperavel.
    */
   async reassociarPessoa(ator: AuthUser, usuarioId: string, dto: Reassociacao) {
     const acessoDoAtor = await this.acesso.resolver(ator.id);
     if (!acessoDoAtor.ativo || !acessoDoAtor.usuarioId) {
       throw new ForbiddenException('Conta sem vínculo local ativo.');
     }
-    if (acessoDoAtor.usuarioId === usuarioId) {
+    const atorId = acessoDoAtor.usuarioId;
+    if (atorId === usuarioId) {
       throw new ForbiddenException(
         'Ninguém altera a própria identidade por esta API.',
       );
     }
 
     const conta = await this.conta(usuarioId);
-
-    const [administra] = await this.db
-      .select({ id: s.concessaoAcesso.id })
-      .from(s.concessaoAcesso)
-      .where(
-        and(
-          eq(s.concessaoAcesso.usuarioId, usuarioId),
-          eq(s.concessaoAcesso.ativo, true),
-          sql`${s.concessaoAcesso.permissao} like 'acesso:%'`,
-        ),
-      )
-      .limit(1);
-    if (administra && !acessoDoAtor.alcance('acesso:delegate').global) {
-      throw new ForbiddenException(
-        'Esta conta administra acessos. Permissão necessária: acesso:delegate',
-      );
-    }
 
     const [pessoa] = await this.db
       .select({ id: s.pessoa.id })
@@ -467,34 +509,103 @@ export class ConcessoesService {
 
     if (conta.pessoaId === dto.pessoaId) return { vinculado: true };
 
+    const [detentora] = await this.db
+      .select({ id: s.usuarioSistema.id, ativo: s.usuarioSistema.ativo })
+      .from(s.usuarioSistema)
+      .where(eq(s.usuarioSistema.pessoaId, dto.pessoaId));
+
+    if (detentora && !(dto.transferir ?? false)) {
+      throw new BadRequestException(
+        'Esta pessoa já está vinculada a outra conta. Confirme a transferência para desvinculá-la e desativar aquela conta.',
+      );
+    }
+    if (detentora?.id === atorId) {
+      throw new ForbiddenException(
+        'Ninguém altera a própria identidade por esta API.',
+      );
+    }
+
+    const envolvidas = detentora ? [usuarioId, detentora.id] : [usuarioId];
+    if (
+      (await this.administraAcesso(envolvidas)) &&
+      !acessoDoAtor.alcance('acesso:delegate').global
+    ) {
+      throw new ForbiddenException(
+        'Esta conta administra acessos. Permissão necessária: acesso:delegate',
+      );
+    }
+
+    const auditoria = (
+      entidadeId: string,
+      campo: string,
+      valorAnterior: string | null,
+      valorNovo: string | null,
+    ) => ({
+      entidadeTipo: 'usuario_sistema',
+      entidadeId,
+      acao: 'EDICAO' as const,
+      campo,
+      // Identificadores, nunca nome ou documento: a trilha explica o ato
+      // sem copiar dado pessoal.
+      valorAnterior,
+      valorNovo,
+      usuarioId: ator.id,
+      usuarioNome: ator.name ?? ator.username,
+      justificativa: dto.motivo,
+    });
+
     try {
       await this.db.transaction(async (tx) => {
+        await travarAdministradores(tx);
+        const tinhaAdministrador = !(await this.semAdministrador(tx));
+
+        if (detentora) {
+          // Primeiro libera a pessoa: a unicidade do vinculo recusaria a conta
+          // nova enquanto a antiga ainda a tivesse.
+          await tx
+            .update(s.usuarioSistema)
+            .set({ pessoaId: null, ativo: false, atualizadoEm: sql`now()` })
+            .where(eq(s.usuarioSistema.id, detentora.id));
+          await tx
+            .insert(s.registroAuditoria)
+            .values([
+              auditoria(detentora.id, 'pessoa_id', dto.pessoaId, null),
+              auditoria(
+                detentora.id,
+                'ativo',
+                String(detentora.ativo),
+                'false',
+              ),
+            ]);
+        }
+
         await tx
           .update(s.usuarioSistema)
           .set({
             pessoaId: dto.pessoaId,
             origem: 'MANUAL',
             vinculadoPorId: ator.id,
+            vinculadoEm: sql`now()`,
+            atualizadoEm: sql`now()`,
           })
           .where(eq(s.usuarioSistema.id, usuarioId));
+        await tx
+          .insert(s.registroAuditoria)
+          .values(
+            auditoria(usuarioId, 'pessoa_id', conta.pessoaId, dto.pessoaId),
+          );
 
-        await tx.insert(s.registroAuditoria).values({
-          entidadeTipo: 'usuario_sistema',
-          entidadeId: usuarioId,
-          acao: 'EDICAO',
-          campo: 'pessoa_id',
-          // Identificadores, nunca nome ou documento: a trilha explica o ato
-          // sem copiar dado pessoal.
-          valorAnterior: conta.pessoaId,
-          valorNovo: dto.pessoaId,
-          usuarioId: ator.id,
-          usuarioNome: ator.name ?? ator.username,
-          justificativa: dto.motivo,
-        });
+        if (tinhaAdministrador && (await this.semAdministrador(tx))) {
+          throw new BadRequestException(
+            'Esta transferência desativaria o último administrador ativo ' +
+              'com leitura, escrita e delegação de acessos. Conceda essas ' +
+              'ações a outra conta antes.',
+          );
+        }
       });
     } catch (erro) {
-      // `usuario_sistema_pessoa_uk`: a pessoa ja e de outra conta, inclusive
-      // por corrida entre dois administradores.
+      // `usuario_sistema_pessoa_uk`: outra conta pegou a pessoa entre a
+      // leitura e a gravacao — a corrida entre dois administradores.
       if (violouUnicidade(erro)) {
         throw new BadRequestException(
           'Esta pessoa já está vinculada a outra conta.',
@@ -503,7 +614,36 @@ export class ConcessoesService {
       throw erro;
     }
 
-    return { vinculado: true };
+    return { vinculado: true, contaDesativada: detentora?.id ?? null };
+  }
+
+  /**
+   * Conta pendente nao recebe concessao: o acesso seria de ninguem, e o
+   * resolver o ignoraria de qualquer forma. Vincular vem antes.
+   */
+  private async exigirVinculada(usuarioId: string) {
+    const conta = await this.conta(usuarioId);
+    if (!conta.pessoaId) {
+      throw new BadRequestException(
+        'Esta conta ainda não está vinculada a uma pessoa. Vincule antes de conceder acesso.',
+      );
+    }
+  }
+
+  /** Alguma destas contas tem concessao `acesso:*` ativa? */
+  private async administraAcesso(usuarioIds: readonly string[]) {
+    const [linha] = await this.db
+      .select({ id: s.concessaoAcesso.id })
+      .from(s.concessaoAcesso)
+      .where(
+        and(
+          inArray(s.concessaoAcesso.usuarioId, [...usuarioIds]),
+          eq(s.concessaoAcesso.ativo, true),
+          sql`${s.concessaoAcesso.permissao} like 'acesso:%'`,
+        ),
+      )
+      .limit(1);
+    return Boolean(linha);
   }
 
   // -------------------------------------------------------------------------
@@ -564,7 +704,9 @@ export class ConcessoesService {
         pessoaNome: s.pessoa.nome,
       })
       .from(s.usuarioSistema)
-      .innerJoin(s.pessoa, eq(s.pessoa.id, s.usuarioSistema.pessoaId))
+      // `left join`: a conta pendente, sem pessoa, tambem e administravel —
+      // e o caso que a tela existe para resolver.
+      .leftJoin(s.pessoa, eq(s.pessoa.id, s.usuarioSistema.pessoaId))
       .where(eq(s.usuarioSistema.id, usuarioId));
 
     if (!conta) throw new NotFoundException('Conta não encontrada.');
@@ -649,4 +791,23 @@ function chaveLocal(concessao: ConcessaoV1): string {
     alvo.areaTematicaId,
     alvo.participacaoId,
   ].join('|');
+}
+
+/**
+ * As duas travas que decidem "quantos administradores restam", sempre nesta
+ * ordem.
+ *
+ * O comando de desativacao e o bootstrap usam `autorizacao:bootstrap`; a
+ * revogacao usava so `autorizacao:administradores`. Com travas diferentes, uma
+ * revogacao e uma desativacao simultaneas nao se viam, e cada uma podia contar
+ * com o administrador que a outra estava tirando. Pegar as duas, na mesma
+ * ordem em todo lugar, serializa os tres caminhos sem risco de impasse.
+ */
+async function travarAdministradores(tx: Pick<Database, 'execute'>) {
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended('autorizacao:bootstrap', 0))`,
+  );
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended('autorizacao:administradores', 0))`,
+  );
 }

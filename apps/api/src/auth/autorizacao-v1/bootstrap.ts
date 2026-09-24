@@ -156,13 +156,22 @@ export async function executarBootstrap(
         pessoaNome: s.pessoa.nome,
       })
       .from(s.usuarioSistema)
-      .innerJoin(s.pessoa, eq(s.pessoa.id, s.usuarioSistema.pessoaId))
+      .leftJoin(s.pessoa, eq(s.pessoa.id, s.usuarioSistema.pessoaId))
       .where(eq(s.usuarioSistema.sub, pedido.sub));
 
     if (!conta) {
       throw new BootstrapRecusado(
         `Nenhuma conta local com o sub "${pedido.sub}". A pessoa precisa entrar ` +
           'uma vez no sistema para o vinculo existir — este comando nao cria identidade.',
+      );
+    }
+    if (conta.pessoaNome === null) {
+      // Conceder gestao a conta sem pessoa daria administracao a ninguem, e
+      // o resolver a ignoraria. Decidir de quem ela e vem antes, e nao e este
+      // comando que decide identidade.
+      throw new BootstrapRecusado(
+        `A conta ${conta.identificacao} esta com vinculo pendente: o e-mail dela ` +
+          'pertence a pessoa de outra conta. Resolva o vinculo pela tela de Acessos antes.',
       );
     }
     if (!conta.ativo) {

@@ -38,8 +38,9 @@ export interface Identidade {
  * foi recriado, os `sub` mudaram, e o e-mail passou a apontar para uma pessoa
  * ja ligada a conta antiga. Resolver isso sozinho — repontando a pessoa para o
  * `sub` novo — seria porta de sequestro de identidade: quem criasse uma conta
- * com um e-mail conhecido herdaria a pessoa e os escopos dela. Quem desempata
- * e um administrador, por `POST /acesso/usuarios/:id/pessoa`.
+ * com um e-mail conhecido herdaria a pessoa e os escopos dela. A conta fica
+ * gravada como pendente, sem pessoa, e quem desempata e um administrador, por
+ * `POST /acesso/usuarios/:id/pessoa` — transferindo a pessoa, se for o caso.
  */
 export type MotivoSemVinculo = 'CONFLITO_PESSOA';
 
@@ -74,22 +75,20 @@ export class IdentidadeService {
    * o `/me` diz isso em vez de derrubar a aplicacao.
    */
   async resolver(usuario: AuthUser): Promise<Identidade | null> {
-    const existente = await this.buscarPorSub(usuario.id);
-    if (existente) {
+    const conta = await this.contaPorSub(usuario.id);
+    if (conta) {
       await this.db
         .update(s.usuarioSistema)
         .set({ ultimoAcessoEm: sql`now()` })
-        .where(eq(s.usuarioSistema.id, existente.usuarioId));
-      return existente;
+        .where(eq(s.usuarioSistema.id, conta.usuarioId));
+      // Conta pendente continua pendente: quem a tira desse estado e um
+      // administrador, nunca um login seguinte. Religar sozinho no dia em que a
+      // pessoa ficasse livre seria o mesmo repontamento automatico que o
+      // conflito existe para impedir.
+      return conta.pessoaId ? { ...conta, pessoaId: conta.pessoaId } : null;
     }
 
-    const usuarioId = await this.vincular(usuario);
-    if (!usuarioId) return null;
-
-    return {
-      usuarioId,
-      pessoaId: await this.pessoaDoUsuario(usuarioId),
-    };
+    return this.vincular(usuario);
   }
 
   /**
@@ -187,7 +186,10 @@ export class IdentidadeService {
 
   // -------------------------------------------------------------------------
 
-  private async buscarPorSub(sub: string): Promise<Identidade | null> {
+  /** Conta ativa do `sub`, vinculada ou pendente. */
+  private async contaPorSub(
+    sub: string,
+  ): Promise<{ usuarioId: string; pessoaId: string | null } | null> {
     const [linha] = await this.db
       .select({
         usuarioId: s.usuarioSistema.id,
@@ -201,26 +203,25 @@ export class IdentidadeService {
     return linha ?? null;
   }
 
-  private async pessoaDoUsuario(usuarioId: string): Promise<string> {
-    const [linha] = await this.db
-      .select({ pessoaId: s.usuarioSistema.pessoaId })
-      .from(s.usuarioSistema)
-      .where(eq(s.usuarioSistema.id, usuarioId));
-    return linha.pessoaId;
-  }
-
   /**
-   * Cria o vinculo no primeiro acesso.
+   * Cria a conta local no primeiro acesso — vinculada, ou **pendente**.
+   *
+   * Pendente quando o e-mail aponta para pessoa ja ligada a outra conta: a
+   * linha e gravada sem pessoa, e nao deixada de fora, porque e ela que faz o
+   * caso aparecer na tela de Acessos. Sem linha, o administrador nao tinha onde
+   * agir, e a conta ficava presa num `vinculoPendente` sem saida.
    *
    * A corrida existe de verdade: duas abas abertas ao mesmo tempo disparam duas
    * chamadas. `onConflictDoNothing` no `sub` mais releitura resolve sem
    * transacao explicita — quem perder a corrida le a linha do vencedor.
    */
-  private async vincular(usuario: AuthUser): Promise<string | null> {
+  private async vincular(usuario: AuthUser): Promise<Identidade | null> {
     const pessoaId = await this.acharOuCriarPessoa(usuario);
-    if (!pessoaId) return null;
-
-    const origem = usuario.email ? 'EMAIL' : 'CRIACAO_AUTOMATICA';
+    const origem = !pessoaId
+      ? 'PENDENTE'
+      : usuario.email
+        ? 'EMAIL'
+        : 'CRIACAO_AUTOMATICA';
 
     const [criado] = await this.db
       .insert(s.usuarioSistema)
@@ -236,17 +237,24 @@ export class IdentidadeService {
       .returning({ id: s.usuarioSistema.id });
 
     if (criado) {
-      this.logger.log(
-        `Conta ${usuario.username ?? usuario.id} vinculada a pessoa ${pessoaId} (${origem}).`,
-      );
-      return criado.id;
+      if (pessoaId) {
+        this.logger.log(
+          `Conta ${usuario.username ?? usuario.id} vinculada a pessoa ${pessoaId} (${origem}).`,
+        );
+      }
+      return pessoaId ? { usuarioId: criado.id, pessoaId } : null;
     }
 
     const [existente] = await this.db
-      .select({ id: s.usuarioSistema.id })
+      .select({
+        usuarioId: s.usuarioSistema.id,
+        pessoaId: s.usuarioSistema.pessoaId,
+      })
       .from(s.usuarioSistema)
       .where(eq(s.usuarioSistema.sub, usuario.id));
-    return existente.id;
+    return existente.pessoaId
+      ? { usuarioId: existente.usuarioId, pessoaId: existente.pessoaId }
+      : null;
   }
 
   /**
@@ -287,8 +295,8 @@ export class IdentidadeService {
         if (jaVinculada) {
           this.logger.warn(
             `Conta ${usuario.username ?? usuario.id} tem o e-mail de uma pessoa já ` +
-              `vinculada ao sub ${jaVinculada.sub}. O vínculo ficou pendente: ` +
-              'um administrador precisa reassociar por POST /acesso/usuarios/:id/pessoa.',
+              `vinculada ao sub ${jaVinculada.sub}. A conta ficou pendente: ` +
+              'um administrador resolve pela tela de Acessos.',
           );
           return null;
         }

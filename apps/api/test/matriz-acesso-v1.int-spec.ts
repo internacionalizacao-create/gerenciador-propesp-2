@@ -685,7 +685,7 @@ describe('V1-020: matriz de acesso entre ciclos, PPGs e acoes', () => {
       .insert(s.membroEquipeGestao)
       .values({
         cicloId: m.ciclo1,
-        pessoaId: pessoa.pessoaId,
+        pessoaId: pessoa.pessoaId!,
         tipoEquipe: 'COMITE_GESTOR',
         funcao: 'Membro',
         dataInicio: '2027-01-01',

@@ -9,12 +9,14 @@ interface Dados {
   modalidadeId: string; instituicaoId: string;
   ppgVizinhoId: string; ppgAvulsoId: string;
   leitor: { usuarioId: string }; semAcesso: { usuarioId: string };
+  contaAntiga?: { usuarioId: string; pessoaId: string };
 }
-export const test = base.extend<{ dados: Dados; semContas: boolean }>({
+export const test = base.extend<{ dados: Dados; semContas: boolean; contaAntiga: boolean }>({
   semContas: [false, { option: true }],
-  dados: async ({ semContas }, executarTeste) => {
+  contaAntiga: [false, { option: true }],
+  dados: async ({ semContas, contaAntiga }, executarTeste) => {
     const saida = execFileSync('pnpm', ['exec', 'ts-node', '--transpile-only', '--compiler-options',
-      '{"module":"CommonJS","moduleResolution":"node","resolvePackageJsonExports":false}', 'test/e2e-seed.ts', ...(semContas ? ['--sem-contas'] : [])], {
+      '{"module":"CommonJS","moduleResolution":"node","resolvePackageJsonExports":false}', 'test/e2e-seed.ts', ...(semContas ? ['--sem-contas'] : []), ...(contaAntiga ? ['--conta-antiga'] : [])], {
       cwd: `${raiz}apps/api`, env: { ...process.env, ...ambiente }, encoding: 'utf8', timeout: 60_000,
     });
     await executarTeste(JSON.parse(saida.trim().split('\n').at(-1)!));

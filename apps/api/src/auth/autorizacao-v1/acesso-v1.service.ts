@@ -31,6 +31,11 @@ import { CATALOGO_PERMISSOES_V1, type PermissaoV1 } from './catalogo';
  * uma segunda consulta —, porque desativar a conta precisa fechar tudo de uma
  * vez, inclusive para quem tem `acesso:*`. Conta sem vinculo local tambem cai
  * aqui: sem linha em `usuario_sistema`, nao ha concessao possivel.
+ *
+ * **Conta sem pessoa tambem nao resolve nada.** E a conta pendente, que entrou
+ * com o e-mail de uma pessoa ja ligada a outra conta: existe para aparecer na
+ * tela de Acessos, nao para exercer acao. A API recusa conceder a ela, e este
+ * filtro garante o mesmo mesmo que alguma linha tenha sido gravada por fora.
  */
 
 /** Acesso ja resolvido de uma conta. Imutavel dentro da requisicao. */
@@ -104,7 +109,9 @@ export class AcessoV1Service {
         and(eq(s.usuarioSistema.sub, sub), eq(s.usuarioSistema.ativo, true)),
       );
 
-    if (linhas.length === 0) return ACESSO_VAZIO;
+    if (linhas.length === 0 || linhas[0].pessoaId === null) {
+      return ACESSO_VAZIO;
+    }
 
     const concessoes = linhas.filter(
       (l): l is typeof l & LinhaDeConcessao => l.permissao !== null,

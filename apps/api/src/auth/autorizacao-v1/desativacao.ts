@@ -43,7 +43,8 @@ export type EfeitoConta = 'DESATIVAR' | 'REATIVAR' | 'SEM_EFEITO';
 export interface ItemDesativacao {
   sub: string;
   identificacao: string;
-  pessoaNome: string;
+  /** Nulo na conta pendente, que tambem pode ser desativada. */
+  pessoaNome: string | null;
   efeito: EfeitoConta;
 }
 
@@ -85,7 +86,7 @@ export async function executarDesativacao(
         pessoaNome: s.pessoa.nome,
       })
       .from(s.usuarioSistema)
-      .innerJoin(s.pessoa, eq(s.pessoa.id, s.usuarioSistema.pessoaId))
+      .leftJoin(s.pessoa, eq(s.pessoa.id, s.usuarioSistema.pessoaId))
       .where(inArray(s.usuarioSistema.sub, [...pedido.subs]));
 
     const faltando = pedido.subs.filter(

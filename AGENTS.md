@@ -258,8 +258,12 @@ correspondência cria pessoa nova, porque recusar o login deixaria o usuário pr
 para pedir ajuda — e **criar pessoa não concede acesso**. É em `/me`, não no guard, que roda
 em toda requisição. **`/me` nunca deve falhar por causa do vínculo:** responde `pessoaId: null`
 e `vinculoPendente: true`, e a sessão segue válida. Repontar a pessoa automaticamente
-seria pior — bastaria criar conta com um e-mail conhecido para herdar identidade; quem
-desempata é `POST /acesso/usuarios/:id/pessoa`.
+seria pior — bastaria criar conta com um e-mail conhecido para herdar identidade. Por isso
+a conta em conflito é **gravada pendente, sem pessoa** (`origem = PENDENTE`): aparece na
+tela de Acessos, não recebe nem exerce concessão, e **não se religa sozinha** num login
+seguinte. Quem desempata é o administrador, por `POST /acesso/usuarios/:id/pessoa` — com
+`transferir`, quando a pessoa está com outra conta, que perde a pessoa e é desativada no
+mesmo ato.
 
 ### As regras de recorte que não podem ser quebradas
 

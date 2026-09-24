@@ -191,8 +191,10 @@ psql_valor "$(cat "${RAIZ}/scripts/db-inventario.sql")" | grep -v ' 0$' | sed 's
 
 printf '\n'
 info "Logins preservados:"
-psql_valor "select format('  %-30s %s', coalesce(u.email, u.username, u.sub), p.nome)
-              from usuario_sistema u join pessoa p on p.id = u.pessoa_id
+# `left join`: a conta pendente, sem pessoa, tambem e um login preservado.
+psql_valor "select format('  %-30s %s', coalesce(u.email, u.username, u.sub),
+                          coalesce(p.nome, '(vinculo pendente)'))
+              from usuario_sistema u left join pessoa p on p.id = u.pessoa_id
              order by 1" | sed 's/^/   /'
 printf '\n'
 info "Reinicie o \`pnpm dev\` (a API cai com o encerramento das conexoes) e"

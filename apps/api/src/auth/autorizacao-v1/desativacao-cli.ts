@@ -91,7 +91,7 @@ async function main(): Promise<void> {
     };
     for (const item of previa.itens) {
       console.log(
-        `  ${rotulo[item.efeito].padEnd(14)} ${item.identificacao} (${item.pessoaNome})`,
+        `  ${rotulo[item.efeito].padEnd(14)} ${item.identificacao} (${item.pessoaNome ?? 'vinculo pendente'})`,
       );
     }
 
@@ -128,14 +128,15 @@ async function listarContas(
       ativo: s.usuarioSistema.ativo,
     })
     .from(s.usuarioSistema)
-    .innerJoin(s.pessoa, sql`${s.pessoa.id} = ${s.usuarioSistema.pessoaId}`)
+    // `left join`: a conta pendente, sem pessoa, tambem pode ser desativada.
+    .leftJoin(s.pessoa, sql`${s.pessoa.id} = ${s.usuarioSistema.pessoaId}`)
     .orderBy(asc(s.pessoa.nome));
 
   console.log('\nContas locais:\n');
   for (const conta of contas) {
     const estado = conta.ativo ? 'ativa  ' : 'inativa';
     console.log(
-      `  ${estado}  ${conta.sub}  ${conta.identificacao} (${conta.nome})`,
+      `  ${estado}  ${conta.sub}  ${conta.identificacao} (${conta.nome ?? 'vinculo pendente'})`,
     );
   }
 

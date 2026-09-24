@@ -274,6 +274,11 @@ export const origemVinculoUsuarioEnum = pgEnum('origem_vinculo_usuario', [
   'CRIACAO_AUTOMATICA',
   /** Um administrador associou a mao, corrigindo ou suprindo o automatico. */
   'MANUAL',
+  /**
+   * O e-mail aponta para pessoa ja ligada a outra conta: a conta existe, mas
+   * sem pessoa, ate um administrador decidir. Sem pessoa nao ha concessao.
+   */
+  'PENDENTE',
 ]);
 
 /**

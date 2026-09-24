@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { RevogarAcesso } from "@/componentes/formularios/acoes-acesso";
+import {
+  RevogarAcesso,
+  VincularPessoa,
+} from "@/componentes/formularios/acoes-acesso";
 import { ConcederAcesso } from "@/componentes/formularios/form-concessao";
 import {
   Aviso,
@@ -57,7 +60,12 @@ export default async function AcessoDaConta({
   ]);
 
   const podeAdministrar = me.permissions.includes("acesso:write");
+  const podeVincular = me.permissions.includes("acesso:manage-identidade");
   const ehAPropriaConta = me.id === dados.conta.sub;
+  // Conta sem pessoa não recebe concessão: a API recusa, e a tela nem oferece.
+  const pendente = dados.conta.pessoaId === null;
+  const identificacao =
+    dados.conta.email ?? dados.conta.username ?? dados.conta.sub;
 
   const nomes = {
     ciclos: Object.fromEntries(alvos.ciclos.map((c) => [c.id, c.nome])),
@@ -92,12 +100,23 @@ export default async function AcessoDaConta({
   return (
     <Pagina
       voltar={{ href: "/configuracoes/acessos", rotulo: "Acessos" }}
-      titulo={dados.conta.pessoaNome}
-      descricao={`${dados.conta.email ?? dados.conta.username ?? dados.conta.sub} · ${
-        dados.conta.ativo ? "conta ativa" : "conta inativa"
+      titulo={dados.conta.pessoaNome ?? identificacao}
+      descricao={`${identificacao} · ${
+        !dados.conta.ativo
+          ? "conta inativa"
+          : pendente
+            ? "vínculo pendente"
+            : "conta ativa"
       }`}
       acoes={
-        podeAdministrar && !ehAPropriaConta ? (
+        pendente && dados.conta.ativo ? (
+          podeVincular && !ehAPropriaConta && dados.candidata ? (
+            <VincularPessoa
+              usuarioId={dados.conta.id}
+              candidata={dados.candidata}
+            />
+          ) : undefined
+        ) : podeAdministrar && !ehAPropriaConta && dados.conta.pessoaNome ? (
           <ConcederAcesso
             usuarioId={dados.conta.id}
             pessoaNome={dados.conta.pessoaNome}
@@ -113,6 +132,22 @@ export default async function AcessoDaConta({
           Ninguém altera o próprio acesso por aqui, nem quem administra acessos.
           A regra é da API, e existe para que administrar acessos não vire, em
           dois passos, acesso a tudo. Peça a outro administrador.
+        </Aviso>
+      ) : null}
+
+      {pendente && dados.conta.ativo ? (
+        <Aviso tom="aviso" titulo="Vínculo pendente">
+          Esta conta entrou com o e-mail de uma pessoa que já está ligada a
+          outra conta, e o sistema não escolhe sozinho de quem ela é — bastaria
+          criar uma credencial com um e-mail conhecido para herdar a pessoa.
+          Enquanto não for vinculada, a conta não recebe nem exerce acesso.{" "}
+          {!dados.candidata
+            ? "Nenhuma pessoa cadastrada tem hoje o e-mail desta conta; confira o e-mail no Keycloak."
+            : !podeVincular
+              ? "Vincular exige a permissão de reassociar identidade."
+              : ehAPropriaConta
+                ? "Peça a outro administrador para vincular a sua conta."
+                : null}
         </Aviso>
       ) : null}
 

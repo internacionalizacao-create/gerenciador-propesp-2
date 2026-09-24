@@ -3,6 +3,7 @@ import { criarContextoTeste } from './db-teste';
 import { criarBase, bolsaValida, criarAcesso } from './fixtures';
 import { semearAdministrador } from '../src/database/seed/admin';
 import { carregarTiposEventoBolsista } from '../src/database/seed/tipos-evento-bolsista';
+import { eq } from 'drizzle-orm';
 import * as s from '../src/database/schema';
 
 async function main() {
@@ -25,6 +26,7 @@ async function main() {
     let admin: Awaited<ReturnType<typeof semearAdministrador>> | undefined;
     let leitor: Awaited<ReturnType<typeof criarAcesso>> | undefined;
     let semAcesso: Awaited<ReturnType<typeof criarAcesso>> | undefined;
+    let contaAntiga: Awaited<ReturnType<typeof criarAcesso>> | undefined;
     if (!process.argv.includes('--sem-contas')) {
       admin = await semearAdministrador(
         ctx.db,
@@ -37,11 +39,27 @@ async function main() {
         nome: 'Teste leitor',
         permissoes: ['ppg:read'],
       });
-      semAcesso = await criarAcesso(ctx.db, {
-        sub: usuarios[2].id,
-        nome: 'Teste sem acesso',
-        permissoes: [],
-      });
+      if (process.argv.includes('--conta-antiga')) {
+        // O caso do realm recriado: a pessoa de `e2e-sem-acesso` ja esta
+        // ligada a um `sub` que nao existe mais. O login real dela cai no
+        // conflito e a conta nasce pendente.
+        const antiga = await criarAcesso(ctx.db, {
+          sub: 'sub-realm-antigo',
+          nome: 'Teste conta antiga',
+          permissoes: [],
+        });
+        await ctx.db
+          .update(s.pessoa)
+          .set({ email: 'sem-acesso@example.invalid' })
+          .where(eq(s.pessoa.id, antiga.pessoaId));
+        contaAntiga = antiga;
+      } else {
+        semAcesso = await criarAcesso(ctx.db, {
+          sub: usuarios[2].id,
+          nome: 'Teste sem acesso',
+          permissoes: [],
+        });
+      }
     }
     const [pais] = await ctx.db
       .insert(s.pais)
@@ -112,6 +130,7 @@ async function main() {
         admin,
         leitor,
         semAcesso,
+        contaAntiga,
       }),
     );
   } finally {

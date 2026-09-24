@@ -52,7 +52,7 @@ export default async function Acessos() {
 
       <Secao
         titulo={`Contas (${contas.length})`}
-        descricao="Ordenadas por nome. Conta inativa não resolve acesso nenhum, mesmo com concessões ativas."
+        descricao="Contas com vínculo pendente primeiro, depois por nome. Conta inativa ou pendente não resolve acesso nenhum, mesmo com concessões ativas."
       >
         {contas.length === 0 ? (
           <EstadoVazio
@@ -76,16 +76,29 @@ export default async function Acessos() {
           >
             {contas.map((conta) => (
               <tr key={conta.id}>
-                <Celula>{conta.pessoaNome}</Celula>
+                <Celula>
+                  {conta.pessoaNome ?? (
+                    <span className="italic text-subtle">Sem pessoa</span>
+                  )}
+                </Celula>
                 <Celula>
                   <span className="text-muted">
                     {conta.email ?? conta.username ?? conta.sub}
                   </span>
                 </Celula>
                 <Celula>
-                  <Selo tom={conta.ativo ? "sucesso" : "neutro"}>
-                    {conta.ativo ? "Ativa" : "Inativa"}
-                  </Selo>
+                  {conta.ativo && conta.pessoaId === null ? (
+                    <Selo
+                      tom="aviso"
+                      titulo="O e-mail desta conta é de uma pessoa ligada a outra conta"
+                    >
+                      Vínculo pendente
+                    </Selo>
+                  ) : (
+                    <Selo tom={conta.ativo ? "sucesso" : "neutro"}>
+                      {conta.ativo ? "Ativa" : "Inativa"}
+                    </Selo>
+                  )}
                 </Celula>
                 <Celula>
                   {conta.ultimoAcessoEm ? data(conta.ultimoAcessoEm) : "—"}

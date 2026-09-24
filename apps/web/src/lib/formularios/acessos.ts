@@ -175,3 +175,30 @@ export function descreverAlcance(
       return `Participação ${nome(nomes.participacoes, escopo.participacaoId)}`;
   }
 }
+
+/**
+ * Vínculo da conta pendente a uma pessoa.
+ *
+ * A confirmação só é exigida quando a pessoa está com outra conta — é ela que
+ * autoriza desvinculá-la de lá e desativar aquela conta. Pedir a caixa sem
+ * transferência nenhuma seria ruído, e o ruído ensina a marcar sem ler.
+ */
+export function formularioVinculoSchema(exigeConfirmacao: boolean) {
+  return z
+    .object({
+      motivo: z
+        .string()
+        .trim()
+        .min(5, "Diga por que esta conta está sendo vinculada.")
+        .max(2000),
+      transferir: z.boolean(),
+    })
+    .refine((valor) => !exigeConfirmacao || valor.transferir, {
+      path: ["transferir"],
+      message: "Confirme a transferência para continuar.",
+    });
+}
+
+export type DadosFormularioVinculo = z.infer<
+  ReturnType<typeof formularioVinculoSchema>
+>;

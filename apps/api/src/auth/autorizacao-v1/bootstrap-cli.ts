@@ -120,12 +120,18 @@ async function listarContas(
       ativo: s.usuarioSistema.ativo,
     })
     .from(s.usuarioSistema)
-    .innerJoin(s.pessoa, eq(s.pessoa.id, s.usuarioSistema.pessoaId))
+    .leftJoin(s.pessoa, eq(s.pessoa.id, s.usuarioSistema.pessoaId))
     .orderBy(asc(s.pessoa.nome));
 
   console.log('\nContas locais:\n');
   for (const conta of contas) {
-    const estado = conta.ativo ? '' : ' (inativa)';
+    // Pendente nao serve ao bootstrap, que exige pessoa: listar mesmo assim
+    // explica por que o `sub` recem-logado nao e aceito.
+    const estado = !conta.ativo
+      ? ' (inativa)'
+      : conta.nome === null
+        ? ' (vinculo pendente)'
+        : '';
     console.log(`  ${conta.sub}  ${conta.identificacao}${estado}`);
   }
   if (contas.length === 0) {

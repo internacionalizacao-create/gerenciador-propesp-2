@@ -1,7 +1,7 @@
 # Backlog executável da V1 interna
 
 Criado em 2026-09-15 a partir do [diagnóstico](diagnostico-v1-2026-09-15.md) e da
-[proposta de autorização](proposta-autorizacao-v1.md). São **48 tarefas** para
+[proposta de autorização](proposta-autorizacao-v1.md). São **49 tarefas** para
 execução sob demanda — 47 na criação, mais a V1-022, aberta em 2026-09-22. Nenhuma tarefa de implementação está concluída por efeito
 da criação deste documento. Não substituir os históricos CG/BOL nem reabrir suas
 decisões silenciosamente.
@@ -182,6 +182,7 @@ dependências são obrigatórios, exceto quando a ficha indicar uma condição.
 | V1-020 | P0 | Regressão da matriz de autorização — concluída | 013–019 |
 | V1-021 | P0 | Ativação restritiva e rollback — concluída (a/d/e entregues; b/c canceladas) | 018–020 |
 | V1-022 | P0 | Validar e consolidar o fluxo de autorização — concluída | 010–021 |
+| V1-023 | P0 | Conta pendente e transferência de vínculo — concluída | 022 |
 | V1-030 | P0 | Ciclo de vida completo da missão na web — concluída | 001 |
 | V1-031 | P0 | Produtos de missão na web — concluída | 001 |
 | V1-032 | P1 | Gestão de convênios na web — concluída | 016 |

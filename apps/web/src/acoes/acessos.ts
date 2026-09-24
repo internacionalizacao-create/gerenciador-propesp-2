@@ -6,6 +6,7 @@ import { enviar, type EstadoDaAcao } from "@/lib/acao";
 import {
   payloadConcessao,
   type DadosFormularioConcessao,
+  type DadosFormularioVinculo,
 } from "@/lib/formularios/acessos";
 
 /**
@@ -61,6 +62,29 @@ export async function revogarConcessao(
       { motivo: String(formulario.get("motivo") ?? "") },
       [],
       "Acesso revogado.",
+    ),
+  );
+}
+
+/**
+ * Liga a conta pendente à pessoa. Com `transferir`, a API tira a pessoa da
+ * conta que a tem hoje e desativa aquela conta, no mesmo ato e com trilha.
+ */
+export async function vincularPessoa(
+  usuarioId: string,
+  pessoaId: string,
+  _anterior: EstadoDaAcao,
+  dados: DadosFormularioVinculo,
+): Promise<EstadoDaAcao> {
+  return comRevalidacao(
+    enviar(
+      `/acesso/usuarios/${usuarioId}/pessoa`,
+      "POST",
+      { pessoaId, motivo: dados.motivo, transferir: dados.transferir },
+      [],
+      dados.transferir
+        ? "Conta vinculada; a conta anterior foi desativada."
+        : "Conta vinculada.",
     ),
   );
 }

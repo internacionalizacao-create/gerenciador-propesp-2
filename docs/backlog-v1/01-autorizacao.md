@@ -818,7 +818,50 @@ Contrato de produto: [proposta de autorização](../proposta-autorizacao-v1.md).
   733 casos de integração em 43 suítes e 17 jornadas e2e. Os modelos completos
   usam GLOBAL; alcances parciais têm jornada própria e regressões de todas as
   dimensões do planejamento, sobreposição de concessões e isolamento de ciclos.
-  O smoke de desenvolvimento não foi executado: altera concessões de uma conta
-  local. O percurso correspondente foi validado no ambiente descartável.
+  `pnpm smoke:acesso` aprovado no ambiente de desenvolvimento em 2026-09-23
+  (a cobaia termina sem concessão, como começou).
+- **Limitação encontrada na verificação:** a conta em conflito de e-mail não
+  ganhava linha em `usuario_sistema`, e a reassociação não tinha onde agir.
+  Resolvida na V1-023.
 - **Registro das divergências e correções:**
   [histórico da autorização](../historico/autorizacao.md#v1-022--consolidação-do-fluxo-2026-09-23).
+
+## V1-023 — Conta pendente e transferência de vínculo
+
+- **Estado / data:** Concluída — 2026-09-23. Aceite técnico; homologação na
+  V1-060.
+- **Prioridade/dependência:** P0; V1-022.
+- **Origem:** limitação encontrada na verificação da V1-022. A conta que entra
+  com o e-mail de uma pessoa já ligada a outra conta (realm recriado, `sub`
+  trocado) ficava sem linha em `usuario_sistema`: não aparecia na tela de
+  Acessos, e a reassociação, que opera sobre conta existente, não a alcançava.
+- **Decisão:** gravar a conta pendente e resolver pela reassociação existente
+  (opção B de três; as outras eram uma rota recebendo `sub` digitado, sujeita a
+  ligar a pessoa errada, e o caminho indireto sem código). Decidido pelo
+  responsável em 2026-09-23.
+- **Entrega:** migration `0001_conta_pendente` — `pessoa_id` aceita nulo e a
+  origem ganha `PENDENTE`. O `/me` grava a conta pendente e não a religa
+  sozinho depois. O resolver não dá acesso a conta sem pessoa, e conceder ou
+  pré-visualizar concessão para ela responde 400. A reassociação aceita
+  `transferir`: a conta que tinha a pessoa a perde e é desativada no mesmo ato,
+  sem migrar concessões. Política: sem autoalteração de nenhuma das duas
+  contas, `acesso:delegate` se qualquer uma administra acesso, recusa se zerar
+  os administradores recuperáveis, motivo auditado nas duas. O detalhe da conta
+  pendente traz a pessoa do mesmo e-mail e a conta que a tem; a tela mostra o
+  selo, esconde a concessão e oferece o vínculo com confirmação explícita.
+  Desativação e listagens dos comandos locais passaram a enxergar a conta
+  pendente; o bootstrap a recusa com mensagem própria.
+- **Defeito corrigido junto:** a revogação travava só
+  `autorizacao:administradores` e a desativação só `autorizacao:bootstrap`, e
+  uma não via a outra. Revogação e transferência pegam as duas, sempre na
+  mesma ordem.
+- **Validação:** lint e build; 282 unitários (89 API, 193 web); 740 casos de
+  integração em 43 suítes; 18 jornadas e2e, incluindo login real que cai no
+  conflito, recusa de concessão, confirmação obrigatória, transferência e
+  concessão depois do vínculo.
+- **Limitação:** recriar o realm em produção deixa **todas** as contas
+  pendentes, inclusive a do administrador, e o bootstrap recusa conta pendente.
+  Enquanto houver um administrador que ainda entre, ele resolve os demais; se
+  nenhum entrar, o caminho é o bootstrap em modo de recuperação sobre uma conta
+  **nova** (sem e-mail em conflito). Sugerir por nome, e não só por e-mail, ficou
+  de fora de propósito: seria adivinhar identidade.
