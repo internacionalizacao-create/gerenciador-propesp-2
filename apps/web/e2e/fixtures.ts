@@ -10,10 +10,11 @@ interface Dados {
   ppgVizinhoId: string; ppgAvulsoId: string;
   leitor: { usuarioId: string }; semAcesso: { usuarioId: string };
 }
-export const test = base.extend<{ dados: Dados }>({
-  dados: async ({}, executarTeste) => {
+export const test = base.extend<{ dados: Dados; semContas: boolean }>({
+  semContas: [false, { option: true }],
+  dados: async ({ semContas }, executarTeste) => {
     const saida = execFileSync('pnpm', ['exec', 'ts-node', '--transpile-only', '--compiler-options',
-      '{"module":"CommonJS","moduleResolution":"node","resolvePackageJsonExports":false}', 'test/e2e-seed.ts'], {
+      '{"module":"CommonJS","moduleResolution":"node","resolvePackageJsonExports":false}', 'test/e2e-seed.ts', ...(semContas ? ['--sem-contas'] : [])], {
       cwd: `${raiz}apps/api`, env: { ...process.env, ...ambiente }, encoding: 'utf8', timeout: 60_000,
     });
     await executarTeste(JSON.parse(saida.trim().split('\n').at(-1)!));

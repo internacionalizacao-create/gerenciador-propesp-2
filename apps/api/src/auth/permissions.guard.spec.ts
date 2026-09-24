@@ -6,7 +6,7 @@ import type { ExecutionContext } from '@nestjs/common';
 
 import type { AuthUser } from './auth-user';
 import { PermissionsGuard } from './permissions.guard';
-import type { Permission } from './permissions';
+import type { PermissaoV1 } from './autorizacao-v1/catalogo';
 
 function contextoCom(user: AuthUser | undefined): ExecutionContext {
   return {
@@ -16,7 +16,7 @@ function contextoCom(user: AuthUser | undefined): ExecutionContext {
   } as unknown as ExecutionContext;
 }
 
-function guardExigindo(...permissions: Permission[]): {
+function guardExigindo(...permissions: PermissaoV1[]): {
   guard: PermissionsGuard;
 } {
   const reflector = new Reflector();

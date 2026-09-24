@@ -386,4 +386,113 @@ describe('Concessoes — administracao pela API', () => {
       'acesso:write',
     ]);
   });
+
+  // --- reassociacao de identidade (V1-022) ----------------------------------
+
+  /** So reassocia identidade, sem delegar: o caso do contorno. */
+  const soIdentidade: AuthUser = {
+    id: 'sub-so-identidade',
+    name: 'Suporte de identidade',
+    roles: [],
+    permissions: ['acesso:manage-identidade'],
+  };
+
+  async function pessoaLivre(nome = 'Pessoa sem conta') {
+    const [pessoa] = await ctx.db
+      .insert(s.pessoa)
+      .values({ nome, tipo: 'SERVIDOR' })
+      .returning({ id: s.pessoa.id });
+    return pessoa.id;
+  }
+
+  it('reassocia a identidade com motivo e deixa trilha sem dado pessoal', async () => {
+    const [antes] = await ctx.db
+      .select({ pessoaId: s.usuarioSistema.pessoaId })
+      .from(s.usuarioSistema)
+      .where(eq(s.usuarioSistema.id, alvoId));
+    const destino = await pessoaLivre();
+
+    await servico.reassociarPessoa(admin, alvoId, {
+      pessoaId: destino,
+      motivo: 'E-mail do cadastro divergente do Keycloak.',
+    });
+
+    const [depois] = await ctx.db
+      .select({ pessoaId: s.usuarioSistema.pessoaId })
+      .from(s.usuarioSistema)
+      .where(eq(s.usuarioSistema.id, alvoId));
+    expect(depois.pessoaId).toBe(destino);
+
+    const trilha = await ctx.db
+      .select()
+      .from(s.registroAuditoria)
+      .where(
+        and(
+          eq(s.registroAuditoria.entidadeTipo, 'usuario_sistema'),
+          eq(s.registroAuditoria.entidadeId, alvoId),
+        ),
+      );
+    expect(trilha).toHaveLength(1);
+    expect(trilha[0]).toMatchObject({
+      campo: 'pessoa_id',
+      valorAnterior: antes.pessoaId,
+      valorNovo: destino,
+      usuarioId: admin.id,
+      justificativa: 'E-mail do cadastro divergente do Keycloak.',
+    });
+  });
+
+  it('ninguem reassocia a propria identidade', async () => {
+    await expect(
+      servico.reassociarPessoa(admin, adminId, {
+        pessoaId: await pessoaLivre(),
+        motivo: 'Tentativa de trocar a propria pessoa.',
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('conta que administra acesso so e reassociada com delegacao', async () => {
+    await criarAcesso(ctx.db, {
+      sub: soIdentidade.id,
+      nome: soIdentidade.name,
+      permissoes: soIdentidade.permissions,
+    });
+
+    // O alvo aqui e a administradora: trocar a pessoa por tras dela, sem
+    // poder delegar, seria o contorno que a politica fecha.
+    await expect(
+      servico.reassociarPessoa(soIdentidade, adminId, {
+        pessoaId: await pessoaLivre(),
+        motivo: 'Tentativa sem delegação.',
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+
+    // Conta sem `acesso:*` segue reassociavel por quem so cuida de identidade.
+    await expect(
+      servico.reassociarPessoa(soIdentidade, alvoId, {
+        pessoaId: await pessoaLivre('Outra pessoa'),
+        motivo: 'Correção de vínculo de conta comum.',
+      }),
+    ).resolves.toEqual({ vinculado: true });
+  });
+
+  it('pessoa de outra conta recusa a reassociacao e nada muda', async () => {
+    const [daAdmin] = await ctx.db
+      .select({ pessoaId: s.usuarioSistema.pessoaId })
+      .from(s.usuarioSistema)
+      .where(eq(s.usuarioSistema.id, adminId));
+
+    await expect(
+      servico.reassociarPessoa(admin, alvoId, {
+        pessoaId: daAdmin.pessoaId,
+        motivo: 'Tentativa de herdar pessoa alheia.',
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+
+    const trilha = await ctx.db
+      .select()
+      .from(s.registroAuditoria)
+      .where(eq(s.registroAuditoria.entidadeTipo, 'usuario_sistema'));
+    expect(trilha).toHaveLength(0);
+  });
 });

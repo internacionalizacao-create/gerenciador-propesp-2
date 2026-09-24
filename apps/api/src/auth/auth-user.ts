@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import type { Permission } from './permissions';
+import type { PermissaoV1 } from './autorizacao-v1/catalogo';
 
 /**
  * Formato do access token emitido pelo Keycloak (apenas o que consumimos).
@@ -46,7 +46,7 @@ export interface AuthUser {
   readonly name?: string;
   readonly sessionId?: string;
   readonly roles: readonly string[];
-  readonly permissions: readonly Permission[];
+  readonly permissions: readonly PermissaoV1[];
 }
 
 /**

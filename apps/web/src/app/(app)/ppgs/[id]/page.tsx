@@ -42,7 +42,7 @@ export default async function DetalheDoPpg({
   }
 
   const ppg = await buscarPpg(id);
-  const podeEditar = me.permissions.includes("ppg:create");
+  const podeEditar = me.permissions.includes("ppg:edit");
 
   return (
     <Pagina
@@ -164,9 +164,13 @@ export default async function DetalheDoPpg({
 
       <Secao
         titulo="Bolsas planejadas"
-        descricao="Linhas do plano de aplicação que apontam para este PPG."
+        descricao={
+          ppg.planoRecortado
+            ? "Linhas do plano de aplicação deste PPG que você pode consultar. O total soma só essas linhas."
+            : "Linhas do plano de aplicação que apontam para este PPG."
+        }
       >
-        {ppg.plano.length > 0 ? (
+        {ppg.plano && ppg.plano.length > 0 ? (
           <Tabela
             colunas={[
               { chave: "codigo", texto: "Código" },
@@ -230,8 +234,18 @@ export default async function DetalheDoPpg({
           </Tabela>
         ) : (
           <EstadoVazio
-            titulo="Nenhuma bolsa planejada"
-            descricao="O PPG está mapeado, mas não há linha de planejamento programada para ele neste ciclo."
+            titulo={
+              !ppg.podeLerPlano
+                ? "Sem acesso ao planejamento"
+                : ppg.planoRecortado ? "Nenhuma linha no seu alcance"
+                : "Nenhuma bolsa planejada"
+            }
+            descricao={
+              !ppg.podeLerPlano
+                ? "Sua conta não pode consultar o planejamento deste PPG."
+                : ppg.planoRecortado ? "Não há linhas de planejamento no alcance concedido à sua conta."
+                : "O PPG está mapeado, mas não há linha de planejamento programada para ele neste ciclo."
+            }
           />
         )}
       </Secao>

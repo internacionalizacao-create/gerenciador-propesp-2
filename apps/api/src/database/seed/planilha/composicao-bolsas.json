@@ -1,0 +1,1863 @@
+{
+  "_origem": "Levantamento de Bolsas.xlsx",
+  "_extraido_em": "2026-09-22",
+  "_aviso": "As abas \"Cópia de ...\" são revisões, não duplicatas. Este arquivo guarda as duas versões e lista as divergências em `conflitos`; nenhuma foi escolhida automaticamente.",
+  "composicao": {
+    "UNICAMP": {
+      "_regra": "copia vence inteira (revisao completa)",
+      "ppgs": [
+        {
+          "tematica": "Saúde, Natureza e Sociedade",
+          "ppg": "PPG em Ciências Aplicadas à Hematologia (PPGH)",
+          "notaPpg": 4.0,
+          "responsavel": "Profa. Dra. Gisely Cardoso de Melo (gcmelo@uea.edu.br)",
+          "orcamentoTotal": "538291.22",
+          "orcamentoUtilizado": "537530.00",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor visitante(1 mês) Exterior - Brasil",
+              "quantidade": 2.0,
+              "quantidadeTexto": "2.0"
+            },
+            {
+              "modalidade": "Capacitação (1 mês)Brasil- Exterior Capacitação (15 dias)Brasil- Exterior",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1 de cada"
+            },
+            {
+              "modalidade": "Doutorado Sanduíche (6 Meses) Brasil- Exterior",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1.0"
+            }
+          ]
+        },
+        {
+          "tematica": "Saúde, Natureza e Sociedade",
+          "ppg": "PPG em Medicina Tropical (PPGMT)",
+          "notaPpg": 7.0,
+          "responsavel": "Profa. Dra. Gisely Cardoso de Melo (gcmelo@uea.edu.br)",
+          "orcamentoTotal": "538291.22",
+          "orcamentoUtilizado": "537530.00",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor visitante(1 mês) Exterior - Brasil",
+              "quantidade": 2.0,
+              "quantidadeTexto": "2.0"
+            }
+          ]
+        },
+        {
+          "tematica": "Saúde, Natureza e Sociedade",
+          "ppg": "PPG em Saúde Coletiva (PPGSC)",
+          "notaPpg": 3.0,
+          "responsavel": "Profa. Dra. Gisely Cardoso de Melo (gcmelo@uea.edu.br)",
+          "orcamentoTotal": "538291.22",
+          "orcamentoUtilizado": "537530.00",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor visitante(1 mês) Exterior - Brasil",
+              "quantidade": 2.0,
+              "quantidadeTexto": "2.0"
+            },
+            {
+              "modalidade": "Capacitação (15 dias)Brasil- Exterior",
+              "quantidade": 3.0,
+              "quantidadeTexto": "3.0"
+            }
+          ]
+        },
+        {
+          "tematica": "Saúde, Natureza e Sociedade",
+          "ppg": "PPG em Geografia (PPGEO)",
+          "notaPpg": 3.0,
+          "responsavel": "Profa. Dra. Gisely Cardoso de Melo (gcmelo@uea.edu.br)",
+          "orcamentoTotal": "538291.22",
+          "orcamentoUtilizado": "537530.00",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor visitante(1 mês) Exterior - Brasil",
+              "quantidade": 2.0,
+              "quantidadeTexto": "2.0"
+            },
+            {
+              "modalidade": "Capacitação (15 dias)Brasil- Exterior",
+              "quantidade": 3.0,
+              "quantidadeTexto": "3.0"
+            }
+          ]
+        },
+        {
+          "tematica": "Saúde, Natureza e Sociedade",
+          "ppg": "PPG em Saúde da Família (PROFSAÚDE)",
+          "notaPpg": 4.0,
+          "responsavel": "Profa. Dra. Gisely Cardoso de Melo (gcmelo@uea.edu.br)",
+          "orcamentoTotal": "538291.22",
+          "orcamentoUtilizado": "537530.00",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor visitante(1 mês) Exterior - Brasil",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1.0"
+            },
+            {
+              "modalidade": "Capacitação (1 mês)Brasil- Exterior Capacitação (15 dias)Brasil- Exterior",
+              "quantidade": 2.0,
+              "quantidadeTexto": "2 de 15 dias e 1 de um Mês"
+            }
+          ]
+        },
+        {
+          "tematica": "Educação, Saberes e Culturas",
+          "ppg": "PPG em Educação na Amazônia (Rede EDUCANORTE)",
+          "notaPpg": 5.0,
+          "responsavel": "Prof. Dr. José Vicente de Souza Aguiar( jvicente@uea.edu.br)",
+          "orcamentoTotal": "270894.75",
+          "orcamentoUtilizado": "331122.00",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Capacitação (15 dias)Brasil- Exterior",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1.0"
+            },
+            {
+              "modalidade": "Doutorado Sanduíche (6 Meses) Brasil- Exterior",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1.0"
+            }
+          ]
+        },
+        {
+          "tematica": "Educação, Saberes e Culturas",
+          "ppg": "PPG em Educação (PPGED)",
+          "notaPpg": 4.0,
+          "responsavel": "Prof. Dr. José Vicente de Souza Aguiar( jvicente@uea.edu.br)",
+          "orcamentoTotal": "270894.75",
+          "orcamentoUtilizado": "331122.00",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor visitante (1 mês) Exterior - Brasil",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1.0"
+            },
+            {
+              "modalidade": "Capacitação (15 dias)Brasil- Exterior",
+              "quantidade": 2.0,
+              "quantidadeTexto": "2.0"
+            },
+            {
+              "modalidade": "Capacitação (1 mês)Brasil- Exterior",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1.0"
+            }
+          ]
+        },
+        {
+          "tematica": "Educação, Saberes e Culturas",
+          "ppg": "PPG em Letras e Artes (PPGLA)",
+          "notaPpg": 5.0,
+          "responsavel": "Prof. Dr. José Vicente de Souza Aguiar( jvicente@uea.edu.br)",
+          "orcamentoTotal": "270894.75",
+          "orcamentoUtilizado": "331122.00",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor visitante (1 mês) Exterior - Brasil",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1.0"
+            },
+            {
+              "modalidade": "Capacitação (15 dias)Brasil- Exterior",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1.0"
+            },
+            {
+              "modalidade": "Doutorado Sanduíche (6 Meses) Brasil- Exterior",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1.0"
+            }
+          ]
+        },
+        {
+          "tematica": "Biodiversidade e Transformação Territorial Sustentável",
+          "ppg": "PPG em Gestão e Regulação de Recursos Hídricos (Rede PROFÁGUA)",
+          "notaPpg": 3.0,
+          "responsavel": "Profa. Dra. Iêda Hortêncio Batista (ibatista@uea.edu.br)",
+          "orcamentoTotal": "96835.65",
+          "orcamentoUtilizado": "97.31",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor visitante (1 mês) Exterior - Brasil",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1.0"
+            },
+            {
+              "modalidade": "Capacitação (15 dias)Brasil- Exterior",
+              "quantidade": 2.0,
+              "quantidadeTexto": "2.0"
+            },
+            {
+              "modalidade": "Capacitação (1 mês)Brasil- Exterior",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1.0"
+            }
+          ]
+        },
+        {
+          "tematica": "Direitos Humanos, Justiça Social e Equidade",
+          "ppg": "PPG em Segurança Pública, Cidadania e Direitos Humanos (PPGSP)",
+          "notaPpg": 4.0,
+          "responsavel": "Prof. Dr. Antonio Gelson de Oliveira Nascimento (agnascimento@uea.edu.br)",
+          "orcamentoTotal": "159067.37",
+          "orcamentoUtilizado": "173690.60",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor visitante (1 Mês) Exterior - Brasil",
+              "quantidade": 3.0,
+              "quantidadeTexto": "3.0"
+            },
+            {
+              "modalidade": "Capacitação (15 dias)Brasil- Exterior",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1.0"
+            }
+          ]
+        }
+      ]
+    },
+    "UFMG": {
+      "_regra": "uniao; orcamento da principal; Capacitacoes da copia",
+      "ppgs": [
+        {
+          "tematica": "Justiça, Governança e Transformações Institucionais",
+          "ppg": "PPG em Direito Ambiental - PPGDA",
+          "notaPpg": 4.0,
+          "responsavel": "Profa. Dr. Bianor Saraiva Nogueira Junior",
+          "orcamentoTotal": "89500.00",
+          "orcamentoUtilizado": "54697.00",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor Visitante Junior (segundo semestre)",
+              "quantidade": 1.0,
+              "vigenciaMeses": 2.0
+            },
+            {
+              "modalidade": "Capacitacao",
+              "quantidade": 1.0,
+              "vigenciaMeses": 1.0,
+              "_origem": "Cópia de Comitê UFMG"
+            }
+          ]
+        },
+        {
+          "tematica": "Transformação Digital e Novas Tecnologias",
+          "ppg": "PPG em Propriedade Intelectual e Transferência de Tecnologia para a Inovação - PROFNIT",
+          "notaPpg": 4.0,
+          "responsavel": "Prof. Dr. Raimundo Correa de Oliveira",
+          "orcamentoTotal": "89500.00",
+          "orcamentoUtilizado": "58651.00",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor Visitante Senior",
+              "quantidade": 1.0,
+              "vigenciaMeses": 2.0
+            },
+            {
+              "modalidade": "Capacitacao",
+              "quantidade": 1.0,
+              "vigenciaMeses": 1.0,
+              "_origem": "Cópia de Comitê UFMG"
+            }
+          ]
+        },
+        {
+          "tematica": "Saúde e Bem-estar",
+          "ppg": "PPG em Enfermagem em Saúde Pública - PPG PROENSP",
+          "notaPpg": 5.0,
+          "responsavel": "Prof. Dr. Wagner Ferreira Monteiro",
+          "orcamentoTotal": "268500.00",
+          "orcamentoUtilizado": "224982.60",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor Visitante Junior",
+              "quantidade": 2.0,
+              "vigenciaMeses": 2.0
+            }
+          ]
+        },
+        {
+          "tematica": "Saúde e Bem-estar",
+          "ppg": "PPG em Saúde Pública na Amazônia - PPG DASPAM",
+          "notaPpg": 4.0,
+          "responsavel": "Prof. Dr. Wagner Ferreira Monteiro",
+          "orcamentoTotal": "268500.00",
+          "orcamentoUtilizado": "224982.60",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Doutorado Sanduíche",
+              "quantidade": 1.0,
+              "vigenciaMeses": 4.0
+            },
+            {
+              "modalidade": "Capacitacao",
+              "quantidade": 1.0,
+              "vigenciaMeses": 4.0,
+              "_origem": "Cópia de Comitê UFMG"
+            }
+          ]
+        },
+        {
+          "tematica": "Saúde e Bem-estar",
+          "ppg": "PPG em Ciências Aplicadas à Dermatologia - PPGCAD",
+          "notaPpg": 5.0,
+          "responsavel": "Prof. Dr. Wagner Ferreira Monteiro",
+          "orcamentoTotal": "268500.00",
+          "orcamentoUtilizado": "224982.60",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor Visitante Junior",
+              "quantidade": 1.0,
+              "vigenciaMeses": 2.0
+            }
+          ]
+        },
+        {
+          "tematica": "Sustentabilidade e transições energéticas",
+          "ppg": "PPGEEL em engenharia elétrica (PPGEEL)",
+          "notaPpg": 3.0,
+          "responsavel": "Prof. Dr. Israel Gondres Torné",
+          "orcamentoTotal": "89500.00",
+          "orcamentoUtilizado": "58651.00",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor Visitante Senior( segundo semestre)",
+              "quantidade": 1.0,
+              "vigenciaMeses": 2.0
+            },
+            {
+              "modalidade": "Capacitacao",
+              "quantidade": 1.0,
+              "vigenciaMeses": 1.0,
+              "_origem": "Cópia de Comitê UFMG"
+            }
+          ]
+        }
+      ]
+    },
+    "UNESP": {
+      "_regra": "aba unica",
+      "ppgs": [
+        {
+          "tematica": "Desenvolvimento sustentável: biodiversidade, transição energética e mudanças climáticas",
+          "ppg": "PPG em Clima e Ambiente - PPG CLIAMB",
+          "notaPpg": 5.0,
+          "responsavel": "Prof. Dr. Hector Henrique Ferreira Koolen",
+          "orcamentoTotal": "233854.04",
+          "orcamentoUtilizado": "231.04",
+          "orcamentoRubricas": {
+            "BOLSAS": "233854.04",
+            "MANUTENCAO": "10555.60",
+            "MISSOES": "21999.60"
+          },
+          "mesImplementacao": "março",
+          "lancamentos": [
+            {
+              "modalidade": "Doutorado Sanduiche",
+              "destino": "EXTERIOR",
+              "quantidade": 1.0,
+              "vigenciaMeses": 6.0,
+              "_textoOriginal": "1 bolsa doutorado sanduíche (6 meses) PPGCLIAMB",
+              "_confianca": "direta"
+            }
+          ]
+        },
+        {
+          "tematica": "Desenvolvimento sustentável: biodiversidade, transição energética e mudanças climáticas",
+          "ppg": "PPG em Biodiversidade e Biotecnologia - Rede BIONORTE",
+          "notaPpg": 5.0,
+          "responsavel": "Prof. Dr. Hector Henrique Ferreira Koolen",
+          "orcamentoTotal": "233854.04",
+          "orcamentoUtilizado": "231.04",
+          "orcamentoRubricas": {
+            "BOLSAS": "233854.04",
+            "MANUTENCAO": "10555.60",
+            "MISSOES": "21999.60"
+          },
+          "mesImplementacao": "setembro",
+          "lancamentos": [
+            {
+              "modalidade": "Doutorado Sanduiche",
+              "destino": "EXTERIOR",
+              "quantidade": 1.0,
+              "vigenciaMeses": 5.0,
+              "_textoOriginal": "1 bolsa doutorado sanduíche (5 meses) PPGBionorte",
+              "_confianca": "direta"
+            }
+          ]
+        },
+        {
+          "tematica": "Desenvolvimento sustentável: biodiversidade, transição energética e mudanças climáticas",
+          "ppg": "PPG em Biotecnologia e Recursos Naturais da Amazônia - PPGMBT",
+          "notaPpg": 4.0,
+          "responsavel": "Prof. Dr. Hector Henrique Ferreira Koolen",
+          "orcamentoTotal": "233854.04",
+          "orcamentoUtilizado": "231.04",
+          "orcamentoRubricas": {
+            "BOLSAS": "233854.04",
+            "MANUTENCAO": "10555.60",
+            "MISSOES": "21999.60"
+          },
+          "mesImplementacao": "setembro",
+          "lancamentos": [
+            {
+              "modalidade": "Professor Visitante Senior",
+              "destino": "EXTERIOR",
+              "quantidade": 1.0,
+              "vigenciaMeses": 3.0,
+              "_textoOriginal": "1 bolsa Professor Visitante Sênior (3 meses) PPGMBT",
+              "_confianca": "direta"
+            }
+          ]
+        },
+        {
+          "tematica": "Saúde única: interconexão entre a saúde humana, animal, vegetal e ambiental",
+          "ppg": "Programa Multicêntrico Pós Graduação em Bioquímica e Biologia Molecular - PPG PMBqBM",
+          "notaPpg": 5.0,
+          "responsavel": "Prof. Dr. Cleiton Fantin",
+          "orcamentoTotal": "79878.39",
+          "orcamentoUtilizado": "78.42",
+          "orcamentoRubricas": {
+            "BOLSAS": "79878.39",
+            "MANUTENCAO": "546.37",
+            "MISSOES": "7113.77"
+          },
+          "mesImplementacao": "março",
+          "lancamentos": [
+            {
+              "modalidade": "Capacitacao",
+              "destino": "EXTERIOR",
+              "quantidade": 3.0,
+              "vigenciaMeses": 1.0,
+              "_textoOriginal": "3 bolsas Capacitação (2 de 1 mês e 1 de 0,5 mês)",
+              "_confianca": "revisar"
+            }
+          ]
+        },
+        {
+          "tematica": "Educação, Culturas, Sociedade e Linguagens",
+          "ppg": "PPG em Educação em Ciências e Matemática - REAMEC",
+          "notaPpg": 4.0,
+          "responsavel": "Profa. Dra. Luciane Lopes",
+          "orcamentoTotal": "261364.55",
+          "orcamentoUtilizado": "249431.50",
+          "orcamentoRubricas": {
+            "BOLSAS": "261364.55",
+            "MANUTENCAO": "2926.36",
+            "MISSOES": "18841.64"
+          },
+          "mesImplementacao": "março",
+          "lancamentos": [
+            {
+              "modalidade": "Doutorado Sanduiche",
+              "destino": "EXTERIOR",
+              "quantidade": 1.0,
+              "vigenciaMeses": 6.0,
+              "_textoOriginal": "1 bolsa doutorado sanduíche (6 meses) 82.902,20",
+              "_confianca": "direta"
+            }
+          ]
+        },
+        {
+          "tematica": "Educação, Culturas, Sociedade e Linguagens",
+          "ppg": "PPG Interdisciplinar em Ciências Humanas - PPGICH",
+          "notaPpg": 5.0,
+          "responsavel": "Profa. Dra. Luciane Lopes",
+          "orcamentoTotal": "261364.55",
+          "orcamentoUtilizado": "249431.50",
+          "orcamentoRubricas": {
+            "BOLSAS": "261364.55",
+            "MANUTENCAO": "2926.36",
+            "MISSOES": "18841.64"
+          },
+          "mesImplementacao": null,
+          "lancamentos": [
+            {
+              "modalidade": "Capacitacao",
+              "destino": "EXTERIOR",
+              "quantidade": 3.0,
+              "vigenciaMeses": 1.0,
+              "_textoOriginal": "3 capacitação de 1 meses ( PPGICH)-83.627,1",
+              "_confianca": "direta"
+            }
+          ]
+        },
+        {
+          "tematica": "Educação, Culturas, Sociedade e Linguagens",
+          "ppg": "PPG em Educação e Ensino de Ciências na Amazônia - PPGEEC",
+          "notaPpg": 5.0,
+          "responsavel": "Profa. Dra. Luciane Lopes",
+          "orcamentoTotal": "261364.55",
+          "orcamentoUtilizado": "249431.50",
+          "orcamentoRubricas": {
+            "BOLSAS": "261364.55",
+            "MANUTENCAO": "2926.36",
+            "MISSOES": "18841.64"
+          },
+          "mesImplementacao": null,
+          "lancamentos": [
+            {
+              "modalidade": "Doutorado Sanduiche",
+              "destino": "EXTERIOR",
+              "quantidade": 1.0,
+              "vigenciaMeses": 5.0,
+              "_textoOriginal": "1 bolsa doutorado sanduíche (5 meses)-71.896,90",
+              "_confianca": "direta"
+            },
+            {
+              "modalidade": "Capacitacao",
+              "destino": "EXTERIOR",
+              "quantidade": 15.0,
+              "vigenciaMeses": null,
+              "_textoOriginal": "Capacitação (15 dias)- 22.669,60",
+              "_confianca": "revisar"
+            }
+          ]
+        },
+        {
+          "tematica": "Tecnologias Convergentes e Inovação transformadora: Futuros digitais",
+          "ppg": "PPG em Matemática - Rede PROFMAT",
+          "notaPpg": 4.0,
+          "responsavel": "Profa. Dra. Kelly Alves Marães de Almeida",
+          "orcamentoTotal": "68507.47",
+          "orcamentoUtilizado": "65.97",
+          "orcamentoRubricas": {
+            "BOLSAS": "68507.47",
+            "MANUTENCAO": "886.27",
+            "MISSOES": "6881.53"
+          },
+          "mesImplementacao": "1 PV em março, 1 PV em setembro e capacitação em setembro",
+          "lancamentos": [
+            {
+              "modalidade": "Capacitacao",
+              "destino": "EXTERIOR",
+              "quantidade": 1.0,
+              "vigenciaMeses": 0.5,
+              "_textoOriginal": "1 capacitação de 0,5 mês",
+              "_confianca": "direta"
+            },
+            {
+              "modalidade": "Professor Visitante",
+              "destino": "BRASIL",
+              "quantidade": 2.0,
+              "vigenciaMeses": 1.0,
+              "_textoOriginal": "2 professor visitante BR 1 mês",
+              "_confianca": "direta"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "descartes": [
+    {
+      "rede": "UFMG",
+      "ppgContem": "Ciências Aplicadas",
+      "modalidade": "CAPACITACAO",
+      "motivo": "So na aba principal, e digitada na coluna \"Bolsa PV (SENIOR)\". Descartada por decisao do responsavel em 2026-09-22: mante-la daria cinco Capacitacoes UFMG, e o levantamento registra quatro.",
+      "ppg": "PPG em Ciências Aplicadas à Dermatologia - PPGCAD",
+      "valorDescartado": {
+        "modalidade": "Capacitação",
+        "quantidade": 1.0,
+        "vigenciaMeses": 2.0
+      }
+    }
+  ],
+  "redes": {
+    "UNICAMP": {
+      "principal": [
+        {
+          "tematica": "Saúde, Natureza e Sociedade",
+          "ppg": "PPG em Ciências Aplicadas à Hematologia (PPGH)",
+          "notaPpg": 4.0,
+          "responsavel": "Profa. Dra. Gisely Cardoso de Melo (gcmelo@uea.edu.br)",
+          "orcamentoTotal": "538291.22",
+          "orcamentoUtilizado": "530737.40",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor visitante (15 dias) Exterior - Brasil",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1 (bolsa pra março), 1 (bolsa pra setembro)"
+            },
+            {
+              "modalidade": "Capacitação (15 dias)Brasil- Exterior",
+              "quantidade": 3.0,
+              "quantidadeTexto": "3 (bolsas pra setembro)"
+            }
+          ]
+        },
+        {
+          "tematica": "Saúde, Natureza e Sociedade",
+          "ppg": "PPG em Medicina Tropical (PPGMT)",
+          "notaPpg": 7.0,
+          "responsavel": "Profa. Dra. Gisely Cardoso de Melo (gcmelo@uea.edu.br)",
+          "orcamentoTotal": "538291.22",
+          "orcamentoUtilizado": "530737.40",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor visitante (15 dias) Exterior - Brasil",
+              "quantidade": 2.0,
+              "quantidadeTexto": "2 (bolsas pra março), 2 (bolsas pra setembro)"
+            },
+            {
+              "modalidade": "Capacitação (15 dias)Brasil- Exterior",
+              "quantidade": 0.0,
+              "quantidadeTexto": "0 capacitação"
+            },
+            {
+              "modalidade": "Doutorado Sanduíche (6 Meses) Brasil- Exterior",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1.0"
+            }
+          ]
+        },
+        {
+          "tematica": "Saúde, Natureza e Sociedade",
+          "ppg": "PPG em Saúde Coletiva (PPGSC)",
+          "notaPpg": 3.0,
+          "responsavel": "Profa. Dra. Gisely Cardoso de Melo (gcmelo@uea.edu.br)",
+          "orcamentoTotal": "538291.22",
+          "orcamentoUtilizado": "530737.40",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor visitante (15 dias) Exterior - Brasil",
+              "quantidade": 2.0,
+              "quantidadeTexto": "2 (bolsas pra setembro)"
+            },
+            {
+              "modalidade": "Capacitação (15 dias)Brasil- Exterior",
+              "quantidade": 3.0,
+              "quantidadeTexto": "3 (bolsas pra setembro)"
+            }
+          ]
+        },
+        {
+          "tematica": "Saúde, Natureza e Sociedade",
+          "ppg": "PPG em Geografia (PPGEO)",
+          "notaPpg": 3.0,
+          "responsavel": "Profa. Dra. Gisely Cardoso de Melo (gcmelo@uea.edu.br)",
+          "orcamentoTotal": "538291.22",
+          "orcamentoUtilizado": "530737.40",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor visitante (15 dias) Exterior - Brasil",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1 (bolsa pra março), 1 (bolsa pra setembro)"
+            },
+            {
+              "modalidade": "Capacitação (15 dias)Brasil- Exterior",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1 (bolsa pra março), 2 (bolsas pra setembro)"
+            }
+          ]
+        },
+        {
+          "tematica": "Saúde, Natureza e Sociedade",
+          "ppg": "PPG em Saúde da Família (PROFSAÚDE)",
+          "notaPpg": 4.0,
+          "responsavel": "Profa. Dra. Gisely Cardoso de Melo (gcmelo@uea.edu.br)",
+          "orcamentoTotal": "538291.22",
+          "orcamentoUtilizado": "530737.40",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor visitante (15 dias) Exterior - Brasil",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1 (bolsa pra março), 1 (bolsa pra setembro)"
+            },
+            {
+              "modalidade": "Capacitação (15 dias)Brasil- Exterior",
+              "quantidade": 2.0,
+              "quantidadeTexto": "2 (bolsas pra março), 1(bolsa pra setembro)"
+            }
+          ]
+        },
+        {
+          "tematica": "Culturas, Saberes e Educação",
+          "ppg": "PPG em Educação na Amazônia (Rede EDUCANORTE)",
+          "notaPpg": 5.0,
+          "responsavel": "Prof. Dr. José Vicente de Souza Aguiar( jvicente@uea.edu.br)",
+          "orcamentoTotal": "270894.75",
+          "orcamentoUtilizado": "331122.00",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Capacitação (15 dias)Brasil- Exterior",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1.0"
+            },
+            {
+              "modalidade": "Doutorado Sanduíche (6 Meses) Brasil- Exterior",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1.0"
+            }
+          ]
+        },
+        {
+          "tematica": "Culturas, Saberes e Educação",
+          "ppg": "PPG em Educação (PPGED)",
+          "notaPpg": 4.0,
+          "responsavel": "Prof. Dr. José Vicente de Souza Aguiar( jvicente@uea.edu.br)",
+          "orcamentoTotal": "270894.75",
+          "orcamentoUtilizado": "331122.00",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor visitante (15 dias) Exterior - Brasil",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1.0"
+            },
+            {
+              "modalidade": "Capacitação (15 dias)Brasil- Exterior",
+              "quantidade": 4.0,
+              "quantidadeTexto": "4.0"
+            }
+          ]
+        },
+        {
+          "tematica": "Culturas, Saberes e Educação",
+          "ppg": "PPG em Letras e Artes (PPGLA)",
+          "notaPpg": 5.0,
+          "responsavel": "Prof. Dr. José Vicente de Souza Aguiar( jvicente@uea.edu.br)",
+          "orcamentoTotal": "270894.75",
+          "orcamentoUtilizado": "331122.00",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor visitante (15 dias) Exterior - Brasil",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1.0"
+            },
+            {
+              "modalidade": "Capacitação (15 dias)Brasil- Exterior",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1.0"
+            },
+            {
+              "modalidade": "Doutorado Sanduíche (6 Meses) Brasil- Exterior",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1.0"
+            }
+          ]
+        },
+        {
+          "tematica": "Biodiversidade e Transformação Territorial Sustentável",
+          "ppg": "PPG em Gestão e Regulação de Recursos Hídricos (Rede PROFÁGUA)",
+          "notaPpg": 3.0,
+          "responsavel": "Profa. Dra. Iêda Hortêncio Batista (ibatista@uea.edu.br)",
+          "orcamentoTotal": "96835.65",
+          "orcamentoUtilizado": "97.31",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor visitante (15 dias) Exterior - Brasil",
+              "quantidade": 2.0,
+              "quantidadeTexto": "2.0"
+            },
+            {
+              "modalidade": "Capacitação (15 dias)Brasil- Exterior",
+              "quantidade": 3.0,
+              "quantidadeTexto": "3.0"
+            }
+          ]
+        },
+        {
+          "tematica": "Direitos Humanos, Justiça Social e Equidade",
+          "ppg": "PPG em Segurança Pública, Cidadania e Direitos Humanos (PPGSP)",
+          "notaPpg": 4.0,
+          "responsavel": "Prof. Dr. Antonio Gelson de Oliveira Nascimento (agnascimento@uea.edu.br)",
+          "orcamentoTotal": "159067.37",
+          "orcamentoUtilizado": "173690.60",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor visitante (15 dias) Exterior - Brasil",
+              "quantidade": 2.0,
+              "quantidadeTexto": "2.0"
+            },
+            {
+              "modalidade": "Capacitação (15 dias)Brasil- Exterior",
+              "quantidade": 2.0,
+              "quantidadeTexto": "2.0"
+            }
+          ]
+        }
+      ],
+      "copia": [
+        {
+          "tematica": "Saúde, Natureza e Sociedade",
+          "ppg": "PPG em Ciências Aplicadas à Hematologia (PPGH)",
+          "notaPpg": 4.0,
+          "responsavel": "Profa. Dra. Gisely Cardoso de Melo (gcmelo@uea.edu.br)",
+          "orcamentoTotal": "538291.22",
+          "orcamentoUtilizado": "537530.00",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor visitante(1 mês) Exterior - Brasil",
+              "quantidade": 2.0,
+              "quantidadeTexto": "2.0"
+            },
+            {
+              "modalidade": "Capacitação (1 mês)Brasil- Exterior Capacitação (15 dias)Brasil- Exterior",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1 de cada"
+            },
+            {
+              "modalidade": "Doutorado Sanduíche (6 Meses) Brasil- Exterior",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1.0"
+            }
+          ]
+        },
+        {
+          "tematica": "Saúde, Natureza e Sociedade",
+          "ppg": "PPG em Medicina Tropical (PPGMT)",
+          "notaPpg": 7.0,
+          "responsavel": "Profa. Dra. Gisely Cardoso de Melo (gcmelo@uea.edu.br)",
+          "orcamentoTotal": "538291.22",
+          "orcamentoUtilizado": "537530.00",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor visitante(1 mês) Exterior - Brasil",
+              "quantidade": 2.0,
+              "quantidadeTexto": "2.0"
+            }
+          ]
+        },
+        {
+          "tematica": "Saúde, Natureza e Sociedade",
+          "ppg": "PPG em Saúde Coletiva (PPGSC)",
+          "notaPpg": 3.0,
+          "responsavel": "Profa. Dra. Gisely Cardoso de Melo (gcmelo@uea.edu.br)",
+          "orcamentoTotal": "538291.22",
+          "orcamentoUtilizado": "537530.00",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor visitante(1 mês) Exterior - Brasil",
+              "quantidade": 2.0,
+              "quantidadeTexto": "2.0"
+            },
+            {
+              "modalidade": "Capacitação (15 dias)Brasil- Exterior",
+              "quantidade": 3.0,
+              "quantidadeTexto": "3.0"
+            }
+          ]
+        },
+        {
+          "tematica": "Saúde, Natureza e Sociedade",
+          "ppg": "PPG em Geografia (PPGEO)",
+          "notaPpg": 3.0,
+          "responsavel": "Profa. Dra. Gisely Cardoso de Melo (gcmelo@uea.edu.br)",
+          "orcamentoTotal": "538291.22",
+          "orcamentoUtilizado": "537530.00",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor visitante(1 mês) Exterior - Brasil",
+              "quantidade": 2.0,
+              "quantidadeTexto": "2.0"
+            },
+            {
+              "modalidade": "Capacitação (15 dias)Brasil- Exterior",
+              "quantidade": 3.0,
+              "quantidadeTexto": "3.0"
+            }
+          ]
+        },
+        {
+          "tematica": "Saúde, Natureza e Sociedade",
+          "ppg": "PPG em Saúde da Família (PROFSAÚDE)",
+          "notaPpg": 4.0,
+          "responsavel": "Profa. Dra. Gisely Cardoso de Melo (gcmelo@uea.edu.br)",
+          "orcamentoTotal": "538291.22",
+          "orcamentoUtilizado": "537530.00",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor visitante(1 mês) Exterior - Brasil",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1.0"
+            },
+            {
+              "modalidade": "Capacitação (1 mês)Brasil- Exterior Capacitação (15 dias)Brasil- Exterior",
+              "quantidade": 2.0,
+              "quantidadeTexto": "2 de 15 dias e 1 de um Mês"
+            }
+          ]
+        },
+        {
+          "tematica": "Educação, Saberes e Culturas",
+          "ppg": "PPG em Educação na Amazônia (Rede EDUCANORTE)",
+          "notaPpg": 5.0,
+          "responsavel": "Prof. Dr. José Vicente de Souza Aguiar( jvicente@uea.edu.br)",
+          "orcamentoTotal": "270894.75",
+          "orcamentoUtilizado": "331122.00",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Capacitação (15 dias)Brasil- Exterior",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1.0"
+            },
+            {
+              "modalidade": "Doutorado Sanduíche (6 Meses) Brasil- Exterior",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1.0"
+            }
+          ]
+        },
+        {
+          "tematica": "Educação, Saberes e Culturas",
+          "ppg": "PPG em Educação (PPGED)",
+          "notaPpg": 4.0,
+          "responsavel": "Prof. Dr. José Vicente de Souza Aguiar( jvicente@uea.edu.br)",
+          "orcamentoTotal": "270894.75",
+          "orcamentoUtilizado": "331122.00",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor visitante (1 mês) Exterior - Brasil",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1.0"
+            },
+            {
+              "modalidade": "Capacitação (15 dias)Brasil- Exterior",
+              "quantidade": 2.0,
+              "quantidadeTexto": "2.0"
+            },
+            {
+              "modalidade": "Capacitação (1 mês)Brasil- Exterior",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1.0"
+            }
+          ]
+        },
+        {
+          "tematica": "Educação, Saberes e Culturas",
+          "ppg": "PPG em Letras e Artes (PPGLA)",
+          "notaPpg": 5.0,
+          "responsavel": "Prof. Dr. José Vicente de Souza Aguiar( jvicente@uea.edu.br)",
+          "orcamentoTotal": "270894.75",
+          "orcamentoUtilizado": "331122.00",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor visitante (1 mês) Exterior - Brasil",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1.0"
+            },
+            {
+              "modalidade": "Capacitação (15 dias)Brasil- Exterior",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1.0"
+            },
+            {
+              "modalidade": "Doutorado Sanduíche (6 Meses) Brasil- Exterior",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1.0"
+            }
+          ]
+        },
+        {
+          "tematica": "Biodiversidade e Transformação Territorial Sustentável",
+          "ppg": "PPG em Gestão e Regulação de Recursos Hídricos (Rede PROFÁGUA)",
+          "notaPpg": 3.0,
+          "responsavel": "Profa. Dra. Iêda Hortêncio Batista (ibatista@uea.edu.br)",
+          "orcamentoTotal": "96835.65",
+          "orcamentoUtilizado": "97.31",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor visitante (1 mês) Exterior - Brasil",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1.0"
+            },
+            {
+              "modalidade": "Capacitação (15 dias)Brasil- Exterior",
+              "quantidade": 2.0,
+              "quantidadeTexto": "2.0"
+            },
+            {
+              "modalidade": "Capacitação (1 mês)Brasil- Exterior",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1.0"
+            }
+          ]
+        },
+        {
+          "tematica": "Direitos Humanos, Justiça Social e Equidade",
+          "ppg": "PPG em Segurança Pública, Cidadania e Direitos Humanos (PPGSP)",
+          "notaPpg": 4.0,
+          "responsavel": "Prof. Dr. Antonio Gelson de Oliveira Nascimento (agnascimento@uea.edu.br)",
+          "orcamentoTotal": "159067.37",
+          "orcamentoUtilizado": "173690.60",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor visitante (1 Mês) Exterior - Brasil",
+              "quantidade": 3.0,
+              "quantidadeTexto": "3.0"
+            },
+            {
+              "modalidade": "Capacitação (15 dias)Brasil- Exterior",
+              "quantidade": 1.0,
+              "quantidadeTexto": "1.0"
+            }
+          ]
+        }
+      ]
+    },
+    "UFMG": {
+      "principal": [
+        {
+          "tematica": "Justiça, Governança e Transformações Institucionais",
+          "ppg": "PPG em Direito Ambiental - PPGDA",
+          "notaPpg": 4.0,
+          "responsavel": "Profa. Dr. Bianor Saraiva Nogueira Junior",
+          "orcamentoTotal": "89500.00",
+          "orcamentoUtilizado": "54697.00",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor Visitante Junior (segundo semestre)",
+              "quantidade": 1.0,
+              "vigenciaMeses": 2.0
+            }
+          ]
+        },
+        {
+          "tematica": "Transformação Digital e Novas Tecnologias",
+          "ppg": "PPG em Propriedade Intelectual e Transferência de Tecnologia para a Inovação - PROFNIT",
+          "notaPpg": 4.0,
+          "responsavel": "Prof. Dr. Raimundo Correa de Oliveira",
+          "orcamentoTotal": "89500.00",
+          "orcamentoUtilizado": "58651.00",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor Visitante Senior",
+              "quantidade": 1.0,
+              "vigenciaMeses": 2.0
+            }
+          ]
+        },
+        {
+          "tematica": "Saúde e Bem-estar",
+          "ppg": "PPG em Enfermagem em Saúde Pública - PPG PROENSP",
+          "notaPpg": 5.0,
+          "responsavel": "Prof. Dr. Wagner Ferreira Monteiro",
+          "orcamentoTotal": "268500.00",
+          "orcamentoUtilizado": "224982.60",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor Visitante Junior",
+              "quantidade": 2.0,
+              "vigenciaMeses": 2.0
+            }
+          ]
+        },
+        {
+          "tematica": "Saúde e Bem-estar",
+          "ppg": "PPG em Saúde Pública na Amazônia - PPG DASPAM",
+          "notaPpg": 4.0,
+          "responsavel": "Prof. Dr. Wagner Ferreira Monteiro",
+          "orcamentoTotal": "268500.00",
+          "orcamentoUtilizado": "224982.60",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Doutorado Sanduíche",
+              "quantidade": 1.0,
+              "vigenciaMeses": 4.0
+            }
+          ]
+        },
+        {
+          "tematica": "Saúde e Bem-estar",
+          "ppg": "PPG em Ciências Aplicadas à Dermatologia - PPGCAD",
+          "notaPpg": 5.0,
+          "responsavel": "Prof. Dr. Wagner Ferreira Monteiro",
+          "orcamentoTotal": "268500.00",
+          "orcamentoUtilizado": "224982.60",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor Visitante Junior",
+              "quantidade": 1.0,
+              "vigenciaMeses": 2.0
+            },
+            {
+              "modalidade": "Capacitação",
+              "quantidade": 1.0,
+              "vigenciaMeses": 2.0
+            }
+          ]
+        },
+        {
+          "tematica": "Sustentabilidade e transições energéticas",
+          "ppg": "PPGEEL em engenharia elétrica (PPGEEL)",
+          "notaPpg": 3.0,
+          "responsavel": "Prof. Dr. Israel Gondres Torné",
+          "orcamentoTotal": "89500.00",
+          "orcamentoUtilizado": "58651.00",
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor Visitante Senior( segundo semestre)",
+              "quantidade": 1.0,
+              "vigenciaMeses": 2.0
+            }
+          ]
+        }
+      ],
+      "copia": [
+        {
+          "tematica": "Justiça, Governança e Transformações Institucionais",
+          "ppg": "PPG em Direito Ambiental - PPGDA",
+          "notaPpg": 4.0,
+          "responsavel": "Profa. Dr. Bianor Saraiva Nogueira Junior",
+          "orcamentoTotal": null,
+          "orcamentoUtilizado": null,
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor Visitante Junior",
+              "quantidade": 1.0,
+              "vigenciaMeses": 2.0
+            },
+            {
+              "modalidade": "Capacitacao",
+              "quantidade": 1.0,
+              "vigenciaMeses": 1.0
+            }
+          ]
+        },
+        {
+          "tematica": "Transformação Digital e Novas Tecnologias",
+          "ppg": "PPG em Propriedade Intelectual e Transferência de Tecnologia para a Inovação - PROFNIT",
+          "notaPpg": 4.0,
+          "responsavel": "Prof. Dr. Raimundo Correa de Oliveira",
+          "orcamentoTotal": null,
+          "orcamentoUtilizado": null,
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Capacitacao",
+              "quantidade": 1.0,
+              "vigenciaMeses": 1.0
+            }
+          ]
+        },
+        {
+          "tematica": "Saúde e Bem-estar",
+          "ppg": "PPG em Enfermagem em Saúde Pública - PPG PROENSP",
+          "notaPpg": 5.0,
+          "responsavel": "Prof. Dr. Wagner Ferreira Monteiro",
+          "orcamentoTotal": null,
+          "orcamentoUtilizado": null,
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor Visitante Junior",
+              "quantidade": 2.0,
+              "vigenciaMeses": 2.0
+            }
+          ]
+        },
+        {
+          "tematica": "Saúde e Bem-estar",
+          "ppg": "PPG em Saúde Pública na Amazônia - PPG DASPAM",
+          "notaPpg": 4.0,
+          "responsavel": "Prof. Dr. Wagner Ferreira Monteiro",
+          "orcamentoTotal": null,
+          "orcamentoUtilizado": null,
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Doutorado Sanduiche",
+              "quantidade": 1.0,
+              "vigenciaMeses": 4.0
+            },
+            {
+              "modalidade": "Capacitacao",
+              "quantidade": 1.0,
+              "vigenciaMeses": 4.0
+            }
+          ]
+        },
+        {
+          "tematica": "Saúde e Bem-estar",
+          "ppg": "PPG em Ciências Aplicadas à Dermatologia - PPGCAD",
+          "notaPpg": 5.0,
+          "responsavel": "Prof. Dr. Wagner Ferreira Monteiro",
+          "orcamentoTotal": null,
+          "orcamentoUtilizado": null,
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor Visitante Junior",
+              "quantidade": 1.0,
+              "vigenciaMeses": 2.0
+            }
+          ]
+        },
+        {
+          "tematica": "Sustentabilidade e transições energéticas",
+          "ppg": "PPGEEL em engenharia elétrica (PPGEEL)",
+          "notaPpg": 3.0,
+          "responsavel": "Prof. Dr. Israel Gondres Torné",
+          "orcamentoTotal": null,
+          "orcamentoUtilizado": null,
+          "orcamentoRubricas": {},
+          "lancamentos": [
+            {
+              "modalidade": "Professor Visitante Senior",
+              "quantidade": 1.0,
+              "vigenciaMeses": 2.0
+            },
+            {
+              "modalidade": "Capacitacao",
+              "quantidade": 1.0,
+              "vigenciaMeses": 1.0
+            }
+          ]
+        }
+      ]
+    },
+    "UNESP": {
+      "principal": [
+        {
+          "tematica": "Desenvolvimento sustentável: biodiversidade, transição energética e mudanças climáticas",
+          "ppg": "PPG em Clima e Ambiente - PPG CLIAMB",
+          "notaPpg": 5.0,
+          "responsavel": "Prof. Dr. Hector Henrique Ferreira Koolen",
+          "orcamentoTotal": "233854.04",
+          "orcamentoUtilizado": "231.04",
+          "orcamentoRubricas": {
+            "BOLSAS": "233854.04",
+            "MANUTENCAO": "10555.60",
+            "MISSOES": "21999.60"
+          },
+          "mesImplementacao": "março",
+          "lancamentos": [
+            {
+              "modalidade": "Doutorado Sanduiche",
+              "destino": "EXTERIOR",
+              "quantidade": 1.0,
+              "vigenciaMeses": 6.0,
+              "_textoOriginal": "1 bolsa doutorado sanduíche (6 meses) PPGCLIAMB",
+              "_confianca": "direta"
+            }
+          ]
+        },
+        {
+          "tematica": "Desenvolvimento sustentável: biodiversidade, transição energética e mudanças climáticas",
+          "ppg": "PPG em Biodiversidade e Biotecnologia - Rede BIONORTE",
+          "notaPpg": 5.0,
+          "responsavel": "Prof. Dr. Hector Henrique Ferreira Koolen",
+          "orcamentoTotal": "233854.04",
+          "orcamentoUtilizado": "231.04",
+          "orcamentoRubricas": {
+            "BOLSAS": "233854.04",
+            "MANUTENCAO": "10555.60",
+            "MISSOES": "21999.60"
+          },
+          "mesImplementacao": "setembro",
+          "lancamentos": [
+            {
+              "modalidade": "Doutorado Sanduiche",
+              "destino": "EXTERIOR",
+              "quantidade": 1.0,
+              "vigenciaMeses": 5.0,
+              "_textoOriginal": "1 bolsa doutorado sanduíche (5 meses) PPGBionorte",
+              "_confianca": "direta"
+            }
+          ]
+        },
+        {
+          "tematica": "Desenvolvimento sustentável: biodiversidade, transição energética e mudanças climáticas",
+          "ppg": "PPG em Biotecnologia e Recursos Naturais da Amazônia - PPGMBT",
+          "notaPpg": 4.0,
+          "responsavel": "Prof. Dr. Hector Henrique Ferreira Koolen",
+          "orcamentoTotal": "233854.04",
+          "orcamentoUtilizado": "231.04",
+          "orcamentoRubricas": {
+            "BOLSAS": "233854.04",
+            "MANUTENCAO": "10555.60",
+            "MISSOES": "21999.60"
+          },
+          "mesImplementacao": "setembro",
+          "lancamentos": [
+            {
+              "modalidade": "Professor Visitante Senior",
+              "destino": "EXTERIOR",
+              "quantidade": 1.0,
+              "vigenciaMeses": 3.0,
+              "_textoOriginal": "1 bolsa Professor Visitante Sênior (3 meses) PPGMBT",
+              "_confianca": "direta"
+            }
+          ]
+        },
+        {
+          "tematica": "Saúde única: interconexão entre a saúde humana, animal, vegetal e ambiental",
+          "ppg": "Programa Multicêntrico Pós Graduação em Bioquímica e Biologia Molecular - PPG PMBqBM",
+          "notaPpg": 5.0,
+          "responsavel": "Prof. Dr. Cleiton Fantin",
+          "orcamentoTotal": "79878.39",
+          "orcamentoUtilizado": "78.42",
+          "orcamentoRubricas": {
+            "BOLSAS": "79878.39",
+            "MANUTENCAO": "546.37",
+            "MISSOES": "7113.77"
+          },
+          "mesImplementacao": "março",
+          "lancamentos": [
+            {
+              "modalidade": "Capacitacao",
+              "destino": "EXTERIOR",
+              "quantidade": 3.0,
+              "vigenciaMeses": 1.0,
+              "_textoOriginal": "3 bolsas Capacitação (2 de 1 mês e 1 de 0,5 mês)",
+              "_confianca": "revisar"
+            }
+          ]
+        },
+        {
+          "tematica": "Educação, Culturas, Sociedade e Linguagens",
+          "ppg": "PPG em Educação em Ciências e Matemática - REAMEC",
+          "notaPpg": 4.0,
+          "responsavel": "Profa. Dra. Luciane Lopes",
+          "orcamentoTotal": "261364.55",
+          "orcamentoUtilizado": "249431.50",
+          "orcamentoRubricas": {
+            "BOLSAS": "261364.55",
+            "MANUTENCAO": "2926.36",
+            "MISSOES": "18841.64"
+          },
+          "mesImplementacao": "março",
+          "lancamentos": [
+            {
+              "modalidade": "Doutorado Sanduiche",
+              "destino": "EXTERIOR",
+              "quantidade": 1.0,
+              "vigenciaMeses": 6.0,
+              "_textoOriginal": "1 bolsa doutorado sanduíche (6 meses) 82.902,20",
+              "_confianca": "direta"
+            }
+          ]
+        },
+        {
+          "tematica": "Educação, Culturas, Sociedade e Linguagens",
+          "ppg": "PPG Interdisciplinar em Ciências Humanas - PPGICH",
+          "notaPpg": 5.0,
+          "responsavel": "Profa. Dra. Luciane Lopes",
+          "orcamentoTotal": "261364.55",
+          "orcamentoUtilizado": "249431.50",
+          "orcamentoRubricas": {
+            "BOLSAS": "261364.55",
+            "MANUTENCAO": "2926.36",
+            "MISSOES": "18841.64"
+          },
+          "mesImplementacao": null,
+          "lancamentos": [
+            {
+              "modalidade": "Capacitacao",
+              "destino": "EXTERIOR",
+              "quantidade": 3.0,
+              "vigenciaMeses": 1.0,
+              "_textoOriginal": "3 capacitação de 1 meses ( PPGICH)-83.627,1",
+              "_confianca": "direta"
+            }
+          ]
+        },
+        {
+          "tematica": "Educação, Culturas, Sociedade e Linguagens",
+          "ppg": "PPG em Educação e Ensino de Ciências na Amazônia - PPGEEC",
+          "notaPpg": 5.0,
+          "responsavel": "Profa. Dra. Luciane Lopes",
+          "orcamentoTotal": "261364.55",
+          "orcamentoUtilizado": "249431.50",
+          "orcamentoRubricas": {
+            "BOLSAS": "261364.55",
+            "MANUTENCAO": "2926.36",
+            "MISSOES": "18841.64"
+          },
+          "mesImplementacao": null,
+          "lancamentos": [
+            {
+              "modalidade": "Doutorado Sanduiche",
+              "destino": "EXTERIOR",
+              "quantidade": 1.0,
+              "vigenciaMeses": 5.0,
+              "_textoOriginal": "1 bolsa doutorado sanduíche (5 meses)-71.896,90",
+              "_confianca": "direta"
+            },
+            {
+              "modalidade": "Capacitacao",
+              "destino": "EXTERIOR",
+              "quantidade": 15.0,
+              "vigenciaMeses": null,
+              "_textoOriginal": "Capacitação (15 dias)- 22.669,60",
+              "_confianca": "revisar"
+            }
+          ]
+        },
+        {
+          "tematica": "Tecnologias Convergentes e Inovação transformadora: Futuros digitais",
+          "ppg": "PPG em Matemática - Rede PROFMAT",
+          "notaPpg": 4.0,
+          "responsavel": "Profa. Dra. Kelly Alves Marães de Almeida",
+          "orcamentoTotal": "68507.47",
+          "orcamentoUtilizado": "65.97",
+          "orcamentoRubricas": {
+            "BOLSAS": "68507.47",
+            "MANUTENCAO": "886.27",
+            "MISSOES": "6881.53"
+          },
+          "mesImplementacao": "1 PV em março, 1 PV em setembro e capacitação em setembro",
+          "lancamentos": [
+            {
+              "modalidade": "Capacitacao",
+              "destino": "EXTERIOR",
+              "quantidade": 1.0,
+              "vigenciaMeses": 0.5,
+              "_textoOriginal": "1 capacitação de 0,5 mês",
+              "_confianca": "direta"
+            },
+            {
+              "modalidade": "Professor Visitante",
+              "destino": "BRASIL",
+              "quantidade": 2.0,
+              "vigenciaMeses": 1.0,
+              "_textoOriginal": "2 professor visitante BR 1 mês",
+              "_confianca": "direta"
+            }
+          ]
+        }
+      ],
+      "copia": null
+    }
+  },
+  "conflitos": [
+    {
+      "rede": "UNICAMP",
+      "ppg": "PPG em Ciências Aplicadas à Hematologia (PPGH)",
+      "modalidade": "CAPACITACAO",
+      "tipo": "valor diferente",
+      "principal": {
+        "modalidade": "Capacitação (15 dias)Brasil- Exterior",
+        "quantidade": 3.0,
+        "quantidadeTexto": "3 (bolsas pra setembro)"
+      },
+      "copia": {
+        "modalidade": "Capacitação (1 mês)Brasil- Exterior Capacitação (15 dias)Brasil- Exterior",
+        "quantidade": 1.0,
+        "quantidadeTexto": "1 de cada"
+      }
+    },
+    {
+      "rede": "UNICAMP",
+      "ppg": "PPG em Ciências Aplicadas à Hematologia (PPGH)",
+      "modalidade": "DOUTORADO_SANDUICHE",
+      "tipo": "so na copia",
+      "principal": null,
+      "copia": {
+        "modalidade": "Doutorado Sanduíche (6 Meses) Brasil- Exterior",
+        "quantidade": 1.0,
+        "quantidadeTexto": "1.0"
+      }
+    },
+    {
+      "rede": "UNICAMP",
+      "ppg": "PPG em Ciências Aplicadas à Hematologia (PPGH)",
+      "modalidade": "PROFESSOR_VISITANTE",
+      "tipo": "valor diferente",
+      "principal": {
+        "modalidade": "Professor visitante (15 dias) Exterior - Brasil",
+        "quantidade": 1.0,
+        "quantidadeTexto": "1 (bolsa pra março), 1 (bolsa pra setembro)"
+      },
+      "copia": {
+        "modalidade": "Professor visitante(1 mês) Exterior - Brasil",
+        "quantidade": 2.0,
+        "quantidadeTexto": "2.0"
+      }
+    },
+    {
+      "rede": "UNICAMP",
+      "ppg": "PPG em Ciências Aplicadas à Hematologia (PPGH)",
+      "campo": "orcamentoUtilizado",
+      "tipo": "valor diferente",
+      "principal": "530737.40",
+      "copia": "537530.00"
+    },
+    {
+      "rede": "UNICAMP",
+      "ppg": "PPG em Medicina Tropical (PPGMT)",
+      "modalidade": "CAPACITACAO",
+      "tipo": "so na principal",
+      "principal": {
+        "modalidade": "Capacitação (15 dias)Brasil- Exterior",
+        "quantidade": 0.0,
+        "quantidadeTexto": "0 capacitação"
+      },
+      "copia": null
+    },
+    {
+      "rede": "UNICAMP",
+      "ppg": "PPG em Medicina Tropical (PPGMT)",
+      "modalidade": "DOUTORADO_SANDUICHE",
+      "tipo": "so na principal",
+      "principal": {
+        "modalidade": "Doutorado Sanduíche (6 Meses) Brasil- Exterior",
+        "quantidade": 1.0,
+        "quantidadeTexto": "1.0"
+      },
+      "copia": null
+    },
+    {
+      "rede": "UNICAMP",
+      "ppg": "PPG em Medicina Tropical (PPGMT)",
+      "campo": "orcamentoUtilizado",
+      "tipo": "valor diferente",
+      "principal": "530737.40",
+      "copia": "537530.00"
+    },
+    {
+      "rede": "UNICAMP",
+      "ppg": "PPG em Saúde Coletiva (PPGSC)",
+      "campo": "orcamentoUtilizado",
+      "tipo": "valor diferente",
+      "principal": "530737.40",
+      "copia": "537530.00"
+    },
+    {
+      "rede": "UNICAMP",
+      "ppg": "PPG em Geografia (PPGEO)",
+      "modalidade": "CAPACITACAO",
+      "tipo": "valor diferente",
+      "principal": {
+        "modalidade": "Capacitação (15 dias)Brasil- Exterior",
+        "quantidade": 1.0,
+        "quantidadeTexto": "1 (bolsa pra março), 2 (bolsas pra setembro)"
+      },
+      "copia": {
+        "modalidade": "Capacitação (15 dias)Brasil- Exterior",
+        "quantidade": 3.0,
+        "quantidadeTexto": "3.0"
+      }
+    },
+    {
+      "rede": "UNICAMP",
+      "ppg": "PPG em Geografia (PPGEO)",
+      "modalidade": "PROFESSOR_VISITANTE",
+      "tipo": "valor diferente",
+      "principal": {
+        "modalidade": "Professor visitante (15 dias) Exterior - Brasil",
+        "quantidade": 1.0,
+        "quantidadeTexto": "1 (bolsa pra março), 1 (bolsa pra setembro)"
+      },
+      "copia": {
+        "modalidade": "Professor visitante(1 mês) Exterior - Brasil",
+        "quantidade": 2.0,
+        "quantidadeTexto": "2.0"
+      }
+    },
+    {
+      "rede": "UNICAMP",
+      "ppg": "PPG em Geografia (PPGEO)",
+      "campo": "orcamentoUtilizado",
+      "tipo": "valor diferente",
+      "principal": "530737.40",
+      "copia": "537530.00"
+    },
+    {
+      "rede": "UNICAMP",
+      "ppg": "PPG em Saúde da Família (PROFSAÚDE)",
+      "campo": "orcamentoUtilizado",
+      "tipo": "valor diferente",
+      "principal": "530737.40",
+      "copia": "537530.00"
+    },
+    {
+      "rede": "UNICAMP",
+      "ppg": "PPG em Educação (PPGED)",
+      "modalidade": "CAPACITACAO",
+      "tipo": "valor diferente",
+      "principal": {
+        "modalidade": "Capacitação (15 dias)Brasil- Exterior",
+        "quantidade": 4.0,
+        "quantidadeTexto": "4.0"
+      },
+      "copia": {
+        "modalidade": "Capacitação (1 mês)Brasil- Exterior",
+        "quantidade": 1.0,
+        "quantidadeTexto": "1.0"
+      }
+    },
+    {
+      "rede": "UNICAMP",
+      "ppg": "PPG em Gestão e Regulação de Recursos Hídricos (Rede PROFÁGUA)",
+      "modalidade": "CAPACITACAO",
+      "tipo": "valor diferente",
+      "principal": {
+        "modalidade": "Capacitação (15 dias)Brasil- Exterior",
+        "quantidade": 3.0,
+        "quantidadeTexto": "3.0"
+      },
+      "copia": {
+        "modalidade": "Capacitação (1 mês)Brasil- Exterior",
+        "quantidade": 1.0,
+        "quantidadeTexto": "1.0"
+      }
+    },
+    {
+      "rede": "UNICAMP",
+      "ppg": "PPG em Gestão e Regulação de Recursos Hídricos (Rede PROFÁGUA)",
+      "modalidade": "PROFESSOR_VISITANTE",
+      "tipo": "valor diferente",
+      "principal": {
+        "modalidade": "Professor visitante (15 dias) Exterior - Brasil",
+        "quantidade": 2.0,
+        "quantidadeTexto": "2.0"
+      },
+      "copia": {
+        "modalidade": "Professor visitante (1 mês) Exterior - Brasil",
+        "quantidade": 1.0,
+        "quantidadeTexto": "1.0"
+      }
+    },
+    {
+      "rede": "UNICAMP",
+      "ppg": "PPG em Segurança Pública, Cidadania e Direitos Humanos (PPGSP)",
+      "modalidade": "CAPACITACAO",
+      "tipo": "valor diferente",
+      "principal": {
+        "modalidade": "Capacitação (15 dias)Brasil- Exterior",
+        "quantidade": 2.0,
+        "quantidadeTexto": "2.0"
+      },
+      "copia": {
+        "modalidade": "Capacitação (15 dias)Brasil- Exterior",
+        "quantidade": 1.0,
+        "quantidadeTexto": "1.0"
+      }
+    },
+    {
+      "rede": "UNICAMP",
+      "ppg": "PPG em Segurança Pública, Cidadania e Direitos Humanos (PPGSP)",
+      "modalidade": "PROFESSOR_VISITANTE",
+      "tipo": "valor diferente",
+      "principal": {
+        "modalidade": "Professor visitante (15 dias) Exterior - Brasil",
+        "quantidade": 2.0,
+        "quantidadeTexto": "2.0"
+      },
+      "copia": {
+        "modalidade": "Professor visitante (1 Mês) Exterior - Brasil",
+        "quantidade": 3.0,
+        "quantidadeTexto": "3.0"
+      }
+    },
+    {
+      "rede": "UFMG",
+      "ppg": "PPG em Direito Ambiental - PPGDA",
+      "modalidade": "CAPACITACAO",
+      "tipo": "so na copia",
+      "principal": null,
+      "copia": {
+        "modalidade": "Capacitacao",
+        "quantidade": 1.0,
+        "vigenciaMeses": 1.0
+      }
+    },
+    {
+      "rede": "UFMG",
+      "ppg": "PPG em Direito Ambiental - PPGDA",
+      "campo": "orcamentoTotal",
+      "tipo": "valor diferente",
+      "principal": "89500.00",
+      "copia": null
+    },
+    {
+      "rede": "UFMG",
+      "ppg": "PPG em Direito Ambiental - PPGDA",
+      "campo": "orcamentoUtilizado",
+      "tipo": "valor diferente",
+      "principal": "54697.00",
+      "copia": null
+    },
+    {
+      "rede": "UFMG",
+      "ppg": "PPG em Propriedade Intelectual e Transferência de Tecnologia para a Inovação - PROFNIT",
+      "modalidade": "CAPACITACAO",
+      "tipo": "so na copia",
+      "principal": null,
+      "copia": {
+        "modalidade": "Capacitacao",
+        "quantidade": 1.0,
+        "vigenciaMeses": 1.0
+      }
+    },
+    {
+      "rede": "UFMG",
+      "ppg": "PPG em Propriedade Intelectual e Transferência de Tecnologia para a Inovação - PROFNIT",
+      "modalidade": "PV_SENIOR",
+      "tipo": "so na principal",
+      "principal": {
+        "modalidade": "Professor Visitante Senior",
+        "quantidade": 1.0,
+        "vigenciaMeses": 2.0
+      },
+      "copia": null
+    },
+    {
+      "rede": "UFMG",
+      "ppg": "PPG em Propriedade Intelectual e Transferência de Tecnologia para a Inovação - PROFNIT",
+      "campo": "orcamentoTotal",
+      "tipo": "valor diferente",
+      "principal": "89500.00",
+      "copia": null
+    },
+    {
+      "rede": "UFMG",
+      "ppg": "PPG em Propriedade Intelectual e Transferência de Tecnologia para a Inovação - PROFNIT",
+      "campo": "orcamentoUtilizado",
+      "tipo": "valor diferente",
+      "principal": "58651.00",
+      "copia": null
+    },
+    {
+      "rede": "UFMG",
+      "ppg": "PPG em Enfermagem em Saúde Pública - PPG PROENSP",
+      "campo": "orcamentoTotal",
+      "tipo": "valor diferente",
+      "principal": "268500.00",
+      "copia": null
+    },
+    {
+      "rede": "UFMG",
+      "ppg": "PPG em Enfermagem em Saúde Pública - PPG PROENSP",
+      "campo": "orcamentoUtilizado",
+      "tipo": "valor diferente",
+      "principal": "224982.60",
+      "copia": null
+    },
+    {
+      "rede": "UFMG",
+      "ppg": "PPG em Saúde Pública na Amazônia - PPG DASPAM",
+      "modalidade": "CAPACITACAO",
+      "tipo": "so na copia",
+      "principal": null,
+      "copia": {
+        "modalidade": "Capacitacao",
+        "quantidade": 1.0,
+        "vigenciaMeses": 4.0
+      }
+    },
+    {
+      "rede": "UFMG",
+      "ppg": "PPG em Saúde Pública na Amazônia - PPG DASPAM",
+      "campo": "orcamentoTotal",
+      "tipo": "valor diferente",
+      "principal": "268500.00",
+      "copia": null
+    },
+    {
+      "rede": "UFMG",
+      "ppg": "PPG em Saúde Pública na Amazônia - PPG DASPAM",
+      "campo": "orcamentoUtilizado",
+      "tipo": "valor diferente",
+      "principal": "224982.60",
+      "copia": null
+    },
+    {
+      "rede": "UFMG",
+      "ppg": "PPG em Ciências Aplicadas à Dermatologia - PPGCAD",
+      "modalidade": "CAPACITACAO",
+      "tipo": "so na principal",
+      "principal": {
+        "modalidade": "Capacitação",
+        "quantidade": 1.0,
+        "vigenciaMeses": 2.0
+      },
+      "copia": null
+    },
+    {
+      "rede": "UFMG",
+      "ppg": "PPG em Ciências Aplicadas à Dermatologia - PPGCAD",
+      "campo": "orcamentoTotal",
+      "tipo": "valor diferente",
+      "principal": "268500.00",
+      "copia": null
+    },
+    {
+      "rede": "UFMG",
+      "ppg": "PPG em Ciências Aplicadas à Dermatologia - PPGCAD",
+      "campo": "orcamentoUtilizado",
+      "tipo": "valor diferente",
+      "principal": "224982.60",
+      "copia": null
+    },
+    {
+      "rede": "UFMG",
+      "ppg": "PPGEEL em engenharia elétrica (PPGEEL)",
+      "modalidade": "CAPACITACAO",
+      "tipo": "so na copia",
+      "principal": null,
+      "copia": {
+        "modalidade": "Capacitacao",
+        "quantidade": 1.0,
+        "vigenciaMeses": 1.0
+      }
+    },
+    {
+      "rede": "UFMG",
+      "ppg": "PPGEEL em engenharia elétrica (PPGEEL)",
+      "campo": "orcamentoTotal",
+      "tipo": "valor diferente",
+      "principal": "89500.00",
+      "copia": null
+    },
+    {
+      "rede": "UFMG",
+      "ppg": "PPGEEL em engenharia elétrica (PPGEEL)",
+      "campo": "orcamentoUtilizado",
+      "tipo": "valor diferente",
+      "principal": "58651.00",
+      "copia": null
+    }
+  ]
+}

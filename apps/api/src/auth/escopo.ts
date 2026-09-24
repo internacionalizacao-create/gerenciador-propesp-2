@@ -1,58 +1,27 @@
 import { sql, type SQL } from 'drizzle-orm';
 
-import type { EscopoAcesso } from './identidade.service';
-
 /**
- * Traducao do escopo de acesso para condicao SQL.
+ * Recorte de missoes por rede (CG-028), montado a partir de `missao:read`.
  *
- * A autorizacao por papel responde "pode listar PPG?". Esta camada responde a
- * outra metade — "**quais** PPGs?" — e ela precisa estar na consulta, nao na
- * interface: esconder item de menu nao e autorizacao, e a API e a fronteira que
- * de fato protege o dado.
+ * Cada recorte nasce do alcance das acoes exigidas. Duas acoes da mesma conta
+ * podem alcancar redes diferentes; nao se deve unir seus alvos num escopo
+ * agregado da conta. Para outros dominios, use `condicaoDoAlcance`.
  */
-
-/**
- * **Sem concessao, sem dado** — e nao ha mais modo permissivo (V1-012).
- *
- * Ate 2026-09-16 existia aqui um `RECORTE_OBRIGATORIO = false` que liberava
- * tudo para quem nao tivesse escopo cadastrado. Ele existia porque o recorte
- * chegou a um sistema onde permissao vinha do papel e escopo de ninguem estava
- * configurado: fechar de uma vez cegaria todo coordenador sem explicacao.
- *
- * Esse risco acabou junto com o papel. Hoje a permissao **tambem** vem da
- * concessao, entao conta sem configuracao ja nao tem acao nenhuma para exercer,
- * e um recorte permissivo so serviria para vazar dado de quem foi configurado
- * pela metade — alguem com alcance de rede veria todos os PPGs.
- */
-
-/** Nao ha o que recortar: o usuario ve tudo dentro do que o papel permite. */
-const SEM_RECORTE = sql`true`;
-
-/** Recorta tudo: nenhuma linha passa. */
-const NADA = sql`false`;
-
-/**
- * Condicao para uma coluna que guarda `ppg_id`.
- *
- * `coluna` entra como fragmento SQL cru — quem chama escreve `sql`p.ppg_id``,
- * nunca texto vindo do usuario.
- */
-export function filtroPorPpg(escopo: EscopoAcesso, coluna: SQL): SQL {
-  if (escopo.global) return SEM_RECORTE;
-  if (escopo.ppgIds.length > 0) {
-    return sql`${coluna} in (${sql.join(
-      escopo.ppgIds.map((id) => sql`${id}::uuid`),
-      sql`, `,
-    )})`;
-  }
-  // Sem alcance de PPG nenhum: nao ha o que liberar. Quem tem alcance de rede
-  // e nenhum de PPG nao esta "sem configuracao" — foi configurado para outra
-  // dimensao, e entregar-lhe todos os PPGs seria vazamento.
-  return NADA;
+export interface EscopoAcesso {
+  /** Enxerga tudo. Quando verdadeiro, a lista e irrelevante. */
+  readonly global: boolean;
+  readonly ppgIds: readonly string[];
+  readonly redeIds: readonly string[];
 }
 
+/** Nao ha o que recortar. */
+const SEM_RECORTE = sql`true`;
+
+/** Recorta tudo: nenhuma linha passa. Sem concessao, sem dado. */
+const NADA = sql`false`;
+
 /** Condicao para uma coluna que guarda `rede_id`. */
-export function filtroPorRede(escopo: EscopoAcesso, coluna: SQL): SQL {
+function filtroPorRede(escopo: EscopoAcesso, coluna: SQL): SQL {
   if (escopo.global) return SEM_RECORTE;
   if (escopo.redeIds.length > 0) {
     return sql`${coluna} in (${sql.join(
@@ -73,15 +42,12 @@ export function filtroPorRede(escopo: EscopoAcesso, coluna: SQL): SQL {
  * **Missao sem nenhuma rede fica invisivel para quem e recortado.** Sao
  * missoes anteriores a CG-016, e a alternativa — liberar as sem rede — daria a
  * cada gestor acesso a um conjunto que nao e de rede nenhuma. Quem tem
- * `missao:all-redes` continua enxergando, entao nada fica orfao de vez.
- *
- * **Aqui nao ha modo permissivo**, ao contrario do PPG: sem rede no escopo,
- * nenhuma missao passa, independentemente de `RECORTE_OBRIGATORIO`. Ver
- * `SEM_ESCOPO_NENHUMA_MISSAO`.
+ * `missao:read` em GLOBAL continua enxergando, entao nada fica orfao de vez.
+ * Sem rede no escopo, nenhuma missao passa.
  *
  * `coluna` entra como fragmento SQL cru — quem chama escreve `sql`m.id``.
  */
-export function filtroMissaoPorRede(escopo: EscopoAcesso, coluna: SQL): SQL {
+function filtroMissaoPorRede(escopo: EscopoAcesso, coluna: SQL): SQL {
   if (escopo.global) return SEM_RECORTE;
   if (escopo.redeIds.length === 0) return NADA;
   return sql`exists (
@@ -92,38 +58,6 @@ export function filtroMissaoPorRede(escopo: EscopoAcesso, coluna: SQL): SQL {
          sql`, `,
        )})
   )`;
-}
-
-/**
- * Missao sem rede no alcance: nenhuma linha passa, e nunca houve excecao aqui.
- *
- * Este comentario sobreviveu a troca do modelo porque a regra sobreviveu: o
- * recorte de missao nunca teve modo permissivo, nem quando o do PPG tinha.
- */
-export const SEM_ESCOPO_NENHUMA_MISSAO = true;
-
-/** Verdadeiro quando o usuario pode ver aquele PPG. */
-export function podeVerPpg(escopo: EscopoAcesso, ppgId: string): boolean {
-  return escopo.global || escopo.ppgIds.includes(ppgId);
-}
-
-/** Verdadeiro quando o usuario pode ver aquela rede. */
-export function podeVerRede(escopo: EscopoAcesso, redeId: string): boolean {
-  return escopo.global || escopo.redeIds.includes(redeId);
-}
-
-/**
- * Verdadeiro quando o usuario alcanca uma missao com estas redes.
- *
- * `redesDaMissao` vazio e missao sem rede — ver `filtroMissaoPorRede`. Sem
- * modo permissivo, pela razao explicada em `SEM_ESCOPO_NENHUMA_MISSAO`.
- */
-export function podeVerMissao(
-  escopo: EscopoAcesso,
-  redesDaMissao: readonly string[],
-): boolean {
-  if (escopo.global) return true;
-  return redesDaMissao.some((rede) => escopo.redeIds.includes(rede));
 }
 
 /**
@@ -139,7 +73,7 @@ export class RecorteDeMissoes {
   /**
    * Sem recorte nenhum.
    *
-   * E o que `missao:all-redes` produz, e tambem o que os testes de dominio
+   * E o que `missao:read` em GLOBAL produz, e tambem o que os testes de dominio
    * usam: eles verificam a regra de negocio, e nao o recorte — este tem suite
    * propria, onde a ausencia de leitura entre redes e o proprio objeto de
    * teste.
@@ -191,9 +125,8 @@ export class RecorteDeMissoes {
   /**
    * `true` quando esta rede esta dentro do alcance do usuario.
    *
-   * Usa a mesma regra estrita das missoes, e nao `podeVerRede`: o modo
-   * permissivo daquele deixaria um gestor sem vinculo criar missao em qualquer
-   * rede — escrita, e nao so leitura.
+   * Regra estrita, sem modo permissivo: sem rede no escopo, nenhuma passa — um
+   * gestor sem vinculo nao cria missao em rede nenhuma.
    */
   alcanca(redeId: string): boolean {
     return (

@@ -204,6 +204,12 @@ jornadas vivem em `apps/web/e2e/`. Ela já achou defeito que teste de fonte não
 via: o campo `Data` controlado apagava a data que o React Hook Form preenchia, e
 as edições abriam em branco.
 
+A V1-022 acrescentou `autorizacao.spec.ts`: sete modelos concedidos pela tela,
+conferência do menu e API, revogação imediata, duas contas de recortes distintos
+e bootstrap com dois logins reais. A fixture `semContas` deixa a base sem
+identidades locais para provar o primeiro vínculo e o CLI. Para executar só
+acesso: `pnpm test:e2e acesso.spec.ts autorizacao.spec.ts`.
+
 **Integração no CI (V1-058):** o job `integration` provisiona Postgres 17
 com healthcheck e executa `pnpm --filter api test:int --no-cache`. Node vem de
 `.nvmrc` e pnpm de `packageManager`, nos dois jobs. Instala `poppler-utils`,

@@ -12,7 +12,12 @@ import {
 } from '@nestjs/common';
 
 import type { AuthUser } from '../auth/auth-user';
-import { CurrentUser, RequirePermission } from '../auth/auth.decorators';
+import type { AcessoResolvido } from '../auth/autorizacao-v1/acesso-v1.service';
+import {
+  AcessoAtual,
+  CurrentUser,
+  RequirePermission,
+} from '../auth/auth.decorators';
 import { ZodValidationPipe } from '../comum/zod-validation.pipe';
 import {
   atualizarItemCatalogoSchema,
@@ -40,20 +45,30 @@ export class PpgsController {
 
   @Get()
   @RequirePermission('ppg:read')
-  listar(@CurrentUser() usuario: AuthUser) {
-    return this.ppgs.listar(usuario);
+  listar(@AcessoAtual() acesso: AcessoResolvido) {
+    return this.ppgs.listar(
+      acesso.alcance('plano:read'),
+      acesso.alcance('ppg:read'),
+    );
   }
 
   @Get(':id')
   @RequirePermission('ppg:read')
-  detalhar(@Param('id') id: string, @CurrentUser() usuario: AuthUser) {
-    return this.ppgs.detalhar(id, usuario);
+  detalhar(@Param('id') id: string, @AcessoAtual() acesso: AcessoResolvido) {
+    return this.ppgs.detalhar(
+      id,
+      acesso.alcance('plano:read'),
+      acesso.alcance('ppg:read'),
+    );
   }
 
   @Post()
   @RequirePermission('ppg:create')
-  criar(@Body(new ZodValidationPipe(ppgSchema)) dto: PpgDto) {
-    return this.ppgs.criar(dto);
+  criar(
+    @Body(new ZodValidationPipe(ppgSchema)) dto: PpgDto,
+    @AcessoAtual() acesso: AcessoResolvido,
+  ) {
+    return this.ppgs.criar(dto, acesso.alcance('plano:read'));
   }
 
   @Patch(':id')
@@ -61,8 +76,9 @@ export class PpgsController {
   atualizar(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(ppgParcialSchema)) dto: PpgParcialDto,
+    @AcessoAtual() acesso: AcessoResolvido,
   ) {
-    return this.ppgs.atualizar(id, dto);
+    return this.ppgs.atualizar(id, dto, acesso.alcance('plano:read'));
   }
 }
 

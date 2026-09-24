@@ -8,7 +8,7 @@ import type { Request } from 'express';
 
 import type { AcessoResolvido } from './autorizacao-v1/acesso-v1.service';
 import type { AuthUser } from './auth-user';
-import type { Permission } from './permissions';
+import type { PermissaoV1 } from './autorizacao-v1/catalogo';
 
 export interface AuthenticatedRequest extends Request {
   user?: AuthUser;
@@ -43,7 +43,7 @@ export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
  * decidir() {}
  * ```
  */
-export const RequirePermission = (...permissions: Permission[]) =>
+export const RequirePermission = (...permissions: PermissaoV1[]) =>
   SetMetadata(REQUIRED_PERMISSIONS_KEY, permissions);
 
 /**

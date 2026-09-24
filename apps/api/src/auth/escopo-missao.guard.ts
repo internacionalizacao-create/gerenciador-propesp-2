@@ -1,15 +1,21 @@
 import {
+  ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
   type CanActivate,
   type ExecutionContext,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { eq } from 'drizzle-orm';
 
 import { DRIZZLE, type Database } from '../database/database.module';
 import * as s from '../database/schema';
-import { Inject } from '@nestjs/common';
-import type { AuthenticatedRequest } from './auth.decorators';
+import {
+  REQUIRED_PERMISSIONS_KEY,
+  type AuthenticatedRequest,
+} from './auth.decorators';
+import type { PermissaoV1 } from './autorizacao-v1/catalogo';
 import { IdentidadeService } from './identidade.service';
 
 /**
@@ -21,10 +27,14 @@ import { IdentidadeService } from './identidade.service';
  * esquece. Aqui, uma rota nova nasce protegida sem ninguem lembrar disso; o
  * custo e uma consulta por requisicao, contra o `missao_rede_missao_idx`.
  *
- * **Responde 404, nunca 403.** "Existe, mas nao e sua" ja entrega que a missao
- * existe — e o mesmo criterio que o PPG fora do escopo aplica desde a
- * introducao do recorte. Vale inclusive para o id adulterado: quem tenta uuid
- * de outra rede recebe a mesma resposta de quem digitou um uuid inexistente.
+ * **Fora da leitura, 404.** "Existe, mas nao e sua" ja entrega que a missao
+ * existe. Vale inclusive para o id adulterado: quem tenta uuid de outra rede
+ * recebe a mesma resposta de quem digitou um uuid inexistente.
+ *
+ * **Dentro da leitura, a acao da rota tambem precisa alcancar a missao** — e
+ * ai a recusa e 403, porque o que se recusa e a acao, nao a existencia, que a
+ * conta ja conhece. Ate a V1-022 so a leitura era conferida: quem lia todas as
+ * redes e editava uma editava, decidia e prestava contas em todas.
  *
  * **Nao substitui o filtro da listagem.** Listagem se recorta na consulta, e
  * nao aqui: filtrar depois traria a tabela inteira para a aplicacao e vazaria a
@@ -36,6 +46,7 @@ export class EscopoMissaoGuard implements CanActivate {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     private readonly identidade: IdentidadeService,
+    private readonly reflector: Reflector,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -51,13 +62,34 @@ export class EscopoMissaoGuard implements CanActivate {
       .from(s.missaoRede)
       .where(eq(s.missaoRede.missaoId, missaoId));
 
-    // O alcance vem da concessao de `missao:read` — GLOBAL nao recorta nada,
-    // nem mesmo a missao sem rede cadastrada.
-    const recorte = await this.identidade.recorteDeMissoes(usuario);
-    if (recorte.semRecorte) return true;
-    if (redes.some((linha) => recorte.alcanca(linha.redeId))) return true;
+    const alcanca = async (permissoes: PermissaoV1[]) => {
+      // GLOBAL nao recorta nada, nem mesmo a missao sem rede cadastrada.
+      const recorte = request.acesso
+        ? await this.identidade.recorteDoAcesso(request.acesso, permissoes)
+        : await this.identidade.recorteDeMissoes(usuario, ...permissoes);
+      return (
+        recorte.semRecorte ||
+        redes.some((linha) => recorte.alcanca(linha.redeId))
+      );
+    };
 
-    throw new NotFoundException('Missão não encontrada neste ciclo');
+    if (!(await alcanca(['missao:read']))) {
+      throw new NotFoundException('Missão não encontrada neste ciclo');
+    }
+
+    const exigidas =
+      this.reflector.getAllAndOverride<PermissaoV1[] | undefined>(
+        REQUIRED_PERMISSIONS_KEY,
+        [context.getHandler(), context.getClass()],
+      ) ?? [];
+    for (const permissao of exigidas) {
+      if (!(await alcanca([permissao]))) {
+        throw new ForbiddenException(
+          `Sua conta não tem esta ação nas redes desta missão. Permissão necessária: ${permissao}`,
+        );
+      }
+    }
+    return true;
   }
 
   /**

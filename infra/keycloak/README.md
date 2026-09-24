@@ -18,8 +18,9 @@ O client `gerenciador-web` carrega um *audience mapper* que insere
 `gerenciador-api` na claim `aud` dos tokens que emite.
 
 **Papéis de realm:** `admin`, `coordenador`, `secretaria`, `docente`, `discente`.
-O que cada um concede é decidido na API, não aqui — ver
-[apps/api/src/auth/permissions.ts](../../apps/api/src/auth/permissions.ts).
+Nenhum deles concede permissão na aplicação: quem autoriza são as concessões
+guardadas na API, com o catálogo em
+[apps/api/src/auth/autorizacao-v1/catalogo.ts](../../apps/api/src/auth/autorizacao-v1/catalogo.ts).
 
 **Usuários de teste** (só fazem sentido em desenvolvimento):
 

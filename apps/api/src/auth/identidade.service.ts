@@ -1,18 +1,23 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable, Logger } from '@nestjs/common';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 
 import { DRIZZLE, type Database } from '../database/database.module';
 import * as s from '../database/schema';
-import { AcessoV1Service } from './autorizacao-v1/acesso-v1.service';
+import {
+  AcessoV1Service,
+  type AcessoResolvido,
+} from './autorizacao-v1/acesso-v1.service';
+import type { PermissaoV1 } from './autorizacao-v1/catalogo';
 import type { AuthUser } from './auth-user';
 import { RecorteDeMissoes } from './escopo';
 
 /**
- * Liga a identidade do Keycloak ao cadastro local e resolve o escopo de acesso.
+ * Liga a identidade do Keycloak ao cadastro local.
  *
- * Ate aqui a autorizacao respondia so "o que este papel pode fazer". Regras
- * como "**o seu** PPG" ou "somente o responsavel pela missao" precisam da outra
- * metade: qual pessoa e esta, e sobre o que ela manda.
+ * Responde *quem e* a conta — a pessoa local. *O que ela pode, e onde* e
+ * pergunta de `AcessoResolvido.alcance(permissao)`, por acao: este servico nao
+ * devolve mais um escopo agregado da conta, porque duas acoes da mesma conta
+ * podem alcancar alvos diferentes e uma resposta unica nao representa nenhuma.
  *
  * **O vinculo acontece no primeiro acesso, por e-mail.** O administrador cria a
  * conta no Keycloak com o mesmo e-mail da pessoa ja cadastrada e o vinculo se
@@ -21,18 +26,9 @@ import { RecorteDeMissoes } from './escopo';
  * usuario preso sem nenhuma tela para pedir ajuda.
  */
 
-/** Recorte de dados de um usuario, ja resolvido. */
-export interface EscopoAcesso {
-  /** Enxerga tudo. Quando verdadeiro, as duas listas sao irrelevantes. */
-  readonly global: boolean;
-  readonly ppgIds: readonly string[];
-  readonly redeIds: readonly string[];
-}
-
 export interface Identidade {
   readonly usuarioId: string;
   readonly pessoaId: string;
-  readonly escopo: EscopoAcesso;
 }
 
 /**
@@ -46,13 +42,6 @@ export interface Identidade {
  * e um administrador, por `POST /acesso/usuarios/:id/pessoa`.
  */
 export type MotivoSemVinculo = 'CONFLITO_PESSOA';
-
-/** Escopo de quem ainda nao tem vinculo: nao ve nada recortado. */
-export const ESCOPO_VAZIO: EscopoAcesso = {
-  global: false,
-  ppgIds: [],
-  redeIds: [],
-};
 
 @Injectable()
 export class IdentidadeService {
@@ -100,54 +89,87 @@ export class IdentidadeService {
     return {
       usuarioId,
       pessoaId: await this.pessoaDoUsuario(usuarioId),
-      escopo: await this.escopoPorSub(usuario.id),
     };
   }
 
   /**
-   * Escopo do usuario, **derivado das concessoes** (V1-012).
+   * Recorte de missoes, a partir do alcance **de cada acao pedida**.
    *
-   * Nao ha mais atalho por papel: o `admin` do Keycloak deixou de receber escopo
-   * global de graca, e quem enxerga tudo e quem tem concessao `GLOBAL`. Enquanto
-   * existia, esse atalho fazia a autorizacao depender de um papel que este
-   * codigo jurava nao consultar.
+   * "Ve todas as redes" e uma concessao em `GLOBAL`; concessao por **ciclo**
+   * vale para as redes daquele ciclo, que e o que "ciclo" significa no modulo
+   * de missoes.
    *
-   * **E uma ponte, e uma ponte grossa**: uniao dos alvos de *todas* as acoes
-   * concedidas, sem dizer de qual acao veio cada PPG. Serve as consultas que
-   * ainda nao receberam o recorte por acao (V1-015 e V1-016); quem ja o tiver
-   * deve usar `AcessoResolvido.alcance(permissao)`, que distingue ler de
-   * escrever. O ciclo da concessao de PPG se perde aqui, pelo mesmo motivo.
+   * Com mais de uma acao, o recorte e a **intersecao**: a rota que exige ler a
+   * missao e ler a prestacao so alcanca a rede onde as duas valem. Ate a V1-022
+   * este recorte era sempre o de `missao:read`, inclusive nas escritas — e quem
+   * lia todas as redes mas so editava uma editava todas.
    */
-  async escopoDe(usuario: AuthUser): Promise<EscopoAcesso> {
-    return this.escopoPorSub(usuario.id);
+  async recorteDeMissoes(
+    usuario: AuthUser,
+    ...permissoes: PermissaoV1[]
+  ): Promise<RecorteDeMissoes> {
+    const acesso = await this.acesso.resolver(usuario.id);
+    return this.recorteDoAcesso(
+      acesso,
+      permissoes.length > 0 ? permissoes : ['missao:read'],
+    );
+  }
+
+  /** Mesmo recorte, a partir do acesso que o guard ja resolveu. */
+  async recorteDoAcesso(
+    acesso: AcessoResolvido,
+    permissoes: readonly PermissaoV1[],
+  ): Promise<RecorteDeMissoes> {
+    // `null` e "todas as redes": o elemento neutro da intersecao.
+    let redes: Set<string> | null = null;
+
+    for (const permissao of permissoes) {
+      const alcance = acesso.alcance(permissao);
+      if (alcance.global) continue;
+
+      const daAcao = new Set(alcance.redes);
+      for (const rede of await this.redesDosCiclos(alcance.ciclos)) {
+        daAcao.add(rede);
+      }
+      redes =
+        redes === null
+          ? daAcao
+          : new Set([...redes].filter((rede) => daAcao.has(rede)));
+    }
+
+    if (redes === null) return RecorteDeMissoes.irrestrito();
+    return new RecorteDeMissoes(
+      { global: false, ppgIds: [], redeIds: [...redes] },
+      false,
+    );
   }
 
   /**
-   * Recorte de missoes, a partir do alcance de `missao:read`.
+   * Recusa com 403 a acao que nao alcanca nenhuma rede desta missao.
    *
-   * A permissao `missao:all-redes` sumiu com o modelo antigo, e nao faz falta:
-   * "ve todas as redes" virou o que sempre deveria ter sido — uma concessao de
-   * `missao:read` em `GLOBAL`. Concessao por **ciclo** vale para as redes
-   * daquele ciclo, que e o que "ciclo" significa no modulo de missoes.
-   *
-   * O recorte continua sendo o de **leitura**, inclusive nas escritas que o
-   * consultam; separar por acao e V1-014. Isso nao afrouxa o que o guard ja
-   * negou: sem `missao:create`, a requisicao nem chega ao servico.
+   * Para as rotas cuja permissao so se conhece em runtime — a transicao de
+   * situacao depende do corpo —, e que por isso o `EscopoMissaoGuard` nao tem
+   * como conferir. A leitura ja foi conferida pelo guard (404 fora dela); aqui
+   * a missao e conhecida, e o que se recusa e a acao.
    */
-  async recorteDeMissoes(usuario: AuthUser): Promise<RecorteDeMissoes> {
-    const acesso = await this.acesso.resolver(usuario.id);
-    const alcance = acesso.alcance('missao:read');
+  async exigirAcaoNaMissao(
+    usuario: AuthUser,
+    missaoId: string,
+    permissao: PermissaoV1,
+  ): Promise<void> {
+    // Id malformado nao chega ao banco: o servico adiante responde 404.
+    if (!UUID.test(missaoId)) return;
+    const recorte = await this.recorteDeMissoes(usuario, permissao);
+    if (recorte.semRecorte) return;
 
-    if (alcance.global) return RecorteDeMissoes.irrestrito();
+    const redes = await this.db
+      .select({ redeId: s.missaoRede.redeId })
+      .from(s.missaoRede)
+      .where(eq(s.missaoRede.missaoId, missaoId));
+    if (redes.some((linha) => recorte.alcanca(linha.redeId))) return;
 
-    const redeIds = new Set(alcance.redes);
-    for (const rede of await this.redesDosCiclos(alcance.ciclos)) {
-      redeIds.add(rede);
-    }
-
-    return new RecorteDeMissoes(
-      { global: false, ppgIds: [], redeIds: [...redeIds] },
-      false,
+    throw new ForbiddenException(
+      `Sua conta não tem esta ação nas redes desta missão. Permissão necessária: ${permissao}`,
     );
   }
 
@@ -176,30 +198,7 @@ export class IdentidadeService {
         and(eq(s.usuarioSistema.sub, sub), eq(s.usuarioSistema.ativo, true)),
       );
 
-    if (!linha) return null;
-    return { ...linha, escopo: await this.escopoPorSub(sub) };
-  }
-
-  /** Deriva o escopo-ponte do acesso ja resolvido. Ver `escopoDe`. */
-  private async escopoPorSub(sub: string): Promise<EscopoAcesso> {
-    const acesso = await this.acesso.resolver(sub);
-    if (!acesso.ativo) return ESCOPO_VAZIO;
-
-    const global = acesso.permissoes.some((p) => acesso.alcance(p).global);
-    const ppgIds = new Set<string>();
-    const redeIds = new Set<string>();
-
-    for (const permissao of acesso.permissoes) {
-      const alcance = acesso.alcance(permissao);
-      for (const alvo of alcance.ppgs) ppgIds.add(alvo.ppgId);
-      for (const rede of alcance.redes) redeIds.add(rede);
-    }
-
-    return {
-      global,
-      ppgIds: [...ppgIds],
-      redeIds: global ? [] : [...redeIds],
-    };
+    return linha ?? null;
   }
 
   private async pessoaDoUsuario(usuarioId: string): Promise<string> {
@@ -320,3 +319,5 @@ export class IdentidadeService {
     return vencedora.id;
   }
 }
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

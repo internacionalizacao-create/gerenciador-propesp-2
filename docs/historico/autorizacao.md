@@ -174,3 +174,48 @@ O recorte entra **na consulta**, nunca numa filtragem em memória: filtrar fora
 do banco traz a tabela inteira para a aplicação e vaza a contagem real em
 qualquer soma feita antes do filtro. PPG fora do escopo responde **404, não
 403** — "existe, mas não é seu" já entrega que o PPG existe.
+
+
+## V1-022 — Consolidação do fluxo (2026-09-23)
+
+A retomada encontrou implementadas a retirada do escopo agregado, a migração
+para `PermissaoV1`, o inventário por metadados e correções no alcance das ações
+de missão, relatórios, dispensa e reassociação de identidade. A validação
+completou as jornadas de navegador e fechou a resposta de escrita dos PPGs.
+
+Defeitos encontrados e regressões:
+
+- A consulta institucional de PPG trazia custos e plano fora de `plano:read`.
+  Lista e detalhe agora recortam no SQL; `podeLerPlano` distingue falta de acesso
+  de planejamento vazio. `planoRecortado` avisa que o total é parcial.
+- A edição do cadastro ainda devolvia o plano completo. POST e PATCH passam
+  explicitamente o alcance de `plano:read` à resposta; escrita de cadastro não
+  concede leitura de planejamento. A página também usava `ppg:create` para
+  oferecer edição; agora exige `ppg:edit`.
+- A leitura global de missões permitia ações concedidas só em uma rede. O guard
+  confere cada ação; transições conferem a ação escolhida pelo corpo, e
+  relatórios/exportações cruzam seus alcances. Dispensa exige `missao:dispensa`.
+- A reassociação de identidade não aplicava as restrições administrativas:
+  agora recusa autoalteração, exige delegação ao alterar conta administrativa e
+  registra motivo na auditoria.
+- O inventário citava permissões antigas e omitia endpoints. A tabela única
+  confere com os metadados dos controllers na suíte unitária; uma alteração
+  proposital de `POST /ppgs` para `ppg:read` foi rejeitada, e o documento foi
+  restaurado. O README da API aponta para essa fonte única.
+
+`apps/web/e2e/autorizacao.spec.ts` cobre os sete modelos aplicados pela tela,
+prévia sem efeito, permissões no `/me`, todos os itens disponíveis de menu com
+capacidade exigida, respostas reais da API e revogação sem novo login. Outra
+jornada compara duas contas com PPGs distintos. O bootstrap parte de nenhuma
+conta local: primeiro login, CLI em prévia e aplicação, segundo login,
+delegação e concessão de negócio por outra pessoa; autoampliação é recusada.
+Modelos completos são exercitados em GLOBAL; os alcances parciais têm jornada
+própria e regressões SQL por PPG/ciclo, ciclo, rede, temática e participação,
+inclusive concessões sobrepostas.
+
+O smoke do desenvolvimento não foi executado: ele altera concessões de
+`docente.teste`. O percurso foi realizado no realm e banco descartáveis do e2e.
+A homologação institucional continua na V1-060; esta entrega é aceite técnico.
+
+Validação final: lint e build aprovados; 280 testes unitários (89 API, 191 web),
+733 testes de integração em 43 suítes e 17 jornadas de navegador.

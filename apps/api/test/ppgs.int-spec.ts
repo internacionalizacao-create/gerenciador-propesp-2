@@ -1,6 +1,5 @@
 import { ConflictException } from '@nestjs/common';
 
-import { IdentidadeService } from '../src/auth/identidade.service';
 import { PpgsService, ppgSchema } from '../src/dominio/ppgs.service';
 import { criarContextoTeste, type ContextoTeste } from './db-teste';
 
@@ -10,7 +9,7 @@ describe('Cadastro de PPGs', () => {
 
   beforeAll(async () => {
     ctx = await criarContextoTeste();
-    ppgs = new PpgsService(ctx.db, new IdentidadeService(ctx.db));
+    ppgs = new PpgsService(ctx.db);
   });
   beforeEach(async () => ctx.limpar());
   afterAll(async () => ctx?.encerrar());

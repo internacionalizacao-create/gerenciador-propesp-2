@@ -41,7 +41,8 @@ export class MeController {
       // mas sem vinculo nao ha concessao possivel: a pessoa entra e ve a tela
       // de acesso pendente ate um administrador reassociar.
       pessoaId: identidade?.pessoaId ?? null,
-      escopo: identidade?.escopo ?? (await this.identidade.escopoDe(user)),
+      // Sem `escopo`: um alcance unico para a conta inteira nao responde a
+      // pergunta de acao nenhuma. O alcance de cada acao esta em `/me/acesso`.
       vinculoPendente: identidade === null,
     };
   }

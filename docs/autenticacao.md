@@ -153,8 +153,9 @@ Ambos os guards são **globais** ([auth.module.ts](../apps/api/src/auth/auth.mod
 o padrão de todo endpoint é "exige login". Abrir um endpoint exige escrever
 `@Public()` — um ato visível no diff. O inverso (esquecer de proteger) não seria.
 
-Os papéis atuais e o que concedem estão em
-[permissions.ts](../apps/api/src/auth/permissions.ts). Instruções para estender:
+Papel do Keycloak não concede nada: o catálogo de ações está em
+[catalogo.ts](../apps/api/src/auth/autorizacao-v1/catalogo.ts), e quem as concede
+são as concessões da aplicação. Instruções para estender:
 [AGENTS.md](../AGENTS.md) §6.
 
 ---

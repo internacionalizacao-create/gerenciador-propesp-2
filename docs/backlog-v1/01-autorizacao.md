@@ -149,7 +149,7 @@ Contrato de produto: [proposta de autorização](../proposta-autorizacao-v1.md).
   único teria de aceitar qualquer uma das três; e a exportação de relatório
   confere leitura do relatório **mais** exportação do domínio, que só se conhece
   em runtime.
-- **Ponte declarada:** `escopoDe` devolve a união dos alvos de todas as ações
+- **Ponte histórica, removida na V1-022 (2026-09-23):** `escopoDe` devolvia a união dos alvos de todas as ações
   concedidas, sem dizer de qual ação veio cada PPG — serve às consultas que
   ainda não receberam recorte por ação (V1-015 e V1-016) e perde o ciclo da
   concessão de PPG. Quem já tiver o recorte por ação usa
@@ -794,41 +794,31 @@ Contrato de produto: [proposta de autorização](../proposta-autorizacao-v1.md).
 
 ## V1-022 — Validar e consolidar o fluxo de autorização
 
-- **Estado / data:** Pendente — aberta em 2026-09-22 por decisão do responsável,
-  que adiou implantação, dados institucionais e relatórios para concentrar a V1
-  neste fluxo.
-- **Prioridade/dependência:** P0; V1-010 a V1-021, todas concluídas.
-- **Objetivo:** provar ponta a ponta, com sessão real, que o ciclo funciona —
-  conta nasce sem acesso, recebe concessão, exerce só o concedido e perde na
-  revogação — e fechar o que sobrou da autorização anterior. **Não é reescrita:**
-  o modelo está entregue; falta percorrê-lo por fora e resolver as pontas soltas.
-- **Arquivos:** `auth/autorizacao-v1/`, `identidade.service.ts`,
-  `me.controller.ts`, `dominio/ppgs.service.ts`, `auth/permissions.ts`,
-  `docs/contrato-autorizacao-v1.md`, `docs/ativacao-acesso-v1.md`,
-  `scripts/smoke-acesso.sh` e as suítes de integração da matriz.
-- **Pontas soltas conhecidas:**
-  - **`escopoDe` sobrevive** em `ppgs.service.ts` (duas chamadas) e no `/me`,
-    descrevendo o escopo **agregado** da conta. Agregado é justamente a pergunta
-    que a V1-012 aposentou: duas ações da mesma conta podem alcançar alvos
-    diferentes, e uma resposta única não representa nenhuma das duas. Decidir
-    entre recortar por ação, como o resto do sistema, ou declarar a ponte no
-    contrato com o motivo.
-  - `auth/permissions.ts` sobrou como reexportação de tipo; confirmar se ainda
-    paga o próprio arquivo.
-  - `docs/contrato-autorizacao-v1.md` precisa bater rota a rota com os guards em
-    execução — inventário que diverge do código engana quem o lê para decidir.
-- **Passos:** percorrer o runbook de ativação numa base limpa, do bootstrap à
-  primeira concessão; conferir a tela de Acessos contra o catálogo; aplicar,
-  exercer e revogar cada modelo; cruzar o que `/me` devolve com o que a API
-  aceita e com o que o menu mostra. Registrar cada divergência antes de corrigir,
-  para o relato distinguir defeito encontrado de ajuste de conveniência.
-- **Aceite:** conta sem concessão não enxerga nada e recebe explicação, nunca
-  erro genérico; concessão e revogação valem na requisição seguinte; alcance
-  parcial não vaza agregado; nenhum caminho concede por papel do Keycloak; o
-  inventário de rotas confere com os guards; cada ponta acima resolvida ou
-  registrada com a razão. **Validação não é homologação institucional**, que
-  continua sendo a V1-060.
-- **Testes:** `pnpm --filter api test:int` (matriz cruzada, recortes de bolsa e
-  caminhos indiretos), `pnpm smoke:acesso`, `pnpm test:e2e` e percurso manual com
-  duas contas de recortes distintos. Divergência encontrada vira correção com
-  regressão própria, nunca ajuste só do teste.
+- **Estado / data:** Concluída — 2026-09-23. Aceite técnico; a homologação
+  institucional continua na V1-060.
+- **Prioridade/dependência:** P0; V1-010 a V1-021, conferidas no código.
+- **Entrega:** retirada de `escopoDe`/`escopoPorSub` e do escopo agregado do
+  `/me`; uso direto de `PermissaoV1`; planejamento dos PPGs recortado no SQL
+  por `plano:read`, com `podeLerPlano` e aviso de total parcial. A resposta de
+  cadastro/edição obedece ao mesmo recorte. Ações de missão, relatórios e
+  exportações também conferem seus alcances; dispensa usa a própria capacidade.
+  Reassociação de identidade recusa autoalteração e exige delegação quando a
+  conta administra acessos, com motivo auditado.
+- **Inventário:** tabela única em `contrato-autorizacao-v1.md`, conferida contra
+  metadados dos controllers por `inventario-rotas.spec.ts`. O controle negativo
+  alterando uma permissão no documento reprovou, e o arquivo foi restaurado.
+  A verificação roda sem banco na suíte unitária; regras além do decorador
+  continuam documentadas e cobertas pelas integrações.
+- **Percurso:** `apps/web/e2e/autorizacao.spec.ts` aplica os sete modelos pela
+  tela, confere prévia, `/me`, menu e API, revoga concessões e confirma perda
+  imediata sem novo login. Compara duas contas com PPGs distintos. A jornada
+  sem contas locais prova primeiro vínculo, CLI de bootstrap em prévia e
+  aplicação e a troca de concessões por dois logins, sem autoampliação.
+- **Validação:** lint e build aprovados; 280 testes unitários (89 API e 191 web),
+  733 casos de integração em 43 suítes e 17 jornadas e2e. Os modelos completos
+  usam GLOBAL; alcances parciais têm jornada própria e regressões de todas as
+  dimensões do planejamento, sobreposição de concessões e isolamento de ciclos.
+  O smoke de desenvolvimento não foi executado: altera concessões de uma conta
+  local. O percurso correspondente foi validado no ambiente descartável.
+- **Registro das divergências e correções:**
+  [histórico da autorização](../historico/autorizacao.md#v1-022--consolidação-do-fluxo-2026-09-23).

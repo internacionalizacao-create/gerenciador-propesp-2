@@ -11,7 +11,7 @@ import {
   REQUIRED_PERMISSIONS_KEY,
   type AuthenticatedRequest,
 } from './auth.decorators';
-import type { Permission } from './permissions';
+import type { PermissaoV1 } from './autorizacao-v1/catalogo';
 
 /**
  * Guard global de autorizacao: aplica o `@RequirePermission(...)` do handler.
@@ -24,7 +24,7 @@ export class PermissionsGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const required = this.reflector.getAllAndOverride<Permission[]>(
+    const required = this.reflector.getAllAndOverride<PermissaoV1[]>(
       REQUIRED_PERMISSIONS_KEY,
       [context.getHandler(), context.getClass()],
     );

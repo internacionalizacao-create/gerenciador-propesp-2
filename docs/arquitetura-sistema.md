@@ -576,7 +576,7 @@ pnpm smoke:telas
 | Login termina e a página inicial responde 500 com PostgreSQL `42703` | Código novo com migration ainda não aplicada | `pnpm --filter api db:migrate` |
 | Tela abre, mas mostra dados antigos | Migration aplicada, seed de desenvolvimento desatualizada | Em ambiente descartável, `db:seed --reset`; nunca faça isso sem avaliar perda de dados |
 | API devolve 401 | Bearer ausente, sessão vencida ou configuração OIDC incorreta | Rode `pnpm smoke:login` |
-| API devolve 403 | Usuário autenticado, mas sem a permissão exigida | Confira `permissions.ts` e `@RequirePermission` |
+| API devolve 403 | Usuário autenticado, mas sem a permissão exigida | Confira as concessões da conta (tela de Acessos) e o `@RequirePermission` da rota |
 | Build falha ao buscar Geist | `next/font` sem acesso às fontes do Google | Verifique rede ou adote fonte local numa mudança própria |
 | Um valor indefinido aparece como R$ 0,00 | Conversão indevida de `null` | Use `Moeda`/`somarMoeda` e preserve o nulo |
 | Formulário salva, mas a tela não atualiza | Caminho não revalidado na Server Action | Confira a lista passada a `revalidatePath` |

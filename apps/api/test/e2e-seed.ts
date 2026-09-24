@@ -22,22 +22,27 @@ async function main() {
     // O truncate leva os tipos de evento externo junto (V1-036).
     await carregarTiposEventoBolsista(ctx.db);
     const base = await criarBase(ctx.db);
-    const admin = await semearAdministrador(
-      ctx.db,
-      usuarios[0].id,
-      'admin@example.invalid',
-      'Teste admin',
-    );
-    const leitor = await criarAcesso(ctx.db, {
-      sub: usuarios[1].id,
-      nome: 'Teste leitor',
-      permissoes: ['ppg:read'],
-    });
-    const semAcesso = await criarAcesso(ctx.db, {
-      sub: usuarios[2].id,
-      nome: 'Teste sem acesso',
-      permissoes: [],
-    });
+    let admin: Awaited<ReturnType<typeof semearAdministrador>> | undefined;
+    let leitor: Awaited<ReturnType<typeof criarAcesso>> | undefined;
+    let semAcesso: Awaited<ReturnType<typeof criarAcesso>> | undefined;
+    if (!process.argv.includes('--sem-contas')) {
+      admin = await semearAdministrador(
+        ctx.db,
+        usuarios[0].id,
+        'admin@example.invalid',
+        'Teste admin',
+      );
+      leitor = await criarAcesso(ctx.db, {
+        sub: usuarios[1].id,
+        nome: 'Teste leitor',
+        permissoes: ['ppg:read'],
+      });
+      semAcesso = await criarAcesso(ctx.db, {
+        sub: usuarios[2].id,
+        nome: 'Teste sem acesso',
+        permissoes: [],
+      });
+    }
     const [pais] = await ctx.db
       .insert(s.pais)
       .values({ nome: 'Brasil', codigoIso2: 'BR', codigoIso3: 'BRA' })

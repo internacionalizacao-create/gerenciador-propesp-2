@@ -16,7 +16,7 @@ import {
   condicaoDoLado,
 } from '../auth/autorizacao-v1/recorte-bolsa';
 import { IdentidadeService } from '../auth/identidade.service';
-import type { Permission } from '../auth/permissions';
+import type { PermissaoV1 } from '../auth/autorizacao-v1/catalogo';
 import { consultar } from '../comum/consultar';
 import { ArmazenamentoService } from '../arquivos/armazenamento.service';
 import {
@@ -57,8 +57,8 @@ const TAMANHO_MAXIMO = Number(
 const POLITICA: Record<
   (typeof s.entidadeAnexoEnum.enumValues)[number],
   {
-    ler: Permission;
-    escrever: Permission;
+    ler: PermissaoV1;
+    escrever: PermissaoV1;
     tabela:
       | 'missao'
       | 'atividade'
@@ -859,7 +859,7 @@ export class AnexosService {
     return linhas.rows[0]?.missao_id ?? null;
   }
 
-  private exigir(usuario: AuthUser, permissao: Permission): void {
+  private exigir(usuario: AuthUser, permissao: PermissaoV1): void {
     if (!usuario.permissions.includes(permissao)) {
       throw new ForbiddenException(
         `Acesso negado. Permissão necessária: ${permissao}`,

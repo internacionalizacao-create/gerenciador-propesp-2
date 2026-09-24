@@ -128,232 +128,245 @@ os três casos têm teste de integração desde V1-021a. O que o comando ainda n
 cobre é a integração com a API administrativa de V1-017, que precisa preservar
 ao menos um administrador ativo em cada revogação.
 
-## Inventário de rotas e autorização de destino
+## Inventário de rotas
 
-Levantamento dos controllers presentes nesta revisão. Coluna atual mostra os
-decoradores, não toda a proteção interna de serviços. A coluna destino é o
-contrato de migração, **não uma afirmação de proteção já ativa**. Rotas futuras
-herdam o catálogo e precisam de entrada explícita neste inventário.
+**Conferido pelo código a cada execução da suíte unitária**
+([inventario-rotas.spec.ts](../apps/api/src/auth/inventario-rotas.spec.ts), V1-022):
+o teste lê os controllers, extrai de cada rota o `@RequirePermission` ou o
+`@Public` e compara com a coluna *Decorador* abaixo. Rota nova sem linha, linha
+de rota que não existe mais e decorador diferente do documentado reprovam o CI —
+o inventário que divergia do código enganava quem o lia para decidir.
+
+- **Decorador** é exatamente o que o `PermissionsGuard` cobra: a conta precisa
+  ter **todas** as ações listadas, em algum alcance. `—` quer dizer sem
+  decorador — a sessão basta para chegar ao handler, e a regra mora lá dentro;
+  a coluna ao lado diz qual.
+- **Regra além do decorador** é o que o serviço confere a mais: alcance do alvo
+  concreto, permissão escolhida pelo corpo, projeção de campo. O teste não lê
+  esta coluna; é documentação, e quem muda a regra atualiza a linha.
+- **Rotas de missão (`…/comite-gestor/missoes/:id/…`)** passam também pelo
+  `EscopoMissaoGuard`: fora do alcance de `missao:read`, 404; dentro dele, cada
+  ação do decorador precisa alcançar alguma rede da missão, senão 403 — a
+  missão já é conhecida, e o que se recusa é a ação. Até a V1-022 o guard
+  conferia só a leitura, e quem lia todas as redes e editava uma editava todas.
+- Listas e relatórios de missão recortam pela **interseção** dos alcances das
+  ações da rota (`IdentidadeService.recorteDeMissoes`).
 
 ### acesso.controller.ts
 
-| Método e rota | Permissão atual / fronteira | Contrato V1 |
+| Método e rota | Decorador | Regra além do decorador |
 |---|---|---|
-| `GET /acesso/usuarios` | acesso:read | acesso:read |
-| `POST /acesso/usuarios/:id/pessoa` | acesso:write | acesso:manage-identidade; sem autoalteração e sem contornar delegação |
+| `GET /acesso/catalogo` | `acesso:read` | — |
+| `GET /acesso/alvos` | `acesso:read` | — |
+| `GET /acesso/usuarios/:id/concessoes` | `acesso:read` | — |
+| `POST /acesso/usuarios/:id/concessoes/previa` | `acesso:read` + `acesso:write` | Mesma política do salvar, sem gravar |
+| `POST /acesso/usuarios/:id/concessoes` | `acesso:write` | Ações `acesso:*` exigem também `acesso:delegate`; sem autoalteração; lote atômico; motivo obrigatório |
+| `POST /acesso/concessoes/:id/revogacao` | `acesso:write` | Idem; recusa revogar o último administrador recuperável |
+| `GET /acesso/usuarios` | `acesso:read` | — |
+| `POST /acesso/usuarios/:id/pessoa` | `acesso:manage-identidade` | Sem autoalteração; conta com `acesso:*` exige também `acesso:delegate`; motivo obrigatório e auditado |
 
 ### me.controller.ts
 
-| Método e rota | Permissão atual / fronteira | Contrato V1 |
+| Método e rota | Decorador | Regra além do decorador |
 |---|---|---|
-| `GET /me` | Serviço/identidade | Identidade/sessão, sem liberar domínio |
-| `GET /me/acesso` | Serviço/identidade | Nenhuma: é a conta lendo o próprio acesso, com o alcance nomeado (V1-019). Exigir `acesso:read` deixaria sem explicação justamente quem não tem acesso a nada. |
-| `GET /me/exemplo-restrito` | plano:write | plano:create (sonda; não representa autorização sobre uma linha) |
+| `GET /me` | — | Identidade da sessão e ações concedidas; faz o vínculo no primeiro acesso. Não devolve escopo agregado (V1-022) |
+| `GET /me/acesso` | — | A conta lendo o próprio acesso, com o alcance de cada ação. Exigir `acesso:read` deixaria sem explicação justamente quem não tem acesso a nada |
+| `GET /me/exemplo-restrito` | `plano:create` | Sonda do `smoke:login`; não representa autorização sobre uma linha |
 
 ### anexos.controller.ts
 
-| Método e rota | Permissão atual / fronteira | Contrato V1 |
+| Método e rota | Decorador | Regra além do decorador |
 |---|---|---|
-| `GET /anexos` | Serviço/identidade | documento:read + leitura/alcance do alvo + capacidade de visibilidade. `EVENTO_BOLSISTA` e `REMANEJAMENTO` (V1-036) leem com evento:read e escrevem com evento:create, no alcance do evento |
-| `POST /anexos` | Serviço/identidade | documento:create + leitura/alcance do alvo + capacidade de visibilidade |
-| `GET /anexos/:id/historico` | Serviço/identidade | documento:read + leitura/alcance do alvo + capacidade de visibilidade |
-| `GET /anexos/:id/conteudo` | Serviço/identidade | documento:download + leitura/alcance do alvo + capacidade de visibilidade |
-| `POST /anexos/:id/substituicao` | Serviço/identidade | documento:replace + leitura/alcance do alvo + capacidade de visibilidade |
-| `POST /anexos/:id/inativacao` | Serviço/identidade | documento:deactivate + leitura/alcance do alvo + capacidade de visibilidade |
+| `GET /anexos` | — | `documento:read` + alcance do alvo pela permissão que o alvo exige + capacidade de visibilidade. `EVENTO_BOLSISTA` e `REMANEJAMENTO` leem com `evento:read` e escrevem com `evento:create`, no alcance do evento |
+| `POST /anexos` | — | `documento:create` + alcance do alvo + capacidade de visibilidade |
+| `GET /anexos/:id/historico` | — | `documento:read` + alcance do alvo + capacidade de visibilidade |
+| `GET /anexos/:id/conteudo` | — | `documento:download` + alcance do alvo + capacidade de visibilidade |
+| `POST /anexos/:id/substituicao` | — | `documento:replace` + alcance do alvo + capacidade de visibilidade |
+| `POST /anexos/:id/inativacao` | — | `documento:deactivate` + alcance do alvo + capacidade de visibilidade |
 
 ### bolsistas.controller.ts
 
-| Método e rota | Permissão atual / fronteira | Contrato V1 |
+| Método e rota | Decorador | Regra além do decorador |
 |---|---|---|
-| `GET /bolsistas` | bolsa:read (V1-015) | bolsa:read; produtos somente com produto:read |
-| `GET /bolsistas/opcoes-planejamento` | bolsa:create + alcance da ação | bolsa:create |
-| `GET /bolsistas/referencias` | bolsa:create ou bolsa:edit por `?acao=` (V1-015) | Referências de bolsa:create ou bolsa:edit, alcance da ação |
-| `GET /bolsistas/instituicoes` | bolsa:read, create ou edit (V1-015) | bolsa:read; somente identificação institucional |
-| `GET /bolsistas/:id` | bolsa:read (V1-015) | bolsa:read; produtos somente com produto:read |
-| `POST /bolsistas` | bolsa:create + alcance (V1-015) | bolsa:create |
-| `PATCH /bolsistas/:id` | bolsa:edit + alcance; CPF exige pessoa:edit-cpf (V1-015); não leva a Cancelada/Interrompida nem desfaz situação de evento (V1-036/037) | bolsa:edit |
-| `POST /bolsistas/:id/produtos` | produto:create + alcance (V1-015) | produto:create |
-| `PATCH /bolsistas/:id/produtos/:produtoId` | produto:edit + alcance (V1-015) | produto:edit |
+| `GET /bolsistas` | `bolsa:read` | Alcance da ação; produtos só com `produto:read`; CPF e contato projetados por `pessoa:read-cpf`/`pessoa:read-contato` |
+| `GET /bolsistas/opcoes-planejamento` | `bolsa:create` | Alcance da ação |
+| `GET /bolsistas/referencias` | — | `bolsa:create` ou `bolsa:edit`, escolhida por `?acao=`; alcance da ação |
+| `GET /bolsistas/instituicoes` | — | `bolsa:read`, `bolsa:create` ou `bolsa:edit`; só identificação institucional |
+| `GET /bolsistas/:id` | `bolsa:read` | Alcance da ação (404 fora dele); produtos só com `produto:read`; campos pessoais como na lista |
+| `POST /bolsistas` | `bolsa:create` | Alcance da ação |
+| `PATCH /bolsistas/:id` | `bolsa:edit` | Alcance da ação; alterar CPF existente exige `pessoa:edit-cpf`; não leva a Cancelada/Interrompida nem desfaz situação de evento |
+| `POST /bolsistas/:id/produtos` | `produto:create` | Alcance da ação |
+| `PATCH /bolsistas/:id/produtos/:produtoId` | `produto:edit` | Alcance da ação |
+
+### comite-gestor.controller.ts
+
+| Método e rota | Decorador | Regra além do decorador |
+|---|---|---|
+| `GET /pessoas` | `equipe-gestao:read` | Pessoas alcançadas pelas equipes |
+| `POST /pessoas` | `equipe-gestao:create-pessoa` | — |
+
+### contatos-parceiros.controller.ts
+
+| Método e rota | Decorador | Regra além do decorador |
+|---|---|---|
+| `GET /contatos-parceiros` | `parceiro:read` | — |
+| `GET /contatos-parceiros/:id` | `parceiro:read` | Parcelas históricas por capacidade e alcance |
+| `POST /contatos-parceiros` | `parceiro:create` | — |
+| `PATCH /contatos-parceiros/:id` | `parceiro:edit` | — |
+| `POST /contatos-parceiros/:id/principal` | `parceiro:edit` | — |
+| `POST /contatos-parceiros/:id/inativacao` | `parceiro:status` | — |
+| `POST /contatos-parceiros/:id/reativacao` | `parceiro:status` | — |
+
+### convenios.controller.ts
+
+| Método e rota | Decorador | Regra além do decorador |
+|---|---|---|
+| `GET /convenios` | `convenio:read` | — |
+| `GET /convenios/:id` | `convenio:read` | Parcelas históricas por capacidade e alcance |
+| `POST /convenios` | `convenio:create` | — |
+| `PATCH /convenios/:id` | `convenio:edit` | — |
+| `POST /convenios/:id/inativacao` | `convenio:status` | — |
+| `POST /convenios/:id/reativacao` | `convenio:status` | — |
 
 ### eventos-externos.controller.ts
 
-V1-036 (2026-09-21). Três controllers no mesmo arquivo: o evento nasce da bolsa
-ou do ciclo e depois o `id` basta. O alcance vem de `condicaoDaBolsa` para o
-evento do beneficiário e de `condicaoDoLado` para a movimentação.
+Três controllers no mesmo arquivo: o evento nasce da bolsa ou do ciclo e depois
+o `id` basta. O alcance vem de `condicaoDaBolsa` para o evento do beneficiário e
+de `condicaoDoLado` para a movimentação.
 
-| Método e rota | Permissão atual / fronteira | Contrato V1 |
+| Método e rota | Decorador | Regra além do decorador |
 |---|---|---|
-| `GET /eventos-externos/tipos` | evento:read | evento:read; só tipos ativos |
-| `GET /bolsistas/:id/eventos` | evento:read + alcance da bolsa (V1-036) | evento:read; fora do alcance responde 404 |
-| `POST /bolsistas/:id/eventos` | evento:create **e** bolsa:edit, ambos no alcance da bolsa (V1-036) | evento:create + bolsa:edit; substituta exige evento:create sobre ela |
-| `PATCH /eventos-externos/bolsistas/:id` | evento:edit + alcance da bolsa; trocar o tipo exige também bolsa:edit (V1-036) | evento:edit |
-| `GET /programas/:programa/:ciclo/eventos-bolsista` | evento:read + alcance por bolsa (V1-036) | evento:read |
-| `GET /programas/:programa/:ciclo/movimentacoes` | evento:read sobre **qualquer um** dos dois PPGs (V1-036) | evento:read |
-| `GET /programas/:programa/:ciclo/movimentacoes/referencias` | evento:create; só temáticas com dois PPGs no alcance (V1-037) | evento:create |
-| `POST /programas/:programa/:ciclo/movimentacoes` | evento:create sobre **os dois** PPGs; fora do alcance responde 403 com a sigla (V1-036) | evento:create |
-| `PATCH /eventos-externos/movimentacoes/:id` | evento:edit sobre os dois PPGs atuais e os novos (V1-036) | evento:edit |
+| `GET /eventos-externos/tipos` | `evento:read` | Só tipos ativos |
+| `PATCH /eventos-externos/bolsistas/:id` | `evento:edit` | Alcance da bolsa; trocar o tipo exige também `bolsa:edit` |
+| `PATCH /eventos-externos/movimentacoes/:id` | `evento:edit` | Sobre os dois PPGs atuais e os novos |
+| `GET /bolsistas/:id/eventos` | `evento:read` | Alcance da bolsa; fora dele, 404 |
+| `POST /bolsistas/:id/eventos` | `evento:create` | E `bolsa:edit`, ambos no alcance da bolsa; substituta exige `evento:create` sobre ela |
+| `GET /programas/:programa/:ciclo/eventos-bolsista` | `evento:read` | Alcance por bolsa |
+| `GET /programas/:programa/:ciclo/movimentacoes` | `evento:read` | Sobre **qualquer um** dos dois PPGs |
+| `GET /programas/:programa/:ciclo/movimentacoes/referencias` | `evento:create` | Só temáticas com dois PPGs no alcance |
+| `POST /programas/:programa/:ciclo/movimentacoes` | `evento:create` | Sobre **os dois** PPGs; fora do alcance, 403 com a sigla |
 
 A movimentação responde **403, e não 404**, ao PPG fora do alcance: PPG e
 participação são cadastro institucional, e a existência deles não é o dado
 protegido. A concessão de bolsa, sim — e por isso o evento da bolsa responde 404.
 
-### comite-gestor.controller.ts
-
-| Método e rota | Permissão atual / fronteira | Contrato V1 |
-|---|---|---|
-| `GET /pessoas` | equipe-gestao:read | equipe-gestao:read (pessoas alcançadas pelas equipes) |
-| `POST /pessoas` | equipe-gestao:write | equipe-gestao:create-pessoa |
-
-### contatos-parceiros.controller.ts
-
-| Método e rota | Permissão atual / fronteira | Contrato V1 |
-|---|---|---|
-| `GET /contatos-parceiros` | parceiro:read | parceiro:read |
-| `GET /contatos-parceiros/:id` | parceiro:read | parceiro:read; parcelas históricas por capacidade e alcance |
-| `POST /contatos-parceiros` | parceiro:write | parceiro:create |
-| `PATCH /contatos-parceiros/:id` | parceiro:write | parceiro:edit |
-| `POST /contatos-parceiros/:id/principal` | parceiro:write | parceiro:edit |
-| `POST /contatos-parceiros/:id/inativacao` | parceiro:write | parceiro:status |
-| `POST /contatos-parceiros/:id/reativacao` | parceiro:write | parceiro:status |
-
-### convenios.controller.ts
-
-| Método e rota | Permissão atual / fronteira | Contrato V1 |
-|---|---|---|
-| `GET /convenios` | parceiro:read | convenio:read |
-| `GET /convenios/:id` | parceiro:read | convenio:read; parcelas históricas por capacidade e alcance |
-| `POST /convenios` | parceiro:write | convenio:create |
-| `PATCH /convenios/:id` | parceiro:write | convenio:edit |
-| `POST /convenios/:id/inativacao` | parceiro:write | convenio:status |
-| `POST /convenios/:id/reativacao` | parceiro:write | convenio:status |
-
 ### mobilidade.controller.ts
 
-| Método e rota | Permissão atual / fronteira | Contrato V1 |
+| Método e rota | Decorador | Regra além do decorador |
 |---|---|---|
-| `GET /mobilidade/panorama` | bolsa:read + alcance (V1-015) | bolsa:read |
-| `GET /mobilidade/producao` | bolsa:read + produto:read; missão exige missao:read + produto-missao:read (V1-015) | bolsa:read + produto:read; parcela de missão exige produto-missao:read |
-| `GET /mobilidade/relatorio/exportacao/:formato` | bolsa:read + bolsa:export, interseção dos alcances (V1-015) | bolsa:read + bolsa:export |
+| `GET /mobilidade/panorama` | `bolsa:read` | Alcance da ação |
+| `GET /mobilidade/producao` | `bolsa:read` + `produto:read` | Parcela de missão exige `missao:read` + `produto-missao:read` |
+| `GET /mobilidade/relatorio/exportacao/:formato` | `bolsa:read` + `bolsa:export` | Interseção dos alcances |
 
 ### notificacoes.controller.ts
 
-| Método e rota | Permissão atual / fronteira | Contrato V1 |
+| Método e rota | Decorador | Regra além do decorador |
 |---|---|---|
-| `GET /notificacoes` | Serviço/identidade | Identidade ativa + destinatário; detalhe vinculado exige autorização do alvo |
-| `POST /notificacoes/:id/leitura` | Serviço/identidade | Identidade ativa + destinatário; detalhe vinculado exige autorização do alvo |
+| `GET /notificacoes` | — | Identidade ativa + destinatário; detalhe vinculado exige autorização do alvo |
+| `POST /notificacoes/:id/leitura` | — | Identidade ativa + destinatário |
 
 ### parceiros.controller.ts
 
-| Método e rota | Permissão atual / fronteira | Contrato V1 |
+| Método e rota | Decorador | Regra além do decorador |
 |---|---|---|
-| `GET /parceiros` | parceiro:read | parceiro:read |
-| `GET /parceiros/candidatos` | parceiro:read | parceiro:read |
-| `GET /parceiros/:id/ficha` | parceiro:read | parceiro:read + parceiro:export; parcelas históricas por capacidade e alcance |
-| `GET /parceiros/:id` | parceiro:read | parceiro:read; parcelas históricas por capacidade e alcance |
-| `GET /parceiros/:id/historico` | parceiro:read | parceiro:read; parcelas históricas por capacidade e alcance |
-| `POST /parceiros` | parceiro:write | parceiro:create |
-| `PATCH /parceiros/:id` | parceiro:write | parceiro:edit |
-| `POST /parceiros/:id/inativacao` | parceiro:write | parceiro:status |
-| `POST /parceiros/:id/conciliacao` | parceiro:write | parceiro:merge |
+| `GET /parceiros` | `parceiro:read` | — |
+| `GET /parceiros/candidatos` | `parceiro:read` | — |
+| `GET /parceiros/:id/ficha` | `parceiro:read` + `parceiro:export` | Parcelas históricas por capacidade e alcance |
+| `GET /parceiros/:id` | `parceiro:read` | Parcelas históricas por capacidade e alcance |
+| `GET /parceiros/:id/historico` | `parceiro:read` | Parcelas históricas por capacidade e alcance |
+| `POST /parceiros` | `parceiro:create` | — |
+| `PATCH /parceiros/:id` | `parceiro:edit` | — |
+| `POST /parceiros/:id/inativacao` | `parceiro:status` | — |
+| `POST /parceiros/:id/conciliacao` | `parceiro:merge` | — |
 
 ### ppgs.controller.ts
 
-| Método e rota | Permissão atual / fronteira | Contrato V1 |
+| Método e rota | Decorador | Regra além do decorador |
 |---|---|---|
-| `GET /ppgs` | ppg:read | ppg:read |
-| `GET /ppgs/:id` | ppg:read | ppg:read |
-| `POST /ppgs` | ppg:write | ppg:create |
-| `PATCH /ppgs/:id` | ppg:write | ppg:edit |
-| `GET /catalogo/bolsas` | catalogo:read | catalogo:read |
-| `GET /catalogo/modalidades` | catalogo:read | catalogo:read |
-| `POST /catalogo/bolsas` | catalogo:write | catalogo:create |
-| `PATCH /catalogo/bolsas/:id` | catalogo:write | catalogo:edit |
-| `DELETE /catalogo/bolsas/:id` | catalogo:write | catalogo:delete |
-| `POST /catalogo/modalidades` | catalogo:write | catalogo:create |
-| `PATCH /catalogo/modalidades/:id` | catalogo:write | catalogo:edit |
+| `GET /ppgs` | `ppg:read` | Bolsas e custo por PPG no alcance de `plano:read`; fora dele, nulos (V1-022) |
+| `GET /ppgs/:id` | `ppg:read` | Plano no alcance de `plano:read`; fora dele, `null` com `podeLerPlano: false` |
+| `POST /ppgs` | `ppg:create` | Resposta também projeta o plano pelo alcance de `plano:read` |
+| `PATCH /ppgs/:id` | `ppg:edit` | Resposta também projeta o plano pelo alcance de `plano:read` |
+| `GET /catalogo/bolsas` | `catalogo:read` | — |
+| `GET /catalogo/modalidades` | `catalogo:read` | — |
+| `POST /catalogo/bolsas` | `catalogo:create` | — |
+| `PATCH /catalogo/bolsas/:id` | `catalogo:edit` | — |
+| `DELETE /catalogo/bolsas/:id` | `catalogo:delete` | — |
+| `POST /catalogo/modalidades` | `catalogo:create` | — |
+| `PATCH /catalogo/modalidades/:id` | `catalogo:edit` | — |
 
 ### programas.controller.ts
 
-| Método e rota | Permissão atual / fronteira | Contrato V1 |
+| Método e rota | Decorador | Regra além do decorador |
 |---|---|---|
-| `GET /programas` | programa:read | programa:read |
-| `GET /programas/padrao/painel` | painel:read | painel:read |
-| `GET /programas/:programa` | programa:read | programa:read |
-| `GET /programas/:programa/:ciclo` | programa:read | programa:read |
-| `GET /programas/:programa/:ciclo/painel` | painel:read | painel:read |
-| `GET /programas/:programa/:ciclo/redes` | orcamento:read | orcamento:read |
-| `GET /programas/:programa/:ciclo/tematicas/:codigo` | orcamento:read | orcamento:read |
-| `GET /programas/:programa/:ciclo/tematicas/:codigo/participacoes/referencias` | participacao:create **ou** participacao:edit (resolvida no handler) | — |
-| `POST /programas/:programa/:ciclo/tematicas/:codigo/participacoes` | participacao:create | participacao:create |
-| `PATCH /programas/:programa/:ciclo/tematicas/:codigo/participacoes/:id` | participacao:edit | participacao:edit |
-| `DELETE /programas/:programa/:ciclo/tematicas/:codigo/participacoes/:id` | participacao:delete | participacao:delete |
-| `GET /programas/:programa/:ciclo/orcamento` | orcamento:read | orcamento:read |
-| `PATCH /programas/:programa/:ciclo/orcamento/:id` | orcamento:edit + alcance da ação | orcamento:edit |
-| `GET /programas/:programa/:ciclo/plano` | plano:read; referências separadas por plano:create/edit/cancel | plano:read |
-| `POST /programas/:programa/:ciclo/plano` | plano:create + alcance da ação | plano:create |
-| `PATCH /programas/:programa/:ciclo/plano/:id` | plano:edit + alcance antigo e novo | plano:edit |
-| `GET /programas/:programa/:ciclo/plano/:id/historico` | plano:read | plano:read |
-| `POST /programas/:programa/:ciclo/plano/:id/cancelar` | plano:cancel + alcance da ação | plano:cancel |
-| `GET /programas/:programa/:ciclo/comite-gestor` | equipe-gestao:read | equipe-gestao:read |
-| `GET /programas/:programa/:ciclo/comite-gestor/execucao` | equipe-gestao:read | missao:read + prestacao:read |
-| `GET /programas/:programa/:ciclo/comite-gestor/painel` | equipe-gestao:read | missao:read + prestacao:read |
-| `GET /programas/:programa/:ciclo/comite-gestor/relatorios/missoes` | missao:read | missao:read |
-| `GET /programas/:programa/:ciclo/comite-gestor/relatorios/parceiros` | missao:read | missao:read + parceiro:read |
-| `GET /programas/:programa/:ciclo/comite-gestor/relatorios/financas` | prestacao:read | prestacao:read |
-| `GET /programas/:programa/:ciclo/comite-gestor/relatorios/resultados` | missao:read | missao:read + produto-missao:read |
-| `GET /programas/:programa/:ciclo/comite-gestor/relatorios/:qual/exportacao/:formato` | missao:read | Dinâmica: leitura do relatório + exportação do domínio (finanças: prestacao:export; demais: missao:export) |
-| `GET /programas/:programa/:ciclo/comite-gestor/missoes/:id/dossie` | missao:read | missao:read + missao:export; seções/documentos por capacidade |
-| `GET /programas/:programa/:ciclo/comite-gestor/equipes` | equipe-gestao:read | equipe-gestao:read |
-| `POST /programas/:programa/:ciclo/comite-gestor/equipes` | equipe-gestao:write | equipe-gestao:create |
-| `PATCH /programas/:programa/:ciclo/comite-gestor/equipes/:id` | equipe-gestao:write | equipe-gestao:edit |
-| `GET /programas/:programa/:ciclo/comite-gestor/missoes` | missao:read | missao:read |
-| `GET /programas/:programa/:ciclo/comite-gestor/referencias-missao` | missao:read | Referências da ação solicitada: missao:create ou missao:edit, alcance da ação |
-| `GET /programas/:programa/:ciclo/comite-gestor/missoes/:id` | missao:read | missao:read; seções por capacidade |
-| `GET /programas/:programa/:ciclo/comite-gestor/missoes/:id/prestacao` | prestacao:read | prestacao:read |
-| `POST /programas/:programa/:ciclo/comite-gestor/missoes/:id/prestacao` | prestacao:write | prestacao:create |
-| `PATCH /programas/:programa/:ciclo/comite-gestor/missoes/:id/prestacao` | prestacao:write | prestacao:edit |
-| `POST /programas/:programa/:ciclo/comite-gestor/missoes/:id/prestacao/envio` | prestacao:write | prestacao:submit |
-| `POST /programas/:programa/:ciclo/comite-gestor/missoes/:id/prestacao/validacao` | prestacao:review | prestacao:review |
-| `POST /programas/:programa/:ciclo/comite-gestor/missoes/:id/prestacao/devolucao` | prestacao:review | prestacao:review |
-| `POST /programas/:programa/:ciclo/comite-gestor/missoes/:id/prestacao/despesas` | prestacao:write | prestacao:create |
-| `PATCH /programas/:programa/:ciclo/comite-gestor/missoes/:id/prestacao/despesas/:despesaId` | prestacao:write | prestacao:edit |
-| `DELETE /programas/:programa/:ciclo/comite-gestor/missoes/:id/prestacao/despesas/:despesaId` | prestacao:write | prestacao:delete |
-| `POST /programas/:programa/:ciclo/comite-gestor/missoes` | missao:write | missao:create |
-| `PATCH /programas/:programa/:ciclo/comite-gestor/missoes/:id` | missao:edit | missao:edit |
-| `PATCH /programas/:programa/:ciclo/comite-gestor/missoes/:id/relato` | missao:write | missao:relato |
-| `GET /programas/:programa/:ciclo/comite-gestor/missoes/:id/requisitos` | missao:read | missao:read |
-| `GET /programas/:programa/:ciclo/comite-gestor/missoes/:id/encerramento` | missao:read | missao:read; seções por capacidade |
-| `POST /programas/:programa/:ciclo/comite-gestor/missoes/:id/encerramento/dispensa` | missao:decide | missao:dispensa |
-| `POST /programas/:programa/:ciclo/comite-gestor/missoes/:id/encerramento/revogacao` | missao:decide | missao:dispensa |
-| `POST /programas/:programa/:ciclo/comite-gestor/missoes/:id/submissao` | missao:submit | missao:submit |
-| `POST /programas/:programa/:ciclo/comite-gestor/missoes/:id/decisao` | missao:decide | missao:decide |
-| `POST /programas/:programa/:ciclo/comite-gestor/missoes/:id/analise/reabertura` | missao:reopen | missao:reopen-analise |
-| `GET /programas/:programa/:ciclo/comite-gestor/missoes/:id/analise` | missao:read | missao:read |
-| `POST /programas/:programa/:ciclo/comite-gestor/missoes/:id/situacao` | missao:write | Conforme destino: missao:confirm / missao:cancel / missao:close; nunca OR genérico |
-| `POST /programas/:programa/:ciclo/comite-gestor/missoes/:id/reabertura` | missao:edit | missao:reopen-execucao |
-| `GET /programas/:programa/:ciclo/comite-gestor/missoes/:id/produtos` | missao:read | produto-missao:read |
-| `POST /programas/:programa/:ciclo/comite-gestor/missoes/:id/produtos` | missao:write | produto-missao:create |
-| `PATCH /programas/:programa/:ciclo/comite-gestor/missoes/:id/produtos/:produtoId` | missao:write | produto-missao:edit |
-| `DELETE /programas/:programa/:ciclo/comite-gestor/missoes/:id/produtos/:produtoId` | missao:write | produto-missao:delete |
-| `POST /programas/:programa/:ciclo/comite-gestor/missoes/:id/produtos/resposta` | missao:write | produto-missao:declare |
-| `GET /programas/:programa/:ciclo/premissas` | premissa:read | premissa:read |
-| `GET /programas/:programa/:ciclo/pendencias` | pendencia:read | pendencia:read |
-| `POST /programas/:programa/:ciclo/pendencias` | pendencia:write | pendencia:create |
-| `PATCH /pendencias/:id` | pendencia:write | pendencia:resolve |
-| `DELETE /pendencias/:id` | pendencia:write | pendencia:delete |
+| `GET /programas` | `programa:read` | — |
+| `GET /programas/padrao/painel` | `painel:read` | — |
+| `GET /programas/:programa` | `programa:read` | — |
+| `GET /programas/:programa/:ciclo` | `programa:read` | — |
+| `GET /programas/:programa/:ciclo/painel` | `painel:read` | — |
+| `GET /programas/:programa/:ciclo/redes` | `orcamento:read` | Alcance da ação |
+| `GET /programas/:programa/:ciclo/tematicas/:codigo` | `orcamento:read` | Alcance da ação |
+| `GET /programas/:programa/:ciclo/tematicas/:codigo/participacoes/referencias` | — | `participacao:create` ou `participacao:edit`, resolvida no handler |
+| `POST /programas/:programa/:ciclo/tematicas/:codigo/participacoes` | `participacao:create` | — |
+| `PATCH /programas/:programa/:ciclo/tematicas/:codigo/participacoes/:id` | `participacao:edit` | — |
+| `DELETE /programas/:programa/:ciclo/tematicas/:codigo/participacoes/:id` | `participacao:delete` | — |
+| `GET /programas/:programa/:ciclo/orcamento` | `orcamento:read` | Alcance da ação; recorte parcial não fabrica teto nem saldo |
+| `PATCH /programas/:programa/:ciclo/orcamento/:id` | `orcamento:edit` | Alcance da ação |
+| `GET /programas/:programa/:ciclo/plano` | `plano:read` | Alcance da ação; referências separadas por `plano:create`/`edit`/`cancel` |
+| `POST /programas/:programa/:ciclo/plano` | `plano:create` | Alcance da ação |
+| `PATCH /programas/:programa/:ciclo/plano/:id` | `plano:edit` | Alcance antigo e novo |
+| `GET /programas/:programa/:ciclo/plano/:id/historico` | `plano:read` | Alcance da ação |
+| `POST /programas/:programa/:ciclo/plano/:id/cancelar` | `plano:cancel` | Alcance da ação |
+| `GET /programas/:programa/:ciclo/comite-gestor` | `equipe-gestao:read` | — |
+| `GET /programas/:programa/:ciclo/comite-gestor/execucao` | `missao:read` + `prestacao:read` | — |
+| `GET /programas/:programa/:ciclo/comite-gestor/painel` | `missao:read` + `prestacao:read` | Interseção dos dois alcances |
+| `GET /programas/:programa/:ciclo/comite-gestor/relatorios/missoes` | `missao:read` | Alcance da ação |
+| `GET /programas/:programa/:ciclo/comite-gestor/relatorios/parceiros` | `missao:read` + `parceiro:read` | Alcance de `missao:read` |
+| `GET /programas/:programa/:ciclo/comite-gestor/relatorios/financas` | `prestacao:read` | Alcance de `prestacao:read` |
+| `GET /programas/:programa/:ciclo/comite-gestor/relatorios/resultados` | `missao:read` + `produto-missao:read` | Interseção dos dois alcances |
+| `GET /programas/:programa/:ciclo/comite-gestor/relatorios/:qual/exportacao/:formato` | `missao:read` | Dinâmica: leitura do relatório + exportação do domínio (finanças: `prestacao:export`; demais: `missao:export`); recorte pela interseção de todas |
+| `GET /programas/:programa/:ciclo/comite-gestor/missoes/:id/dossie` | `missao:read` + `missao:export` | Seções e documentos por capacidade |
+| `GET /programas/:programa/:ciclo/comite-gestor/equipes` | `equipe-gestao:read` | — |
+| `POST /programas/:programa/:ciclo/comite-gestor/equipes` | `equipe-gestao:create` | — |
+| `PATCH /programas/:programa/:ciclo/comite-gestor/equipes/:id` | `equipe-gestao:edit` | — |
+| `GET /programas/:programa/:ciclo/comite-gestor/missoes` | `missao:read` | Alcance da ação |
+| `GET /programas/:programa/:ciclo/comite-gestor/referencias-missao` | `missao:read` | Redes pelo alcance de leitura: servem de filtro das listas. O formulário que cria ou edita pode oferecer rede que a escrita recusa — criar confere `missao:create` e editar `missao:edit`, no serviço |
+| `GET /programas/:programa/:ciclo/comite-gestor/missoes/:id` | `missao:read` | Seções por capacidade |
+| `GET /programas/:programa/:ciclo/comite-gestor/missoes/:id/prestacao` | `prestacao:read` | — |
+| `POST /programas/:programa/:ciclo/comite-gestor/missoes/:id/prestacao` | `prestacao:create` | — |
+| `PATCH /programas/:programa/:ciclo/comite-gestor/missoes/:id/prestacao` | `prestacao:edit` | — |
+| `POST /programas/:programa/:ciclo/comite-gestor/missoes/:id/prestacao/envio` | `prestacao:submit` | — |
+| `POST /programas/:programa/:ciclo/comite-gestor/missoes/:id/prestacao/validacao` | `prestacao:review` | — |
+| `POST /programas/:programa/:ciclo/comite-gestor/missoes/:id/prestacao/devolucao` | `prestacao:review` | — |
+| `POST /programas/:programa/:ciclo/comite-gestor/missoes/:id/prestacao/despesas` | `prestacao:create` | — |
+| `PATCH /programas/:programa/:ciclo/comite-gestor/missoes/:id/prestacao/despesas/:despesaId` | `prestacao:edit` | — |
+| `DELETE /programas/:programa/:ciclo/comite-gestor/missoes/:id/prestacao/despesas/:despesaId` | `prestacao:delete` | — |
+| `POST /programas/:programa/:ciclo/comite-gestor/missoes` | `missao:create` | Redes no alcance de `missao:create` |
+| `PATCH /programas/:programa/:ciclo/comite-gestor/missoes/:id` | `missao:edit` | Redes no alcance de `missao:edit`; não retira rede que não alcança |
+| `PATCH /programas/:programa/:ciclo/comite-gestor/missoes/:id/relato` | `missao:relato` | — |
+| `GET /programas/:programa/:ciclo/comite-gestor/missoes/:id/requisitos` | `missao:read` | — |
+| `GET /programas/:programa/:ciclo/comite-gestor/missoes/:id/encerramento` | `missao:read` | Seções por capacidade |
+| `POST /programas/:programa/:ciclo/comite-gestor/missoes/:id/encerramento/dispensa` | `missao:dispensa` | Até a V1-022 exigia `missao:decide`, e `missao:dispensa` concedida não tinha efeito |
+| `POST /programas/:programa/:ciclo/comite-gestor/missoes/:id/encerramento/revogacao` | `missao:dispensa` | Idem |
+| `POST /programas/:programa/:ciclo/comite-gestor/missoes/:id/submissao` | `missao:submit` | — |
+| `POST /programas/:programa/:ciclo/comite-gestor/missoes/:id/decisao` | `missao:decide` | — |
+| `POST /programas/:programa/:ciclo/comite-gestor/missoes/:id/analise/reabertura` | `missao:reopen-analise` | — |
+| `GET /programas/:programa/:ciclo/comite-gestor/missoes/:id/analise` | `missao:read` | — |
+| `POST /programas/:programa/:ciclo/comite-gestor/missoes/:id/situacao` | — | Conforme o destino: `missao:confirm`, `missao:cancel` ou `missao:close`, nunca OR genérico; o alcance da ação escolhida é conferido no handler (403 fora dele) |
+| `POST /programas/:programa/:ciclo/comite-gestor/missoes/:id/reabertura` | `missao:reopen-execucao` | — |
+| `GET /programas/:programa/:ciclo/comite-gestor/missoes/:id/produtos` | `produto-missao:read` | — |
+| `POST /programas/:programa/:ciclo/comite-gestor/missoes/:id/produtos` | `produto-missao:create` | — |
+| `PATCH /programas/:programa/:ciclo/comite-gestor/missoes/:id/produtos/:produtoId` | `produto-missao:edit` | — |
+| `DELETE /programas/:programa/:ciclo/comite-gestor/missoes/:id/produtos/:produtoId` | `produto-missao:delete` | — |
+| `POST /programas/:programa/:ciclo/comite-gestor/missoes/:id/produtos/resposta` | `produto-missao:declare` | — |
+| `GET /programas/:programa/:ciclo/premissas` | `premissa:read` | — |
+| `GET /programas/:programa/:ciclo/pendencias` | `pendencia:read` | — |
+| `POST /programas/:programa/:ciclo/pendencias` | `pendencia:create` | — |
+| `PATCH /pendencias/:id` | `pendencia:resolve` | — |
+| `DELETE /pendencias/:id` | `pendencia:delete` | — |
 
 ### health.controller.ts
 
-| Método e rota | Permissão atual / fronteira | Contrato V1 |
+| Método e rota | Decorador | Regra além do decorador |
 |---|---|---|
-| `GET /health` | Público | Público; sem dados do domínio |
-
-## Verificações desta entrega
-
-- Node 24.13.0, conforme `.nvmrc`.
-- Suíte unitária da API: 14 suítes, 86 testes aprovados (17 novos casos).
-- Lint dos arquivos novos e verificação TypeScript estrita isolada: aprovados.
-- Checagem de tipos da API completa impedida por dependências ausentes `pdfkit`,
-  `pdf-lib` e tipos PDFKit; não atribuída à autorização.
-- Não houve migration, alteração de realm, usuários reais ou ativação de guards.
-  Integração SQL e navegador ficam com as tarefas de persistência e aplicação.
+| `GET /health` | Público | Sem dados do domínio |

@@ -1,7 +1,10 @@
 import type { ExecutionContext } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { eq, sql } from 'drizzle-orm';
 
 import type { AuthUser } from '../src/auth/auth-user';
+import { REQUIRED_PERMISSIONS_KEY } from '../src/auth/auth.decorators';
+import type { PermissaoV1 } from '../src/auth/autorizacao-v1/catalogo';
 import { EscopoMissaoGuard } from '../src/auth/escopo-missao.guard';
 import { IdentidadeService } from '../src/auth/identidade.service';
 import { copiarModelo } from '../src/auth/autorizacao-v1/modelos';
@@ -77,7 +80,7 @@ describe('Recorte por rede das missoes (CG-028)', () => {
     missoes = new MissoesComiteService(ctx.db, new EncerramentoService(ctx.db));
     painel = new PainelComiteService(ctx.db);
     anexos = new AnexosService(ctx.db, new ArmazenamentoService(), identidade);
-    guard = new EscopoMissaoGuard(ctx.db, identidade);
+    guard = new EscopoMissaoGuard(ctx.db, identidade, new Reflector());
   });
 
   afterAll(async () => {
@@ -243,32 +246,79 @@ describe('Recorte por rede das missoes (CG-028)', () => {
    * `route.path` e o padrao registrado pelo Nest, nunca a URL digitada: e o
    * que impede alguem de forjar um caminho que escape do guard.
    */
-  function requisicao(usuario: AuthUser, id: string): ExecutionContext {
+  function requisicao(
+    usuario: AuthUser,
+    id: string,
+    exige: PermissaoV1[] = ['missao:read'],
+  ): ExecutionContext {
     const request = {
       user: usuario,
       params: { id },
       route: { path: '/programas/:programa/:ciclo/comite-gestor/missoes/:id' },
     };
+    // O handler carrega o `@RequirePermission` da rota, como o Nest faria.
+    const handler = () => undefined;
+    Reflect.defineMetadata(REQUIRED_PERMISSIONS_KEY, exige, handler);
     return {
       switchToHttp: () => ({ getRequest: () => request }),
+      getHandler: () => handler,
+      getClass: () => class {},
     } as unknown as ExecutionContext;
+  }
+
+  /**
+   * Conta que le todas as redes, mas so edita e cria na do gestor.
+   *
+   * E o caso que a V1-022 encontrou: o recorte das missoes era sempre o de
+   * `missao:read`, e a acao alcancava onde a leitura alcancasse.
+   */
+  const consultorEditor: AuthUser = {
+    id: 'sub-consultor-editor',
+    name: 'Lê tudo, edita uma rede',
+    roles: [],
+    permissions: [
+      'missao:read',
+      'missao:edit',
+      'missao:create',
+      'missao:confirm',
+    ],
+  };
+
+  async function criarConsultorEditor() {
+    const { usuarioId } = await criarConta(
+      { ...consultorEditor, permissions: ['missao:read'] },
+      { tipo: 'GLOBAL' },
+    );
+    await ctx.db.insert(s.concessaoAcesso).values(
+      (['missao:edit', 'missao:create', 'missao:confirm'] as const).map(
+        (permissao) => ({
+          usuarioId,
+          permissao,
+          justificativa: 'Escrita so na rede do gestor.',
+          ...colunasDoAlvo({ tipo: 'REDE', redeId: base.redeId }),
+        }),
+      ),
+    );
   }
 
   // --- resolucao do escopo ---------------------------------------------------
 
   it('a rede vem da concessao, e revogar tira o acesso', async () => {
-    expect((await identidade.escopoDe(gestor)).redeIds).toEqual([base.redeId]);
+    expect(
+      (await identidade.recorteDeMissoes(gestor)).alcanca(base.redeId),
+    ).toBe(true);
 
     // Revogadas, as concessoes param de valer na consulta seguinte — sem
     // esperar o token expirar, e sem depender de o vinculo de equipe ter sido
-    // encerrado. Revoga-se a conta inteira porque `escopoDe` soma o alcance de
-    // **todas** as acoes: deixar uma de pe deixaria a rede de pe com ela.
+    // encerrado.
     await ctx.db.update(s.concessaoAcesso).set({
       ativo: false,
       revogadoEm: sql`now()`,
     });
 
-    expect((await identidade.escopoDe(gestor)).redeIds).toEqual([]);
+    expect(
+      (await identidade.recorteDeMissoes(gestor)).alcanca(base.redeId),
+    ).toBe(false);
   });
 
   it('o vinculo de equipe, sozinho, nao da acesso a rede nenhuma', async () => {
@@ -304,7 +354,9 @@ describe('Recorte por rede das missoes (CG-028)', () => {
       .insert(s.membroEquipeGestaoRede)
       .values({ membroEquipeId: membro.id, redeId: base.redeId });
 
-    expect((await identidade.escopoDe(semConcessao)).redeIds).toEqual([]);
+    expect(
+      (await identidade.recorteDeMissoes(semConcessao)).alcanca(base.redeId),
+    ).toBe(false);
   });
 
   it('duas concessoes de rede somam alcance', async () => {
@@ -320,9 +372,9 @@ describe('Recorte por rede das missoes (CG-028)', () => {
       ...colunasDoAlvo({ tipo: 'REDE', redeId: outraRedeId }),
     });
 
-    expect([...(await identidade.escopoDe(gestor)).redeIds].sort()).toEqual(
-      [base.redeId, outraRedeId].sort(),
-    );
+    const recorte = await identidade.recorteDeMissoes(gestor);
+    expect(recorte.alcanca(base.redeId)).toBe(true);
+    expect(recorte.alcanca(outraRedeId)).toBe(true);
   });
 
   it('gestor sem vinculo nenhum ve lista vazia, e nao o ciclo inteiro', async () => {
@@ -490,6 +542,72 @@ describe('Recorte por rede das missoes (CG-028)', () => {
     expect(await guard.canActivate(requisicao(gestor, propria))).toBe(true);
     expect(await guard.canActivate(requisicao(comite, alheia))).toBe(true);
     expect(await guard.canActivate(requisicao(admin, alheia))).toBe(true);
+  });
+
+  it('leitura alcanca, mas a acao da rota nao: 403, e nao 404', async () => {
+    await criarConsultorEditor();
+    const alheia = await criarMissao('MCG-063', [outraRedeId]);
+    const propria = await criarMissao('MCG-064', [base.redeId]);
+
+    // Ler a missao vizinha continua valendo: a leitura e GLOBAL.
+    expect(await guard.canActivate(requisicao(consultorEditor, alheia))).toBe(
+      true,
+    );
+    // Editar, nao — e a recusa e 403, porque a missao ja e conhecida.
+    await expect(
+      guard.canActivate(requisicao(consultorEditor, alheia, ['missao:edit'])),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(
+      await guard.canActivate(
+        requisicao(consultorEditor, propria, ['missao:edit']),
+      ),
+    ).toBe(true);
+  });
+
+  it('a transicao pelo corpo confere o alcance da acao escolhida', async () => {
+    await criarConsultorEditor();
+    const alheia = await criarMissao('MCG-065', [outraRedeId]);
+    const propria = await criarMissao('MCG-066', [base.redeId]);
+
+    await expect(
+      identidade.exigirAcaoNaMissao(consultorEditor, alheia, 'missao:confirm'),
+    ).rejects.toMatchObject({ status: 403 });
+    await expect(
+      identidade.exigirAcaoNaMissao(consultorEditor, propria, 'missao:confirm'),
+    ).resolves.toBeUndefined();
+  });
+
+  it('criar missao usa o alcance de missao:create, nao o da leitura', async () => {
+    await criarConsultorEditor();
+
+    await expect(
+      missoes.criar(
+        base.cicloId,
+        missaoValida([outraRedeId]),
+        consultorEditor,
+        await identidade.recorteDeMissoes(consultorEditor, 'missao:create'),
+      ),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('com mais de uma acao, o recorte e a intersecao dos alcances', async () => {
+    await criarConsultorEditor();
+
+    const recorte = await identidade.recorteDeMissoes(
+      consultorEditor,
+      'missao:read',
+      'missao:edit',
+    );
+    expect(recorte.alcanca(base.redeId)).toBe(true);
+    expect(recorte.alcanca(outraRedeId)).toBe(false);
+
+    // Acao nao concedida zera a intersecao.
+    const semPrestacao = await identidade.recorteDeMissoes(
+      consultorEditor,
+      'missao:read',
+      'prestacao:read',
+    );
+    expect(semPrestacao.alcanca(base.redeId)).toBe(false);
   });
 
   it('id que nao e uuid nao chega ao banco', async () => {

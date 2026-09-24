@@ -272,7 +272,7 @@ export default async function MissaoDetalhePagina({
     missao.statusAprovacao !== "EM_ANALISE" &&
     missao.status !== "CANCELADA" &&
     missao.status !== "CONCLUIDA";
-  const podeDispensar = me.permissions.includes("missao:decide");
+  const podeDispensar = me.permissions.includes("missao:dispensa");
   /*
     Produtos (V1-031). Cada verbo tem a sua permissão, e a tela oferece só o
     que a conta tem: `produto-missao:create` não implica `:edit`, e nenhum dos

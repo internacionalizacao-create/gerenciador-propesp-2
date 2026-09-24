@@ -64,10 +64,9 @@ Não encerram V1-001 nem executam automaticamente as tarefas seguintes.
 **Recorte do responsável em 2026-09-22 — a V1 se concentra na autorização.**
 DNS, implantação, backup, observabilidade, limites, dados institucionais,
 relatórios e reconciliação de documentação foram **adiados por decisão**
-(V1-002, 038, 040, 041, 050, 051, 053, 054, 055, 056 e 060). O trabalho ativo é
-**V1-022** — validar e consolidar o fluxo de autorização agnóstica ponta a
-ponta — e **V1-057**, a auditoria dos atos de acesso, que é parte do mesmo
-fluxo. **Adiar não é dispensar:** nenhuma ficha adiada foi julgada
+(V1-002, 038, 040, 041, 050, 051, 053, 054, 055, 056 e 060). A **V1-022 foi concluída em 2026-09-23**, com recortes por ação,
+inventário conferido pelo código e jornadas de autorização em sessão real.
+O trabalho ativo segue na **V1-057**, auditoria dos atos de acesso. **Adiar não é dispensar:** nenhuma ficha adiada foi julgada
 desnecessária, e a V1-060 continua sendo o único lugar onde a versão é aceita —
 a V1-022 é aceite técnico do fluxo, não homologação. As nove P2 seguem
 opcionais, como já eram.
@@ -182,7 +181,7 @@ dependências são obrigatórios, exceto quando a ficha indicar uma condição.
 | V1-019 | P0 | Navegação e orientação por acesso efetivo — concluída | 013, 015, 017 (entregue antes de 013/015: não dependia delas) |
 | V1-020 | P0 | Regressão da matriz de autorização — concluída | 013–019 |
 | V1-021 | P0 | Ativação restritiva e rollback — concluída (a/d/e entregues; b/c canceladas) | 018–020 |
-| V1-022 | P0 | **Validar e consolidar o fluxo de autorização — foco atual** | 010–021 |
+| V1-022 | P0 | Validar e consolidar o fluxo de autorização — concluída | 010–021 |
 | V1-030 | P0 | Ciclo de vida completo da missão na web — concluída | 001 |
 | V1-031 | P0 | Produtos de missão na web — concluída | 001 |
 | V1-032 | P1 | Gestão de convênios na web — concluída | 016 |
@@ -276,7 +275,7 @@ Fichas: [autorização](backlog-v1/01-autorizacao.md),
 ## V1-002 — Reconciliar documentação e vocabulário
 
 - **Estado / data:** **Adiada por decisão do responsável — 2026-09-22.** Fica
-  fora do foco atual, que é o fluxo de autorização (V1-022). O conteúdo desta
+  fora do foco de autorização e auditoria (V1-022/057). O conteúdo desta
   ficha segue válido e exigível; só não é o trabalho desta rodada.
 - **Objetivo:** eliminar pendências fictícias e descrições contraditórias sem
   apagar o histórico de CG/BOL.

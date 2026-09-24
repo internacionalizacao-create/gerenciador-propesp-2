@@ -10,6 +10,7 @@ import { z } from 'zod';
 
 import { DRIZZLE, type Database } from '../../database/database.module';
 import * as s from '../../database/schema';
+import { violouUnicidade } from '../../comum/postgres';
 import type { AuthUser } from '../auth-user';
 import { AcessoV1Service, type AcessoResolvido } from './acesso-v1.service';
 import { podeAdministrarConcessao } from './administracao';
@@ -60,6 +61,12 @@ export const revogacaoSchema = z.strictObject({
   motivo: z.string().trim().min(5).max(2000),
 });
 export type Revogacao = z.infer<typeof revogacaoSchema>;
+
+export const reassociacaoSchema = z.strictObject({
+  pessoaId: z.uuid('Pessoa inválida.'),
+  motivo: z.string().trim().min(5).max(2000),
+});
+export type Reassociacao = z.infer<typeof reassociacaoSchema>;
 
 /** Capacidades que, juntas, permitem retomar a administracao. */
 const DE_RECUPERACAO = [
@@ -405,6 +412,98 @@ export class ConcessoesService {
 
       return { revogado: true };
     });
+  }
+
+  /**
+   * Liga a conta a outra pessoa do cadastro local.
+   *
+   * Trocar a pessoa e trocar **quem a conta e** — as concessoes ficam na conta,
+   * mas tudo que se registra em nome da pessoa passa a sair dali. Por isso a
+   * mesma politica das concessoes (V1-022; ate aqui a rota so conferia a
+   * permissao do decorador):
+   *
+   * - **sem autoalteracao** — senao quem reassocia se torna a pessoa que
+   *   quiser, inclusive a que responde por uma missao;
+   * - **conta que administra acesso exige `acesso:delegate`** — senao
+   *   `acesso:manage-identidade` contornaria a delegacao, trocando a identidade
+   *   por tras de um administrador;
+   * - **motivo obrigatorio e auditado** na mesma transacao.
+   */
+  async reassociarPessoa(ator: AuthUser, usuarioId: string, dto: Reassociacao) {
+    const acessoDoAtor = await this.acesso.resolver(ator.id);
+    if (!acessoDoAtor.ativo || !acessoDoAtor.usuarioId) {
+      throw new ForbiddenException('Conta sem vínculo local ativo.');
+    }
+    if (acessoDoAtor.usuarioId === usuarioId) {
+      throw new ForbiddenException(
+        'Ninguém altera a própria identidade por esta API.',
+      );
+    }
+
+    const conta = await this.conta(usuarioId);
+
+    const [administra] = await this.db
+      .select({ id: s.concessaoAcesso.id })
+      .from(s.concessaoAcesso)
+      .where(
+        and(
+          eq(s.concessaoAcesso.usuarioId, usuarioId),
+          eq(s.concessaoAcesso.ativo, true),
+          sql`${s.concessaoAcesso.permissao} like 'acesso:%'`,
+        ),
+      )
+      .limit(1);
+    if (administra && !acessoDoAtor.alcance('acesso:delegate').global) {
+      throw new ForbiddenException(
+        'Esta conta administra acessos. Permissão necessária: acesso:delegate',
+      );
+    }
+
+    const [pessoa] = await this.db
+      .select({ id: s.pessoa.id })
+      .from(s.pessoa)
+      .where(eq(s.pessoa.id, dto.pessoaId));
+    if (!pessoa) throw new NotFoundException('Pessoa não encontrada.');
+
+    if (conta.pessoaId === dto.pessoaId) return { vinculado: true };
+
+    try {
+      await this.db.transaction(async (tx) => {
+        await tx
+          .update(s.usuarioSistema)
+          .set({
+            pessoaId: dto.pessoaId,
+            origem: 'MANUAL',
+            vinculadoPorId: ator.id,
+          })
+          .where(eq(s.usuarioSistema.id, usuarioId));
+
+        await tx.insert(s.registroAuditoria).values({
+          entidadeTipo: 'usuario_sistema',
+          entidadeId: usuarioId,
+          acao: 'EDICAO',
+          campo: 'pessoa_id',
+          // Identificadores, nunca nome ou documento: a trilha explica o ato
+          // sem copiar dado pessoal.
+          valorAnterior: conta.pessoaId,
+          valorNovo: dto.pessoaId,
+          usuarioId: ator.id,
+          usuarioNome: ator.name ?? ator.username,
+          justificativa: dto.motivo,
+        });
+      });
+    } catch (erro) {
+      // `usuario_sistema_pessoa_uk`: a pessoa ja e de outra conta, inclusive
+      // por corrida entre dois administradores.
+      if (violouUnicidade(erro)) {
+        throw new BadRequestException(
+          'Esta pessoa já está vinculada a outra conta.',
+        );
+      }
+      throw erro;
+    }
+
+    return { vinculado: true };
   }
 
   // -------------------------------------------------------------------------

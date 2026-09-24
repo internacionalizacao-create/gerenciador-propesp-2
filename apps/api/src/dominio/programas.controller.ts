@@ -28,7 +28,7 @@ import {
 } from '../auth/autorizacao-v1/alcance';
 import { IdentidadeService } from '../auth/identidade.service';
 import type { AuthUser } from '../auth/auth-user';
-import type { Permission } from '../auth/permissions';
+import type { PermissaoV1 } from '../auth/autorizacao-v1/catalogo';
 import { ZodValidationPipe } from '../comum/zod-validation.pipe';
 import {
   atualizarPrestacaoSchema,
@@ -757,7 +757,13 @@ export class ProgramasController {
     return this.painelComite.montar(
       ciclo.cicloId,
       filtro,
-      await this.identidade.recorteDeMissoes(usuario),
+      // Intersecao: o painel mistura missoes e prestacao, e so mostra a rede
+      // onde as duas leituras valem.
+      await this.identidade.recorteDeMissoes(
+        usuario,
+        'missao:read',
+        'prestacao:read',
+      ),
     );
   }
 
@@ -824,7 +830,10 @@ export class ProgramasController {
     return this.relatorios.financasDoRecorte(
       ciclo.cicloId,
       filtro,
-      await this.identidade.recorteDeMissoes(usuario),
+      await this.identidade.recorteDeMissoes(
+        usuario,
+        ...LEITURA_DO_RELATORIO.financas,
+      ),
     );
   }
 
@@ -841,7 +850,10 @@ export class ProgramasController {
     return this.relatorios.resultadosDoRecorte(
       ciclo.cicloId,
       filtro,
-      await this.identidade.recorteDeMissoes(usuario),
+      await this.identidade.recorteDeMissoes(
+        usuario,
+        ...LEITURA_DO_RELATORIO.resultados,
+      ),
     );
   }
 
@@ -884,7 +896,17 @@ export class ProgramasController {
       qual as NomeDeRelatorio,
       formato as Formato,
       filtro,
-      await this.identidade.recorteDeMissoes(usuario),
+      // O recorte da tela mais o da exportacao: o arquivo nunca traz rede que
+      // a tela nao mostraria, nem rede onde a conta so le mas nao exporta.
+      await this.identidade.recorteDeMissoes(
+        usuario,
+        ...[
+          ...new Set([
+            ...LEITURA_DO_RELATORIO[qual as NomeDeRelatorio],
+            ...permissoesDoRelatorio(qual as NomeDeRelatorio),
+          ]),
+        ],
+      ),
     );
     responderArquivo(resposta, arquivo);
   }
@@ -1143,7 +1165,7 @@ export class ProgramasController {
       ciclo.cicloId,
       dto,
       usuario,
-      await this.identidade.recorteDeMissoes(usuario),
+      await this.identidade.recorteDeMissoes(usuario, 'missao:create'),
     );
   }
 
@@ -1163,7 +1185,7 @@ export class ProgramasController {
       id,
       dto,
       usuario,
-      await this.identidade.recorteDeMissoes(usuario),
+      await this.identidade.recorteDeMissoes(usuario, 'missao:edit'),
     );
   }
 
@@ -1218,12 +1240,13 @@ export class ProgramasController {
   /**
    * Dispensa um requisito de encerramento desta missao.
    *
-   * `missao:decide` e a permissao do Comite, que o `admin` tambem tem — e
-   * exatamente "admin e Comite", decidido em 2026-09-06. Nenhuma permissao nova
-   * foi criada: quem delibera sobre a missao e quem pode abrir excecao nela.
+   * `missao:dispensa`, e nao `missao:decide`: o catalogo da V1 separou as duas
+   * acoes, e o modelo do Comite traz ambas — "admin e Comite", como decidido em
+   * 2026-09-06. Exigir `decide` aqui deixava `dispensa` concedida sem efeito e
+   * dava a quem so julga a analise o poder de abrir excecao no encerramento.
    */
   @Post(':programa/:ciclo/comite-gestor/missoes/:id/encerramento/dispensa')
-  @RequirePermission('missao:decide')
+  @RequirePermission('missao:dispensa')
   async dispensarRequisito(
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
@@ -1238,7 +1261,7 @@ export class ProgramasController {
 
   /** Revoga a dispensa sem apagar a linha — ela explica por que a missao fechou. */
   @Post(':programa/:ciclo/comite-gestor/missoes/:id/encerramento/revogacao')
-  @RequirePermission('missao:decide')
+  @RequirePermission('missao:dispensa')
   async revogarDispensa(
     @Param('programa') slug: string,
     @Param('ciclo') nome: string,
@@ -1333,7 +1356,11 @@ export class ProgramasController {
     @CurrentUser() usuario: AuthUser,
     @Body(new ZodValidationPipe(transicaoMissaoSchema)) dto: TransicaoMissao,
   ) {
-    exigirTodas(usuario, [PERMISSAO_DA_TRANSICAO[dto.acao]]);
+    const permissao = PERMISSAO_DA_TRANSICAO[dto.acao];
+    exigirTodas(usuario, [permissao]);
+    // O guard so conhece o decorador, e esta rota nao tem: o alcance da acao
+    // escolhida pelo corpo e conferido aqui.
+    await this.identidade.exigirAcaoNaMissao(usuario, id, permissao);
 
     const ciclo = await this.contexto.resolver(slug, nome);
     return this.missoesComite.transicionar(ciclo.cicloId, id, dto, usuario);
@@ -1551,7 +1578,19 @@ function rubricaValida(rubrica: string | undefined): Rubrica | undefined {
  * Os demais partem da missao. Parceiros e resultados repetem aqui a leitura que
  * seus endpoints ja exigem, senao a exportacao seria a porta lateral deles.
  */
-function permissoesDoRelatorio(qual: NomeDeRelatorio): Permission[] {
+/**
+ * As leituras cujo alcance recorta cada relatorio na tela — as mesmas do
+ * decorador da rota de consulta. `parceiro:read` fica de fora porque so admite
+ * GLOBAL e nao recorta rede nenhuma.
+ */
+const LEITURA_DO_RELATORIO: Record<NomeDeRelatorio, PermissaoV1[]> = {
+  missoes: ['missao:read'],
+  parceiros: ['missao:read'],
+  financas: ['prestacao:read'],
+  resultados: ['missao:read', 'produto-missao:read'],
+};
+
+function permissoesDoRelatorio(qual: NomeDeRelatorio): PermissaoV1[] {
   switch (qual) {
     case 'financas':
       return ['prestacao:read', 'prestacao:export'];
@@ -1565,7 +1604,7 @@ function permissoesDoRelatorio(qual: NomeDeRelatorio): Permission[] {
 }
 
 /** Recusa citando o que faltou, no mesmo formato do `PermissionsGuard`. */
-function exigirTodas(usuario: AuthUser, permissoes: readonly Permission[]) {
+function exigirTodas(usuario: AuthUser, permissoes: readonly PermissaoV1[]) {
   const faltando = permissoes.filter((p) => !usuario.permissions.includes(p));
   if (faltando.length > 0) {
     throw new ForbiddenException(
@@ -1575,7 +1614,7 @@ function exigirTodas(usuario: AuthUser, permissoes: readonly Permission[]) {
 }
 
 /** Uma permissao por destino da transicao — nunca um OR entre as tres. */
-const PERMISSAO_DA_TRANSICAO: Record<TransicaoMissao['acao'], Permission> = {
+const PERMISSAO_DA_TRANSICAO: Record<TransicaoMissao['acao'], PermissaoV1> = {
   CONFIRMAR: 'missao:confirm',
   CANCELAR: 'missao:cancel',
   CONCLUIR: 'missao:close',

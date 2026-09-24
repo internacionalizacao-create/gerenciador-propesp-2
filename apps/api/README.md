@@ -65,34 +65,18 @@ Os dois guards são **globais**, então todo endpoint exige login por padrão:
 @CurrentUser() user: AuthUser          // injeta o usuário autenticado
 ```
 
-Código em [src/auth/](src/auth); catálogo de permissões e mapa papel → permissão em
-[src/auth/permissions.ts](src/auth/permissions.ts); arquitetura completa em
+Código em [src/auth/](src/auth); catálogo de permissões em
+[src/auth/autorizacao-v1/catalogo.ts](src/auth/autorizacao-v1/catalogo.ts) — papel
+do Keycloak não concede nada; quem concede são as concessões da aplicação;
+arquitetura completa em
 [docs/autenticacao.md](../../docs/autenticacao.md).
 
 ### Endpoints atuais
 
-| Rota | Acesso |
-|---|---|
-| `GET /health` | público |
-| `GET /me` | autenticado |
-| `GET /me/exemplo-restrito` | exige `plano:write` — sonda usada pelo `pnpm smoke:login` |
-| `GET /programas` · `GET /programas/:slug` | `programa:read` |
-| `GET /programas/padrao/painel` | `painel:read` — painel do ciclo aberto por padrão |
-| `GET /programas/:programa/:ciclo` | `programa:read` — índice do ciclo (P06) |
-| `GET /programas/:programa/:ciclo/painel` | `painel:read` (P01) |
-| `GET /programas/:programa/:ciclo/redes` | `orcamento:read` (P07) |
-| `GET /programas/:programa/:ciclo/tematicas/:codigo` | `orcamento:read` (P08) |
-| `GET /programas/:programa/:ciclo/orcamento` | `orcamento:read` (P09) |
-| `GET /programas/:programa/:ciclo/plano` | `plano:read` (P10) |
-| `POST /programas/:programa/:ciclo/plano` | `plano:write` |
-| `POST /programas/:programa/:ciclo/plano/:id/cancelar` | `plano:write` |
-| `GET /programas/:programa/:ciclo/comite-gestor` | `orcamento:read` (P17) |
-| `GET /programas/:programa/:ciclo/premissas` | `premissa:read` (P16) |
-| `GET /programas/:programa/:ciclo/pendencias` · `POST` | `pendencia:read` / `pendencia:write` (P13) |
-| `PATCH /pendencias/:id` · `DELETE /pendencias/:id` | `pendencia:write` |
-| `GET /ppgs` · `GET /ppgs/:id` | `ppg:read` (P14) |
-| `POST /ppgs` · `PATCH /ppgs/:id` | `ppg:write` |
-| `GET /catalogo/bolsas` · `GET /catalogo/modalidades` | `catalogo:read` (P15, P23) |
+O [inventário de rotas e autorização](../../docs/contrato-autorizacao-v1.md#inventário-de-rotas)
+lista cada endpoint, seu decorador e as regras de alcance. O teste
+`src/auth/inventario-rotas.spec.ts` confere essa tabela contra os metadados dos
+controllers em cada execução de `pnpm test`.
 
 O endereço carrega slug e nome de ciclo (`/programas/capes-global/2027-2030`) em
 vez de UUID: dá para ler a URL e saber de que ciclo se trata, o que importa

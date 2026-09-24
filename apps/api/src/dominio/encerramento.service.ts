@@ -151,9 +151,8 @@ export class EncerramentoService {
   /**
    * Dispensa um requisito desta missao.
    *
-   * Exige `missao:decide` no controller — a permissao do Comite, que o `admin`
-   * tambem tem. Foi a decisao de 2026-09-06 ("admin e comite"), e ela nao pediu
-   * permissao nova: quem delibera sobre a missao e quem pode abrir excecao nela.
+   * Exige `missao:dispensa` no controller — no modelo do Comite, que o `admin`
+   * tambem tem. Foi a decisao de 2026-09-06 ("admin e comite").
    *
    * Duas recusas que evitam dispensa inutil: chave que nao esta no checklist
    * daquela missao (dispensaria coisa nenhuma, e ficaria na tabela para sempre)

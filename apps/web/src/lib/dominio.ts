@@ -523,8 +523,12 @@ export interface LinhaPpg {
   emRede: boolean;
   redeAcademica: string | null;
   coordenador: string | null;
-  bolsasAno: number;
-  custoAno: string;
+  /** Nulo: nenhum planejamento deste PPG no alcance de `plano:read` da conta. */
+  bolsasAno: number | null;
+  custoAno: string | null;
+  /** O alcance de `plano:read` não é global: os números somam só o alcançado. */
+  planoRecortado: boolean;
+  podeLerPlano: boolean;
   tematicas: string[];
   redes: string[];
 }
@@ -577,7 +581,10 @@ export interface PpgDetalhe {
     valorUnitario: string | null;
     custoAnual: string | null;
     tematica: string | null;
-  }[];
+  }[] | null;
+  /** O plano acima traz só as linhas no alcance de `plano:read` da conta. */
+  planoRecortado: boolean;
+  podeLerPlano: boolean;
   alertaTematicaDuplicada: string | null;
 }
 

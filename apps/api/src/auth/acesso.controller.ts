@@ -1,11 +1,9 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Get,
   HttpCode,
   Inject,
-  NotFoundException,
   Param,
   Post,
 } from '@nestjs/common';
@@ -20,8 +18,10 @@ import { CurrentUser, RequirePermission } from './auth.decorators';
 import {
   ConcessoesService,
   lotedeConcessoesSchema,
+  reassociacaoSchema,
   revogacaoSchema,
   type LoteDeConcessoes,
+  type Reassociacao,
   type Revogacao,
 } from './autorizacao-v1/concessoes.service';
 
@@ -139,42 +139,12 @@ export class AcessoController {
    */
   @Post('usuarios/:id/pessoa')
   @RequirePermission('acesso:manage-identidade')
-  async reassociar(
+  reassociar(
     @Param('id', new ZodValidationPipe(z.uuid('Usuário inválido.')))
     usuarioId: string,
-    @Body(new ZodValidationPipe(z.object({ pessoaId: z.uuid() })))
-    dto: { pessoaId: string },
+    @Body(new ZodValidationPipe(reassociacaoSchema)) dto: Reassociacao,
     @CurrentUser() usuario: AuthUser,
   ) {
-    const [pessoa] = await this.db
-      .select({ id: s.pessoa.id })
-      .from(s.pessoa)
-      .where(eq(s.pessoa.id, dto.pessoaId));
-    if (!pessoa) throw new NotFoundException('Pessoa não encontrada.');
-
-    const [jaVinculada] = await this.db
-      .select({ id: s.usuarioSistema.id })
-      .from(s.usuarioSistema)
-      .where(eq(s.usuarioSistema.pessoaId, dto.pessoaId));
-    if (jaVinculada && jaVinculada.id !== usuarioId) {
-      throw new BadRequestException(
-        'Esta pessoa já está vinculada a outra conta.',
-      );
-    }
-
-    const atualizados = await this.db
-      .update(s.usuarioSistema)
-      .set({
-        pessoaId: dto.pessoaId,
-        origem: 'MANUAL',
-        vinculadoPorId: usuario.id,
-      })
-      .where(eq(s.usuarioSistema.id, usuarioId))
-      .returning({ id: s.usuarioSistema.id });
-
-    if (atualizados.length === 0) {
-      throw new NotFoundException('Usuário não encontrado.');
-    }
-    return { vinculado: true };
+    return this.concessoes.reassociarPessoa(usuario, usuarioId, dto);
   }
 }

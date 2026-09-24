@@ -2,7 +2,7 @@
 
 Referência para quem (pessoa ou LLM) vai mexer neste repositório sem tê-lo escrito: o que o
 sistema é, como rodá-lo, as regras que não podem ser quebradas e onde está o resto.
-**Mantenha-o atualizado quando mudar arquitetura ou convenção.** Última revisão: 2026-09-22.
+**Mantenha-o atualizado quando mudar arquitetura ou convenção.** Última revisão: 2026-09-23.
 
 **Não é changelog.** O relato de *quando* cada peça entrou está em
 [docs/historico/](docs/historico/README.md), com as justificativas inteiras — o corte de
@@ -22,10 +22,10 @@ interlocutor nominal a levantar, e as fichas de infraestrutura não devem voltar
 
 **Recorte de 2026-09-22: a V1 se concentra no fluxo de autorização.** DNS, implantação,
 backup, observabilidade, limites, dados institucionais, relatórios e reconciliação de
-documentação estão **adiados por decisão do responsável**. O trabalho ativo é a **V1-022** —
-validar e consolidar ponta a ponta a autorização agnóstica, e fechar o que sobrou do modelo
-anterior, a começar pelo `escopoDe` agregado em `ppgs.service.ts` e no `/me` — mais a
-**V1-057**, auditoria dos atos de acesso. Adiar não é dispensar: as fichas continuam
+documentação estão **adiados por decisão do responsável**. A **V1-022 foi concluída em
+2026-09-23**: recorte por ação também nas respostas de PPG, retirada do escopo agregado,
+inventário de rotas conferido pelo código e percurso automatizado com sessão real.
+O trabalho ativo segue na **V1-057**, auditoria dos atos de acesso. Adiar não é dispensar: as fichas continuam
 exigíveis antes de qualquer publicação na intranet, e a homologação da versão segue sendo a
 V1-060. Na V1-015, CPF, e-mail pessoal e telefone não serão enviados sem capacidade
 específica e alcance. Cadastro pode informar CPF sem capacidade de leitura; edição preserva

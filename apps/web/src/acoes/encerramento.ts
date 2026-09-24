@@ -28,9 +28,8 @@ const revalidar = (contexto: Contexto) => [
 /**
  * Dispensa um requisito desta missão.
  *
- * Exige `missao:decide` na API — a permissão do Comitê, que o `admin` também
- * tem. Foi a decisão de 2026-09-06 ("admin e Comitê"), e por isso nenhuma
- * permissão nova precisou existir.
+ * Exige `missao:dispensa` na API — do modelo do Comitê, que o `admin` também
+ * tem. Foi a decisão de 2026-09-06 ("admin e Comitê").
  */
 export async function dispensarRequisito(
   contexto: Contexto & { chave: string },
